@@ -93,10 +93,38 @@ export default function FormatTab({ tour, event, db, a, canEdit, isMobile, onOpe
   const groupBal = isRR && numGroups > 1 && full.length >= numGroups * 2 ? calcGroupBalance(snakeGroups(full, numGroups)) : null
 
   return (
-    <div style={{ display: 'grid', gridTemplateColumns: isMobile ? '1fr' : 'minmax(180px,220px) minmax(0,1fr) minmax(240px,300px)', gap: 12, alignItems: 'start' }}>
-      <div style={{ display: 'grid', gap: 8 }}>
+    <div style={{ display: 'grid', gridTemplateColumns: isMobile ? '1fr' : 'minmax(200px,240px) minmax(0,1fr) minmax(240px,300px)', gap: 14, alignItems: 'start' }}>
+      <div style={{ display: 'grid', gap: 10 }}>
         {canEdit && (
-          <Button variant="secondary" icon="wand-sparkles" onClick={() => setRecommending(true)}>{t('tournament.recommend.open')}</Button>
+          <button
+            type="button"
+            onClick={() => setRecommending(true)}
+            style={{
+              padding: '14px',
+              borderRadius: 10,
+              background: 'rgba(0, 178, 169, 0.12)',
+              border: '1px solid var(--teal-500)',
+              display: 'flex',
+              flexDirection: 'column',
+              gap: 6,
+              textAlign: 'left',
+              cursor: 'pointer',
+              color: 'inherit',
+              transition: 'background .2s, border-color .2s, transform .15s',
+            }}
+            onMouseEnter={(e) => { e.currentTarget.style.background = 'rgba(0, 178, 169, 0.18)' }}
+            onMouseLeave={(e) => { e.currentTarget.style.background = 'rgba(0, 178, 169, 0.12)' }}
+          >
+            <span style={{ font: '700 14px/1.2 var(--font-display)', color: 'var(--text-primary)' }}>
+              {t('tournament.recommend.open')}
+            </span>
+            <span style={{ font: 'var(--type-caption)', color: 'var(--text-secondary)', lineHeight: 1.4 }}>
+              {t('tournament.recommend.hint')}
+            </span>
+            <span style={{ font: '700 12px/1 var(--font-sans)', color: 'var(--teal-300)', marginTop: 2 }}>
+              {t('tournament.format.openRecommender')}
+            </span>
+          </button>
         )}
         <Overline>{t('tournament.format.templates')}</Overline>
         {TEMPLATES.map((k) => {
@@ -106,13 +134,23 @@ export default function FormatTab({ tour, event, db, a, canEdit, isMobile, onOpe
               style={{
                 display: 'grid', gap: 5, textAlign: 'left', padding: '12px 14px', borderRadius: 10, color: 'inherit',
                 cursor: editable ? 'pointer' : 'default', background: 'var(--surface-card)',
-                border: `1px solid ${on ? 'var(--teal-500)' : 'var(--border-subtle)'}`, boxShadow: on ? '0 0 0 1px var(--teal-500)' : 'var(--shadow-xs)',
+                border: `1px solid ${on ? 'var(--teal-500)' : 'var(--border-subtle)'}`,
+                boxShadow: on ? '0 0 0 1px var(--teal-500)' : 'var(--shadow-xs)',
+                transition: 'border-color .2s, box-shadow .2s',
               }}>
-              <span style={{ font: '700 13.5px/1.2 var(--font-sans)', color: 'var(--text-primary)' }}>{t('tournament.format.tpl.' + k)}</span>
+              <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', gap: 6 }}>
+                <span style={{ font: '700 13.5px/1.2 var(--font-sans)', color: 'var(--text-primary)' }}>{t('tournament.format.tpl.' + k)}</span>
+                {on && <span style={{ width: 6, height: 6, borderRadius: '50%', background: 'var(--teal-500)' }} />}
+              </div>
               <span style={{ font: 'var(--type-caption)', color: 'var(--text-muted)' }}>{t('tournament.format.tplSub.' + k)}</span>
             </button>
           )
         })}
+        {currentTemplate === 'custom' && !scheduled && (
+          <div style={{ padding: '10px 12px', borderRadius: 8, border: '1px dashed var(--teal-500)', font: '600 12.5px/1.3 var(--font-sans)', color: 'var(--teal-300)', background: 'rgba(0, 178, 169, 0.05)' }}>
+            {t('tournament.format.customized')}
+          </div>
+        )}
         {/* Mẫu CLB đã lưu (0060): bấm để dựng lại sơ đồ trong 1 bước */}
         {(tour.templates || []).map((x) => (
           <div key={x.id} style={{ position: 'relative' }}>
@@ -130,19 +168,112 @@ export default function FormatTab({ tour, event, db, a, canEdit, isMobile, onOpe
             )}
           </div>
         ))}
-        {canEdit && saved && (
-          <div style={{ display: 'grid', gap: 6, paddingTop: 4 }}>
-            {onOpenFlow && editable && (
-              <Button size="sm" variant="secondary" iconAfter="arrow-right" onClick={() => onOpenFlow(event.id)}>{t('tournament.format.editOnCanvas')}</Button>
-            )}
-            <Button size="sm" variant="ghost" icon="save" onClick={() => setSavingTpl(true)}>{t('tournament.format.saveTemplate')}</Button>
-          </div>
-        )}
       </div>
 
-      <Card title={t('tournament.format.title', { name: t('tournament.kind.' + event.kind) })} icon="settings-2" padding="12px 18px 6px">
-        {scheduled && <Alert tone="info">{t('tournament.format.lockedRules')}</Alert>}
-        {currentTemplate === 'custom' && !scheduled && <Alert tone="info">{t('tournament.canvas.custom')}</Alert>}
+      <div style={{ display: 'grid', gap: 12 }}>
+        {/* Stage Flow Pipeline (Diagram luồng đấu trực quan theo handoff) */}
+        <div style={{
+          padding: '14px 16px',
+          background: 'var(--surface-inset)',
+          border: '1px solid var(--border-subtle)',
+          borderRadius: 12,
+          display: 'flex',
+          alignItems: 'center',
+          gap: 10,
+          overflowX: 'auto',
+        }}>
+          {/* Giai đoạn 1 */}
+          <div style={{
+            display: 'flex',
+            flexDirection: 'column',
+            gap: 2,
+            padding: '8px 12px',
+            borderRadius: 8,
+            background: 'var(--surface-card)',
+            border: '1px solid var(--teal-500)',
+            minWidth: 120,
+          }}>
+            <div style={{ display: 'flex', alignItems: 'center', gap: 6 }}>
+              <span style={{ width: 18, height: 18, borderRadius: 4, display: 'grid', placeItems: 'center', background: 'var(--teal-500)', color: '#04302C', font: '700 10.5px/1 var(--font-mono)' }}>1</span>
+              <span style={{ font: '700 12.5px/1.2 var(--font-sans)', color: 'var(--text-primary)' }}>
+                {isRR ? t('tournament.format.groupStage') : t('tournament.round.final')}
+              </span>
+            </div>
+            <span style={{ font: '500 11px/1 var(--font-mono)', color: 'var(--text-muted)' }}>
+              {isRR ? t('tournament.format.groupSub', { groups: numGroups, teams: full.length }) : t('tournament.format.koSub', { teams: full.length })}
+            </span>
+          </div>
+
+          {/* Giai đoạn 2 (nếu có) */}
+          {nextStage && (
+            <>
+              <span style={{ color: 'var(--border-strong)', font: '600 14px/1 var(--font-mono)' }}>──→</span>
+              <div style={{
+                display: 'flex',
+                flexDirection: 'column',
+                gap: 2,
+                padding: '8px 12px',
+                borderRadius: 8,
+                background: 'var(--surface-card)',
+                border: '1px solid var(--border-default)',
+                minWidth: 120,
+              }}>
+                <div style={{ display: 'flex', alignItems: 'center', gap: 6 }}>
+                  <span style={{ width: 18, height: 18, borderRadius: 4, display: 'grid', placeItems: 'center', background: 'var(--surface-accent-soft)', color: 'var(--teal-300)', font: '700 10.5px/1 var(--font-mono)' }}>2</span>
+                  <span style={{ font: '700 12.5px/1.2 var(--font-sans)', color: 'var(--text-primary)' }}>
+                    {t(plateStage ? 'tournament.stage.main' : 'tournament.format.koStage')}
+                  </span>
+                </div>
+                <span style={{ font: '500 11px/1 var(--font-mono)', color: 'var(--text-muted)' }}>
+                  {t('tournament.format.advanceSub', { n: counts.main })}
+                </span>
+              </div>
+            </>
+          )}
+
+          {/* Giai đoạn 3 (Plate Stage - nếu có) */}
+          {plateStage && (
+            <>
+              <span style={{ color: 'var(--border-strong)', font: '600 14px/1 var(--font-mono)' }}>──→</span>
+              <div style={{
+                display: 'flex',
+                flexDirection: 'column',
+                gap: 2,
+                padding: '8px 12px',
+                borderRadius: 8,
+                background: 'var(--surface-card)',
+                border: '1px solid var(--border-default)',
+                minWidth: 120,
+              }}>
+                <div style={{ display: 'flex', alignItems: 'center', gap: 6 }}>
+                  <span style={{ width: 18, height: 18, borderRadius: 4, display: 'grid', placeItems: 'center', background: 'var(--surface-accent-soft)', color: 'var(--text-secondary)', font: '700 10.5px/1 var(--font-mono)' }}>3</span>
+                  <span style={{ font: '700 12.5px/1.2 var(--font-sans)', color: 'var(--text-primary)' }}>
+                    {t('tournament.stage.plate')}
+                  </span>
+                </div>
+                <span style={{ font: '500 11px/1 var(--font-mono)', color: 'var(--text-muted)' }}>
+                  {t('tournament.format.plateSub', { n: counts.plate })}
+                </span>
+              </div>
+            </>
+          )}
+        </div>
+
+        <Card
+          title={t('tournament.format.title', { name: t('tournament.kind.' + event.kind) })}
+          icon="settings-2"
+          padding="14px 18px 8px"
+          actions={canEdit && saved && (
+            <div style={{ display: 'flex', gap: 8, alignItems: 'center' }}>
+              {onOpenFlow && editable && (
+                <Button size="sm" variant="secondary" iconAfter="arrow-right" onClick={() => onOpenFlow(event.id)}>{t('tournament.format.editOnCanvas')}</Button>
+              )}
+              <Button size="sm" variant="ghost" icon="save" onClick={() => setSavingTpl(true)}>{t('tournament.format.saveTemplate')}</Button>
+            </div>
+          )}
+        >
+          {scheduled && <Alert tone="info">{t('tournament.format.lockedRules')}</Alert>}
+          {currentTemplate === 'custom' && !scheduled && <Alert tone="info">{t('tournament.canvas.custom')}</Alert>}
         
         {isRR ? (
           <>
@@ -216,6 +347,7 @@ export default function FormatTab({ tour, event, db, a, canEdit, isMobile, onOpe
           </>
         )}
       </Card>
+      </div>
 
       <div style={{ display: 'grid', gap: 12 }}>
         <Card title={full.length >= 2 ? t('tournament.format.preview', { n: full.length }) : t('tournament.format.previewNone')} padding="10px 16px 12px">

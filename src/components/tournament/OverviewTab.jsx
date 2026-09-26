@@ -154,17 +154,17 @@ export default function OverviewTab({ tour, db, a, event, onGo, canEdit, onOpenB
           </div>
         </div>
 
-        {/* 2. Thanh Tiến Độ Giai Đoạn (Stage Pipeline Bar) */}
+        {/* 2. Thanh Tiến Độ Giai Đoạn (Stage Timeline Pipeline) chuẩn handoff */}
         {curStages.length > 0 && (
           <div style={{
-            padding: '12px 16px',
+            padding: '14px 16px',
             borderRadius: 12,
             background: 'var(--surface-card)',
             border: '1px solid var(--border-subtle)',
             display: 'flex',
             alignItems: 'center',
-            gap: 16,
-            flexWrap: 'wrap',
+            gap: 0,
+            overflowX: 'auto',
           }}>
             {curStages.map((st, i) => {
               const isRunning = st.status === 'running'
@@ -177,49 +177,106 @@ export default function OverviewTab({ tour, db, a, event, onGo, canEdit, onOpenB
                 : t('tournament.overview.koStageDesc', { total: stageTotal })
 
               return (
-                <div key={st.id} style={{ display: 'flex', alignItems: 'center', gap: 12 }}>
-                  {i > 0 && (
-                    <span style={{ font: '700 16px/1 var(--font-sans)', color: 'var(--text-muted)' }}>
-                      →
-                    </span>
-                  )}
-                  <div style={{ display: 'flex', alignItems: 'center', gap: 10 }}>
-                    <span style={{
-                      width: 22,
-                      height: 22,
-                      borderRadius: '50%',
-                      display: 'grid',
-                      placeItems: 'center',
-                      font: '700 11px/1 var(--font-mono)',
-                      background: isRunning ? 'var(--teal-500)' : (isDone ? 'var(--status-delivered-fg)' : 'var(--surface-inset)'),
-                      color: isRunning || isDone ? 'var(--action-accent-fg)' : 'var(--text-muted)',
-                      border: isRunning || isDone ? 'none' : '1px solid var(--border-default)',
-                    }}>
-                      {st.seq}
-                    </span>
-                    <div style={{ display: 'grid', gap: 2 }}>
-                      <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
-                        <span style={{ font: '700 13px/1.2 var(--font-sans)', color: 'var(--text-primary)' }}>
-                          {stageName(st, curStages)}
-                        </span>
-                        <span style={{
-                          padding: '1px 6px',
-                          borderRadius: 4,
-                          font: '700 9.5px/1 var(--font-sans)',
-                          background: isRunning ? 'var(--surface-accent-soft)' : (isDone ? 'var(--status-delivered-bg)' : 'var(--surface-inset)'),
-                          color: isRunning ? 'var(--teal-500)' : (isDone ? 'var(--status-delivered-fg)' : 'var(--text-muted)'),
-                        }}>
-                          {isRunning ? t('tournament.overview.stageRunning') : (isDone ? t('tournament.overview.stageDone') : t('tournament.overview.stagePending'))}
-                        </span>
-                      </div>
-                      <span style={{ font: '400 11px/1 var(--font-mono)', color: 'var(--text-muted)' }}>
-                        {subInfo}
+                <div key={st.id} style={{ flex: '1 1 auto', display: 'flex', alignItems: 'center', gap: 10, minWidth: 200 }}>
+                  <span style={{
+                    width: 22,
+                    height: 22,
+                    borderRadius: '50%',
+                    display: 'grid',
+                    placeItems: 'center',
+                    flex: '0 0 auto',
+                    font: '700 11px/1 var(--font-mono)',
+                    background: isRunning ? 'var(--teal-500)' : (isDone ? 'var(--status-delivered-fg)' : 'var(--surface-sunken)'),
+                    color: isRunning || isDone ? 'var(--action-accent-fg)' : 'var(--text-muted)',
+                    border: isRunning || isDone ? 'none' : '1px solid var(--border-subtle)',
+                  }}>
+                    {st.seq}
+                  </span>
+                  <div style={{ display: 'flex', flexDirection: 'column', gap: 2, minWidth: 0 }}>
+                    <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
+                      <span style={{ font: '600 13px/1.2 var(--font-sans)', color: 'var(--text-primary)', whiteSpace: 'nowrap' }}>
+                        {stageName(st, curStages)}
+                      </span>
+                      <span style={{
+                        padding: '1px 6px',
+                        borderRadius: 4,
+                        font: '700 9.5px/1 var(--font-sans)',
+                        background: isRunning ? 'var(--surface-accent-soft)' : (isDone ? 'var(--status-delivered-bg)' : 'var(--surface-sunken)'),
+                        color: isRunning ? 'var(--teal-500)' : (isDone ? 'var(--status-delivered-fg)' : 'var(--text-muted)'),
+                        whiteSpace: 'nowrap',
+                      }}>
+                        {isRunning ? t('tournament.overview.stageRunning') : (isDone ? t('tournament.overview.stageDone') : t('tournament.overview.stagePending'))}
                       </span>
                     </div>
+                    <span style={{ font: '400 11px/1 var(--font-mono)', color: 'var(--text-muted)', whiteSpace: 'nowrap' }}>
+                      {subInfo}
+                    </span>
                   </div>
+                  {i < curStages.length - 1 && (
+                    <span style={{ flex: 1, height: 1, background: 'var(--border-subtle)', margin: '0 12px', minWidth: 20 }} />
+                  )}
                 </div>
               )
             })}
+          </div>
+        )}
+
+        {/* Khối "Trước khi bắt đầu" (Checklist) nổi bật khi giải ở trạng thái chuẩn bị */}
+        {(!evTotalMatches || tour.status === 'draft' || tour.status === 'registration') && (
+          <div style={{
+            padding: '14px 18px',
+            background: 'var(--surface-card)',
+            border: '1px solid var(--border-subtle)',
+            borderRadius: 12,
+            display: 'flex',
+            flexDirection: 'column',
+            gap: 12,
+          }}>
+            <span style={{ font: '700 14px/1.2 var(--font-display)', color: 'var(--text-primary)' }}>
+              {t('tournament.check.title')}
+            </span>
+            <div style={{ display: 'grid', gap: 8 }}>
+              {list.map((c) => (
+                <div key={c.key} style={{ display: 'flex', alignItems: 'center', gap: 10 }}>
+                  <span style={{
+                    width: 18,
+                    height: 18,
+                    borderRadius: '50%',
+                    display: 'grid',
+                    placeItems: 'center',
+                    flex: '0 0 auto',
+                    background: c.done ? 'var(--status-delivered-bg)' : 'var(--surface-sunken)',
+                    color: c.done ? 'var(--status-delivered-fg)' : 'var(--text-muted)',
+                    border: c.done ? 'none' : '1px dashed var(--border-default)',
+                  }}>
+                    {c.done && <Icon name="check" size={11} />}
+                  </span>
+                  <span style={{
+                    flex: 1,
+                    font: '400 13px/1.3 var(--font-sans)',
+                    color: c.done ? 'var(--text-muted)' : 'var(--text-primary)',
+                  }}>
+                    {label(c)}
+                  </span>
+                  {!c.done && canEdit && c.tab !== 'overview' && (
+                    <button
+                      type="button"
+                      onClick={() => onGo(c.tab)}
+                      style={{
+                        background: 'transparent',
+                        border: 'none',
+                        color: 'var(--teal-500)',
+                        font: '600 12px/1 var(--font-sans)',
+                        cursor: 'pointer',
+                        padding: '4px 6px',
+                      }}
+                    >
+                      {t('tournament.check.go')} →
+                    </button>
+                  )}
+                </div>
+              ))}
+            </div>
           </div>
         )}
 

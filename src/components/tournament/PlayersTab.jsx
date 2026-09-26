@@ -12,11 +12,16 @@ import { Seg } from './TourBits.jsx'
  * "Mở rộng" — gắn nhãn Khách. Giải miễn phí: ẩn hẳn phí / đã đóng (không có gì để tick).
  */
 export default function PlayersTab({ tour, db, a, canEdit, isMobile, event, onGo }) {
+  const [q, setQ] = useState('')
+  const [filter, setFilter] = useState('all') // 'all' | 'members' | 'guests'
   const [adding, setAdding] = useState(false)
-  const [filter, setFilter] = useState('all') // 'all' | 'guests'
   const entered = useMemo(() => new Set(tour.entries.map((e) => e.eventId + ':' + e.registrationId)), [tour.entries])
   const rows = useMemo(() => tour.registrations
-    .map((r) => ({ ...r, name: regName(tour, db, r) }))
+    .map((r) => {
+      const name = regName(tour, db, r)
+      const initials = name.split(/\s+/).filter(Boolean).slice(-2).map((w) => w[0].toUpperCase()).join('')
+      return { ...r, name, initials }
+    })
     .sort((x, y) => (x.status === y.status ? compareVietnameseNames(x.name, y.name) : x.status === 'registered' ? -1 : 1)),
   [tour, db])
 
@@ -56,23 +61,42 @@ export default function PlayersTab({ tour, db, a, canEdit, isMobile, event, onGo
     {
       key: 'name', header: t('tournament.players.colName'),
       render: (r) => (
-        <span style={{ display: 'inline-flex', alignItems: 'center', gap: 8, opacity: r.status === 'registered' ? 1 : 0.55 }}>
-          <span style={{ font: '600 13.5px/1.2 var(--font-sans)', color: 'var(--text-primary)' }}>{r.name}</span>
-          {r.level && <LevelChip level={r.level} levels={db.levels} />}
-          {r.status !== 'registered' && <Mono size={11} color="var(--text-muted)">{t('tournament.players.withdrawn')}</Mono>}
+        <span style={{ display: 'inline-flex', alignItems: 'center', gap: 10, opacity: r.status === 'registered' ? 1 : 0.55 }}>
+          <span style={{
+            width: 28, height: 28, borderRadius: '50%', display: 'grid', placeItems: 'center', flexShrink: 0,
+            font: '700 11px/1 var(--font-display)',
+            background: r.gender === 'nu' ? 'var(--gender-nu-bg)' : 'var(--gender-nam-bg)',
+            color: r.gender === 'nu' ? 'var(--gender-nu-fg)' : 'var(--gender-nam-fg)',
+          }}>
+            {r.initials || '–'}
+          </span>
+          <div style={{ display: 'flex', flexDirection: 'column', gap: 2 }}>
+            <div style={{ display: 'flex', alignItems: 'center', gap: 6 }}>
+              <span style={{ font: '600 13px/1.2 var(--font-sans)', color: 'var(--text-primary)' }}>{r.name}</span>
+              {r.level && <LevelChip level={r.level} levels={db.levels} />}
+            </div>
+            {r.status !== 'registered' && <Mono size={10.5} color="var(--text-muted)">{t('tournament.players.withdrawn')}</Mono>}
+          </div>
         </span>
       ),
     },
     {
-      key: 'source', header: t('tournament.players.colSource'), width: 96,
+      key: 'source', header: t('tournament.players.colSource'), width: 100,
       render: (r) => (r.playerType === 'guest'
-        ? <Mono size={10.5} weight={700} color="var(--status-transit-fg)">{t('tournament.players.guestTag')}</Mono>
-        : <span style={{ font: 'var(--type-caption)', color: 'var(--text-muted)' }}>{t('tournament.players.sourceMember')}</span>),
+        ? <span style={{ padding: '2px 6px', borderRadius: 4, background: 'var(--status-delayed-bg)', color: 'var(--status-delayed-fg)', font: '700 10px/1 var(--font-mono)' }}>{t('tournament.players.guestTag')}</span>
+        : <span style={{ padding: '2px 6px', borderRadius: 4, background: 'var(--surface-accent-soft)', color: 'var(--teal-500)', font: '700 10px/1 var(--font-mono)' }}>{t('tournament.players.sourceMember')}</span>),
     },
     { key: 'gender', header: t('tournament.players.colGender'), width: 70, render: (r) => <GenderChip gender={r.gender} /> },
     {
-      key: 'rating', header: t('tournament.players.colRating'), width: 80, align: 'right',
-      render: (r) => <Mono>{r.ratingSnapshot == null ? '—' : Math.round(r.ratingSnapshot)}</Mono>,
+      key: 'rating', header: t('tournament.players.colRating'), width: 90, align: 'right',
+      render: (r) => (
+        <div style={{ display: 'flex', flexDirection: 'column', alignItems: 'flex-end', gap: 1 }}>
+          <Mono size={13} weight={600}>{r.ratingSnapshot == null ? '—' : Math.round(r.ratingSnapshot)}</Mono>
+          <span style={{ font: '400 10px/1 var(--font-mono)', color: 'var(--text-muted)' }}>
+            {r.playerType === 'guest' ? t('tournament.players.ratingSelf') : t('tournament.players.ratingClub')}
+          </span>
+        </div>
+      ),
     },
     {
       key: 'events', header: t('tournament.players.colEvents'),
@@ -101,22 +125,39 @@ export default function PlayersTab({ tour, db, a, canEdit, isMobile, event, onGo
   ]
 
   const active = rows.filter((r) => r.status === 'registered').length
+  const memberRows = rows.filter((r) => r.playerType !== 'guest')
   const guestRows = rows.filter((r) => r.playerType === 'guest')
-  const shown = filter === 'guests' ? guestRows : rows
+  const filtered = filter === 'guests' ? guestRows : filter === 'members' ? memberRows : rows
+  const shown = q.trim()
+    ? filtered.filter((r) => r.name.toLowerCase().includes(q.trim().toLowerCase()))
+    : filtered
+
   // Giải "Nội bộ" mà vẫn còn khách đăng ký từ trước (đổi phạm vi sau): giữ nguyên họ, chỉ báo rõ — không tự gỡ.
   const hiddenNote = tour.scope !== 'open' && guestRows.some((r) => r.status === 'registered')
   const pairingEvent = event && event.teamSize > 1 ? event : null
   return (
     <>
       {hiddenNote && <Alert tone="info">{t('tournament.players.hiddenGuests', { n: guestRows.filter((r) => r.status === 'registered').length })}</Alert>}
-      {guestRows.length > 0 && (
-        <div style={{ display: 'flex', gap: 8 }}>
-          <Seg options={[
-            { key: 'all', label: t('tournament.players.filterAll', { n: rows.length }) },
-            { key: 'guests', label: t('tournament.players.filterGuests', { n: guestRows.length }) },
-          ]} value={filter} onChange={setFilter} />
+      
+      {/* Thanh công cụ lọc nguồn & tìm kiếm */}
+      <div style={{ display: 'flex', alignItems: 'center', gap: 12, flexWrap: 'wrap', marginBottom: 4 }}>
+        <Seg options={[
+          { key: 'all', label: t('tournament.players.filterAll', { n: rows.length }) },
+          { key: 'members', label: `${t('tournament.players.sourceMember')} (${memberRows.length})` },
+          { key: 'guests', label: t('tournament.players.filterGuests', { n: guestRows.length }) },
+        ]} value={filter} onChange={setFilter} />
+
+        <div style={{ width: isMobile ? '100%' : 220 }}>
+          <SearchField
+            size="sm"
+            placeholder={t('tournament.players.searchPlaceholder')}
+            value={q}
+            onChange={(e) => setQ(e.target.value)}
+            onClear={() => setQ('')}
+          />
         </div>
-      )}
+      </div>
+
       <Card
         title={t('tournament.players.title')}
         subtitle={rows.length ? t(free ? 'tournament.sub.playersFree' : 'tournament.sub.players', { n: active, unpaid }) : undefined}

@@ -29,73 +29,86 @@ export default function TourModuleNav({ tour, active = 'hub', events = [], event
 
   return (
     <div style={{
-      display: 'flex', alignItems: 'center', justifyContent: 'space-between', gap: 14, flexWrap: isMobile ? 'wrap' : 'nowrap',
-      padding: '8px 16px', minHeight: 56, borderRadius: 12, background: 'var(--surface-nav)', border: '1px solid var(--border-nav)',
+      display: 'flex', alignItems: 'center', gap: 16, flexWrap: isMobile ? 'wrap' : 'nowrap',
+      padding: isMobile ? '8px 12px' : '0 20px', minHeight: 52, background: 'var(--surface-nav)',
+      borderBottom: '1px solid var(--border-nav)', position: 'relative', zIndex: 10,
+      margin: isMobile ? '-14px -14px 14px' : '-20px -22px 16px',
     }}>
+      <style>{`
+        @keyframes tourLivePulse {
+          0%, 100% { opacity: 1; transform: scale(1); }
+          50% { opacity: 0.35; transform: scale(0.75); }
+        }
+      `}</style>
+
       {tour && (
-        <div style={{ display: 'flex', alignItems: 'center', gap: 10, minWidth: 0 }}>
+        <div style={{ display: 'flex', alignItems: 'center', gap: 10, minWidth: 0, textDecoration: 'none' }}>
           <span style={{
-            width: 32, height: 32, borderRadius: 8, flexShrink: 0, display: 'grid', placeItems: 'center',
-            background: 'var(--action-accent-bg)', color: 'var(--action-accent-fg)', font: '700 12px/1 var(--font-mono)', letterSpacing: '0.05em',
+            width: 26, height: 26, borderRadius: 7, flexShrink: 0, display: 'grid', placeItems: 'center',
+            background: 'var(--teal-500)', color: 'var(--action-accent-fg)', font: '700 11px/1 var(--font-display)',
           }}>
             {t('tournament.module.badge')}
           </span>
-          <span style={{ display: 'grid', gap: 3, minWidth: 0 }}>
-            <span style={{ font: '700 14px/1.2 var(--font-sans)', color: 'var(--text-primary)', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>
+          <span style={{ display: 'flex', flexDirection: 'column', gap: 2, minWidth: 0 }}>
+            <span style={{ font: '700 14px/1.2 var(--font-display)', color: 'var(--text-primary)', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>
               {tour.name}
             </span>
-            {subMeta && <span style={{ font: '400 11.5px/1 var(--font-mono)', color: 'var(--text-muted)', whiteSpace: 'nowrap' }}>{subMeta}</span>}
+            {subMeta && <span style={{ font: '400 10.5px/1 var(--font-mono)', color: 'var(--text-muted)', whiteSpace: 'nowrap' }}>{subMeta}</span>}
           </span>
         </div>
       )}
 
-      <div style={{ display: 'flex', justifyContent: tour ? 'center' : 'flex-start', flex: '1 1 auto', minWidth: 0 }}>
-        <TabTrack>
-          <nav style={{
-            display: 'flex', alignItems: 'center', gap: 6, padding: 3, borderRadius: 10,
-            background: 'var(--surface-sunken)', border: '1px solid var(--border-subtle)',
-          }}>
-            {steps.map((s, i) => {
-              const on = s.key === active
-              return (
-                <button
-                  key={s.key}
-                  type="button"
-                  disabled={s.off}
-                  aria-current={on ? 'page' : undefined}
-                  onClick={on ? undefined : s.onClick}
-                  style={{
-                    display: 'flex', alignItems: 'center', gap: 7, padding: '6px 14px', borderRadius: 7, whiteSpace: 'nowrap',
-                    border: `1px solid ${on ? 'var(--teal-500)' : 'transparent'}`,
-                    background: on ? 'var(--surface-accent-soft)' : 'transparent',
-                    cursor: on || s.off ? 'default' : 'pointer', opacity: s.off ? 0.45 : 1,
-                    font: '600 12.5px/1 var(--font-sans)', color: on ? 'var(--text-primary)' : 'var(--text-secondary)',
-                    transition: 'background var(--dur-fast), border-color var(--dur-fast)',
-                  }}
-                >
-                  <span style={{
-                    width: 18, height: 18, borderRadius: '50%', display: 'grid', placeItems: 'center', font: '700 10px/1 var(--font-mono)',
-                    background: on ? 'var(--action-accent-bg)' : 'transparent',
-                    color: on ? 'var(--action-accent-fg)' : 'var(--text-muted)',
-                    border: on ? 'none' : '1px solid var(--border-default)',
-                  }}>
-                    {i + 1}
-                  </span>
-                  {s.label}
-                </button>
-              )
-            })}
-          </nav>
-        </TabTrack>
-      </div>
+      {!isMobile && <span style={{ width: 1, height: 24, background: 'var(--border-subtle)', flexShrink: 0 }} />}
 
-      <div style={{ display: 'flex', alignItems: 'center', gap: 12, flexShrink: 0, flexWrap: 'wrap' }}>
+      <nav style={{
+        display: 'flex', alignItems: 'stretch', height: isMobile ? 'auto' : 52, gap: 4,
+        overflowX: 'auto', flex: isMobile ? '1 1 100%' : '1 1 auto', minWidth: 0,
+      }}>
+        {steps.map((s, i) => {
+          const on = s.key === active
+          return (
+            <button
+              key={s.key}
+              type="button"
+              disabled={s.off}
+              aria-current={on ? 'page' : undefined}
+              onClick={on ? undefined : s.onClick}
+              style={{
+                display: 'flex', alignItems: 'center', gap: 8, padding: isMobile ? '8px 10px' : '0 12px',
+                border: 'none', background: 'transparent', cursor: on || s.off ? 'default' : 'pointer',
+                opacity: s.off ? 0.4 : 1, whiteSpace: 'nowrap',
+                font: '600 13px/1 var(--font-sans)', color: on ? 'var(--text-primary)' : 'var(--text-muted)',
+                borderBottom: isMobile ? 'none' : `2px solid ${on ? 'var(--teal-500)' : 'transparent'}`,
+                marginBottom: isMobile ? 0 : -1,
+                transition: 'color var(--dur-fast), border-color var(--dur-fast)',
+              }}
+            >
+              <span style={{
+                width: 20, height: 20, borderRadius: 5, display: 'grid', placeItems: 'center',
+                font: '700 10.5px/1 var(--font-mono)',
+                background: on ? 'var(--teal-500)' : 'var(--surface-raised)',
+                color: on ? 'var(--action-accent-fg)' : 'var(--text-muted)',
+                border: on ? 'none' : '1px solid var(--border-default)',
+              }}>
+                {i + 1}
+              </span>
+              {s.label}
+            </button>
+          )
+        })}
+      </nav>
+
+      <div style={{ display: 'flex', alignItems: 'center', gap: 12, flexShrink: 0, marginLeft: 'auto' }}>
         {liveCount > 0 && (
-          <span style={{ display: 'inline-flex', alignItems: 'center', gap: 6, font: '600 12.5px/1 var(--font-sans)', color: 'var(--status-delivered-fg)', whiteSpace: 'nowrap' }}>
-            <span style={{ width: 7, height: 7, borderRadius: '50%', background: 'var(--status-delivered-fg)' }} />
+          <span style={{ display: 'inline-flex', alignItems: 'center', gap: 7, font: '600 12px/1 var(--font-sans)', color: 'var(--status-delivered-fg)', whiteSpace: 'nowrap' }}>
+            <span style={{
+              width: 7, height: 7, borderRadius: '50%', background: 'var(--status-delivered-fg)',
+              animation: 'tourLivePulse 1.8s infinite ease-in-out',
+            }} />
             {t('tournament.module.liveCount', { n: liveCount })}
           </span>
         )}
+
         {active === 'bracket' && events.length > 1 && (
           <Select
             size="sm"
@@ -103,11 +116,16 @@ export default function TourModuleNav({ tour, active = 'hub', events = [], event
             value={eventId}
             onChange={(e) => onBracket(e.target.value)}
             options={events.map((ev) => ({ value: ev.id, label: t('tournament.kind.' + ev.kind) }))}
-            containerStyle={{ minWidth: 150, width: isMobile ? '100%' : undefined }}
+            containerStyle={{ minWidth: 130 }}
           />
         )}
-        {onScore && <Button size="sm" icon="pencil" onClick={onScore}>{t('tournament.module.enterScore')}</Button>}
+        {onScore && (
+          <Button size="sm" variant="primary" icon="pencil" onClick={onScore}>
+            {t('tournament.module.enterScore')}
+          </Button>
+        )}
       </div>
     </div>
   )
 }
+

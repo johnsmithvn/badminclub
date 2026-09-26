@@ -8,9 +8,9 @@ import { t } from '#i18n'
 import { matchCode, ruleLabel, teamName } from './tourUtils.js'
 
 const EASE = 'cubic-bezier(.2,.8,.2,1)' // DESIGN.md §6
-const CARD_W = 232
-const ARM = 20 // nửa khoảng giữa hai cột — dài một nhánh đường nối
-const SLOT_H = 108 // chiều cao một ô trận ở vòng đầu (thẻ ~92 + khe)
+const CARD_W = 242
+const ARM = 24 // nửa khoảng giữa hai cột — dài một nhánh đường nối
+const SLOT_H = 112 // chiều cao một ô trận ở vòng đầu (thẻ ~94 + khe)
 const SWAP_MIME = 'text/x-tour-swap'
 
 /**
@@ -46,13 +46,13 @@ export default function BracketBoard({ view, tour, db, canEdit, isMobile, onScor
       if (!a || !b) return
       const ra = a.getBoundingClientRect()
       const rb = b.getBoundingClientRect()
-      const glow = gold ? 'var(--podium-gold)' : 'var(--teal-500)'
+      const glow = gold ? 'rgba(240, 183, 92, 0.5)' : 'rgba(0, 178, 169, 0.45)'
       b.animate([
         { transform: `translate(${ra.left - rb.left}px, ${ra.top - rb.top}px) scale(1.04)`, boxShadow: `0 12px 30px ${glow}`, zIndex: 5 },
         { transform: 'translate(0, 0) scale(1.06)', offset: 0.8, boxShadow: `0 0 0 2px ${glow}` },
         { transform: 'none', boxShadow: '0 0 0 0 transparent' },
       ], { duration: gold ? 760 : 620, easing: EASE })
-      b.animate([{ backgroundColor: gold ? 'var(--status-delayed-bg)' : 'var(--surface-accent-soft)' }, { backgroundColor: 'transparent' }],
+      b.animate([{ backgroundColor: gold ? 'rgba(240, 210, 106, 0.35)' : 'rgba(0, 178, 169, 0.35)' }, { backgroundColor: 'transparent' }],
         { duration: 900, delay: gold ? 700 : 480, easing: 'ease-out' })
       if (gold) b.animate([{ transform: 'scale(1)' }, { transform: 'scale(1.07)' }, { transform: 'scale(1)' }], { duration: 500, delay: 760, easing: 'ease-out' })
     })
@@ -181,6 +181,7 @@ function RoundHead({ name, sub, rule }) {
 /** Thẻ một trận: mã, trạng thái, nút GHI ĐIỂM / Hoàn tác / Sửa điểm; hai dòng đội (ô `data-k` cho hiệu ứng). */
 function MatchCard({ m, tour, db, canEdit, round, onScore, onUndo, onEdit, onQuick, onSwap }) {
   const [quick, setQuick] = useState(['', ''])
+  const [dragOverSide, setDragOverSide] = useState(null)
   const open = m.status === 'ready' || m.status === 'live'
   const inline = canEdit && open && m.rule?.sets === 1
   const undoable = canEdit && hasResult(m) && canUndo(tour.matches, m.id).ok
@@ -201,13 +202,16 @@ function MatchCard({ m, tour, db, canEdit, round, onScore, onUndo, onEdit, onQui
     const lost = hasResult(m) && m.winner && m.winner !== side
     const seed = src?.kind === 'seed' ? String(src.n) : src?.kind === 'draw' ? t('tournament.format.drawNo', { n: src.n }) : ''
     const label = teamId ? teamName(tour, db, teamId) : src?.kind === 'bye' ? t('tournament.bracket.bye') : t('tournament.bracket.tbd')
+    const isTarget = dragOverSide === side
     // Không có "bấm tên đội = thắng" (plan §6): kết quả chỉ vào qua ô điểm / bảng điểm, có tỷ số thật.
     // Vòng đầu, nhánh chưa đấu trận nào: kéo tên đội thả vào đội khác để đổi chỗ (handoff) — trang cha quyết `onSwap`.
     const dnd = onSwap && teamId ? {
       draggable: true,
       onDragStart: (e) => e.dataTransfer.setData(SWAP_MIME, teamId),
-      onDragOver: (e) => e.preventDefault(),
+      onDragOver: (e) => { e.preventDefault(); setDragOverSide(side) },
+      onDragLeave: () => setDragOverSide(null),
       onDrop: (e) => {
+        setDragOverSide(null)
         const from = e.dataTransfer.getData(SWAP_MIME)
         if (from && from !== teamId) { e.preventDefault(); onSwap(from, teamId) }
       },
@@ -216,7 +220,10 @@ function MatchCard({ m, tour, db, canEdit, round, onScore, onUndo, onEdit, onQui
       <div data-k={slotKey(m.id, side)} {...dnd} style={{
         display: 'flex', alignItems: 'center', gap: 8, minHeight: 32, padding: '0 8px 0 10px', borderRadius: 6,
         borderTop: side === 'B' ? '1px solid var(--border-subtle)' : 'none', cursor: dnd.draggable ? 'grab' : undefined,
-        background: won ? 'var(--surface-accent-soft)' : 'transparent', transition: 'background .15s',
+        background: isTarget ? 'rgba(0, 178, 169, 0.16)' : won ? 'var(--surface-accent-soft)' : 'transparent',
+        outline: isTarget ? '2px dashed var(--teal-500)' : 'none',
+        outlineOffset: -2,
+        transition: 'background .15s, outline .15s',
       }}>
         <span style={{ width: 22, font: '600 10.5px/1 var(--font-mono)', color: 'var(--text-muted)', flex: '0 0 auto' }}>{seed}</span>
         <span style={{
@@ -265,7 +272,27 @@ function MatchCard({ m, tour, db, canEdit, round, onScore, onUndo, onEdit, onQui
           <Mono size={10.5} color="var(--text-muted)">{t('tournament.matchStatus.' + m.status)}</Mono>
         )}
         <span style={{ flex: 1 }} />
-        {canEdit && open && <Button size="sm" variant="primary" style={{ height: 24, padding: '0 8px', fontSize: 10.5 }} onClick={() => onScore(m)}>{t('tournament.bracket.score')}</Button>}
+        {canEdit && open && (
+          <button
+            type="button"
+            onClick={() => onScore(m)}
+            style={{
+              height: 22,
+              padding: '0 8px',
+              borderRadius: 5,
+              display: 'flex',
+              alignItems: 'center',
+              background: 'var(--teal-500)',
+              font: '700 10.5px/1 var(--font-sans)',
+              letterSpacing: '0.06em',
+              color: '#04302C',
+              cursor: 'pointer',
+              transition: 'opacity .15s',
+            }}
+          >
+            {t('tournament.bracket.score')}
+          </button>
+        )}
         {canEdit && m.status === 'done' && <Button size="sm" variant="ghost" style={{ height: 24, padding: '0 6px', fontSize: 11 }} onClick={() => onEdit(m)}>{t('tournament.bracket.edit')}</Button>}
         {undoable && <Button size="sm" variant="ghost" style={{ height: 24, padding: '0 6px', fontSize: 11 }} onClick={() => onUndo(m)}>{t('tournament.bracket.undo')}</Button>}
       </div>

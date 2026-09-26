@@ -4957,7 +4957,11 @@
       "playersUpper": "VẬN ĐỘNG VIÊN",
       "eventsUpper": "NỘI DUNG",
       "matchesUpper": "TRẬN ĐÃ ĐẤU",
-      "courtsUpper": "SÂN"
+      "courtsUpper": "SÂN",
+      "openFlow": "Mở sơ đồ thi đấu →",
+      "copyLink": "Link đăng ký",
+      "copied": "Đã chép link",
+      "enterScoreBtn": "Nhập tỷ số"
     },
     "list": {
       "emptyTitle": "Chưa có giải nào",
@@ -5036,7 +5040,11 @@
       "emptyRules": "Chưa có quy định chung",
       "emptyPrizes": "Chưa có cơ cấu giải thưởng",
       "emptyBudget": "Chưa có khoản chi dự trù",
-      "feeNow": "Lệ phí hiện tại: nam {{male}} · nữ {{female}}"
+      "feeNow": "Lệ phí hiện tại: nam {{male}} · nữ {{female}}",
+      "generalRules": "Quy định chung",
+      "perEventRules": "Theo nội dung",
+      "eventRulePlaceholder": "Ví dụ: Đánh 1 set 21 điểm chạm 30...",
+      "noEventRule": "Chưa có quy định riêng cho nội dung này"
     },
     "line": {
       "budgetTitle": "Khoản chi dự trù",
@@ -5056,6 +5064,9 @@
       "colSource": "Nguồn",
       "sourceMember": "Thành viên",
       "sourceGuest": "Khách",
+      "ratingSelf": "tự khai",
+      "ratingClub": "CLB",
+      "searchPlaceholder": "Tìm tên thí sinh…",
       "guestPhone": "SĐT (tuỳ chọn)",
       "hiddenGuests": "Giải đang để \"Nội bộ CLB\": {{n}} khách đã đăng ký trước vẫn giữ nguyên, nhưng không thêm được khách mới.",
       "openPairing": "Mở ghép cặp {{name}}",
@@ -5118,6 +5129,7 @@
       "swapped": "Đã đổi người giữa 2 cặp"
     },
     "err": {
+      "notFound": "Không tìm thấy giải đấu",
       "permissionDenied": "Bạn không có quyền quản lý giải đấu",
       "eventLocked": "Nội dung đã chốt đội hình — không thêm, bớt người được nữa",
       "badTransition": "Không chuyển giải sang trạng thái này được",
@@ -5252,6 +5264,12 @@
       "ruleCap": "Trần",
       "ruleApply": "Dùng luật này",
       "customized": "Đang tuỳ chỉnh · khác mẫu gốc",
+      "customNotice": "Đang tuỳ chỉnh · khác mẫu gốc",
+      "openRecommender": "Mở trình gợi ý →",
+      "groupSub": "{{groups}} bảng · {{teams}} đội",
+      "koSub": "{{teams}} đội tham gia",
+      "advanceSub": "{{n}} đội vào nhánh",
+      "plateSub": "{{n}} đội nhánh phụ",
       "ruleDesc": "{{sets}} sec {{points}}",
       "ruleBy2": " · cách 2, trần {{cap}}",
       "ruleTouch": " · chạm",
@@ -5434,6 +5452,7 @@
     },
     "sb": {
       "title": "{{code}} · {{event}}",
+      "previousSets": "Các séc trước:",
       "tab": {
         "live": "Ghi từng quả",
         "manual": "Nhập tỷ số",
@@ -5585,6 +5604,12 @@
       "perGroup": "Xếp hạng theo từng bảng"
     },
     "recommend": {
+      "courtUsage": "Dùng sân ({{used}} / {{capacity}} phút)",
+      "capacityPct": "{{pct}}% công suất {{status}}",
+      "statusOver": "(Vượt giờ)",
+      "statusFit": "(Vừa vặn)",
+      "startTime": "Bắt đầu: {{time}}",
+      "finishTime": "Dự kiến xong: {{finish}} (Đóng sân: {{end}})",
       "optionLine": "{{n}} trận · ≥{{g}} trận/đội · {{m}} phút sân",
       "resetPick": "Bỏ chỉnh, về phương án gốc",
       "rulesTitle": "Luật trận gợi ý",

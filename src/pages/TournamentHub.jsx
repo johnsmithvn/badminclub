@@ -145,6 +145,8 @@ export default function TournamentHub() {
         onEdit={() => setEditing(true)}
         onDelete={() => setDeleting(true)}
         onStatus={a.tourSetStatus}
+        onFlow={() => navigate(pathOf('tournamentFlow', id))}
+        onScore={canEdit && scheduled.some((e) => e.id === selected) ? quickScore : undefined}
       />
 
       {/* 3. Dải sân — chỉ khi giải đã có lịch (giải nháp không có gì để xem trên sân) */}

@@ -145,21 +145,86 @@ function RulesCard({ tour, canEdit, a }) {
   }
   return (
     <Card title={t('tournament.info.rules')} icon="clipboard-check">
-      <div style={{ display: 'grid', gap: 8 }}>
-        {tour.rules.length === 0 && <Muted>{t('tournament.info.emptyRules')}</Muted>}
-        {tour.rules.map((r, i) => (
-          <div key={i} style={{ display: 'flex', alignItems: 'flex-start', gap: 10 }}>
-            <Mono size={12} color="var(--text-muted)" style={{ paddingTop: 2 }}>{String(i + 1).padStart(2, '0')}</Mono>
-            <span style={{ flex: 1, font: '400 13.5px/1.45 var(--font-sans)', color: 'var(--text-primary)' }}>{r}</span>
-            {canEdit && <IconButton icon="trash-2" size="sm" label={t('common.delete')}
-              onClick={() => save(tour.rules.filter((_, j) => j !== i))} />}
-          </div>
-        ))}
-        {canEdit && (
-          <div style={{ display: 'flex', gap: 8, alignItems: 'flex-end', paddingTop: 4 }}>
-            <Input containerStyle={{ flex: 1 }} placeholder={t('tournament.info.rulePlaceholder')} value={draft}
-              onChange={(e) => setDraft(e.target.value)} onKeyDown={(e) => e.key === 'Enter' && add()} />
-            <Button variant="secondary" icon="plus" disabled={!draft.trim()} onClick={add}>{t('tournament.info.addRule')}</Button>
+      <div style={{ display: 'grid', gap: 14 }}>
+        <div style={{ display: 'grid', gap: 8 }}>
+          <span style={{ font: '700 13px/1.2 var(--font-display)', color: 'var(--text-primary)' }}>
+            {t('tournament.info.generalRules')}
+          </span>
+          {tour.rules.length === 0 && <Muted>{t('tournament.info.emptyRules')}</Muted>}
+          {tour.rules.map((r, i) => (
+            <div key={i} style={{ display: 'flex', alignItems: 'flex-start', gap: 10 }}>
+              <Mono size={12} color="var(--text-muted)" style={{ paddingTop: 2 }}>{String(i + 1).padStart(2, '0')}</Mono>
+              <span style={{ flex: 1, font: '400 13.5px/1.45 var(--font-sans)', color: 'var(--text-primary)' }}>{r}</span>
+              {canEdit && <IconButton icon="trash-2" size="sm" label={t('common.delete')}
+                onClick={() => save(tour.rules.filter((_, j) => j !== i))} />}
+            </div>
+          ))}
+          {canEdit && (
+            <div style={{ display: 'flex', gap: 8, alignItems: 'flex-end', paddingTop: 4 }}>
+              <Input containerStyle={{ flex: 1 }} placeholder={t('tournament.info.rulePlaceholder')} value={draft}
+                onChange={(e) => setDraft(e.target.value)} onKeyDown={(e) => e.key === 'Enter' && add()} />
+              <Button variant="secondary" icon="plus" disabled={!draft.trim()} onClick={add}>{t('tournament.info.addRule')}</Button>
+            </div>
+          )}
+        </div>
+
+        {/* Quy định theo từng nội dung thi đấu chuẩn handoff */}
+        {tour.events.length > 0 && (
+          <div style={{ display: 'grid', gap: 10, paddingTop: 10, borderTop: '1px solid var(--border-subtle)' }}>
+            <span style={{ font: '700 13px/1.2 var(--font-display)', color: 'var(--text-primary)' }}>
+              {t('tournament.info.perEventRules')}
+            </span>
+            <div style={{ display: 'grid', gap: 8 }}>
+              {tour.events.map((ev) => (
+                <div
+                  key={ev.id}
+                  style={{
+                    padding: '10px 12px',
+                    borderRadius: 8,
+                    background: 'var(--surface-inset)',
+                    border: '1px solid var(--border-subtle)',
+                    display: 'grid',
+                    gap: 6,
+                  }}
+                >
+                  <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', gap: 8 }}>
+                    <span style={{ font: '700 13px/1 var(--font-display)', color: 'var(--text-primary)' }}>
+                      {t('tournament.kind.' + ev.kind)}
+                    </span>
+                    <span style={{ font: '400 11px/1 var(--font-mono)', color: 'var(--teal-500)' }}>
+                      {ev.genderRule ? t('tournament.event.genderRule.' + ev.genderRule) : ''}
+                    </span>
+                  </div>
+                  {canEdit ? (
+                    <input
+                      defaultValue={ev.note || ''}
+                      onBlur={(e) => {
+                        const val = e.target.value.trim()
+                        if (val !== (ev.note || '')) a?.tourUpdateEvent?.(ev.id, { note: val })
+                      }}
+                      onKeyDown={(e) => {
+                        if (e.key === 'Enter') e.target.blur()
+                      }}
+                      placeholder={t('tournament.info.eventRulePlaceholder')}
+                      style={{
+                        height: 30,
+                        padding: '0 8px',
+                        borderRadius: 6,
+                        background: 'var(--surface-card)',
+                        border: '1px solid var(--border-default)',
+                        color: 'var(--text-primary)',
+                        font: '400 12px/1 var(--font-sans)',
+                        outline: 'none',
+                      }}
+                    />
+                  ) : (
+                    <span style={{ font: '400 12px/1.4 var(--font-sans)', color: ev.note ? 'var(--text-secondary)' : 'var(--text-muted)' }}>
+                      {ev.note || t('tournament.info.noEventRule')}
+                    </span>
+                  )}
+                </div>
+              ))}
+            </div>
           </div>
         )}
       </div>

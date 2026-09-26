@@ -32,9 +32,15 @@ export function ScoreDialog({ match, tour, db, onClose, onCommit, onStart, onCou
     <Dialog
       open
       sheet={isMobile}
-      width={760}
-      title={t('tournament.sb.title', { code: matchCode(match), event: event ? t('tournament.kind.' + event.kind) : '' })}
-      description={ruleLabel(match.rule)}
+      width={780}
+      title={(
+        <div style={{ display: 'flex', alignItems: 'center', gap: 10, flexWrap: 'wrap' }}>
+          <span>{t('tournament.sb.title', { code: matchCode(match), event: event ? t('tournament.kind.' + event.kind) : '' })}</span>
+          <span style={{ font: '600 11px/1 var(--font-mono)', color: 'var(--teal-300)', background: 'rgba(0,178,169,.12)', border: '1px solid var(--teal-500)', padding: '4px 8px', borderRadius: 5 }}>
+            {ruleLabel(match.rule)}
+          </span>
+        </div>
+      )}
       onClose={onClose}
     >
       <div style={{ display: 'grid', gap: 14 }}>
@@ -93,29 +99,42 @@ function LiveBoard({ match, names, isMobile, onCommit, onStart }) {
   }
 
   return (
-    <div style={{ display: 'grid', gap: 12 }}>
+    <div style={{ display: 'grid', gap: 14 }}>
       {s.sets.length > 0 && (
-        <div style={{ display: 'flex', gap: 6, flexWrap: 'wrap' }}>
+        <div style={{ display: 'flex', gap: 8, flexWrap: 'wrap', alignItems: 'center' }}>
+          <span style={{ font: '600 11px/1 var(--font-sans)', letterSpacing: '0.06em', textTransform: 'uppercase', color: 'var(--text-muted)' }}>{t('tournament.sb.previousSets')}</span>
           {s.sets.map((x, i) => (
-            <span key={i} style={{ display: 'inline-flex', gap: 6, padding: '5px 9px', borderRadius: 99, background: 'var(--surface-inset)', border: '1px solid var(--border-subtle)' }}>
-              <Mono size={11} color="var(--text-muted)">{t('tournament.sb.set', { n: i + 1 })}</Mono>
-              <Mono size={12} weight={700} color="var(--text-primary)">{x[0]}–{x[1]}</Mono>
+            <span key={i} style={{ display: 'inline-flex', alignItems: 'center', gap: 6, padding: '4px 10px', borderRadius: 99, background: 'var(--surface-inset)', border: '1px solid var(--border-subtle)' }}>
+              <span style={{ font: '700 10.5px/1 var(--font-sans)', color: 'var(--text-muted)', letterSpacing: '0.04em' }}>{t('tournament.sb.set', { n: i + 1 }).toUpperCase()}</span>
+              <Mono size={12.5} weight={700} color="var(--text-primary)">{x[0]}–{x[1]}</Mono>
             </span>
           ))}
         </div>
       )}
-      <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 10 }}>
+      <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 12 }}>
         {order.map((side) => {
           const i = side === 'A' ? 0 : 1
           const won = s.sets.filter((x) => (x[0] > x[1]) === (side === 'A')).length
           const flag = v.flags && (v.flags.matchPoint[side] ? 'matchPoint' : v.flags.setPoint[side] ? 'setPoint' : null)
           return (
-            <div key={side} style={{ display: 'grid', gap: 8, padding: 12, borderRadius: 12, background: 'var(--surface-inset)', border: `1px solid ${v.winner === side ? 'var(--teal-500)' : 'var(--border-subtle)'}` }}>
-              <div style={{ display: 'flex', alignItems: 'center', gap: 8, minHeight: 20 }}>
-                <span style={{ flex: 1, minWidth: 0, font: '600 13px/1.25 var(--font-sans)', color: 'var(--text-primary)' }}>{names[side]}</span>
-                <span style={{ display: 'flex', gap: 4 }}>
+            <div key={side} style={{
+              display: 'grid', gap: 10, padding: 14, borderRadius: 14, background: 'var(--surface-inset)',
+              border: `1.5px solid ${v.winner === side ? 'var(--teal-500)' : 'var(--border-subtle)'}`,
+              boxShadow: v.winner === side ? '0 0 16px rgba(0, 178, 169, 0.2)' : 'none',
+              transition: 'border-color .2s, box-shadow .2s',
+            }}>
+              <div style={{ display: 'flex', alignItems: 'center', gap: 8, minHeight: 24 }}>
+                <span style={{ flex: 1, minWidth: 0, font: '700 16px/1.2 var(--font-display, var(--font-sans))', color: 'var(--text-primary)' }}>
+                  {names[side]}
+                </span>
+                <span style={{ display: 'flex', gap: 5 }}>
                   {Array.from({ length: Math.ceil(rule.sets / 2) }, (_, k) => (
-                    <span key={k} style={{ width: 8, height: 8, borderRadius: 99, background: k < won ? 'var(--teal-500)' : 'var(--surface-sunken)' }} />
+                    <span key={k} style={{
+                      width: 10, height: 10, borderRadius: 99,
+                      background: k < won ? 'var(--teal-500)' : 'var(--surface-card)',
+                      border: `1px solid ${k < won ? 'var(--teal-500)' : 'var(--border-default)'}`,
+                      boxShadow: k < won ? '0 0 6px rgba(0,178,169,0.5)' : 'none',
+                    }} />
                   ))}
                 </span>
               </div>
@@ -125,29 +144,54 @@ function LiveBoard({ match, names, isMobile, onCommit, onStart }) {
                 aria-label={names[side] + ' +1'}
                 onClick={() => point(side)}
                 style={{
-                  display: 'grid', placeItems: 'center', gap: 4, minHeight: isMobile ? 150 : 170, borderRadius: 10, cursor: v.winner ? 'default' : 'pointer',
+                  display: 'grid', placeItems: 'center', gap: 6, minHeight: isMobile ? 150 : 180, borderRadius: 12, cursor: v.winner ? 'default' : 'pointer',
                   background: 'var(--surface-card)', border: '1px solid var(--border-default)', color: 'var(--text-primary)',
+                  transition: 'background .15s, border-color .15s, transform .1s',
                 }}
+                onMouseEnter={(e) => { if (!v.winner) e.currentTarget.style.background = 'var(--surface-accent-soft)' }}
+                onMouseLeave={(e) => { if (!v.winner) e.currentTarget.style.background = 'var(--surface-card)' }}
               >
-                <span style={{ font: `700 ${isMobile ? 64 : 80}px/1 var(--font-display)` }}>{s.cur[i]}</span>
-                <span style={{ font: 'var(--type-caption)', color: 'var(--text-muted)' }}>{t('tournament.sb.plusHint')}</span>
+                <span style={{ font: `700 ${isMobile ? 64 : 80}px/1 var(--font-display, var(--font-sans))`, letterSpacing: '-0.02em' }}>{s.cur[i]}</span>
+                <span style={{ font: '600 11.5px/1 var(--font-sans)', letterSpacing: '0.08em', textTransform: 'uppercase', color: 'var(--text-muted)' }}>
+                  {t('tournament.sb.plusHint')}
+                </span>
               </button>
-              <div style={{ display: 'flex', alignItems: 'center', gap: 8, minHeight: 32 }}>
-                <Button size="sm" variant="secondary" disabled={s.cur[i] === 0} onClick={() => dispatch({ type: 'minus', side })}>{t('tournament.sb.minus')}</Button>
+              <div style={{ display: 'flex', alignItems: 'center', gap: 8, minHeight: 34 }}>
+                <Button size="sm" variant="secondary" disabled={s.cur[i] === 0} onClick={() => dispatch({ type: 'minus', side })}>
+                  {t('tournament.sb.minus')}
+                </Button>
                 <span style={{ flex: 1 }} />
-                {flag && <Mono size={11} weight={700} color="var(--status-delayed-fg)">{t('tournament.sb.' + flag)}</Mono>}
-                {!flag && v.flags?.deuce && <Mono size={11} weight={700} color="var(--text-muted)">{t('tournament.sb.deuce')}</Mono>}
+                {flag && (
+                  <span style={{
+                    font: '700 11px/1 var(--font-sans)', letterSpacing: '0.06em', textTransform: 'uppercase',
+                    color: '#F0B75C', background: 'rgba(240, 183, 92, 0.14)', border: '1px solid #7A5620',
+                    padding: '4px 8px', borderRadius: 5,
+                  }}>
+                    {t('tournament.sb.' + flag)}
+                  </span>
+                )}
+                {!flag && v.flags?.deuce && (
+                  <span style={{
+                    font: '700 11px/1 var(--font-mono)', letterSpacing: '0.06em',
+                    color: 'var(--text-secondary)', background: 'var(--surface-sunken)', border: '1px solid var(--border-default)',
+                    padding: '4px 8px', borderRadius: 5,
+                  }}>
+                    {t('tournament.sb.deuce')}
+                  </span>
+                )}
               </div>
             </div>
           )
         })}
       </div>
-      <div style={{ font: '600 13px/1.4 var(--font-sans)', color: v.winner ? 'var(--status-transit-fg)' : 'var(--text-secondary)', textAlign: 'center' }}>{status}</div>
-      <div style={{ display: 'flex', alignItems: 'center', gap: 10, flexWrap: 'wrap' }}>
+      <div style={{ font: '600 14px/1.4 var(--font-sans)', color: v.winner ? 'var(--status-transit-fg)' : 'var(--text-secondary)', textAlign: 'center', padding: '4px 0' }}>
+        {status}
+      </div>
+      <div style={{ display: 'flex', alignItems: 'center', gap: 10, flexWrap: 'wrap', borderTop: '1px solid var(--border-subtle)', paddingTop: 12 }}>
         <Button variant="secondary" icon="undo-2" disabled={!s.history.length} onClick={() => dispatch({ type: 'undo' })}>{t('tournament.sb.undo')}</Button>
         {!isMobile && <span style={{ font: 'var(--type-caption)', color: 'var(--text-muted)' }}>{t('tournament.sb.keys')}</span>}
         <span style={{ flex: 1 }} />
-        <Button icon="arrow-up-right" disabled={!v.winner} loading={busy} onClick={confirm}>{t('tournament.sb.confirm')}</Button>
+        <Button variant="primary" icon="arrow-up-right" disabled={!v.winner} loading={busy} onClick={confirm}>{t('tournament.sb.confirm')}</Button>
       </div>
     </div>
   )

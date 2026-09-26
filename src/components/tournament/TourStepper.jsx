@@ -8,7 +8,19 @@ import { t } from '#i18n'
 export default function TourStepper({ items, value, onChange, isMobile }) {
   return (
     <TabTrack>
-      <div role="tablist" style={{ display: 'flex', gap: 8 }}>
+      <div
+        role="tablist"
+        style={{
+          display: 'flex',
+          gap: 0,
+          background: 'var(--surface-card)',
+          borderRadius: 12,
+          border: '1px solid var(--border-subtle)',
+          boxShadow: 'var(--shadow-xs)',
+          overflow: 'hidden',
+          width: '100%',
+        }}
+      >
         {items.map((it) => {
           const on = it.key === value
           const isCheck = Boolean(it.isDone)
@@ -23,46 +35,45 @@ export default function TourStepper({ items, value, onChange, isMobile }) {
                 display: 'flex',
                 alignItems: 'center',
                 gap: 10,
-                flex: '0 0 auto',
+                flex: isMobile ? '0 0 auto' : '1 1 0',
                 cursor: 'pointer',
                 textAlign: 'left',
-                minHeight: isMobile ? 54 : 52,
-                padding: '9px 16px 9px 12px',
-                borderRadius: 10,
-                color: 'inherit',
-                background: on ? 'var(--surface-accent-soft)' : 'var(--surface-card)',
-                border: `1px solid ${on ? 'var(--teal-500)' : 'var(--border-subtle)'}`,
-                boxShadow: on ? '0 0 0 1px var(--teal-500), var(--shadow-xs)' : 'var(--shadow-xs)',
-                transition: 'all var(--dur-fast) var(--ease-standard)',
+                minHeight: 52,
+                padding: '10px 16px',
+                border: 'none',
+                background: on ? 'var(--surface-accent-soft)' : 'transparent',
+                borderBottom: `2px solid ${on ? 'var(--teal-500)' : 'transparent'}`,
+                marginBottom: -1,
+                transition: 'background var(--dur-fast), border-color var(--dur-fast)',
               }}
             >
               <span style={{
-                width: 26,
-                height: 26,
-                borderRadius: 7,
+                width: 24,
+                height: 24,
+                borderRadius: 6,
                 display: 'grid',
                 placeItems: 'center',
                 flex: '0 0 auto',
                 font: '700 11px/1 var(--font-mono)',
                 background: on
-                  ? 'var(--action-accent-bg)'
-                  : (isCheck ? 'var(--status-delivered-bg)' : 'var(--surface-inset)'),
+                  ? 'var(--teal-500)'
+                  : (isCheck ? 'var(--status-delivered-bg)' : 'var(--surface-sunken)'),
                 color: on
                   ? 'var(--action-accent-fg)'
                   : (isCheck ? 'var(--status-delivered-fg)' : 'var(--text-muted)'),
-                border: `1px solid ${on ? 'transparent' : 'var(--border-default)'}`,
+                border: on ? 'none' : '1px solid var(--border-subtle)',
               }}>
                 {isCheck ? '✓' : t('tournament.tabNo.' + it.key)}
               </span>
-              <span style={{ display: 'grid', gap: 3 }}>
+              <span style={{ display: 'flex', flexDirection: 'column', gap: 2, minWidth: 0 }}>
                 <span style={{
-                  font: `${on ? 700 : 600} 13.5px/1.2 var(--font-sans)`,
+                  font: `${on ? 700 : 600} 13px/1.2 var(--font-sans)`,
                   whiteSpace: 'nowrap',
                   color: on ? 'var(--text-primary)' : 'var(--text-secondary)',
                 }}>
                   {t('tournament.tab.' + it.key)}
                 </span>
-                <span style={{ font: '400 11.5px/1 var(--font-mono)', color: 'var(--text-muted)', whiteSpace: 'nowrap' }}>
+                <span style={{ font: '400 10.5px/1 var(--font-mono)', color: 'var(--text-muted)', whiteSpace: 'nowrap' }}>
                   {it.sub}
                 </span>
               </span>

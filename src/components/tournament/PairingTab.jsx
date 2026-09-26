@@ -90,10 +90,10 @@ export default function PairingTab({ tour, event, db, a, canEdit, isMobile }) {
 
   const bal = balanceOf(teams)
   const maxSum = Math.max(1, ...teams.map((x) => x.sum))
-  const cols = isMobile ? '1fr' : 'minmax(200px,240px) minmax(0,1fr) minmax(220px,260px)'
+  const cols = isMobile ? '1fr' : '250px minmax(0,1fr) 320px'
 
   return (
-    <div style={{ display: 'grid', gap: 12 }}>
+    <div style={{ display: 'grid', gap: 14 }}>
       {lockBar}
       {editable && (
         <div style={{ display: 'flex', alignItems: 'center', gap: 10, flexWrap: 'wrap' }}>
@@ -105,11 +105,12 @@ export default function PairingTab({ tour, event, db, a, canEdit, isMobile }) {
         </div>
       )}
 
-      <div style={{ display: 'grid', gridTemplateColumns: cols, gap: 12, alignItems: 'start' }}>
+      <div style={{ display: 'grid', gridTemplateColumns: cols, gap: 14, alignItems: 'start' }}>
+        {/* CỘT 1: Khay chưa có cặp (250px) */}
         <Card title={t('tournament.pairing.pool')} actions={<Mono>{pool.length}</Mono>} padding="12px 14px" {...dnd('pool')}>
-          <div style={{ display: 'grid', gap: 6 }}>
-            {editable && <div style={{ font: 'var(--type-caption)', color: 'var(--text-muted)' }}>{t('tournament.pairing.poolHint')}</div>}
-            {pool.length === 0 && <div style={{ font: 'var(--type-caption)', color: 'var(--text-muted)', padding: '8px 0' }}>{t('tournament.pairing.poolEmpty')}</div>}
+          <div style={{ display: 'grid', gap: 8 }}>
+            {editable && <div style={{ font: '400 11.5px/1.35 var(--font-sans)', color: 'var(--text-muted)' }}>{t('tournament.pairing.poolHint')}</div>}
+            {pool.length === 0 && <div style={{ font: '400 12.5px/1.4 var(--font-sans)', color: 'var(--text-muted)', padding: '12px 0', textAlign: 'center' }}>{t('tournament.pairing.poolEmpty')}</div>}
             {pool.map((p) => (
               <PlayerChip key={p.id} name={name(p)} reg={p} block editable={editable} on={picked === p.id}
                 onClick={() => setPicked((x) => (x === p.id ? null : p.id))} />
@@ -117,7 +118,8 @@ export default function PairingTab({ tour, event, db, a, canEdit, isMobile }) {
           </div>
         </Card>
 
-        <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fill,minmax(250px,1fr))', gap: 10 }}>
+        {/* CỘT 2: Lưới các cặp đấu (trung tâm) */}
+        <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fill,minmax(240px,1fr))', gap: 10 }}>
           {teams.map((team, i) => (
             <TeamCard key={team.id} no={i + 1} team={team} size={event.teamSize} name={name} editable={editable}
               picked={picked && players.find((p) => p.id === picked)} pickedName={picked ? name(players.find((p) => p.id === picked)) : ''}
@@ -133,43 +135,77 @@ export default function PairingTab({ tour, event, db, a, canEdit, isMobile }) {
           )}
         </div>
 
-        <Card title={t('tournament.pairing.balance')} padding="12px 14px">
-          <div style={{ display: 'grid', gap: 10 }}>
-            <div style={{ display: 'flex', alignItems: 'baseline', gap: 8 }}>
-              {bal.spread != null && <span style={{ font: '700 22px/1 var(--font-display)', color: TONE[bal.tone] }}>{t('tournament.pairing.spread', { n: Math.round(bal.spread) })}</span>}
-              <span style={{ font: '600 12px/1 var(--font-sans)', color: TONE[bal.tone] }}>{t('tournament.pairing.tone.' + bal.tone)}</span>
+        {/* CỘT 3: Phân tích độ cân bằng giải & Biểu đồ thanh mini (320px) */}
+        <Card title={t('tournament.pairing.balance')} padding="14px">
+          <div style={{ display: 'grid', gap: 12 }}>
+            <div style={{ display: 'flex', alignItems: 'baseline', gap: 10 }}>
+              {bal.spread != null && (
+                <span style={{ font: '700 24px/1 var(--font-display)', color: TONE[bal.tone] }}>
+                  {t('tournament.pairing.spread', { n: Math.round(bal.spread) })}
+                </span>
+              )}
+              <span style={{ font: '600 12px/1.3 var(--font-sans)', color: TONE[bal.tone] }}>
+                {t('tournament.pairing.tone.' + bal.tone)}
+              </span>
             </div>
+
             {teams.some((x) => x.full) && (
-              <div style={{ display: 'grid', gridTemplateColumns: '22px 1fr auto 52px', gap: 8, font: '600 10.5px/1 var(--font-sans)', color: 'var(--text-muted)' }}>
-                <span />
-                <span />
-                <span />
-                <span style={{ textAlign: 'right' }}>{t('tournament.pairing.vsAvg')}</span>
+              <div style={{ display: 'grid', gap: 6, paddingTop: 4 }}>
+                <div style={{ display: 'grid', gridTemplateColumns: '22px 1fr auto 48px', gap: 8, font: '700 10.5px/1 var(--font-sans)', color: 'var(--text-muted)', textTransform: 'uppercase', letterSpacing: '0.04em' }}>
+                  <span>#</span>
+                  <span />
+                  <span style={{ textAlign: 'right' }}>{t('tournament.overview.pairs')}</span>
+                  <span style={{ textAlign: 'right' }}>{t('tournament.pairing.vsAvg')}</span>
+                </div>
+                {teams.filter((x) => x.full).map((team, i) => {
+                  const d = avgDiff[team.id]
+                  const pct = Math.min(100, Math.round((team.sum / maxSum) * 100))
+                  return (
+                    <div key={team.id} style={{ display: 'grid', gridTemplateColumns: '22px 1fr auto 48px', alignItems: 'center', gap: 8 }}>
+                      <Mono size={11} color="var(--text-muted)">{i + 1}</Mono>
+                      <span style={{ height: 8, borderRadius: 4, background: 'var(--surface-sunken)', overflow: 'hidden', display: 'block' }}>
+                        <span style={{
+                          display: 'block', height: '100%', width: `${pct}%`, borderRadius: 4,
+                          background: d?.warn ? 'var(--status-delayed-fg)' : 'var(--teal-500)',
+                          transition: 'width var(--dur-fast)',
+                        }} />
+                      </span>
+                      <Mono size={11.5} weight={600}>{Math.round(team.sum)}</Mono>
+                      <Mono size={11} weight={600} color={d?.warn ? 'var(--status-delayed-fg)' : 'var(--text-muted)'} style={{ textAlign: 'right' }}>
+                        {d ? (d.diff > 0 ? '+' + d.diff : d.diff) : ''}
+                      </Mono>
+                    </div>
+                  )
+                })}
               </div>
             )}
-            {teams.filter((x) => x.full).map((team, i) => {
-              const d = avgDiff[team.id]
-              return (
-                <div key={team.id} style={{ display: 'grid', gridTemplateColumns: '22px 1fr auto 52px', alignItems: 'center', gap: 8 }}>
-                  <Mono size={11} color="var(--text-muted)">{i + 1}</Mono>
-                  <span style={{ height: 8, borderRadius: 99, background: 'var(--surface-sunken)', overflow: 'hidden' }}>
-                    <span style={{ display: 'block', height: '100%', width: (team.sum / maxSum) * 100 + '%', borderRadius: 99, background: d?.warn ? 'var(--status-delayed-fg)' : 'var(--teal-500)' }} />
-                  </span>
-                  <Mono size={11}>{Math.round(team.sum)}</Mono>
-                  <Mono size={11} weight={600} color={d?.warn ? 'var(--status-delayed-fg)' : 'var(--text-muted)'} style={{ textAlign: 'right' }}>
-                    {d ? (d.diff > 0 ? '+' + d.diff : d.diff) : ''}
-                  </Mono>
+
+            {bal.avg != null && (
+              <div style={{ display: 'grid', gap: 2, font: '400 11.5px/1.3 var(--font-mono)', color: 'var(--text-muted)' }}>
+                <div>{t('tournament.pairing.avg', { n: bal.avg })}</div>
+                <div style={{ font: 'var(--type-caption)', color: 'var(--text-muted)' }}>
+                  {t('tournament.pairing.avgHint', { n: 40 })}
                 </div>
-              )
-            })}
-            {teams.some((x) => x.full) && <div style={{ font: 'var(--type-caption)', color: 'var(--text-muted)' }}>{t('tournament.pairing.avgHint', { n: cfg.tournament.pairing.avgWarn })}</div>}
-            {bal.avg != null && <div style={{ font: 'var(--type-caption)', color: 'var(--text-muted)' }}>{t('tournament.pairing.avg', { n: bal.avg })}</div>}
+              </div>
+            )}
+
+            {/* Khối gợi ý đổi người tối ưu (Best Swap recommendation) 1-click */}
             {swap && (
-              <div style={{ display: 'grid', gap: 8, padding: 10, borderRadius: 8, background: 'var(--surface-accent-soft)', border: '1px solid var(--teal-500)' }}>
-                <span style={{ font: '600 12px/1.35 var(--font-sans)', color: 'var(--text-primary)' }}>
+              <div style={{
+                display: 'grid',
+                gap: 8,
+                padding: '12px',
+                borderRadius: 10,
+                background: 'var(--surface-accent-soft)',
+                border: '1px solid var(--teal-500)',
+                boxShadow: 'var(--shadow-xs)',
+              }}>
+                <span style={{ font: '600 12.5px/1.4 var(--font-sans)', color: 'var(--text-primary)' }}>
                   {t('tournament.pairing.swapHint', { a: name(swap.regA), b: name(swap.regB), from: Math.round(swap.before), to: Math.round(swap.after) })}
                 </span>
-                <Button size="sm" icon="check" onClick={() => a.tourSwapPlayers(event.id, swap)}>{t('tournament.pairing.swapApply')}</Button>
+                <Button size="sm" icon="check" onClick={() => a.tourSwapPlayers(event.id, swap)}>
+                  {t('tournament.pairing.swapApply')}
+                </Button>
               </div>
             )}
           </div>

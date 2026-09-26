@@ -107,6 +107,12 @@ export function makeTournamentActions({ dbRef, tourRef, setTour, toast, uid }) {
       ...base(), id: uid(), kind, ...EVENT_KINDS[kind], status: 'draft', sortOrder: tour().events.length,
     }]), 'tournament.toast.eventAdded', { name: t('tournament.kind.' + kind) }),
 
+    tourUpdateEvent: (eventId, patch) => {
+      const ev = tour().events.find((e) => e.id === eventId)
+      if (!ev) return toast(t('tournament.err.notFound'))
+      return run(() => write('tournament_events', 'upsert', [{ ...ev, ...patch }]), 'tournament.toast.saved')
+    },
+
     /** Chỉ nội dung còn nháp và chưa ai đăng ký — xoá nội dung có người là xoá luôn đăng ký của họ. */
     tourDeleteEvent: (eventId) => {
       const ev = tour().events.find((e) => e.id === eventId)

@@ -1,3 +1,4 @@
+import { useState } from 'react'
 import { Button, IconButton } from '#ds'
 import { fmtK } from '#lib/money.js'
 import { progressOf } from '#lib/tournament/bracketView.js'
@@ -5,62 +6,128 @@ import { t } from '#i18n'
 import { TourPill } from './TourBits.jsx'
 import { tourMeta } from './tourUtils.js'
 
-
 /**
- * Hero của Hub (handoff: khối đầu trang) — pill trạng thái, tên giải chữ display, dòng meta mono,
- * cụm số bên phải. Hành động quản trị chỉ hiện khi có quyền.
+ * Hero của Hub (handoff: khối đầu trang phong cách Dispatch Thể thao) —
+ * vạch sân cầu lông trang trí, pill trạng thái, tên giải chữ display 42px, dòng meta mono,
+ * cụm CTA nổi bật (nhập tỷ số cam, mở sơ đồ, link chia sẻ), cụm 4 số liệu bên phải.
  */
-export default function TourHero({ tour, money, isMobile, canEdit, onBack, onEdit, onDelete, onStatus }) {
+export default function TourHero({ tour, money, isMobile, canEdit, onBack, onEdit, onDelete, onStatus, onFlow, onScore }) {
+  const [copied, setCopied] = useState(false)
   const active = tour.registrations.filter((r) => r.status === 'registered').length
-  // Trận bye không ai đánh → không tính (progressOf), không thì nhánh có bye không bao giờ tới 100%.
   const prog = progressOf(tour.matches || [])
   const courts = tour.courtLabels.length
 
   const stats = [
-    { label: t('tournament.hero.playersUpper') + ' (' + t('tournament.hero.players') + ')', value: active },
-    { label: t('tournament.hero.eventsUpper'), value: tour.events.length },
+    { label: t('tournament.hero.players'), value: active },
+    { label: t('tournament.hero.events'), value: tour.events.length },
     prog.total > 0
       ? { label: t('tournament.hero.matchesUpper'), value: `${prog.done}/${prog.total}` }
       : { label: t('tournament.hero.collected'), value: fmtK(money?.collected ?? 0), sub: money?.expected ? '/ ' + fmtK(money.expected) : undefined },
-    // Chưa khai báo sân thì không hiện ô sân — không bịa số.
     ...(courts ? [{ label: t('tournament.hero.courtsUpper'), value: courts }] : []),
   ]
-  // Trạng thái tự đi theo lịch (tạo lịch → đang diễn ra, xong hết → kết thúc). BTC chỉ còn: huỷ / khôi phục.
+
   const moves = tour.status === 'cancelled' ? ['registration'] : tour.status === 'finished' ? [] : ['cancelled']
+
+  const copyLink = () => {
+    try {
+      navigator.clipboard.writeText(window.location.href)
+      setCopied(true)
+      setTimeout(() => setCopied(false), 2000)
+    } catch {
+      /* ignore */
+    }
+  }
 
   return (
     <section style={{
-      display: 'grid',
-      gap: 16,
+      display: 'flex',
+      flexDirection: 'column',
+      gap: 18,
       padding: isMobile ? '16px' : '20px 24px',
       borderRadius: 14,
       background: 'var(--surface-card)',
       border: '1px solid var(--border-subtle)',
-      boxShadow: 'var(--shadow-xs)',
+      boxShadow: 'var(--shadow-sm)',
       position: 'relative',
+      overflow: 'hidden',
     }}>
-      {/* Hàng trên: quay lại danh sách (mọi người) · thao tác quản trị (có quyền) */}
-      <div style={{ display: 'flex', alignItems: 'center', gap: 8, flexWrap: 'wrap' }}>
-        <Button variant="ghost" size="sm" icon="arrow-left" onClick={onBack}>{t('tournament.hero.back')}</Button>
-        <span style={{ flex: 1 }} />
-        {canEdit && moves.map((s) => (
-          <Button key={s} size="sm" variant="secondary" onClick={() => onStatus(s)}>
-            {t('tournament.statusTo.' + s)}
-          </Button>
-        ))}
-        {canEdit && <Button size="sm" variant="secondary" icon="pencil" onClick={onEdit}>{t('tournament.edit')}</Button>}
-        {canEdit && <IconButton icon="trash-2" size="sm" label={t('tournament.delete')} onClick={onDelete} />}
+      {/* Vạch sân cầu lông trang trí nghệ thuật mờ ảo ở góc phải (chuẩn handoff) */}
+      <div aria-hidden style={{ position: 'absolute', right: -60, top: -40, width: 560, height: 260, border: '2px solid rgba(0, 178, 169, 0.08)', pointerEvents: 'none' }} />
+      <div aria-hidden style={{ position: 'absolute', right: 220, top: -40, width: 0, height: 260, borderLeft: '2px solid rgba(0, 178, 169, 0.08)', pointerEvents: 'none' }} />
+      <div aria-hidden style={{ position: 'absolute', right: 110, top: -40, width: 220, height: 260, borderLeft: '2px solid rgba(0, 178, 169, 0.04)', borderRight: '2px solid rgba(0, 178, 169, 0.04)', pointerEvents: 'none' }} />
+      <div aria-hidden style={{ position: 'absolute', right: -60, top: 90, width: 560, height: 0, borderTop: '2px solid rgba(0, 178, 169, 0.04)', pointerEvents: 'none' }} />
+
+      {/* Hàng trên: Hành động điều hướng & Quản trị bên trái · Dải CTA thể thao bên phải */}
+      <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', gap: 10, flexWrap: 'wrap', position: 'relative', zIndex: 2 }}>
+        <div style={{ display: 'flex', alignItems: 'center', gap: 8, flexWrap: 'wrap' }}>
+          <Button variant="ghost" size="sm" icon="arrow-left" onClick={onBack}>{t('tournament.hero.back')}</Button>
+          {canEdit && moves.map((s) => (
+            <Button key={s} size="sm" variant="secondary" onClick={() => onStatus(s)}>
+              {t('tournament.statusTo.' + s)}
+            </Button>
+          ))}
+          {canEdit && <Button size="sm" variant="secondary" icon="pencil" onClick={onEdit}>{t('tournament.edit')}</Button>}
+          {canEdit && <IconButton icon="trash-2" size="sm" label={t('tournament.delete')} onClick={onDelete} />}
+        </div>
+
+        {/* Dải nút CTA hành động nhanh góc trên bên phải */}
+        <div style={{ display: 'flex', alignItems: 'center', gap: 8, flexWrap: 'wrap', marginLeft: 'auto' }}>
+          {onFlow && (
+            <button
+              type="button"
+              onClick={onFlow}
+              style={{
+                height: 32, display: 'inline-flex', alignItems: 'center', gap: 6, padding: '0 12px',
+                borderRadius: 6, background: 'var(--surface-accent-soft)', border: '1px solid var(--teal-500)',
+                font: '600 12px/1 var(--font-sans)', color: 'var(--teal-500)', cursor: 'pointer',
+                transition: 'opacity var(--dur-fast)',
+              }}
+            >
+              {t('tournament.hero.openFlow')} →
+            </button>
+          )}
+
+          <button
+            type="button"
+            onClick={copyLink}
+            style={{
+              height: 32, display: 'inline-flex', alignItems: 'center', gap: 6, padding: '0 12px',
+              borderRadius: 6, background: 'var(--surface-raised)', border: '1px solid var(--border-default)',
+              font: '600 12px/1 var(--font-sans)', color: 'var(--text-secondary)', cursor: 'pointer',
+            }}
+          >
+            {copied ? t('tournament.hero.copied') : t('tournament.hero.copyLink')}
+          </button>
+
+          {onScore && (
+            <button
+              type="button"
+              onClick={onScore}
+              style={{
+                height: 34, display: 'inline-flex', alignItems: 'center', gap: 6, padding: '0 18px',
+                borderRadius: 999, background: '#E8590C', color: '#FFFFFF',
+                font: '700 13px/1 var(--font-sans)', border: 'none', cursor: 'pointer',
+                boxShadow: '0 2px 8px rgba(232, 89, 12, 0.4)',
+                transition: 'transform var(--dur-fast), filter var(--dur-fast)',
+              }}
+            >
+              {t('tournament.hero.enterScoreBtn')}
+            </button>
+          )}
+        </div>
       </div>
 
-      {/* Phần chính của Hero: Tiêu đề bên trái, 4 Stat Box bên phải */}
+      {/* Phần chính của Hero: Tiêu đề lớn bên trái · 4 Stat Box nổi bên phải */}
       <div style={{
         display: 'flex',
         flexDirection: isMobile ? 'column' : 'row',
         gap: isMobile ? 18 : 28,
-        alignItems: isMobile ? 'stretch' : 'center',
+        alignItems: isMobile ? 'stretch' : 'flex-end',
         justifyContent: 'space-between',
+        position: 'relative',
+        zIndex: 2,
       }}>
-        {/* Khối bên trái: Status pill + scope -> Tên giải to -> Meta line */}
+        {/* Khối bên trái: Status pill + scope -> Tên giải to 42px -> Meta line */}
         <div style={{ display: 'grid', gap: 8, minWidth: 0, flex: '1 1 auto' }}>
           <div style={{ display: 'flex', alignItems: 'center', gap: 10, flexWrap: 'wrap' }}>
             <TourPill status={tour.status} />
@@ -68,7 +135,7 @@ export default function TourHero({ tour, money, isMobile, canEdit, onBack, onEdi
               font: '700 11px/1 var(--font-sans)',
               color: 'var(--text-muted)',
               textTransform: 'uppercase',
-              letterSpacing: '0.06em',
+              letterSpacing: '0.08em',
             }}>
               {t('tournament.scope.' + tour.scope)}
             </span>
@@ -76,9 +143,9 @@ export default function TourHero({ tour, money, isMobile, canEdit, onBack, onEdi
 
           <h1 style={{
             margin: 0,
-            font: `700 ${isMobile ? 24 : 32}px/1.2 var(--font-display)`,
+            font: `700 ${isMobile ? 26 : 42}px/1.15 var(--font-display)`,
             color: 'var(--text-primary)',
-            letterSpacing: '-0.02em',
+            letterSpacing: '-0.025em',
             overflowWrap: 'anywhere',
           }}>
             {tour.name}
@@ -89,7 +156,7 @@ export default function TourHero({ tour, money, isMobile, canEdit, onBack, onEdi
           </div>
         </div>
 
-        {/* Khối bên phải: 4 ô thống kê Hero */}
+        {/* Khối bên phải: 4 ô thống kê Hero số lớn Barlow 32px */}
         <div style={{
           display: 'grid',
           gridTemplateColumns: `repeat(${stats.length}, 1fr)`,
@@ -111,7 +178,7 @@ export default function TourHero({ tour, money, isMobile, canEdit, onBack, onEdi
               paddingLeft: idx > 0 ? (isMobile ? 8 : 16) : 0,
             }}>
               <span style={{
-                font: '700 24px/1 var(--font-display)',
+                font: '700 32px/1 var(--font-display)',
                 color: 'var(--text-primary)',
                 letterSpacing: '-0.02em',
                 whiteSpace: 'nowrap',
@@ -120,10 +187,10 @@ export default function TourHero({ tour, money, isMobile, canEdit, onBack, onEdi
                 {s.sub && <span style={{ font: '400 12px/1 var(--font-mono)', color: 'var(--text-muted)', marginLeft: 4 }}>{s.sub}</span>}
               </span>
               <span style={{
-                font: '700 9.5px/1 var(--font-sans)',
+                font: '700 10.5px/1 var(--font-sans)',
                 color: 'var(--text-muted)',
                 textTransform: 'uppercase',
-                letterSpacing: '0.06em',
+                letterSpacing: '0.08em',
                 whiteSpace: 'nowrap',
               }}>
                 {s.label}
@@ -135,3 +202,4 @@ export default function TourHero({ tour, money, isMobile, canEdit, onBack, onEdi
     </section>
   )
 }
+
