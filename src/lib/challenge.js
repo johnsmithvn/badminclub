@@ -1,6 +1,5 @@
-// Quản lý nghiệp vụ Kèo đấu (Challenge) — Pure functions, không phụ thuộc React/Supabase.
-
 import cfg from '#config/app.json' with { type: 'json' }
+import { isoOf } from '#utils/dates.js'
 
 /** Sinh mã kèo kế tiếp dạng C-0125 */
 export function nextChallengeCode(existingChallenges = []) {
@@ -425,8 +424,22 @@ export function canMemberPredict(challenge, memberId, db = {}, availablePoints =
 /** Trạng thái kèo đã kết thúc hẳn, không còn đường quay lại sân. */
 const DEAD_CHALLENGE_STATUS = new Set(['cancelled', 'declined', 'expired'])
 
-/** Trạng thái buổi tập mà mọi kèo gắn vào nó không còn cơ hội được đánh. */
-const DEAD_SESSION_STATUS = new Set(['closed', 'cancelled'])
+/** Trạng thái buổi tập mà mọi kèo gắn vào nó không còn cơ hội được đánh:
+ * - Buổi bị huỷ ('cancelled')
+ * - Buổi đã chốt ('closed') VÀ ngày của buổi đã thực sự trôi qua trong quá khứ.
+ * Buổi ở hôm nay hoặc tương lai (kể cả đã chốt danh sách người đi trước) thì chưa diễn ra xong,
+ * quản trò vẫn có thể mở lại hoặc xếp kèo vào sân đánh bình thường.
+ */
+export function isSessionDead(session, now = Date.now()) {
+  if (!session) return true
+  if (session.status === 'cancelled') return true
+  if (session.status === 'closed') {
+    if (!session.date) return true
+    const today = isoOf(new Date(now))
+    return session.date < today
+  }
+  return false
+}
 
 /**
  * Kèo đã chết trên THỰC TẾ — tính cả những kèo mà cột `status` chưa kịp đổi.
@@ -435,9 +448,9 @@ const DEAD_SESSION_STATUS = new Set(['closed', 'cancelled'])
  *   1. `status` đã là cancelled / declined / expired.
  *   2. Còn 'pending' nhưng quá hạn nhận kèo (không có tiến trình nào quét, `status` chỉ đổi khi
  *      có người bấm vào nó).
- *   3. Gắn vào một buổi đã CHỐT SỔ hoặc bị HUỶ — trận sẽ không bao giờ được đánh nữa. Đây là
- *      đường duy nhất giết được kèo 'accepted' bị bỏ rơi; thiếu nó thì cọc của người đặt bị
- *      giam vĩnh viễn vì bốn người đã nhận kèo rồi không ai bấm gì thêm.
+ *   3. Gắn vào một buổi đã CHỐT SỔ (trong quá khứ) hoặc bị HUỶ — trận sẽ không bao giờ được đánh
+ *      nữa. Đây là đường duy nhất giết được kèo 'accepted' bị bỏ rơi; thiếu nó thì cọc của người
+ *      đặt bị giam vĩnh viễn vì bốn người đã nhận kèo rồi không ai bấm gì thêm.
  *
  * Kèo 'played' KHÔNG chết: nó đã có kết quả để quyết toán.
  *
@@ -454,7 +467,7 @@ export function isChallengeDead(challenge, session = null, now = Date.now()) {
   if (DEAD_CHALLENGE_STATUS.has(challenge.status)) return true
   if (!ALIVE_CHALLENGE_STATUS.has(challenge.status)) return false
   if (isChallengeExpired(challenge, now)) return true
-  if (session && DEAD_SESSION_STATUS.has(session.status)) return true
+  if (session && isSessionDead(session, now)) return true
   return false
 }
 
@@ -469,7 +482,8 @@ export function expiredChallenges(db, now = Date.now()) {
 }
 
 /**
- * Kèo còn sống nhưng BUỔI của nó đã chốt sổ / bị huỷ — trận sẽ không diễn ra ở buổi đó nữa.
+ * Kèo còn sống nhưng BUỔI của nó đã chốt sổ (trong quá khứ) / bị huỷ — trận sẽ không diễn ra
+ * ở buổi đó nữa.
  *
  * TÁCH HẲN khỏi nhóm hết hạn, vì hai nguyên nhân khác nhau và cách xử phải khác nhau. Bản đầu
  * tôi gộp làm một rồi đánh dấu tất cả là 'expired': quản trò chốt sổ buổi tối là kèo chưa kịp
@@ -483,7 +497,7 @@ export function orphanedChallenges(db, now = Date.now()) {
     if (!ALIVE_CHALLENGE_STATUS.has(c.status)) return false
     if (isChallengeExpired(c, now)) return false // đã thuộc nhóm hết hạn ở trên
     const sess = c.sessionId ? sessions.get(c.sessionId) || null : null
-    return Boolean(sess && DEAD_SESSION_STATUS.has(sess.status))
+    return Boolean(sess && isSessionDead(sess, now))
   })
 }
 

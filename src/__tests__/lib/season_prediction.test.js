@@ -325,6 +325,13 @@ assert.equal(
   'Kèo đã có kết quả thì không chết, phiếu của nó đã quyết toán theo kết quả',
 )
 
+// Buổi đã chốt nhưng ở tương lai (chưa diễn ra, nowTs = 2026-09-17) -> kèo vẫn sống, KHÔNG mồ côi
+const sFutureClosed = { id: 's_future_closed', status: 'closed', date: '2026-09-27' }
+const cFuture = { id: 'c_future', status: 'accepted', sessionId: 's_future_closed', expiresAt: '2026-09-27T23:00:00Z' }
+const dbFuture = { challenges: [cFuture], sessions: [sFutureClosed] }
+assert.equal(orphanedChallenges(dbFuture, nowTs).length, 0, 'Buổi chốt nhưng ở tương lai chưa diễn ra thì kèo không mồ côi')
+assert.equal(isChallengeDead(cFuture, sFutureClosed, nowTs), false, 'Buổi chốt ở tương lai chưa diễn ra thì kèo vẫn sống')
+
 const stakePreds = [
   { memberId: 'm1', challengeId: 'c_live', stakePoints: 2, status: 'pending' },
   { memberId: 'm1', challengeId: 'c_cancelled', stakePoints: 3, status: 'pending' },
