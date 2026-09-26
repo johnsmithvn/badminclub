@@ -3,13 +3,13 @@ import { Mono } from '#ui'
 import { hubChecklist } from '#lib/tournament/hub.js'
 import { eventTeams } from '#lib/tournament/pairing.js'
 import { hasResult, progressOf, queueOf, sideScores } from '#lib/tournament/bracketView.js'
-import { stageGroups } from '#lib/tournament/standings.js'
+import { finalRows, groupStandings, stageGroups } from '#lib/tournament/standings.js'
 import cfg from '#config/app.json' with { type: 'json' }
 import { t } from '#i18n'
 import { matchCode, stageName, teamName } from './tourUtils.js'
 import { koRounds } from '#lib/tournament/bracketView.js'
 import { estimateOf, koPreviewOf } from '#lib/tournament/canvas.js'
-import { TeamNameLines } from './TourBits.jsx'
+import { StandingsTable, TeamNameLines } from './TourBits.jsx'
 
 /**
  * Tab Tổng quan (handoff "Giải đấu · desktop v2"):
@@ -262,8 +262,9 @@ export default function OverviewTab({ tour, db, event, onGo, canEdit, onOpenBrac
           </div>
         )}
 
-        {/* 3. Vòng bảng: chỉ tóm tắt tiến độ + mở Nhánh đấu — bảng xếp hạng đầy đủ (xử lý hoà, Chốt giai đoạn,
-            Tạo lịch nhánh) đã gộp về GroupBoard ở trang Nhánh đấu, tránh 2 nơi cùng sửa một thứ (2026-09-26). */}
+        {/* 3. Vòng bảng: tóm tắt tiến độ + bảng xếp hạng CHỈ XEM từng bảng — xử lý hoà/đổi tay/Chốt giai đoạn
+            vẫn chỉ ở GroupBoard trang Nhánh đấu (tránh 2 nơi cùng sửa một thứ), đây chỉ để xem nhanh không
+            cần rời trang. */}
         {rrStages.map((stage) => {
           const groups = stageGroups(tour, stage.id)
           if (!groups.length) return null
@@ -271,21 +272,39 @@ export default function OverviewTab({ tour, db, event, onGo, canEdit, onOpenBrac
           const { done, total } = progressOf(stMatches)
           const donePct = total ? Math.round((done / total) * 100) : 0
           const rrDone = total > 0 && done === total
+          const toStages = new Set((tour.stageLinks || []).filter((l) => l.fromStageId === stage.id).map((l) => l.toStageId))
+          const advancePerGroup = toStages.size > 0 ? (stage.config?.advancePerGroup || 2) : 0
           return (
             <Card key={stage.id} title={stageName(stage, curStages)} icon="table" padding="12px 16px"
               actions={<Button size="sm" variant="secondary" iconAfter="arrow-right" onClick={() => onOpenBracket(stage.eventId)}>{t('tournament.overview.openBracketBtn')}</Button>}>
-              <div style={{ display: 'grid', gap: 8 }}>
-                <div style={{ display: 'flex', alignItems: 'baseline', justifyContent: 'space-between', gap: 8 }}>
-                  <Mono size={12} color="var(--text-secondary)">{t('tournament.overview.rrStageDesc', { total, groups: groups.length })}</Mono>
-                  <Mono size={12} weight={700} color={rrDone ? 'var(--status-delivered-fg)' : 'var(--teal-500)'}>
-                    {done}/{total} {t('tournament.overview.matchesDone')}
-                  </Mono>
+              <div style={{ display: 'grid', gap: 12 }}>
+                <div style={{ display: 'grid', gap: 8 }}>
+                  <div style={{ display: 'flex', alignItems: 'baseline', justifyContent: 'space-between', gap: 8 }}>
+                    <Mono size={12} color="var(--text-secondary)">{t('tournament.overview.rrStageDesc', { total, groups: groups.length })}</Mono>
+                    <Mono size={12} weight={700} color={rrDone ? 'var(--status-delivered-fg)' : 'var(--teal-500)'}>
+                      {done}/{total} {t('tournament.overview.matchesDone')}
+                    </Mono>
+                  </div>
+                  <div style={{ height: 6, borderRadius: 3, background: 'var(--border-default)', overflow: 'hidden' }}>
+                    <div style={{
+                      height: '100%', width: `${donePct}%`, borderRadius: 3, transition: 'width .3s ease',
+                      background: rrDone ? 'var(--status-delivered-fg)' : 'var(--teal-500)',
+                    }} />
+                  </div>
                 </div>
-                <div style={{ height: 6, borderRadius: 3, background: 'var(--border-default)', overflow: 'hidden' }}>
-                  <div style={{
-                    height: '100%', width: `${donePct}%`, borderRadius: 3, transition: 'width .3s ease',
-                    background: rrDone ? 'var(--status-delivered-fg)' : 'var(--teal-500)',
-                  }} />
+                <div style={{ display: 'grid', gridTemplateColumns: isMobile ? '1fr' : `repeat(${Math.min(2, groups.length)}, minmax(0, 1fr))`, gap: 12 }}>
+                  {groups.map((g) => {
+                    const st = groupStandings(g, tour.matches)
+                    const rows = finalRows(stage, g, st)
+                    return (
+                      <div key={g.id} style={{ display: 'grid', gap: 6 }}>
+                        <span style={{ font: '700 13px/1.2 var(--font-sans)', color: 'var(--text-primary)' }}>
+                          {t('tournament.standings.groupTitle', { label: g.label })}
+                        </span>
+                        <StandingsTable rows={rows} advancePerGroup={advancePerGroup} teamLabel={(id) => teamName(tour, db, id)} />
+                      </div>
+                    )
+                  })}
                 </div>
               </div>
             </Card>
@@ -427,51 +446,89 @@ function MiniBracket({ tour, db, stage, stages, onOpen }) {
     }
     const cellOf = (m) => ({ a: side(m, 'A'), b: side(m, 'B'), code: matchCode(m), m })
     cols = view.rounds.map((r) => ({ title: t('tournament.round.' + r.kind), cells: r.matches.filter((m) => m.status !== 'bye').map(cellOf) }))
-    if (view.third) cols.push({ title: t('tournament.round.third'), cells: [cellOf(view.third)] })
+    if (view.third) cols.push({ title: t('tournament.round.third'), cells: [cellOf(view.third)], isThird: true })
   } else {
     const pv = koPreviewOf(stage, source, link, n) || []
-    cols = pv.map((r) => ({ title: t('tournament.round.' + r.roundKind), cells: r.matches.map((m) => ({ a: slot(m.a), b: slot(m.b), code: '#' + m.no, m: null })) }))
+    cols = pv.map((r) => ({
+      title: t('tournament.round.' + r.roundKind),
+      cells: r.matches.map((m) => ({ a: slot(m.a), b: slot(m.b), code: '#' + m.no, m: null })),
+      isThird: r.roundKind === 'third',
+    }))
   }
   if (!cols.length) return null
+  // Đường nối kiểu nhánh thật (2 trận gộp vào 1 ô vòng sau) — chỉ giữa các vòng CHÍNH, tranh hạng 3 đứng riêng
+  // (đội thua bán kết rẽ nhánh phụ, không phải "thắng đi tiếp" nên không vẽ nối vào đó).
+  const mainCols = cols.filter((c) => !c.isThird)
+  const thirdCol = cols.find((c) => c.isThird)
+  const rowH = 64
+  const firstCount = mainCols[0]?.cells.length || 1
+  const box = (cell) => {
+    const done = cell.m && hasResult(cell.m)
+    return (
+      <div style={{
+        display: 'grid', gap: 3, padding: '6px 8px', borderRadius: 8,
+        background: done ? 'var(--surface-accent-soft)' : 'var(--surface-inset)',
+        border: `1px solid ${done ? 'var(--teal-500)' : 'var(--border-subtle)'}`,
+      }}>
+        <Mono size={9.5} color="var(--text-muted)">{cell.code}</Mono>
+        {['A', 'B'].map((s) => {
+          const name = s === 'A' ? cell.a : cell.b
+          const won = done && cell.m.winner === s
+          return (
+            <span key={s} style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', gap: 6, minWidth: 0 }}>
+              <TeamNameLines name={name} fontSize={11.5} weight={won ? 700 : 500} color={won ? 'var(--text-primary)' : 'var(--text-secondary)'} />
+              {done && (
+                <Mono size={10} weight={won ? 700 : 500} color={won ? 'var(--status-transit-fg)' : 'var(--text-muted)'} style={{ flex: '0 0 auto' }}>
+                  {sideScores(cell.m.sets, s).join(' ')}
+                </Mono>
+              )}
+            </span>
+          )
+        })}
+      </div>
+    )
+  }
   return (
     <Card title={stageName(stage, stages)} icon="split" padding="12px 16px 14px"
       actions={live && <Button size="sm" variant="secondary" iconAfter="arrow-right" onClick={onOpen}>{t('tournament.overview.openBracketBtn')}</Button>}>
       {!live && <div style={{ font: 'var(--type-caption)', color: 'var(--text-muted)', paddingBottom: 8 }}>{t('tournament.overview.miniWait')}</div>}
-      <div style={{ display: 'flex', gap: 10, overflowX: 'auto', paddingBottom: 4 }}>
-        {cols.map((c, ci) => (
-          <div key={ci} style={{ display: 'grid', alignContent: 'space-around', gap: 8, minWidth: 158, flex: '0 0 auto' }}>
+      <div style={{ display: 'flex', gap: 18, overflowX: 'auto', paddingBottom: 4 }}>
+        {mainCols.map((c, ci) => (
+          <div key={ci} style={{ display: 'grid', gap: 8, minWidth: 158, flex: '0 0 auto' }}>
             <Mono size={10.5} weight={700} color="var(--text-primary)"
               style={{ textTransform: 'uppercase', letterSpacing: '0.05em', paddingBottom: 6, borderBottom: '1px solid var(--border-subtle)' }}>
               {c.title}
             </Mono>
-            {c.cells.map((cell, i) => {
-              const done = cell.m && hasResult(cell.m)
-              return (
-                <div key={i} style={{
-                  display: 'grid', gap: 3, padding: '6px 8px', borderRadius: 8,
-                  background: done ? 'var(--surface-accent-soft)' : 'var(--surface-inset)',
-                  border: `1px solid ${done ? 'var(--teal-500)' : 'var(--border-subtle)'}`,
-                }}>
-                  <Mono size={9.5} color="var(--text-muted)">{cell.code}</Mono>
-                  {['A', 'B'].map((s) => {
-                    const name = s === 'A' ? cell.a : cell.b
-                    const won = done && cell.m.winner === s
-                    return (
-                      <span key={s} style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', gap: 6, minWidth: 0 }}>
-                        <TeamNameLines name={name} fontSize={11.5} weight={won ? 700 : 500} color={won ? 'var(--text-primary)' : 'var(--text-secondary)'} />
-                        {done && (
-                          <Mono size={10} weight={won ? 700 : 500} color={won ? 'var(--status-transit-fg)' : 'var(--text-muted)'} style={{ flex: '0 0 auto' }}>
-                            {sideScores(cell.m.sets, s).join(' ')}
-                          </Mono>
-                        )}
-                      </span>
-                    )
-                  })}
-                </div>
-              )
-            })}
+            <div style={{ display: 'grid', gridTemplateRows: `repeat(${c.cells.length}, 1fr)`, height: firstCount * rowH, width: '100%' }}>
+              {c.cells.map((cell, i) => {
+                const last = ci === mainCols.length - 1
+                return (
+                  <div key={i} style={{ position: 'relative', display: 'flex', alignItems: 'center', minWidth: 0 }}>
+                    {!last && (
+                      <span aria-hidden style={{
+                        position: 'absolute', right: -10, width: 10, ...(i % 2 === 0 ? { top: '50%', bottom: 0 } : { top: 0, bottom: '50%' }),
+                        [i % 2 === 0 ? 'borderTop' : 'borderBottom']: '1.5px solid var(--border-default)',
+                        borderRight: '1.5px solid var(--border-default)',
+                        [i % 2 === 0 ? 'borderTopRightRadius' : 'borderBottomRightRadius']: 5,
+                      }} />
+                    )}
+                    {ci > 0 && <span aria-hidden style={{ position: 'absolute', left: -10, width: 10, top: '50%', borderTop: '1.5px solid var(--border-default)' }} />}
+                    <div style={{ flex: 1, minWidth: 0 }}>{box(cell)}</div>
+                  </div>
+                )
+              })}
+            </div>
           </div>
         ))}
+        {thirdCol && (
+          <div style={{ display: 'grid', alignContent: 'end', gap: 8, minWidth: 158, flex: '0 0 auto' }}>
+            <Mono size={10.5} weight={700} color="var(--text-primary)"
+              style={{ textTransform: 'uppercase', letterSpacing: '0.05em', paddingBottom: 6, borderBottom: '1px solid var(--border-subtle)' }}>
+              {thirdCol.title}
+            </Mono>
+            {thirdCol.cells.map((cell, i) => <div key={i}>{box(cell)}</div>)}
+          </div>
+        )}
       </div>
     </Card>
   )

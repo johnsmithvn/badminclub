@@ -82,6 +82,54 @@ export function TeamNameLines({ name, fontSize = 11.5, weight = 500, color = 'va
   )
 }
 
+/**
+ * Bảng xếp hạng 1 bảng đấu — CHỈ XEM (không xử lý hoà/đổi tay/Chốt giai đoạn, mấy cái đó chỉ ở GroupBoard
+ * trang Nhánh đấu, tránh 2 nơi cùng sửa 1 thứ). Dùng ở Tổng quan để xem nhanh không cần rời trang.
+ * `#` khoanh tròn nổi bật: vàng = hạng 1, teal = trong nhóm đi tiếp, xám = còn lại.
+ */
+export function StandingsTable({ rows, advancePerGroup = 0, teamLabel }) {
+  const cols = '26px 1fr 34px 34px 44px'
+  return (
+    <div style={{ borderRadius: 8, background: 'var(--surface-card)', border: '1px solid var(--border-subtle)', padding: '8px 10px', display: 'grid', gap: 4, overflow: 'hidden' }}>
+      <div style={{
+        display: 'grid', gridTemplateColumns: cols, alignItems: 'center', gap: 6,
+        font: '700 10px/1 var(--font-sans)', color: 'var(--text-muted)', padding: '0 4px 6px',
+        borderBottom: '1px solid var(--border-subtle)', letterSpacing: '0.04em', textTransform: 'uppercase',
+      }}>
+        <span style={{ textAlign: 'center' }}>#</span>
+        <span>{t('tournament.overview.pairs')}</span>
+        <span style={{ textAlign: 'center' }}>{t('tournament.overview.won')}</span>
+        <span style={{ textAlign: 'center' }}>{t('tournament.overview.lost')}</span>
+        <span style={{ textAlign: 'right' }}>{t('tournament.overview.diff')}</span>
+      </div>
+      {rows.map((r) => {
+        const advances = advancePerGroup > 0 && r.rank <= advancePerGroup
+        return (
+          <div key={r.teamId} style={{
+            display: 'grid', gridTemplateColumns: cols, alignItems: 'center', gap: 6, padding: '5px 4px', borderRadius: 6,
+            background: advances ? 'var(--surface-accent-soft)' : 'transparent',
+          }}>
+            <span style={{
+              width: 22, height: 22, borderRadius: '50%', display: 'grid', placeItems: 'center', justifySelf: 'center',
+              font: '700 11px/1 var(--font-mono)',
+              background: r.rank === 1 ? 'var(--podium-gold)' : advances ? 'var(--action-accent-bg)' : 'var(--surface-inset)',
+              color: r.rank === 1 ? '#3A2A00' : advances ? 'var(--action-accent-fg)' : 'var(--text-secondary)',
+            }}>
+              {r.rank}
+            </span>
+            <TeamNameLines name={teamLabel(r.teamId)} fontSize={12.5} weight={advances ? 600 : 500} />
+            <Mono size={11.5} weight={600} color={r.won > 0 ? 'var(--status-delivered-fg)' : 'var(--text-secondary)'} style={{ textAlign: 'center' }}>{r.won}</Mono>
+            <Mono size={11.5} color={r.lost > 0 ? 'var(--text-secondary)' : 'var(--text-muted)'} style={{ textAlign: 'center' }}>{r.lost}</Mono>
+            <Mono size={11.5} weight={600} color={r.pointDiff > 0 ? 'var(--status-delivered-fg)' : (r.pointDiff < 0 ? 'var(--status-incident-fg)' : 'var(--text-muted)')} style={{ textAlign: 'right' }}>
+              {r.pointDiff > 0 ? `+${r.pointDiff}` : r.pointDiff}
+            </Mono>
+          </div>
+        )
+      })}
+    </div>
+  )
+}
+
 /** Ô số −/giá trị/+ (handoff: giả lập VĐV, thời gian & sân trong hộp Gợi ý thể thức). */
 export function NumStep({ value, min = 0, max = Infinity, step = 1, onChange, format = String, disabled }) {
   const btn = (children, delta, edge) => (
