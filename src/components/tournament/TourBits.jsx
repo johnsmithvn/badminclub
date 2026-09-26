@@ -2,6 +2,7 @@
 
 import { useState } from 'react'
 import { Button, Input, StatusPill } from '#ds'
+import { Mono } from '#ui'
 import { RULE_PRESETS, presetKeyOf } from '#lib/tournament/format.js'
 import { validRule } from '#lib/tournament/scoring.js'
 import { t } from '#i18n'
