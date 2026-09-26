@@ -2,7 +2,7 @@ import { Button, Card, Icon } from '#ds'
 import { Mono } from '#ui'
 import { hubChecklist } from '#lib/tournament/hub.js'
 import { eventTeams } from '#lib/tournament/pairing.js'
-import { progressOf, queueOf } from '#lib/tournament/bracketView.js'
+import { hasResult, progressOf, queueOf, sideScores } from '#lib/tournament/bracketView.js'
 import { stageGroups } from '#lib/tournament/standings.js'
 import cfg from '#config/app.json' with { type: 'json' }
 import { t } from '#i18n'
@@ -268,12 +268,25 @@ export default function OverviewTab({ tour, db, event, onGo, canEdit, onOpenBrac
           if (!groups.length) return null
           const stMatches = groups.flatMap((g) => tour.matches.filter((m) => m.groupId === g.id))
           const { done, total } = progressOf(stMatches)
+          const donePct = total ? Math.round((done / total) * 100) : 0
+          const rrDone = total > 0 && done === total
           return (
             <Card key={stage.id} title={stageName(stage, curStages)} icon="table" padding="12px 16px"
               actions={<Button size="sm" variant="secondary" iconAfter="arrow-right" onClick={() => onOpenBracket(stage.eventId)}>{t('tournament.overview.openBracketBtn')}</Button>}>
-              <Mono size={12} color="var(--text-muted)">
-                {t('tournament.overview.rrStageDesc', { total, groups: groups.length })} · {done}/{total} {t('tournament.overview.matchesDone')}
-              </Mono>
+              <div style={{ display: 'grid', gap: 8 }}>
+                <div style={{ display: 'flex', alignItems: 'baseline', justifyContent: 'space-between', gap: 8 }}>
+                  <Mono size={12} color="var(--text-secondary)">{t('tournament.overview.rrStageDesc', { total, groups: groups.length })}</Mono>
+                  <Mono size={12} weight={700} color={rrDone ? 'var(--status-delivered-fg)' : 'var(--teal-500)'}>
+                    {done}/{total} {t('tournament.overview.matchesDone')}
+                  </Mono>
+                </div>
+                <div style={{ height: 6, borderRadius: 3, background: 'var(--border-default)', overflow: 'hidden' }}>
+                  <div style={{
+                    height: '100%', width: `${donePct}%`, borderRadius: 3, transition: 'width .3s ease',
+                    background: rrDone ? 'var(--status-delivered-fg)' : 'var(--teal-500)',
+                  }} />
+                </div>
+              </div>
             </Card>
           )
         })}
@@ -398,7 +411,7 @@ function MiniBracket({ tour, db, stage, stages, onOpen }) {
     if (x.kind === 'loser') return t('tournament.canvas.lost', { n: x.no })
     return t('tournament.canvas.bye')
   }
-  // Cột: [{ title, cells: [[dòng A, dòng B, tên trận]] }]
+  // Cột: [{ title, cells: [{ a, b, code, m (trận thật, null nếu còn là xem trước) }] }]
   let cols = []
   if (live) {
     const view = koRounds(tour.matches, stage.id)
@@ -411,11 +424,12 @@ function MiniBracket({ tour, db, stage, stages, onOpen }) {
       if (src?.kind === 'loser') return t('tournament.canvas.lost', { n: codeOf.get(src.match) || '' })
       return src?.kind === 'bye' ? t('tournament.canvas.bye') : t('tournament.bracket.tbd')
     }
-    cols = view.rounds.map((r) => ({ title: t('tournament.round.' + r.kind), cells: r.matches.filter((m) => m.status !== 'bye').map((m) => [side(m, 'A'), side(m, 'B'), matchCode(m)]) }))
-    if (view.third) cols.push({ title: t('tournament.round.third'), cells: [[side(view.third, 'A'), side(view.third, 'B'), matchCode(view.third)]] })
+    const cellOf = (m) => ({ a: side(m, 'A'), b: side(m, 'B'), code: matchCode(m), m })
+    cols = view.rounds.map((r) => ({ title: t('tournament.round.' + r.kind), cells: r.matches.filter((m) => m.status !== 'bye').map(cellOf) }))
+    if (view.third) cols.push({ title: t('tournament.round.third'), cells: [cellOf(view.third)] })
   } else {
     const pv = koPreviewOf(stage, source, link, n) || []
-    cols = pv.map((r) => ({ title: t('tournament.round.' + r.roundKind), cells: r.matches.map((m) => [slot(m.a), slot(m.b), '#' + m.no]) }))
+    cols = pv.map((r) => ({ title: t('tournament.round.' + r.roundKind), cells: r.matches.map((m) => ({ a: slot(m.a), b: slot(m.b), code: '#' + m.no, m: null })) }))
   }
   if (!cols.length) return null
   return (
@@ -424,16 +438,42 @@ function MiniBracket({ tour, db, stage, stages, onOpen }) {
       {!live && <div style={{ font: 'var(--type-caption)', color: 'var(--text-muted)', paddingBottom: 8 }}>{t('tournament.overview.miniWait')}</div>}
       <div style={{ display: 'flex', gap: 10, overflowX: 'auto', paddingBottom: 4 }}>
         {cols.map((c, ci) => (
-          <div key={ci} style={{ display: 'grid', alignContent: 'space-around', gap: 8, minWidth: 150, flex: '0 0 auto' }}>
-            <Mono size={10} weight={700} color="var(--text-muted)" style={{ textTransform: 'uppercase' }}>{c.title}</Mono>
-            {c.cells.map(([a, b, code], i) => (
-              <div key={i} style={{ display: 'grid', gap: 2, padding: '6px 8px', borderRadius: 8, background: 'var(--surface-inset)', border: '1px solid var(--border-subtle)' }}>
-                <Mono size={9.5} color="var(--text-muted)">{code}</Mono>
-                {[a, b].map((x, k) => (
-                  <span key={k} style={{ font: '500 11.5px/1.3 var(--font-sans)', color: 'var(--text-primary)', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>{x}</span>
-                ))}
-              </div>
-            ))}
+          <div key={ci} style={{ display: 'grid', alignContent: 'space-around', gap: 8, minWidth: 158, flex: '0 0 auto' }}>
+            <Mono size={10.5} weight={700} color="var(--text-primary)"
+              style={{ textTransform: 'uppercase', letterSpacing: '0.05em', paddingBottom: 6, borderBottom: '1px solid var(--border-subtle)' }}>
+              {c.title}
+            </Mono>
+            {c.cells.map((cell, i) => {
+              const done = cell.m && hasResult(cell.m)
+              return (
+                <div key={i} style={{
+                  display: 'grid', gap: 3, padding: '6px 8px', borderRadius: 8,
+                  background: done ? 'var(--surface-accent-soft)' : 'var(--surface-inset)',
+                  border: `1px solid ${done ? 'var(--teal-500)' : 'var(--border-subtle)'}`,
+                }}>
+                  <Mono size={9.5} color="var(--text-muted)">{cell.code}</Mono>
+                  {['A', 'B'].map((s) => {
+                    const name = s === 'A' ? cell.a : cell.b
+                    const won = done && cell.m.winner === s
+                    return (
+                      <span key={s} style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', gap: 6, minWidth: 0 }}>
+                        <span style={{
+                          font: `${won ? 700 : 500} 11.5px/1.3 var(--font-sans)`, color: won ? 'var(--text-primary)' : 'var(--text-secondary)',
+                          overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap',
+                        }}>
+                          {name}
+                        </span>
+                        {done && (
+                          <Mono size={10} weight={won ? 700 : 500} color={won ? 'var(--status-transit-fg)' : 'var(--text-muted)'} style={{ flex: '0 0 auto' }}>
+                            {sideScores(cell.m.sets, s).join(' ')}
+                          </Mono>
+                        )}
+                      </span>
+                    )
+                  })}
+                </div>
+              )
+            })}
           </div>
         ))}
       </div>
