@@ -25,10 +25,8 @@ export default function TournamentFlow() {
   const navigate = useNavigate()
   const isMobile = useMobile(768)
   const [missingId, setMissingId] = useState(null)
-  // Nội dung đang mở trình dựng — tab Thể thức mở thẳng bằng `?edit=<eventId>` ("Sửa trên sơ đồ tự do →").
   const [params] = useSearchParams()
-  const [editingId, setEditingId] = useState(() => params.get('edit'))
-  const canEdit = can(db.viewAs || 'owner', 'sessions')
+  const currentEventId = params.get('event') || params.get('edit')
 
   useEffect(() => {
     let alive = true
@@ -54,59 +52,72 @@ export default function TournamentFlow() {
   }
   if (!loaded) return <Skeleton height={320} />
 
-  const scheduled = tour.events.filter((e) => tour.stages.some((s) => s.eventId === e.id && s.status !== 'pending'))
-  const openStage = (eventId, stageId) => navigate(pathOf('tournamentBracket', id, eventId) + '?stage=' + stageId)
+  const currentEvent = (currentEventId && tour.events.find((e) => e.id === currentEventId)) || tour.events[0] || null
 
   const nav = (
-    <TourModuleNav tour={tour} active="flow" events={scheduled} isMobile={isMobile}
-      onHub={toHub} onFlow={() => {}} onBracket={(eid) => eid && navigate(pathOf('tournamentBracket', id, eid))} />
+    <TourModuleNav
+      tour={tour}
+      active="flow"
+      events={tour.events}
+      eventId={currentEvent?.id}
+      isMobile={isMobile}
+      onHub={toHub}
+      onFlow={(eid) => eid && navigate(pathOf('tournamentFlow', id) + '?event=' + eid)}
+      onBracket={(eid) => eid && navigate(pathOf('tournamentBracket', id, eid))}
+    />
   )
 
-  // Trình dựng sơ đồ: toàn màn cho MỘT nội dung (chưa có lịch, màn rộng) — handoff "sơ đồ tự do".
-  const editEvent = !isMobile && tour.events.find((e) => e.id === editingId
-    && canEdit && !tour.stages.some((s) => s.eventId === e.id && s.status !== 'pending'))
-  if (editEvent) {
+  if (!currentEvent) {
     return (
       <div style={{ display: 'grid', gap: 14 }}>
         {nav}
-        <FlowCanvas tour={tour} event={editEvent} db={db} a={a} onBack={() => setEditingId(null)}
-          onOpenBracket={(eid) => navigate(pathOf('tournamentBracket', id, eid))} />
+        <Card><Empty icon="medal" title={t('tournament.event.emptyTitle')} hint={t('tournament.event.emptyHint')} /></Card>
       </div>
     )
   }
 
+  // Trên Mobile: canvas tự do kéo thả không khả thi → hiển thị sơ đồ khối Pipeline
+  if (isMobile) {
+    const flow = flowOf(tour, currentEvent)
+    return (
+      <div style={{ display: 'grid', gap: 14 }}>
+        {nav}
+        <Card title={t('tournament.kind.' + currentEvent.kind)} padding="12px 16px 16px">
+          <Mono size={11} color="var(--text-muted)" style={{ display: 'block', marginBottom: 12 }}>
+            {t('tournament.canvas.desktopOnly')}
+          </Mono>
+          {!flow ? (
+            <div style={{ display: 'flex', alignItems: 'center', gap: 12, flexWrap: 'wrap' }}>
+              <span style={{ font: 'var(--type-caption)', color: 'var(--text-muted)' }}>{t('tournament.flow.noFormat')}</span>
+              <Button size="sm" variant="secondary" iconAfter="arrow-right" onClick={toHub}>{t('tournament.bracket.openHub')}</Button>
+            </div>
+          ) : (
+            <Pipeline
+              flow={flow}
+              tour={tour}
+              db={db}
+              isMobile={isMobile}
+              onOpen={(stageId) => navigate(pathOf('tournamentBracket', id, currentEvent.id) + '?stage=' + stageId)}
+            />
+          )}
+        </Card>
+      </div>
+    )
+  }
+
+  // Trên Desktop: mở THẲNG FlowCanvas theo đúng chuẩn Handoff "Giải đấu · sơ đồ tự do"!
   return (
     <div style={{ display: 'grid', gap: 14 }}>
       {nav}
-
-      {tour.events.length === 0 && (
-        <Card><Empty icon="medal" title={t('tournament.event.emptyTitle')} hint={t('tournament.event.emptyHint')} /></Card>
-      )}
-
-      {tour.events.map((ev) => {
-        const flow = flowOf(tour, ev)
-        // Canvas chỉ khi chưa giai đoạn nào có lịch (sau đó sơ đồ là lịch thật — sửa bằng "Làm lại lịch").
-        const editable = canEdit && !tour.stages.some((s) => s.eventId === ev.id && s.status !== 'pending')
-        return (
-          <Card key={ev.id} title={t('tournament.kind.' + ev.kind)} padding="12px 16px 16px"
-            actions={editable && (isMobile
-              ? <Mono size={11} color="var(--text-muted)">{t('tournament.canvas.desktopOnly')}</Mono>
-              : (
-                <Button size="sm" variant="secondary" icon="pencil" onClick={() => setEditingId(ev.id)}>
-                  {t('tournament.canvas.edit')}
-                </Button>
-              ))}>
-            {!flow ? (
-              <div style={{ display: 'flex', alignItems: 'center', gap: 12, flexWrap: 'wrap' }}>
-                <span style={{ font: 'var(--type-caption)', color: 'var(--text-muted)' }}>{t('tournament.flow.noFormat')}</span>
-                <Button size="sm" variant="secondary" iconAfter="arrow-right" onClick={toHub}>{t('tournament.bracket.openHub')}</Button>
-              </div>
-            ) : (
-              <Pipeline flow={flow} tour={tour} db={db} isMobile={isMobile} onOpen={(stageId) => openStage(ev.id, stageId)} />
-            )}
-          </Card>
-        )
-      })}
+      <FlowCanvas
+        key={currentEvent.id}
+        tour={tour}
+        event={currentEvent}
+        db={db}
+        a={a}
+        onBack={toHub}
+        onOpenBracket={(eid) => navigate(pathOf('tournamentBracket', id, eid))}
+      />
     </div>
   )
 }

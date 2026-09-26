@@ -77,7 +77,7 @@ export default function TournamentBracket() {
   const stageLabel = (s) => stageName(s, evStages)
   const nav = (
     <TourModuleNav tour={tour} active="bracket" events={scheduled} eventId={eventId} isMobile={isMobile}
-      onHub={toHub} onFlow={() => navigate(pathOf('tournamentFlow', id))}
+      onHub={toHub} onFlow={() => navigate(pathOf('tournamentFlow', id) + (eventId ? '?event=' + eventId : ''))}
       onBracket={(eid) => eid && navigate(pathOf('tournamentBracket', id, eid))} />
   )
 
@@ -252,7 +252,7 @@ export function BracketSetup({ tour, db, stage, own, a, canEdit, editable }) {
   }
   return (
     <aside style={{
-      width: 270, flex: '0 0 270px', display: 'grid', gap: 12, padding: 14, borderRadius: 12, height: 'fit-content',
+      width: 270, flex: '0 0 270px', minWidth: 0, boxSizing: 'border-box', overflow: 'hidden', display: 'grid', gap: 12, padding: 14, borderRadius: 12, height: 'fit-content',
       background: 'var(--surface-card)', border: '1px solid var(--border-subtle)', boxShadow: 'var(--shadow-xs)',
     }}>
       <span style={{ font: '700 15px/1.2 var(--font-display)', color: 'var(--text-primary)' }}>{t('tournament.bracket.setupTitle')}</span>
