@@ -485,9 +485,12 @@ export function makeTournamentActions({ dbRef, tourRef, setTour, toast, uid }) {
     tourCanvasSave: (stageId, patch) => {
       const cur = tour()
       const stage = cur.stages.find((s) => s.id === stageId)
-      if (!stage || stage.status !== 'pending') return false
-      const ev = cur.events.find((e) => e.id === stage.eventId)
+      if (!stage) return false
+      // Dời khối (canvasX/Y) chỉ đổi toạ độ hiển thị, không đụng luật/lịch → cho phép cả khi đã có lịch
+      // (status running/done). Đổi thật (type/config/luật) vẫn khoá 'pending' như cũ.
       const onlyMove = Object.keys(patch).every((k) => k === 'canvasX' || k === 'canvasY')
+      if (!onlyMove && stage.status !== 'pending') return false
+      const ev = cur.events.find((e) => e.id === stage.eventId)
       const next = { ...stage, ...patch }
       return runOptimistic(
         (t) => ({

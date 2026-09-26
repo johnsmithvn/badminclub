@@ -199,8 +199,8 @@ export default function FlowCanvas({ tour, event, db, a, canEdit, onBack, onOpen
   const onUp = (e) => {
     if (drag) {
       if (drag.moved) {
-        // Giữ khối ở đúng chỗ vừa thả cho tới khi lưu + nạp lại giải xong (run() là network round-trip) —
-        // gỡ drag ngay thì pos() rơi về toạ độ cũ trong base[], khối giật lùi rồi mới nhảy lại đúng chỗ.
+        // tourCanvasSave ghi lạc quan (state cục bộ cập nhật đồng bộ trong runOptimistic) nên gỡ drag ngay
+        // sau đó là an toàn — base[] đã có toạ độ mới trước khi React kịp render lại.
         const { id, x, y } = drag
         Promise.resolve(act(a.tourCanvasSave(id, { canvasX: x, canvasY: y })))
           .finally(() => setDrag((d) => (d?.id === id ? null : d)))
