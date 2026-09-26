@@ -2,11 +2,11 @@ import { useLayoutEffect, useRef, useState } from 'react'
 import { Button, Icon } from '#ds'
 import { Mono, Overline } from '#ui'
 import { canUndo } from '#lib/tournament/advance.js'
-import { CHAMP_KEY, flightsOf, hasResult, sideScores, slotKey, targetStagesOf } from '#lib/tournament/bracketView.js'
-import { groupStandings, orderedRows, swapUpInTie } from '#lib/tournament/standings.js'
+import { CHAMP_KEY, flightsOf, hasResult, sideScores, slotKey } from '#lib/tournament/bracketView.js'
+import { finalRows, groupStandings, swapUpInTie } from '#lib/tournament/standings.js'
 import { closeScoreOf, freeSetWinner } from '#lib/tournament/scoring.js'
 import { t } from '#i18n'
-import { matchCode, ruleLabel, stageName, teamName } from './tourUtils.js'
+import { matchCode, ruleLabel, teamName } from './tourUtils.js'
 
 const EASE = 'cubic-bezier(.2,.8,.2,1)' // DESIGN.md §6
 const CARD_W = 242
@@ -139,32 +139,15 @@ export default function BracketBoard({ view, tour, db, canEdit, isMobile, onScor
 }
 
 /**
- * Vòng bảng: mỗi bảng một khối hiển thị cả Bảng xếp hạng (xử lý hoà) và danh sách trận theo lượt;
- * dưới cùng là "Chốt giai đoạn" / "Tạo lịch nhánh" — gộp về đây, không còn bản rút gọn riêng ở Hub → Tổng quan
- * (2 bảng gần như giống hệt, tách ra chỉ tổ chức lại BTC đi 2 nơi — xem lịch sử chat 2026-09-26).
+ * Vòng bảng: mỗi bảng một khối hiển thị cả Bảng xếp hạng (xử lý hoà) và danh sách trận theo lượt.
+ * "Chốt giai đoạn" / "Tạo lịch nhánh" nằm ở thanh gọn trên đầu trang Nhánh đấu (không phải ở đây) — `manual`
+ * (thứ tự BTC tự xếp khi hoà) cũng do trang cha giữ, để dùng chung cho cả hiển thị lẫn lúc tính `ranks` lúc chốt.
  * `locked` = giai đoạn đã chốt: chỉ xem, không sửa / hoàn tác (DB cũng chặn — `stageDone`).
  */
-export function GroupBoard({ groups, tour, db, a, canEdit, locked, isMobile, onScore, onUndo, onEdit, onQuick, stage, onClosed }) {
-  const [manual, setManual] = useState({})
-  const [closing, setClosing] = useState(false)
+export function GroupBoard({ groups, tour, db, canEdit, locked, isMobile, onScore, onUndo, onEdit, onQuick, stage, manual, onReorder }) {
   const edit = canEdit && !locked
   const toStages = new Set((tour.stageLinks || []).filter((l) => l.fromStageId === stage?.id).map((l) => l.toStageId))
   const advancePerGroup = toStages.size > 0 ? (stage?.config?.advancePerGroup || 2) : 0
-  const targets = stage ? targetStagesOf(tour, stage) : []
-  const evStages = stage ? tour.stages.filter((s) => s.eventId === stage.eventId) : []
-  const allFinished = groups.every((g) => groupStandings(g, tour.matches).isFinished)
-  // Đã chốt: hiện đúng thứ hạng đã ghi (`final_rank`), không tính lại; chưa: theo thứ tự BTC tự xếp khi hoà (`manual`).
-  const rowsOf = (g, st) => (stage?.status === 'done'
-    ? orderedRows(st.rows, [...g.teams].sort((x, y) => (x.finalRank ?? 99) - (y.finalRank ?? 99)).map((x) => x.teamId))
-    : orderedRows(st.rows, manual[g.id]))
-  const closeStage = async () => {
-    if (!stage || !a?.tourCloseStage) return
-    setClosing(true)
-    const ranks = groups.flatMap((g) => rowsOf(g, groupStandings(g, tour.matches)).map((r) => ({ groupId: g.id, teamId: r.teamId, finalRank: r.rank })))
-    const ok = await a.tourCloseStage(stage.id, ranks)
-    setClosing(false)
-    if (ok) onClosed?.()
-  }
 
   return (
     <div style={{ display: 'grid', gap: 16, width: '100%' }}>
@@ -179,7 +162,7 @@ export function GroupBoard({ groups, tour, db, a, canEdit, locked, isMobile, onS
           const own = tour.matches.filter((m) => m.groupId === g.id)
           const rounds = [...new Set(own.map((m) => m.round))].sort((x, y) => x - y)
           const st = groupStandings(g, tour.matches)
-          const rows = rowsOf(g, st)
+          const rows = finalRows(stage, g, st, manual?.[g.id])
           const canReorder = canEdit && stage?.status === 'running' && st.isFinished
 
           return (
@@ -259,7 +242,7 @@ export function GroupBoard({ groups, tour, db, a, canEdit, locked, isMobile, onS
                         </span>
                         {up && (
                           <button type="button" aria-label={t('tournament.standings.moveUp')} title={t('tournament.standings.moveUp')}
-                            onClick={() => setManual((x) => ({ ...x, [g.id]: up }))}
+                            onClick={() => onReorder(g.id, up)}
                             style={{ display: 'grid', placeItems: 'center', flex: '0 0 auto', width: 20, height: 20, borderRadius: 5, border: '1px solid var(--border-default)', background: 'var(--surface-raised)', color: 'var(--text-secondary)', cursor: 'pointer' }}>
                             <Icon name="chevron-up" size={11} />
                           </button>
@@ -294,32 +277,6 @@ export function GroupBoard({ groups, tour, db, a, canEdit, locked, isMobile, onS
           )
         })}
       </div>
-
-      {/* Chốt giai đoạn / Tạo lịch nhánh sau — gộp về đây, khỏi phải quay lại Hub */}
-      {stage && (
-        <div style={{
-          display: 'flex', alignItems: 'center', justifyContent: 'space-between', gap: 12, flexWrap: 'wrap',
-          padding: '12px 16px', background: 'var(--surface-card)', borderRadius: 12, border: '1px solid var(--border-subtle)',
-        }}>
-          {stage.status === 'running' && (
-            allFinished ? (
-              canEdit && <Button icon="circle-check" loading={closing} onClick={closeStage}>{t('tournament.standings.closeStage')}</Button>
-            ) : (
-              <span style={{ font: 'var(--type-caption)', color: 'var(--text-muted)' }}>{t('tournament.standings.closeStageHint')}</span>
-            )
-          )}
-          {stage.status === 'done' && (
-            <div style={{ display: 'flex', alignItems: 'center', gap: 10, flexWrap: 'wrap' }}>
-              <span style={{ font: '600 12.5px/1 var(--font-sans)', color: 'var(--status-delivered-fg)' }}>✓ {t('tournament.standings.closed')}</span>
-              {canEdit && targets.filter((x) => x.status === 'pending').map((x) => (
-                <Button key={x.id} icon="calendar-plus" onClick={() => a?.tourGenerate(stage.eventId, x.seq)}>
-                  {t('tournament.standings.generateStage', { name: stageName(x, evStages) })}
-                </Button>
-              ))}
-            </div>
-          )}
-        </div>
-      )}
     </div>
   )
 }

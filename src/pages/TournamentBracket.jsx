@@ -5,13 +5,13 @@ import { Empty, Mono } from '#ui'
 import { useApp } from '#contexts/AppContext.jsx'
 import { useMobile } from '#hooks/useMobile.js'
 import { can } from '#lib/roles.js'
-import { koRounds, progressOf, queueOf, stageEditable, swapOrder } from '#lib/tournament/bracketView.js'
+import { koRounds, progressOf, queueOf, stageEditable, swapOrder, targetStagesOf } from '#lib/tournament/bracketView.js'
 import { pathOf } from '#routes'
 import { t } from '#i18n'
 import { useTourPoll } from '#hooks/useTourPoll.js'
 import BracketBoard, { GroupBoard } from '#components/tournament/BracketBoard.jsx'
 import { RuleField, Seg } from '#components/tournament/TourBits.jsx'
-import { stageGroups } from '#lib/tournament/standings.js'
+import { finalRows, groupStandings, stageGroups } from '#lib/tournament/standings.js'
 import TourModuleNav from '#components/tournament/TourModuleNav.jsx'
 import { EditScoreDialog, ScoreDialog, UndoDialog } from '#components/tournament/MatchDialogs.jsx'
 import { draftKey, matchCode, ruleLabel, stageName, teamName } from '#components/tournament/tourUtils.js'
@@ -34,6 +34,9 @@ export default function TournamentBracket() {
   // Giai đoạn đang xem: mở từ sơ đồ thì theo `?stage=`; không có → giai đoạn muộn nhất đã có lịch.
   const [params] = useSearchParams()
   const [pickedStageId, setPickedStageId] = useState(() => params.get('stage'))
+  // Thứ tự BTC tự xếp cho các đội hoà (vòng bảng), theo bảng: { [groupId]: teamId[] }. Chỉ trên máy này tới
+  // lúc bấm "Chốt giai đoạn" — lúc đó mới ghi `final_rank` (xem `finalRows` ở standings.js).
+  const [manual, setManual] = useState({})
 
   useEffect(() => {
     let alive = true
@@ -185,17 +188,22 @@ export default function TournamentBracket() {
             )}
           </section>
 
-          {live.length > 1 && (
+          {(live.length > 1 || isRR) && (
             <div style={{ display: 'flex', alignItems: 'center', gap: 10, flexWrap: 'wrap' }}>
-              <Seg options={live.map((s) => ({ key: s.id, label: stageLabel(s) }))} value={stage.id} onChange={setPickedStageId} />
-              {stage.status === 'done' && <Mono size={11} color="var(--text-muted)">{t('tournament.standings.closed')}</Mono>}
+              {live.length > 1 && <Seg options={live.map((s) => ({ key: s.id, label: stageLabel(s) }))} value={stage.id} onChange={setPickedStageId} />}
+              {isRR
+                ? (
+                  <StageActions tour={tour} stage={stage} groups={groups} a={a} canEdit={canEdit} manual={manual}
+                    onClosed={() => { setManual({}); setPickedStageId(null) }} />
+                )
+                : stage.status === 'done' && <Mono size={11} color="var(--text-muted)">{t('tournament.standings.closed')}</Mono>}
             </div>
           )}
 
           {isRR ? (
             <GroupBoard
-              groups={groups} tour={tour} db={db} a={a} canEdit={canEdit} locked={stage.status === 'done'} isMobile={isMobile}
-              stage={stage} onClosed={() => setPickedStageId(null)}
+              groups={groups} tour={tour} db={db} canEdit={canEdit} locked={stage.status === 'done'} isMobile={isMobile}
+              stage={stage} manual={manual} onReorder={(gid, order) => setManual((x) => ({ ...x, [gid]: order }))}
               onScore={(m) => setScoringId(m.id)} onEdit={(m) => setEditingId(m.id)} onUndo={(m) => setUndoingId(m.id)}
               onQuick={(m, sets, winner) => a.tourCommit(m.id, { sets, winner })}
             />
@@ -222,6 +230,42 @@ export default function TournamentBracket() {
           onSave={(sets, reason) => a.tourEditScore(editing.id, sets, reason)} />
       )}
       {undoing && <UndoDialog match={undoing} onClose={() => setUndoingId(null)} onUndo={(reason) => a.tourUndo(undoing.id, reason)} />}
+    </>
+  )
+}
+
+/**
+ * Chốt giai đoạn vòng bảng / Tạo lịch nhánh sau — thanh gọn cạnh bộ chuyển giai đoạn (không phải bảng riêng,
+ * không phải quay về Hub — xem lịch sử chat 2026-09-26). Không phải vòng bảng (KO) thì không hiện gì.
+ */
+export function StageActions({ tour, stage, groups, a, canEdit, manual, onClosed }) {
+  const [closing, setClosing] = useState(false)
+  const isRR = stage.type === 'round_robin'
+  if (!isRR) return null
+  const allFinished = groups.length > 0 && groups.every((g) => groupStandings(g, tour.matches).isFinished)
+  const targets = targetStagesOf(tour, stage)
+  const evStages = tour.stages.filter((s) => s.eventId === stage.eventId)
+  const closeStage = async () => {
+    setClosing(true)
+    const ranks = groups.flatMap((g) => finalRows(stage, g, groupStandings(g, tour.matches), manual[g.id])
+      .map((r) => ({ groupId: g.id, teamId: r.teamId, finalRank: r.rank })))
+    const ok = await a.tourCloseStage(stage.id, ranks)
+    setClosing(false)
+    if (ok) onClosed?.()
+  }
+  return (
+    <>
+      {stage.status === 'running' && (
+        allFinished
+          ? canEdit && <Button size="sm" icon="circle-check" loading={closing} onClick={closeStage}>{t('tournament.standings.closeStage')}</Button>
+          : <Mono size={11} color="var(--text-muted)">{t('tournament.standings.closeStageHint')}</Mono>
+      )}
+      {stage.status === 'done' && <Mono size={11} color="var(--text-muted)">{t('tournament.standings.closed')}</Mono>}
+      {stage.status === 'done' && canEdit && targets.filter((x) => x.status === 'pending').map((x) => (
+        <Button key={x.id} size="sm" icon="calendar-plus" onClick={() => a.tourGenerate(stage.eventId, x.seq)}>
+          {t('tournament.standings.generateStage', { name: stageName(x, evStages) })}
+        </Button>
+      ))}
     </>
   )
 }

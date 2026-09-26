@@ -190,6 +190,17 @@ export function orderedRows(rows, manual) {
   return manual.map((id) => rows.find((r) => r.teamId === id)).map((r, i) => ({ ...r, rank: i + 1 }))
 }
 
+/**
+ * Thứ tự cuối cùng của một bảng — đã chốt thì theo `final_rank` đã ghi (không tính lại); chưa chốt thì theo
+ * thứ tự BTC tự xếp khi hoà (`manual`, id đội theo `orderedRows`). Dùng chung để RENDER và để tính `ranks`
+ * lúc "Chốt giai đoạn" — khớp nhau tuyệt đối, không lệch giữa hiển thị và cái ghi xuống DB.
+ */
+export function finalRows(stage, group, st, manual) {
+  return stage?.status === 'done'
+    ? orderedRows(st.rows, [...group.teams].sort((x, y) => (x.finalRank ?? 99) - (y.finalRank ?? 99)).map((x) => x.teamId))
+    : orderedRows(st.rows, manual)
+}
+
 /** Đảo đội `teamId` lên trên đội liền trước — chỉ khi cả hai cùng một nhóm hoà. Trả thứ tự id mới, hoặc null. */
 export function swapUpInTie(rows, ties, teamId) {
   const i = rows.findIndex((r) => r.teamId === teamId)
