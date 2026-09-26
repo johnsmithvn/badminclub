@@ -77,7 +77,7 @@ export default function TournamentBracket() {
   const stageLabel = (s) => stageName(s, evStages)
   const nav = (
     <TourModuleNav tour={tour} active="bracket" events={scheduled} eventId={eventId} isMobile={isMobile}
-      onHub={toHub} onFlow={() => navigate(pathOf('tournamentFlow', id))}
+      onHub={toHub} onFlow={() => navigate(pathOf('tournamentFlow', id) + (eventId ? '?event=' + eventId : ''))}
       onBracket={(eid) => eid && navigate(pathOf('tournamentBracket', id, eid))} />
   )
 

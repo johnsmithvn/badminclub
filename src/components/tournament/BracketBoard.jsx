@@ -242,13 +242,16 @@ function MatchCard({ m, tour, db, canEdit, round, onScore, onUndo, onEdit, onQui
             style={{
               width: 42, height: 26, borderRadius: 5, textAlign: 'center', font: '700 13px/1 var(--font-mono)',
               background: 'var(--surface-inset)', color: 'var(--text-primary)', border: '1px solid var(--border-default)',
+              flex: '0 0 auto',
             }}
           />
         )}
         {hasResult(m) && (
-          <Mono size={12} weight={won ? 700 : 500} color={won ? 'var(--status-transit-fg)' : 'var(--text-muted)'}>
-            {m.status === 'walkover' ? (won ? 'W' : '—') : sideScores(m.sets, side).join(' ')}
-          </Mono>
+          <span style={{ flex: '0 0 auto' }}>
+            <Mono size={12} weight={won ? 700 : 500} color={won ? 'var(--status-transit-fg)' : 'var(--text-muted)'}>
+              {m.status === 'walkover' ? (won ? 'W' : '—') : sideScores(m.sets, side).join(' ')}
+            </Mono>
+          </span>
         )}
       </div>
     )
