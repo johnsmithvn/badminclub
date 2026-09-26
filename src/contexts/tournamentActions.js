@@ -449,6 +449,7 @@ export function makeTournamentActions({ dbRef, tourRef, setTour, toast, uid }) {
      * Thêm khối: chưa có gì → khối nguồn (seq 1); đã có → nhánh loại trực tiếp mới, đặt ở `at`.
      * `config` ghép đè cấu hình mặc định (khay trái: "Vòng tròn" = 1 bảng, "Chung kết" = không tranh 3).
      */
+    /** Ghi lạc quan (xem `runOptimistic`): khối mới hiện NGAY trên canvas, ghi DB chạy nền. */
     tourCanvasAdd: (eventId, type, at = null, config = {}) => {
       const cur = tour()
       const ev = cur.events.find((e) => e.id === eventId)
@@ -463,10 +464,17 @@ export function makeTournamentActions({ dbRef, tourRef, setTour, toast, uid }) {
         matchRule: qualify, ruleOverrides: type === 'knockout' ? { final: ranking, third: ranking } : {},
         canvasX: at?.x ?? null, canvasY: at?.y ?? null,
       }
-      return run(async () => {
-        await write('tournament_stages', 'insert', [row])
-        await markCustom(ev)
-      })
+      return runOptimistic(
+        (t2) => ({
+          ...t2,
+          stages: [...t2.stages, row],
+          events: t2.events.map((e) => (e.id === ev.id ? { ...e, templateKey: 'custom' } : e)),
+        }),
+        async () => {
+          await write('tournament_stages', 'insert', [row])
+          await markCustom(ev)
+        },
+      )
     },
 
     /**
@@ -494,7 +502,10 @@ export function makeTournamentActions({ dbRef, tourRef, setTour, toast, uid }) {
       )
     },
 
-    /** Nối nguồn → khối bằng bộ hạng `ranks`; bộ rỗng = gỡ nối. */
+    /**
+     * Nối nguồn → khối bằng bộ hạng `ranks`; bộ rỗng = gỡ nối.
+     * Ghi lạc quan (xem `runOptimistic`): đường nối hiện/mất NGAY trên canvas, ghi DB chạy nền.
+     */
     tourCanvasLink: (fromStageId, toStageId, ranks) => {
       const cur = tour()
       const to = cur.stages.find((s) => s.id === toStageId)
@@ -502,17 +513,31 @@ export function makeTournamentActions({ dbRef, tourRef, setTour, toast, uid }) {
       const ev = cur.events.find((e) => e.id === to.eventId)
       const old = (cur.stageLinks || []).find((l) => l.fromStageId === fromStageId && l.toStageId === toStageId)
       const sorted = [...ranks].sort((a, b) => a - b)
-      return run(async () => {
-        if (!sorted.length) {
-          if (old) await write('tournament_stage_links', 'delete', [old.id])
-        } else {
-          await write('tournament_stage_links', 'upsert', [{ ...base(), id: old?.id || uid(), fromStageId, toStageId, ranks: sorted }])
-        }
-        await markCustom(ev)
-      })
+      const linkId = old?.id || uid()
+      const nextLink = sorted.length ? { ...base(), id: linkId, fromStageId, toStageId, ranks: sorted } : null
+      return runOptimistic(
+        (t2) => ({
+          ...t2,
+          stageLinks: nextLink
+            ? [...(t2.stageLinks || []).filter((l) => l.id !== linkId), nextLink]
+            : (t2.stageLinks || []).filter((l) => l.id !== old?.id),
+          events: ev ? t2.events.map((e) => (e.id === ev.id ? { ...e, templateKey: 'custom' } : e)) : t2.events,
+        }),
+        async () => {
+          if (!sorted.length) {
+            if (old) await write('tournament_stage_links', 'delete', [old.id])
+          } else {
+            await write('tournament_stage_links', 'upsert', [nextLink])
+          }
+          await markCustom(ev)
+        },
+      )
     },
 
-    /** Xoá khối (và link của nó). Khối nguồn chỉ xoá được khi là khối cuối cùng. */
+    /**
+     * Xoá khối (và link của nó). Khối nguồn chỉ xoá được khi là khối cuối cùng.
+     * Ghi lạc quan (xem `runOptimistic`): khối biến mất NGAY trên canvas, ghi DB chạy nền.
+     */
     tourCanvasDelete: (stageId) => {
       const cur = tour()
       const stage = cur.stages.find((s) => s.id === stageId)
@@ -520,12 +545,21 @@ export function makeTournamentActions({ dbRef, tourRef, setTour, toast, uid }) {
       const siblings = cur.stages.filter((s) => s.eventId === stage.eventId)
       if (stage.seq === 1 && siblings.length > 1) { toast(t('tournament.canvas.errDeleteSource')); return false }
       const links = (cur.stageLinks || []).filter((l) => l.fromStageId === stageId || l.toStageId === stageId)
+      const linkIds = links.map((l) => l.id)
       const ev = cur.events.find((e) => e.id === stage.eventId)
-      return run(async () => {
-        if (links.length) await write('tournament_stage_links', 'delete', links.map((l) => l.id))
-        await write('tournament_stages', 'delete', [stageId])
-        await markCustom(ev)
-      })
+      return runOptimistic(
+        (t2) => ({
+          ...t2,
+          stages: t2.stages.filter((s) => s.id !== stageId),
+          stageLinks: (t2.stageLinks || []).filter((l) => !linkIds.includes(l.id)),
+          events: ev ? t2.events.map((e) => (e.id === ev.id ? { ...e, templateKey: 'custom' } : e)) : t2.events,
+        }),
+        async () => {
+          if (links.length) await write('tournament_stage_links', 'delete', linkIds)
+          await write('tournament_stages', 'delete', [stageId])
+          await markCustom(ev)
+        },
+      )
     },
 
     /** "Lưu làm mẫu CLB": lưu hình sơ đồ của nội dung (khối + đường nối) để lần sau dựng lại 1 bước. */
