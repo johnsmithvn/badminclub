@@ -192,16 +192,18 @@ export function GroupBoard({ groups, tour, db, canEdit, locked, isMobile, onScor
                 </div>
               </div>
 
-              {st.ties.length > 0 && stage?.status !== 'done' && (
+              {/* Chưa đấu trận nào thì ai cũng hoà 0-0 — đúng toán nhưng chưa có gì để BTC "phân xử", chỉ nhắc
+                  khi bảng đã đấu xong hết (lúc thật sự cần chốt thứ hạng). */}
+              {st.ties.length > 0 && st.isFinished && stage?.status !== 'done' && (
                 <div style={{ font: 'var(--type-caption)', color: 'var(--status-delayed-fg)', display: 'flex', alignItems: 'center', gap: 4 }}>
                   <Icon name="alert-circle" size={13} />
                   <span>{t(canReorder ? 'tournament.standings.tieReorder' : 'tournament.standings.tieNotice')}</span>
                 </div>
               )}
 
-              {/* BẢNG XẾP HẠNG (Standings) */}
+              {/* BẢNG XẾP HẠNG (Standings) — không kéo full-width khi chỉ 1-2 bảng, nội dung có vậy thôi */}
               <div style={{
-                borderRadius: 8, background: 'var(--surface-card)', border: '1px solid var(--border-subtle)',
+                maxWidth: 560, borderRadius: 8, background: 'var(--surface-card)', border: '1px solid var(--border-subtle)',
                 padding: '8px 10px', display: 'grid', gap: 4, overflow: 'hidden',
               }}>
                 <div style={{
@@ -262,14 +264,16 @@ export function GroupBoard({ groups, tour, db, canEdit, locked, isMobile, onScor
                 })}
               </div>
 
-              {/* DANH SÁCH CÁC TRẬN ĐẤU THEO LƯỢT */}
+              {/* DANH SÁCH CÁC TRẬN ĐẤU THEO LƯỢT — xếp nhiều cột khi còn chỗ ngang, đỡ cuộn dọc dài lê thê */}
               <div style={{ display: 'grid', gap: 10, marginTop: 2 }}>
                 {rounds.map((r) => (
                   <div key={r} style={{ display: 'grid', gap: 6 }}>
                     <Overline>{t('tournament.bracket.groupRound', { n: r + 1 })}</Overline>
-                    {own.filter((m) => m.round === r).sort((x, y) => x.slot - y.slot).map((m) => (
-                      <MatchCard key={m.id} m={m} tour={tour} db={db} canEdit={edit} onScore={onScore} onUndo={onUndo} onEdit={onEdit} onQuick={onQuick} />
-                    ))}
+                    <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fill, minmax(230px, 1fr))', gap: 6 }}>
+                      {own.filter((m) => m.round === r).sort((x, y) => x.slot - y.slot).map((m) => (
+                        <MatchCard key={m.id} m={m} tour={tour} db={db} canEdit={edit} onScore={onScore} onUndo={onUndo} onEdit={onEdit} onQuick={onQuick} />
+                      ))}
+                    </div>
                   </div>
                 ))}
               </div>
