@@ -226,7 +226,7 @@ export default function FlowCanvas({ tour, event, db, a, onBack, onOpenBracket }
   const unplaced = source?.type === 'round_robin' ? unplacedTeams(source, full) : []
 
   return (
-    <div style={{ display: 'grid', borderRadius: 12, overflow: 'hidden', border: '1px solid var(--border-subtle)', background: 'var(--surface-card)' }}>
+    <div style={{ display: 'grid', gridTemplateRows: 'auto 1fr', borderRadius: 12, overflow: 'hidden', border: '1px solid var(--border-subtle)', background: 'var(--surface-card)', height: 'calc(100vh - 110px)', minHeight: 650 }}>
       {/* Thanh trên */}
       <div style={{ display: 'flex', alignItems: 'center', gap: 12, flexWrap: 'wrap', padding: '12px 16px', borderBottom: '1px solid var(--border-subtle)' }}>
         <Button size="sm" variant="ghost" icon="arrow-left" onClick={onBack}>{t('tournament.canvas.back')}</Button>
@@ -258,7 +258,7 @@ export default function FlowCanvas({ tour, event, db, a, onBack, onOpenBracket }
         )}
       </div>
 
-      <div style={{ display: 'grid', gridTemplateColumns: '220px minmax(0,1fr) 300px', minHeight: 600 }}>
+      <div style={{ display: 'grid', gridTemplateColumns: '220px minmax(0,1fr) 300px', minHeight: 0, height: '100%', overflow: 'hidden' }}>
         {/* Trái: khối + cặp chưa xếp */}
         <aside style={{ display: 'grid', alignContent: 'start', gap: 14, padding: 14, borderRight: '1px solid var(--border-subtle)' }}>
           {overline(t('tournament.canvas.palette'))}

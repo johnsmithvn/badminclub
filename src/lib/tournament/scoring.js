@@ -2,6 +2,12 @@
  * @file scoring.js
  * Logic tính điểm thuần túy cho module Giải đấu (Tournament).
  * Không phụ thuộc React, không phụ thuộc Supabase.
+ *
+ * HAI tầng (quyết định D11 — plan §1.1):
+ *   · Ghi KẾT QUẢ (nhập tay, chốt, sửa điểm, xếp hạng): TỰ DO về điểm — chỉ cần mỗi set có bên cao điểm hơn,
+ *     đủ số set thắng, không thừa set (`resultWinner` / `validateResult`). Đánh ngắn, dừng theo giờ… đều ghi được.
+ *   · Luật điểm (`setWinner` / `validateSets` / `matchWinner`, chạm 30, cách 2, trần): chỉ để bảng ghi điểm từng
+ *     quả tự chuyển set + báo deuce / set point, và để gợi ý "không khớp luật" (`offRule`) — KHÔNG chặn ghi kết quả.
  */
 
 /**
@@ -287,4 +293,57 @@ export function validRule(rule) {
   if (!Number.isInteger(cap) || cap < points || cap > 99) return false
   if (!rule.winBy2 && cap !== points) return false
   return typeof rule.winBy2 === 'boolean'
+}
+
+/* ---------- Ghi kết quả tự do (D11): số set quyết định, điểm từng set không bị ràng ---------- */
+
+export const MAX_SET_POINTS = 99
+
+/** Bên thắng một set khi ghi kết quả: bên cao điểm hơn. null = hoà (chưa phân định); 'invalid' = không phải số 0..99. */
+export function freeSetWinner(a, b) {
+  if (!Number.isInteger(a) || !Number.isInteger(b) || a < 0 || b < 0 || a > MAX_SET_POINTS || b > MAX_SET_POINTS) return 'invalid'
+  return a > b ? 'A' : b > a ? 'B' : null
+}
+
+/**
+ * Phân tích kết quả nhập (tự do về điểm).
+ * @returns {{ error: string|null, winner: 'A'|'B'|null, winsA: number, winsB: number }}
+ *   error: emptySets · invalidSetFormat · invalidSetScore (không phải số 0..99) · tiedSet (set hoà) · extraSets
+ *   (thừa set sau khi đã phân thắng thua / quá số set) · matchNotFinished (chưa đủ số set thắng).
+ */
+export function inspectResult(sets, rule) {
+  const out = (error, winner = null, winsA = 0, winsB = 0) => ({ error, winner, winsA, winsB })
+  if (!Array.isArray(sets)) return out('tournament.err.invalidFormat')
+  if (!rule || ![1, 3, 5].includes(rule.sets)) return out('tournament.err.missingRule')
+  if (!sets.length) return out('tournament.err.emptySets')
+  if (sets.length > rule.sets) return out('tournament.err.extraSets')
+  const need = Math.ceil(rule.sets / 2)
+  let wa = 0
+  let wb = 0
+  for (const s of sets) {
+    if (wa >= need || wb >= need) return out('tournament.err.extraSets', null, wa, wb)
+    if (!Array.isArray(s) || s.length !== 2) return out('tournament.err.invalidSetFormat', null, wa, wb)
+    const w = freeSetWinner(s[0], s[1])
+    if (w === 'invalid') return out('tournament.err.invalidSetScore', null, wa, wb)
+    if (w === null) return out('tournament.err.tiedSet', null, wa, wb)
+    if (w === 'A') wa++
+    else wb++
+  }
+  const winner = wa >= need ? 'A' : wb >= need ? 'B' : null
+  return out(winner ? null : 'tournament.err.matchNotFinished', winner, wa, wb)
+}
+
+/** Đội thắng theo kết quả nhập (tự do về điểm); null khi chưa hợp lệ / chưa đủ set. */
+export const resultWinner = (sets, rule) => inspectResult(sets, rule).winner
+
+/** Lỗi của kết quả nhập (key i18n) hoặc null. */
+export const validateResult = (sets, rule) => inspectResult(sets, rule).error
+
+/**
+ * Kết quả hợp lệ nhưng có set KHÔNG khớp luật điểm của trận (vd. 22–20 khi luật chạm 30) — chỉ để hiện gợi ý nhỏ,
+ * không chặn. Trả số set lệch luật (0 = khớp hết).
+ */
+export function offRule(sets, rule) {
+  if (!rule?.points) return 0
+  return (sets || []).filter(([a, b]) => setWinner(a, b, rule) !== freeSetWinner(a, b)).length
 }

@@ -3,7 +3,7 @@ import { Button, Dialog, Input } from '#ds'
 import { Mono } from '#ui'
 import { useMobile } from '#hooks/useMobile.js'
 import { boardReducer, boardView, emptyBoard, parseDraft } from '#lib/tournament/scoreboard.js'
-import { matchWinner } from '#lib/tournament/scoring.js'
+import { offRule, resultWinner, validateResult } from '#lib/tournament/scoring.js'
 import { t } from '#i18n'
 import { Seg } from './TourBits.jsx'
 import { draftKey, matchCode, ruleLabel, teamName } from './tourUtils.js'
@@ -189,6 +189,8 @@ function LiveBoard({ match, names, isMobile, onCommit, onStart }) {
       </div>
       <div style={{ display: 'flex', alignItems: 'center', gap: 10, flexWrap: 'wrap', borderTop: '1px solid var(--border-subtle)', paddingTop: 12 }}>
         <Button variant="secondary" icon="undo-2" disabled={!s.history.length} onClick={() => dispatch({ type: 'undo' })}>{t('tournament.sb.undo')}</Button>
+        {/* D11: chốt set ở tỷ số hiện tại (đánh ngắn / hết giờ) — không phải chờ chạm điểm theo luật */}
+        <Button variant="secondary" disabled={!v.canEndSet} onClick={() => dispatch({ type: 'endSet' })}>{t('tournament.sb.endSet')}</Button>
         {!isMobile && <span style={{ font: 'var(--type-caption)', color: 'var(--text-muted)' }}>{t('tournament.sb.keys')}</span>}
         <span style={{ flex: 1 }} />
         <Button variant="primary" icon="arrow-up-right" disabled={!v.winner} loading={busy} onClick={confirm}>{t('tournament.sb.confirm')}</Button>
@@ -227,23 +229,34 @@ function SetsInput({ rows, setRows, max, names }) {
 /** Hàng đã gõ đủ hai ô → [[a, b], …] (bỏ hàng trống ở cuối). */
 const toSets = (rows) => rows.filter((r) => r && r[0] !== '' && r[1] !== '' && r[0] != null && r[1] != null).map((r) => [Number(r[0]), Number(r[1])])
 
+/**
+ * Nhập tỷ số tay — TỰ DO về điểm (D11): chỉ cần mỗi set có bên cao điểm hơn và đủ số set thắng. Tỷ số lệch luật
+ * điểm của trận (đánh ngắn, dừng theo giờ) vẫn ghi được — chỉ hiện một dòng gợi ý. Lỗi nói ngay trong hộp.
+ */
 function ManualEntry({ match, names, onCommit }) {
   const [rows, setRows] = useState([])
   const [busy, setBusy] = useState(false)
   const sets = toSets(rows)
-  const w = matchWinner(sets, match.rule)
-  const winner = w === 'A' || w === 'B' ? w : null
+  const winner = resultWinner(sets, match.rule)
+  const error = sets.length ? validateResult(sets, match.rule) : null
+  const lax = winner ? offRule(sets, match.rule) : 0
   const submit = async () => {
     setBusy(true)
-    if (!(await onCommit({ sets, winner: winner || 'A', status: 'done' }))) setBusy(false)
+    if (!(await onCommit({ sets, winner, status: 'done' }))) setBusy(false)
   }
   return (
     <div style={{ display: 'grid', gap: 12 }}>
-      <span style={{ font: 'var(--type-caption)', color: 'var(--text-muted)' }}>{t('tournament.sb.manualHint', { n: match.rule.sets })}</span>
+      <span style={{ font: 'var(--type-caption)', color: 'var(--text-muted)' }}>{t('tournament.sb.manualHint', { n: match.rule.sets, need: Math.ceil(match.rule.sets / 2) })}</span>
       <SetsInput rows={rows} setRows={setRows} max={match.rule.sets} names={names} />
       {winner && <span style={{ font: '600 13px/1.3 var(--font-sans)', color: 'var(--status-transit-fg)' }}>{endedLine(sets, winner, names)}</span>}
+      {winner && lax > 0 && (
+        <span style={{ font: 'var(--type-caption)', color: 'var(--text-muted)' }}>{t('tournament.sb.offRule', { n: lax, rule: ruleLabel(match.rule) })}</span>
+      )}
+      {error && error !== 'tournament.err.matchNotFinished' && (
+        <span style={{ font: 'var(--type-caption)', color: 'var(--status-delayed-fg)' }}>{t(error)}</span>
+      )}
       <div style={{ display: 'flex', justifyContent: 'flex-end' }}>
-        <Button icon="arrow-up-right" disabled={!sets.length} loading={busy} onClick={submit}>{t('tournament.sb.confirm')}</Button>
+        <Button icon="arrow-up-right" disabled={!winner} loading={busy} onClick={submit}>{t('tournament.sb.confirm')}</Button>
       </div>
     </div>
   )

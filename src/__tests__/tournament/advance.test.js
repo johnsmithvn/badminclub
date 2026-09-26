@@ -49,12 +49,14 @@ test('chốt bán kết: thắng → CK, thua → 3-4, hai bán kết vào hai b
   assert.equal(kind(ms, 'third').status, 'ready')
 })
 
-test('chốt bị từ chối: điểm sai luật, người thắng lệch điểm, trận chưa đủ đội, chốt lần 2', () => {
+test('chốt: điểm TỰ DO (D11) — 25–20 ở luật chạm 30 vẫn chốt được; bị từ chối: set hoà, không phải số, người thắng lệch, chưa đủ đội, chốt lần 2', () => {
   let ms = eight()
   const qf1 = at(ms, 0, 0).id
   const err = (p) => applyCommit(ms, { matchId: qf1, sets: [[30, 20]], winner: 'A', ...p }).error
-  assert.equal(err({ sets: [[25, 20]] }), 'tournament.err.incompleteSet', '25-20 luật chạm 30: set chưa xong mà chốt được là đẩy đội lên vòng sau quá sớm')
-  assert.equal(err({ sets: [[31, 20]] }), 'tournament.err.invalidSetScore')
+  assert.equal(err({ sets: [[25, 20]] }), null, 'đánh ngắn / dừng theo giờ: bên cao điểm thắng set — không bắt chạm 30')
+  assert.equal(err({ sets: [[20, 20]] }), 'tournament.err.tiedSet', 'set hoà không biết ai thắng')
+  assert.equal(err({ sets: [[100, 20]] }), 'tournament.err.invalidSetScore', 'quá 99 là gõ nhầm')
+  assert.equal(err({ sets: [[30, 20], [30, 10]] }), 'tournament.err.extraSets', 'trận 1 set mà nhập 2 set')
   assert.equal(err({ winner: 'B' }), 'tournament.err.winnerMismatch', 'điểm A thắng mà ghi B thắng = đẩy nhầm đội lên vòng sau')
   assert.equal(err({ status: 'walkover', sets: [] }), 'tournament.err.missingReason', 'xử thua phải có lý do')
   assert.equal(applyCommit(ms, { matchId: at(ms, 1, 0).id, sets: [[30, 1]], winner: 'A' }).error,
@@ -97,12 +99,14 @@ test('hoàn tác walkover / retired: gỡ downstream và xoá lý do cũ', () =>
   }
 })
 
-test('retired: set dở dang hợp lệ, nhưng điểm vẫn phải đọc được theo luật', () => {
+test('retired: set dở dang (kể cả đang hoà) hợp lệ; điểm chỉ cần là số 0..99, không quá số set', () => {
   const ms = eight()
   const qf1 = at(ms, 0, 0).id
   const retire = (sets) => applyCommit(ms, { matchId: qf1, sets, winner: 'A', status: 'retired', note: 'đau' }).error
   assert.equal(retire([[12, 7]]), null)
-  assert.equal(retire([[40, 7]]), 'tournament.err.invalidSetScore')
+  assert.equal(retire([[40, 7]]), null, 'D11: điểm không bị ràng theo luật')
+  assert.equal(retire([[9, 9]]), null, 'bỏ cuộc lúc đang hoà')
+  assert.equal(retire([[120, 7]]), 'tournament.err.invalidSetScore')
   assert.equal(retire([[1, 1], [1, 1]]), 'tournament.err.invalidSetScore', 'luật 1 set mà có 2 set')
   assert.equal(applyCommit(ms, { matchId: qf1, sets: [[3, 1]], winner: 'A', status: 'walkover', note: 'vắng' }).error,
     'tournament.err.walkoverHasSets', 'xử thua là chưa đánh — có điểm là nhập nhầm trạng thái')

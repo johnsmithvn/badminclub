@@ -3,7 +3,8 @@ import { Button, Icon } from '#ds'
 import { Mono, Overline } from '#ui'
 import { canUndo } from '#lib/tournament/advance.js'
 import { CHAMP_KEY, flightsOf, hasResult, sideScores, slotKey } from '#lib/tournament/bracketView.js'
-import { setWinner } from '#lib/tournament/scoring.js'
+import { groupStandings } from '#lib/tournament/standings.js'
+import { freeSetWinner } from '#lib/tournament/scoring.js'
 import { t } from '#i18n'
 import { matchCode, ruleLabel, teamName } from './tourUtils.js'
 
@@ -138,27 +139,119 @@ export default function BracketBoard({ view, tour, db, canEdit, isMobile, onScor
 }
 
 /**
- * Vòng bảng: mỗi bảng một khối, trận xếp theo lượt (không vẽ nhánh — trận vòng tròn không có trận sau).
+ * Vòng bảng: mỗi bảng một khối hiển thị cả Bảng xếp hạng mini và danh sách trận theo lượt.
  * `locked` = giai đoạn đã chốt: chỉ xem, không sửa / hoàn tác (DB cũng chặn — `stageDone`).
  */
-export function GroupBoard({ groups, tour, db, canEdit, locked, isMobile, onScore, onUndo, onEdit, onQuick }) {
+export function GroupBoard({ groups, tour, db, canEdit, locked, isMobile, onScore, onUndo, onEdit, onQuick, stage }) {
   const edit = canEdit && !locked
+  const curStage = stage || tour.stages?.find((s) => s.id === groups[0]?.stageId) || null
+  const toStages = new Set((tour.stageLinks || []).filter((l) => l.fromStageId === curStage?.id).map((l) => l.toStageId))
+  const advancePerGroup = toStages.size > 0 ? (curStage?.config?.advancePerGroup || 2) : 0
+
   return (
-    <div style={{ display: 'grid', gridTemplateColumns: isMobile ? '1fr' : 'repeat(auto-fit, minmax(300px, 1fr))', gap: 12, alignItems: 'start' }}>
+    <div style={{
+      display: 'grid',
+      gridTemplateColumns: isMobile ? '1fr' : (groups.length === 2 ? 'repeat(2, minmax(0, 1fr))' : 'repeat(auto-fit, minmax(360px, 1fr))'),
+      gap: 16,
+      alignItems: 'start',
+      width: '100%',
+    }}>
       {groups.map((g) => {
         const own = tour.matches.filter((m) => m.groupId === g.id)
         const rounds = [...new Set(own.map((m) => m.round))].sort((x, y) => x - y)
+        const st = groupStandings(g, tour.matches)
+
         return (
-          <section key={g.id} style={{ display: 'grid', gap: 10, padding: 12, borderRadius: 10, background: 'var(--surface-inset)', border: '1px solid var(--border-subtle)' }}>
-            <span style={{ font: '700 14px/1 var(--font-display)', color: 'var(--text-primary)' }}>{t('tournament.standings.groupTitle', { label: g.label })}</span>
-            {rounds.map((r) => (
-              <div key={r} style={{ display: 'grid', gap: 6 }}>
-                <Overline>{t('tournament.bracket.groupRound', { n: r + 1 })}</Overline>
-                {own.filter((m) => m.round === r).sort((x, y) => x.slot - y.slot).map((m) => (
-                  <MatchCard key={m.id} m={m} tour={tour} db={db} canEdit={edit} onScore={onScore} onUndo={onUndo} onEdit={onEdit} onQuick={onQuick} />
-                ))}
+          <section key={g.id} style={{
+            display: 'grid', gap: 14, padding: isMobile ? 12 : 16, borderRadius: 12,
+            background: 'var(--surface-inset)', border: '1px solid var(--border-subtle)',
+            boxShadow: 'var(--shadow-xs)', width: '100%', boxSizing: 'border-box',
+          }}>
+            {/* Tiêu đề Bảng + Trạng thái tiến độ */}
+            <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', gap: 8, flexWrap: 'wrap' }}>
+              <span style={{ font: '700 16px/1.2 var(--font-display)', color: 'var(--text-primary)' }}>
+                {t('tournament.standings.groupTitle', { label: g.label })}
+              </span>
+              <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
+                {advancePerGroup > 0 && (
+                  <span style={{
+                    font: '600 10.5px/1 var(--font-sans)', color: 'var(--teal-500)',
+                    background: 'var(--surface-accent-soft)', padding: '3px 8px', borderRadius: 99,
+                    border: '1px solid rgba(0, 178, 169, 0.25)',
+                  }}>
+                    {t('tournament.overview.remainingTake', { n: st.matchesCount.total - st.matchesCount.done, k: advancePerGroup })}
+                  </span>
+                )}
+                <Mono size={11} color="var(--text-muted)">
+                  {st.matchesCount.done}/{st.matchesCount.total} {t('tournament.overview.matchesDone')}
+                </Mono>
               </div>
-            ))}
+            </div>
+
+            {/* BẢNG XẾP HẠNG MINI (Standings) */}
+            <div style={{
+              borderRadius: 8, background: 'var(--surface-card)', border: '1px solid var(--border-subtle)',
+              padding: '8px 10px', display: 'grid', gap: 4, overflow: 'hidden',
+            }}>
+              <div style={{
+                display: 'grid', gridTemplateColumns: '24px 1fr 34px 34px 44px', alignItems: 'center', gap: 6,
+                font: '700 10px/1 var(--font-sans)', color: 'var(--text-muted)', padding: '0 4px 6px',
+                borderBottom: '1px solid var(--border-subtle)', letterSpacing: '0.04em', textTransform: 'uppercase',
+              }}>
+                <span style={{ textAlign: 'center' }}>#</span>
+                <span>{t('tournament.overview.pairs')}</span>
+                <span style={{ textAlign: 'center' }}>{t('tournament.overview.won')}</span>
+                <span style={{ textAlign: 'center' }}>{t('tournament.overview.lost')}</span>
+                <span style={{ textAlign: 'right' }}>{t('tournament.overview.diff')}</span>
+              </div>
+
+              {st.rows.map((r) => {
+                const advances = advancePerGroup > 0 && r.rank <= advancePerGroup
+                const label = teamName(tour, db, r.teamId)
+                return (
+                  <div key={r.teamId} style={{
+                    display: 'grid', gridTemplateColumns: '24px 1fr 34px 34px 44px', alignItems: 'center', gap: 6,
+                    padding: '5px 4px', borderRadius: 6,
+                    background: advances ? 'var(--surface-accent-soft)' : 'transparent',
+                    borderLeft: advances ? '3px solid var(--teal-500)' : '3px solid transparent',
+                  }}>
+                    <span style={{
+                      textAlign: 'center', font: '700 11px/1 var(--font-mono)',
+                      color: r.rank === 1 ? 'var(--podium-gold)' : 'var(--text-secondary)',
+                    }}>
+                      {r.rank}
+                    </span>
+                    <span title={label} style={{
+                      font: advances ? '600 12.5px/1.2 var(--font-sans)' : '500 12.5px/1.2 var(--font-sans)',
+                      color: 'var(--text-primary)', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap', minWidth: 0,
+                    }}>
+                      {label}
+                    </span>
+                    <Mono size={11.5} weight={600} color={r.won > 0 ? 'var(--status-delivered-fg)' : 'var(--text-secondary)'} style={{ textAlign: 'center' }}>
+                      {r.won}
+                    </Mono>
+                    <Mono size={11.5} color={r.lost > 0 ? 'var(--text-secondary)' : 'var(--text-muted)'} style={{ textAlign: 'center' }}>
+                      {r.lost}
+                    </Mono>
+                    <Mono size={11.5} weight={600} color={r.pointDiff > 0 ? 'var(--status-delivered-fg)' : (r.pointDiff < 0 ? 'var(--status-incident-fg)' : 'var(--text-muted)')} style={{ textAlign: 'right' }}>
+                      {r.pointDiff > 0 ? `+${r.pointDiff}` : r.pointDiff}
+                    </Mono>
+                  </div>
+                )
+              })}
+            </div>
+
+            {/* DANH SÁCH CÁC TRẬN ĐẤU THEO LƯỢT */}
+            <div style={{ display: 'grid', gap: 10, marginTop: 2 }}>
+              {rounds.map((r) => (
+                <div key={r} style={{ display: 'grid', gap: 6 }}>
+                  <Overline>{t('tournament.bracket.groupRound', { n: r + 1 })}</Overline>
+                  {own.filter((m) => m.round === r).sort((x, y) => x.slot - y.slot).map((m) => (
+                    <MatchCard key={m.id} m={m} tour={tour} db={db} canEdit={edit} onScore={onScore} onUndo={onUndo} onEdit={onEdit} onQuick={onQuick} />
+                  ))}
+                </div>
+              ))}
+            </div>
           </section>
         )
       })}
@@ -189,7 +282,7 @@ function MatchCard({ m, tour, db, canEdit, round, onScore, onUndo, onEdit, onQui
     const a = Number(quick[0])
     const b = Number(quick[1])
     if (quick[0] === '' || quick[1] === '') return
-    const w = setWinner(a, b, m.rule)
+    const w = freeSetWinner(a, b) // D11: ô nhập nhanh — bên cao điểm hơn thắng set
     // Sai luật / chưa xong vẫn gửi đi để action báo đúng lý do bằng i18n (applyCommit), không im lặng.
     // Action trả false ĐỒNG BỘ khi kiểm trên máy hỏng, Promise khi đi mạng — bọc lại cho cả hai.
     Promise.resolve(onQuick(m, [[a, b]], w === 'A' || w === 'B' ? w : a > b ? 'A' : 'B')).then((ok) => ok && setQuick(['', '']))
@@ -274,7 +367,11 @@ function MatchCard({ m, tour, db, canEdit, round, onScore, onUndo, onEdit, onQui
         )}
         {m.courtLabel && <Mono size={10.5} color="var(--text-muted)">{m.courtLabel}</Mono>}
         {(m.status === 'walkover' || m.status === 'retired' || m.status === 'bye') && (
-          <Mono size={10.5} color="var(--text-muted)">{t('tournament.matchStatus.' + m.status)}</Mono>
+          <Mono size={10.5} color="var(--text-muted)" title={m.resultNote || undefined}
+            style={{ maxWidth: 110, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>
+            {/* dừng sớm / bỏ cuộc: hiện đúng ghi chú của trận ("Dừng sớm — …") thay vì nhãn chung "Bỏ cuộc" */}
+            {m.status === 'retired' && m.resultNote ? m.resultNote : t('tournament.matchStatus.' + m.status)}
+          </Mono>
         )}
         <span style={{ flex: 1 }} />
         {canEdit && open && (

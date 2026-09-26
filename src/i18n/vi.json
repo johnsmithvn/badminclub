@@ -5129,6 +5129,7 @@
       "swapped": "Đã đổi người giữa 2 cặp"
     },
     "err": {
+      "tiedSet": "Có set đang hoà điểm — mỗi set phải có một bên cao điểm hơn",
       "notFound": "Không tìm thấy giải đấu",
       "permissionDenied": "Bạn không có quyền quản lý giải đấu",
       "eventLocked": "Nội dung đã chốt đội hình — không thêm, bớt người được nữa",
@@ -5451,6 +5452,8 @@
       "slotsN": "{{n}} đội"
     },
     "sb": {
+      "endSet": "Kết thúc set",
+      "offRule": "{{n}} set không khớp luật {{rule}} — vẫn ghi được (đánh ngắn / dừng theo giờ).",
       "title": "{{code}} · {{event}}",
       "previousSets": "Các séc trước:",
       "tab": {
@@ -5470,7 +5473,7 @@
       "setPoint": "SET POINT",
       "matchPoint": "MATCH POINT",
       "deuce": "DEUCE",
-      "manualHint": "Nhập điểm từng set. Trận đánh {{n}} set.",
+      "manualHint": "Nhập điểm từng set — điểm tự do. Trận {{n}} set: thắng {{need}} set là thắng trận.",
       "wo": {
         "walkover": "Xử thua (chưa đánh)",
         "retired": "Bỏ cuộc giữa trận",

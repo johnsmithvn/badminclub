@@ -13,13 +13,21 @@ export default function AppLayout({ route, children }) {
   const isMobile = useMobile(768)
   const [moreOpen, setMoreOpen] = useState(false)
 
+  const isWideRoute = route === 'tournamentFlow' || route === 'tournamentBracket'
+
   return (
     <div style={S.root}>
       {!isMobile && <Sidebar route={route} />}
       <div style={S.col}>
         <AppHeader route={route} />
-        <main style={{ ...S.main, ...(isMobile ? S.mainMobile : {}) }}>
-          <div style={{ ...S.wrap, ...(isMobile ? S.wrapMobile : {}) }}>{children}</div>
+        <main style={{ ...S.main, ...(isWideRoute ? { padding: '16px 20px 40px' } : {}), ...(isMobile ? S.mainMobile : {}) }}>
+          <div style={{
+            ...S.wrap,
+            ...(isWideRoute ? { maxWidth: '100%' } : {}),
+            ...(isMobile ? S.wrapMobile : {}),
+          }}>
+            {children}
+          </div>
         </main>
       </div>
 

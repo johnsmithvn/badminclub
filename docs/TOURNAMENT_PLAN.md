@@ -25,6 +25,7 @@ Nhãn theo RULES §1: **[V]** đã kiểm trong code · **[A]** giả định ·
 | D8 | Canvas kéo thả **có làm** (Phase 6) — trong màn Sơ đồ, chỉ nội dung chưa có lịch, màn rộng | Luật sơ đồ chạy được: `canvas.js#graphIssue` (1 nguồn seq 1; nguồn vòng bảng → các nhánh loại, mỗi hạng một nhánh). Sửa trên canvas ⇒ mẫu `custom` |
 | D9 | Thông báo "sắp tới lượt": **chỉ chuông trong app**, không push | Trigger `tournament_notify_match` (0059): pending→ready, hoặc trận chưa đánh được xếp sân |
 | D10 | Làm gọn đăng ký: trạng thái giải **tự đi theo lịch**; "Tạo lịch" tự chốt đội hình; giải miễn phí ẩn phí; checklist chỉ việc chặn giải chạy | `syncStatus` trong `tournamentActions.js`; chỉ còn nút Huỷ giải |
+| D11 | **Ghi kết quả tự do về điểm** (2026-09-26): số set quyết định — mỗi set bên cao điểm hơn thắng, đủ ceil(sets/2) set, không set hoà, không thừa set; điểm 0..99 | Luật điểm (chạm 30, cách 2, trần) chỉ còn để bảng ghi điểm từng quả tự chuyển set + ước tính giờ + gợi ý "không khớp luật". Bảng ghi điểm có nút "Kết thúc set". DB: `tournament_valid_sets` thay ở migration `0061`. Bỏ cuộc: set cuối là set dở. |
 | D4 | Thể thức **tự do** theo mô hình giai đoạn (§2) | Schema đủ cho mọi thể thức ngay từ 0057; code làm dần theo phase. |
 | D5 | Ghi nhánh đấu qua **RPC nguyên tử**; dữ liệu giải **nạp riêng**, không qua `diff()` | §4.1 |
 | D6 | Supabase free → **poll** khi trang đang mở, không realtime | §4.4 |
@@ -60,6 +61,8 @@ Mọi thể thức là tổ hợp của 2 loại giai đoạn + liên kết:
 Canvas tự do trong design chỉ là **một giao diện khác đọc/ghi cùng các bảng này** → làm sau không mất gì.
 
 ### 1.1 Luật điểm
+
+> **Cập nhật D11 (0061):** phần dưới là luật của **bảng ghi điểm từng quả** (tự chuyển set, deuce, set point). **Ghi kết quả** (nhập tay, chốt, sửa, xếp hạng) không còn bắt đúng luật này — xem D11.
 
 `rule = { sets: 1|3|5, points: int, winBy2: bool, cap: int }`
 
