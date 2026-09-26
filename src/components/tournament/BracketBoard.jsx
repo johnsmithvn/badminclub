@@ -201,9 +201,9 @@ export function GroupBoard({ groups, tour, db, canEdit, locked, isMobile, onScor
                 </div>
               )}
 
-              {/* BẢNG XẾP HẠNG (Standings) — không kéo full-width khi chỉ 1-2 bảng, nội dung có vậy thôi */}
+              {/* BẢNG XẾP HẠNG (Standings) */}
               <div style={{
-                maxWidth: 560, borderRadius: 8, background: 'var(--surface-card)', border: '1px solid var(--border-subtle)',
+                borderRadius: 8, background: 'var(--surface-card)', border: '1px solid var(--border-subtle)',
                 padding: '8px 10px', display: 'grid', gap: 4, overflow: 'hidden',
               }}>
                 <div style={{
