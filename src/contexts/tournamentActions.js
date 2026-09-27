@@ -44,6 +44,9 @@ export function makeTournamentActions({ dbRef, tourRef, setTour, toast, uid }) {
   /** Chạy một lần ghi rồi nạp lại giải. Lỗi → toast, trả false. */
   const run = async (fn, okKey, vars) => {
     try {
+      // Chờ các lượt ghi lạc quan còn trong hàng xong trước: không thì nạp lại giải giữa chừng, đè mất thao tác
+      // vừa kéo/thả (vd. kéo khối rồi bấm ngay "Tạo lịch").
+      await writes
       await fn()
       await reloadTour()
       if (okKey) toast(t(okKey, vars))
@@ -65,21 +68,27 @@ export function makeTournamentActions({ dbRef, tourRef, setTour, toast, uid }) {
    */
   // Ghi nền xếp HÀNG, chạy lần lượt: bấm −/+ hay kéo liên tục bắn nhiều lượt ghi cùng lúc — chạy song song thì
   // lượt cũ có thể về sau đè lượt mới, DB lệch với cái đang thấy trên màn.
-  let writes = Promise.resolve()
+  // Trả Promise<boolean> xong khi ĐÃ ghi thật (màn đã đổi từ trước) — để nhãn "vừa lưu" nói thật.
+  let writes = Promise.resolve(true)
   const runOptimistic = (apply, fn) => {
     setTour((cur) => (cur ? apply(cur) : cur))
     writes = writes.then(async () => {
       try {
         await fn()
+        return true
       } catch (e) {
         toast(tourErr(e))
         await reloadTour().catch(() => {})
+        return false
       }
     })
-    return true
+    return writes
   }
 
   const write = (table, op, list) => tournamentWrite(table, op, op === 'delete' ? list : tourRows(table, list))
+  // Toạ độ khối trên canvas: số nguyên ≥ 0, sai (NaN…) = null → tự xếp chỗ. Ghi lạc quan giữ nguyên giá trị trên
+  // máy, một NaN lọt vào là khối biến mất và cả khung sơ đồ mất kích thước (không kéo / nối được gì nữa).
+  const coord = (v) => (Number.isFinite(v) ? Math.max(0, Math.round(v)) : null)
   const base = () => ({ clubId: tour().clubId, tournamentId: tour().id })
 
   return {
@@ -468,7 +477,7 @@ export function makeTournamentActions({ dbRef, tourRef, setTour, toast, uid }) {
         ...base(), id: uid(), eventId, seq: nextSeq(stages), type, title: null, status: 'pending',
         config: { ...(type === 'round_robin' ? { numGroups: 2, legs: 1, seeding: 'seed' } : { thirdPlace: true, seeding: stages.length ? 'rank' : 'seed' }), ...config },
         matchRule: qualify, ruleOverrides: type === 'knockout' ? { final: ranking, third: ranking } : {},
-        canvasX: at?.x ?? null, canvasY: at?.y ?? null,
+        canvasX: coord(at?.x), canvasY: coord(at?.y),
       }
       return runOptimistic(
         (t2) => ({
@@ -498,6 +507,8 @@ export function makeTournamentActions({ dbRef, tourRef, setTour, toast, uid }) {
       if (!onlyMove && stage.status !== 'pending') return false
       const ev = cur.events.find((e) => e.id === stage.eventId)
       const next = { ...stage, ...patch }
+      if ('canvasX' in patch) next.canvasX = coord(patch.canvasX)
+      if ('canvasY' in patch) next.canvasY = coord(patch.canvasY)
       return runOptimistic(
         (t) => ({
           ...t,

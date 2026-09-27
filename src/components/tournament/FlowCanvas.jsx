@@ -224,9 +224,8 @@ export default function FlowCanvas({ tour, event, db, a, canEdit, onBack, onOpen
       if (drag.moved) {
         // tourCanvasSave ghi lạc quan (state cục bộ cập nhật đồng bộ trong runOptimistic) nên gỡ drag ngay
         // sau đó là an toàn — base[] đã có toạ độ mới trước khi React kịp render lại.
-        const { id, x, y } = drag
-        Promise.resolve(act(a.tourCanvasSave(id, { canvasX: x, canvasY: y })))
-          .finally(() => setDrag((d) => (d?.id === id ? null : d)))
+        act(a.tourCanvasSave(drag.id, { canvasX: drag.x, canvasY: drag.y }))
+        setDrag(null)
       } else {
         choose(selId === drag.id ? null : drag.id)
         setDrag(null)
@@ -254,7 +253,7 @@ export default function FlowCanvas({ tour, event, db, a, canEdit, onBack, onOpen
     const key = e.dataTransfer.getData(BLOCK_MIME)
     if (!key) return
     e.preventDefault()
-    const p = pointIn(e)
+    const p = pointIn(e.clientX, e.clientY)
     addBlock(PALETTE.find((x) => x.key === key), { x: Math.max(0, Math.round(p.x - 40)), y: Math.max(0, Math.round(p.y - 20)) })
   }
   const saveGroups = (manualGroups) => source && act(a.tourCanvasSave(source.id, { config: { ...source.config, manualGroups } }))

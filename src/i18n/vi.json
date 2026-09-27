@@ -4900,8 +4900,8 @@
       "xd": "Đôi nam nữ",
       "ms": "Đơn nam",
       "ws": "Đơn nữ",
-      "open_doubles": "Đôi mở rộng",
-      "open_singles": "Đơn mở rộng"
+      "open_doubles": "Đôi hỗn hợp",
+      "open_singles": "Đơn hỗn hợp"
     },
     "kindShort": {
       "md": "ĐN",
@@ -4909,8 +4909,8 @@
       "xd": "ĐNN",
       "ms": "ĐơN",
       "ws": "ĐơNữ",
-      "open_doubles": "ĐMR",
-      "open_singles": "ĐơMR"
+      "open_doubles": "ĐHH",
+      "open_singles": "ĐơHH"
     },
     "eventStatus": {
       "draft": "Nhận đăng ký",
@@ -4990,6 +4990,7 @@
       "add": "Nội dung",
       "addTitle": "Thêm nội dung thi đấu",
       "addHint": "Số người mỗi đội và luật giới đi theo loại nội dung.",
+      "openHint": "Không giới hạn nam/nữ, ghép tự do — hợp khi thừa nam hoặc thừa nữ đăng ký",
       "noneLeft": "Giải đã có đủ mọi loại nội dung",
       "delete": "Xoá nội dung",
       "counts": "{{total}} VĐV · {{male}} nam · {{female}} nữ",

@@ -199,7 +199,10 @@ function AddEventDialog({ tour, onClose, onAdd }) {
               }}
             >
               <KindCode kind={k} />
-              <span style={{ font: '600 13.5px/1 var(--font-sans)', color: 'var(--text-primary)' }}>{t('tournament.kind.' + k)}</span>
+              <span style={{ display: 'grid', gap: 3, minWidth: 0 }}>
+                <span style={{ font: '600 13.5px/1 var(--font-sans)', color: 'var(--text-primary)' }}>{t('tournament.kind.' + k)}</span>
+                {EVENT_KINDS[k].genderRule === 'any' && <span style={{ font: 'var(--type-caption)', color: 'var(--text-muted)' }}>{t('tournament.event.openHint')}</span>}
+              </span>
             </button>
           ))}
         </div>
