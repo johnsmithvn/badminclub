@@ -45,6 +45,12 @@ export function roundKindOf(round, totalRounds) {
 function firstRoundTeams(entrants, size, seeding) {
   const n = entrants.length
   const order = bracketOrder(size)
+  // Tự do: số bốc thăm = đúng ô trong nhánh (1..size) — BTC tự đặt cả chỗ miễn đấu.
+  if (seeding === 'pos') {
+    const out = Array(size).fill(null)
+    entrants.forEach((e) => { out[e.drawNo - 1] = e })
+    return out
+  }
   if (seeding === 'slot') {
     const drawn = [...entrants].sort((a, b) => a.drawNo - b.drawNo)
     let k = 0
@@ -55,24 +61,32 @@ function firstRoundTeams(entrants, size, seeding) {
 }
 
 /**
- * Id đội theo vị trí vòng đầu (bỏ ô bye). Ghi làm số bốc thăm 1..n rồi chạy `slot` → nhánh GIỐNG HỆT
- * (slot rải tuần tự đúng vào các ô không bye) — dùng để đổi chỗ tay từ nhánh xếp theo rating.
+ * Id đội theo từng ô vòng đầu (null = ô miễn đấu). Ô thứ i ghi làm số bốc thăm i + 1 với cách xếp "Tự do"
+ * (`seeding:'slot', free:true`) → nhánh GIỐNG HỆT — dùng để đổi chỗ tay từ nhánh đang thấy.
  */
-export function drawOrderOf(entrants, seeding) {
-  return firstRoundTeams(entrants, nextPowerOf2(entrants.length), seeding).filter(Boolean).map((e) => e.id)
+export function slotsOf(entrants, seeding) {
+  return firstRoundTeams(entrants, nextPowerOf2(entrants.length), seeding).map((e) => e?.id ?? null)
 }
+
+/** Cách xếp thật của giai đoạn: 'seed' · 'slot' (bốc thăm, rải tuần tự) · 'pos' (tự do, số = ô). */
+export const seedingOf = (config) => (config?.seeding === 'slot' ? (config?.free ? 'pos' : 'slot') : 'seed')
+/** Tên cách xếp cho UI (đuôi khoá i18n nhãn "Xếp vào nhánh"): 'seed' · 'slot' · 'free' · 'rank'. */
+export const arrangeOf = (config) => (config?.seeding === 'slot' && config?.free ? 'free' : config?.seeding || 'seed')
 
 function checkEntrants(entrants, seeding) {
   if (!Array.isArray(entrants) || entrants.length < 2) {
     throw new Error('buildKnockout: cần ít nhất 2 đội')
   }
-  const key = seeding === 'slot' ? 'drawNo' : 'seed'
+  const key = seeding === 'seed' ? 'seed' : 'drawNo'
   const vals = entrants.map((e) => e[key])
   if (!vals.every(Number.isInteger) || new Set(vals).size !== vals.length) {
     throw new Error(`buildKnockout: mọi đội phải có ${key} nguyên, không trùng`)
   }
   if (key === 'seed' && vals.some((v) => v < 1 || v > vals.length)) {
     throw new Error('buildKnockout: seed phải là 1..số đội')
+  }
+  if (seeding === 'pos' && vals.some((v) => v < 1 || v > nextPowerOf2(vals.length))) {
+    throw new Error('buildKnockout: ô tự do phải là 1..cỡ nhánh')
   }
 }
 
@@ -87,7 +101,7 @@ function checkEntrants(entrants, seeding) {
 export function buildKnockout({ stage, entrants, newId }) {
   if (!stage || !stage.id) throw new Error('buildKnockout: thiếu stage')
   if (typeof newId !== 'function') throw new Error('buildKnockout: thiếu newId')
-  const seeding = stage.config?.seeding === 'slot' ? 'slot' : 'seed'
+  const seeding = seedingOf(stage.config)
   checkEntrants(entrants, seeding)
 
   const n = entrants.length
@@ -131,9 +145,11 @@ export function buildKnockout({ stage, entrants, newId }) {
   }
 
   const teams = firstRoundTeams(entrants, size, seeding)
+  // Hai ô miễn gặp nhau = không ai đi tiếp, trận sau chờ mãi (chỉ xếp tự do mới có thể xảy ra).
+  if (teams.some((x, i) => i % 2 === 0 && !x && !teams[i + 1])) throw new Error('buildKnockout: trận vòng đầu không có đội nào')
   const sourceOf = (team) => {
     if (!team) return { kind: 'bye' }
-    return seeding === 'slot' ? { kind: 'draw', n: team.drawNo } : { kind: 'seed', n: team.seed }
+    return seeding === 'seed' ? { kind: 'seed', n: team.seed } : { kind: 'draw', n: team.drawNo }
   }
   const nextOf = (m) => byRound[1]?.[m.slot >> 1]
 

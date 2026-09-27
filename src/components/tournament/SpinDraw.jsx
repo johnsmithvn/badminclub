@@ -12,8 +12,8 @@ const EASE = 'cubic-bezier(.2,.8,.2,1)' // DESIGN.md §6
  *
  * @param {object} p
  * @param {Array<{ id: string, label: string, sub?: string, pool?: string }>} p.items  người/đội đem bốc
- * @param {Array<{ label: string, pool?: string }>} p.slots  ô theo THỨ TỰ điền; `pool` = chỉ bốc trong items cùng
- *   `pool` (đôi nam nữ: ô "Nam" chỉ bốc nam) — không có thì bốc tất cả
+ * @param {Array<{ label: string, pool?: string, wide?: boolean }>} p.slots  ô theo THỨ TỰ điền; `pool` = chỉ bốc trong
+ *   items cùng `pool` (đôi nam nữ: ô "Nam" chỉ bốc nam) — không có thì bốc tất cả; `wide` = ô chiếm cả hàng (miễn đấu)
  * @param {(order: string[]) => Promise<boolean>|boolean} p.onDone  id theo thứ tự ô; true → đóng hộp
  * @param {number} [p.columns]  số cột lưới ô (ô chia nhóm theo cột: bảng A/B…)
  */
@@ -127,7 +127,7 @@ export default function SpinDraw({ title, hint, items, slots, onDone, onClose, c
             const cur = i === next && !done
             return (
               <div key={i} style={{
-                display: 'flex', alignItems: 'center', gap: 8, minWidth: 0, padding: '7px 10px', borderRadius: 8,
+                gridColumn: s.wide ? '1 / -1' : undefined, display: 'flex', alignItems: 'center', gap: 8, minWidth: 0, padding: '7px 10px', borderRadius: 8,
                 background: i === last ? 'var(--surface-accent-soft)' : 'var(--surface-card)',
                 border: `1px ${it ? 'solid' : 'dashed'} ${cur || i === last ? 'var(--teal-500)' : 'var(--border-subtle)'}`,
                 transition: `background .4s ${EASE}, border-color .3s`,

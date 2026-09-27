@@ -6,7 +6,7 @@ import {
   quickPlan, shownGroups, unplacedTeams,
 } from '#lib/tournament/canvas.js'
 import { TEMPLATES, entrantsOf, koPreview } from '#lib/tournament/format.js'
-import { drawOrderOf, nextPowerOf2 } from '#lib/tournament/bracket.js'
+import { nextPowerOf2, seedingOf, slotsOf } from '#lib/tournament/bracket.js'
 import { linkShape } from '#lib/tournament/bracketView.js'
 import { isDouble } from '#lib/tournament/doubleElim.js'
 import { roundsOf, swissRounds } from '#lib/tournament/swiss.js'
@@ -162,16 +162,26 @@ export default function FlowCanvas({ tour, event, db, a, canEdit, onBack, onOpen
     return r.error ? null : r.entrants.map((e) => ({ ...e, label: teamName(tour, db, e.id) }))
   }
   const previewOf = (s) => (isDouble(s) ? dePreviewOf : koPreviewOf)(s, source, links.find((l) => l.toStageId === s.id), sourceTeams, realOf(s))
-  // Kéo một cặp thả lên cặp khác trong nhánh nguồn = đổi chỗ → chế độ "Tự do" (số bốc thăm theo đúng vị trí đang
-  // thấy, `slotOrder`) — nhánh chỉ đổi đúng 2 cặp đó.
-  const swapTeams = (s) => (idA, idB) => {
-    const order = slotOrder(full, s.config)
-    const i = order.indexOf(idA)
-    const j = order.indexOf(idB)
-    if (i < 0 || j < 0 || i === j) return
-    ;[order[i], order[j]] = [order[j], order[i]]
-    act(a.tourDraw(s.eventId, order, null))
-    if (!s.config?.free) act(a.tourCanvasSave(s.id, { config: { ...s.config, seeding: 'slot', free: true } }))
+  // Kéo đội trong nhánh nguồn → chế độ "Tự do" (số bốc thăm = ô trong nhánh, `slotOrder`):
+  //   thả lên đội khác = đổi chỗ 2 đội; thả lên "Thắng trận k" (trận vòng đầu) = đổi cả cặp ô vòng đầu của mình
+  //   với trận k — cách dời chỗ miễn đấu (VD đội được miễn sang ô tứ kết khác).
+  const swapTeams = (s) => (id, to) => {
+    const pos = slotOrder(full, s.config)
+    const i = pos.indexOf(id)
+    if (i < 0) return
+    const swap = (x, y) => { [pos[x], pos[y]] = [pos[y], pos[x]] }
+    if (to.id) {
+      const j = pos.indexOf(to.id)
+      if (j < 0 || j === i) return
+      swap(i, j)
+    } else {
+      const p = i >> 1
+      if (to.pair === p) return
+      swap(2 * p, 2 * to.pair)
+      swap(2 * p + 1, 2 * to.pair + 1)
+    }
+    act(a.tourDraw(s.eventId, pos, null))
+    if (seedingOf(s.config) !== 'pos') act(a.tourCanvasSave(s.id, { config: { ...s.config, seeding: 'slot', free: true } }))
   }
   // Bề rộng 1 cột bảng theo tên đội DÀI NHẤT đang có (không phải số cố định) — tên dài (VD "A / B") không bị cắt "...".
   const nameColW = full.length
@@ -713,12 +723,28 @@ function TeamChip({ team, tour, db, seed }) {
 }
 
 /**
- * Id cặp theo vị trí nhánh ĐANG THẤY: theo số bốc thăm nếu đang bốc thăm và đã bốc đủ, không thì theo rating.
- * Ghi làm số bốc thăm (`seeding:'slot'`) → nhánh y nguyên (`drawOrderOf`).
+ * Id cặp theo từng ô nhánh ĐANG THẤY (null = ô miễn): theo số bốc thăm nếu đã bốc đủ, không thì theo rating.
+ * Ghi ô i làm số bốc thăm i + 1 với "Tự do" → nhánh y nguyên (`slotsOf`).
  */
 function slotOrder(full, config) {
-  const drawn = config?.seeding === 'slot' && entrantsOf(full, 'slot')
-  return drawn && !drawn.error ? drawOrderOf(drawn.entrants, 'slot') : drawOrderOf(entrantsOf(full, 'seed').entrants, 'seed')
+  const seeding = seedingOf(config)
+  const drawn = seeding !== 'seed' && entrantsOf(full, 'slot')
+  return drawn && !drawn.error ? slotsOf(drawn.entrants, seeding) : slotsOf(entrantsOf(full, 'seed').entrants, 'seed')
+}
+
+/**
+ * Ô hộp quay bốc thăm nhánh, theo ĐÚNG nhánh sẽ sinh: số bốc k rơi vào ô không-miễn thứ k từ trái (`slotsOf` kiểu
+ * 'slot') → hai ô cùng trận nằm cùng hàng ("Trận 1" | "Trận 1"), ô miễn đấu chiếm cả hàng.
+ */
+function drawSlots(n) {
+  const ps = slotsOf(Array.from({ length: n }, (_, i) => ({ id: String(i + 1), drawNo: i + 1 })), 'slot')
+  let m = 0
+  return ps.flatMap((id, p) => {
+    if (!id) return []
+    if (!ps[p ^ 1]) return [{ label: t('tournament.spin.slotBye'), wide: true }]
+    if (p % 2 === 0) m++
+    return [{ label: t('tournament.spin.slotMatch', { n: m }) }]
+  })
 }
 
 const sideText = (x) => (x.kind === 'slot' || x.kind === 'team' ? x.label : x.kind === 'rank' ? t('tournament.flow.rank', { n: x.n })
@@ -901,18 +927,20 @@ function MiniSide({ x, onSwap }) {
   const [over, setOver] = useState(false)
   const strong = ['slot', 'seed', 'rank', 'team'].includes(x.kind)
   const swap = onSwap && x.kind === 'team'
+  // "Thắng trận k" của trận vòng đầu: nhận thả (dời cả cặp ô) nhưng không kéo đi được.
+  const target = swap || (onSwap && x.kind === 'winner' && x.pair != null)
   return (
     <span draggable={swap || undefined} title={swap ? `${x.label} — ${t('tournament.canvas.swapHint')}` : undefined}
       onDragStart={swap ? (e) => { e.stopPropagation(); e.dataTransfer.setData(SWAP_MIME, x.id) } : undefined}
-      onDragOver={swap ? (e) => { if (e.dataTransfer.types.includes(SWAP_MIME)) { e.preventDefault(); setOver(true) } } : undefined}
-      onDragLeave={swap ? () => setOver(false) : undefined}
-      onDrop={swap ? (e) => {
+      onDragOver={target ? (e) => { if (e.dataTransfer.types.includes(SWAP_MIME)) { e.preventDefault(); setOver(true) } } : undefined}
+      onDragLeave={target ? () => setOver(false) : undefined}
+      onDrop={target ? (e) => {
         const id = e.dataTransfer.getData(SWAP_MIME)
         setOver(false)
         if (!id) return
         e.preventDefault()
         e.stopPropagation()
-        if (id !== x.id) onSwap(id, x.id)
+        if (id !== x.id) onSwap(id, swap ? { id: x.id } : { pair: x.pair })
       } : undefined}
       style={{
         display: 'flex', gap: 4, minWidth: 0, margin: '0 -3px', padding: '0 3px', borderRadius: 4, cursor: swap ? 'grab' : 'default',
@@ -1008,7 +1036,7 @@ function StagePanel({ stage, stages, source, links, full, est, act, a, tour, db,
   const spinItems = full.map((x) => ({ id: x.id, label: teamName(tour, db, x.id), sub: String(Math.round(x.sum || 0)) }))
   const spinSlots = spin === 'groups'
     ? full.map((_, i) => ({ label: t('tournament.spin.slotGroup', { g: String.fromCharCode(65 + (i % numGroups)), n: Math.floor(i / numGroups) + 1 }) }))
-    : full.map((_, i) => ({ label: t('tournament.format.drawNo', { n: i + 1 }) }))
+    : ko ? drawSlots(full.length) : full.map((_, i) => ({ label: t('tournament.format.drawNo', { n: i + 1 }) }))
   const spinDone = (order) => (spin === 'groups'
     ? onSaveGroups(Array.from({ length: numGroups }, (_, g) => order.filter((_, i) => i % numGroups === g)))
     : act(a.tourDraw(stage.eventId, order)))
@@ -1096,7 +1124,7 @@ function StagePanel({ stage, stages, source, links, full, est, act, a, tour, db,
       )}
       {spin && (
         <SpinDraw title={t(spin === 'groups' ? 'tournament.spin.titleGroups' : 'tournament.spin.titleDraw')}
-          hint={t(spin === 'groups' ? 'tournament.spin.hintGroups' : 'tournament.spin.hintDraw')}
+          hint={t(spin === 'groups' ? 'tournament.spin.hintGroups' : ko ? 'tournament.spin.hintDraw' : 'tournament.spin.hintSeed')}
           items={spinItems} slots={spinSlots} columns={spin === 'groups' ? Math.min(numGroups, 4) : 2}
           onDone={spinDone} onClose={() => setSpin(null)} />
       )}

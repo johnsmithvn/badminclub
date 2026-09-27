@@ -201,17 +201,28 @@ export function estimateOf(tour, event) {
  *   a/b: { kind: 'slot', label: 'A1' } · { kind: 'seed', n } · { kind: 'winner', no } · { kind: 'loser', no } · { kind: 'bye' }
  */
 export function koPreviewOf(stage, source, link, nSource, real = null) {
+  const built = previewMatches(buildKnockout, stage, source, link, nSource, real)
+  if (!built) return null
+  const played = built.ms.filter((m) => m.status !== 'bye').sort((a, b) => a.round - b.round || (a.roundKind === 'third') - (b.roundKind === 'third') || a.slot - b.slot)
+  const noOf = new Map(played.map((m, i) => [m.id, i + 1]))
+  return previewRounds(played, previewSide(noOf, source, built), noOf, (m) => (m.roundKind === 'third' ? 'third' : m.round))
+}
+
+/**
+ * Dựng trận xem trước. Đội thật (khối nguồn) xếp đúng cách xếp của khối (rating / bốc thăm / tự do); đội giả luôn
+ * theo hạt giống. Số bốc thăm hỏng (dựng lỗi) → quay về ô giả chứ không làm sập cả sơ đồ.
+ */
+function previewMatches(build, stage, source, link, nSource, real) {
   const entrants = previewEntrants(source, link, nSource, real)
   if (!entrants) return null
   let k = 0
-  const ms = buildKnockout({ stage: previewStage(stage, real), entrants, newId: () => 'm' + k++ })
-  const played = ms.filter((m) => m.status !== 'bye').sort((a, b) => a.round - b.round || (a.roundKind === 'third') - (b.roundKind === 'third') || a.slot - b.slot)
-  const noOf = new Map(played.map((m, i) => [m.id, i + 1]))
-  return previewRounds(played, previewSide(noOf, source, real), noOf, (m) => (m.roundKind === 'third' ? 'third' : m.round))
+  try {
+    return { ms: build({ stage: real ? stage : { ...stage, config: { ...stage.config, seeding: 'seed' } }, entrants, newId: () => 'm' + k++ }), real }
+  } catch (e) {
+    if (!real) throw e
+    return previewMatches(build, stage, source, link, nSource, null)
+  }
 }
-
-/** Đội thật (khối nguồn) thì xếp đúng cách xếp của khối (rating / bốc thăm); đội giả luôn theo hạt giống. */
-const previewStage = (stage, real) => (real ? stage : { ...stage, config: { ...stage.config, seeding: 'seed' } })
 
 /**
  * Đội để dựng nhánh xem trước: `real` = đội THẬT của khối nguồn (`entrantsOf`, kèm `label` tên) → nhánh hiện
@@ -233,9 +244,13 @@ function previewEntrants(source, link, nSource, real) {
   return Array.from({ length: nSource }, (_, i) => ({ id: '#' + (i + 1), seed: i + 1 }))
 }
 
-/** Nhãn một bên của trận xem trước. Thụy Sĩ chỉ một bảng → "Hạng 3" thay vì "A3". */
-function previewSide(noOf, source, real) {
+/**
+ * Nhãn một bên của trận xem trước. Thụy Sĩ chỉ một bảng → "Hạng 3" thay vì "A3".
+ * Đội thật: "Thắng trận k" của trận vòng đầu mang `pair` = ô cặp vòng đầu đó (thả đội vào = đổi cả cặp ô).
+ */
+function previewSide(noOf, source, { ms, real }) {
   const byId = new Map((real || []).map((e) => [e.id, e]))
+  const pairOf = new Map(real ? ms.filter((m) => m.round === 0 && m.roundKind !== 'third').map((m) => [m.id, m.slot]) : [])
   return (m, s) => {
     const team = s === 'A' ? m.teamAId : m.teamBId
     if (team && byId.has(team)) {
@@ -247,7 +262,7 @@ function previewSide(noOf, source, real) {
       return source?.type === 'swiss' ? { kind: 'rank', n: Number(team.slice(1)) } : { kind: 'slot', label: team }
     }
     const src = s === 'A' ? m.sourceA : m.sourceB
-    if (src?.kind === 'winner') return { kind: 'winner', no: noOf.get(src.match) }
+    if (src?.kind === 'winner') return { kind: 'winner', no: noOf.get(src.match), ...(pairOf.has(src.match) ? { pair: pairOf.get(src.match) } : {}) }
     if (src?.kind === 'loser') return { kind: 'loser', no: noOf.get(src.match) }
     return { kind: 'bye' }
   }
@@ -271,13 +286,11 @@ function previewRounds(played, side, noOf, keyOf) {
  * @returns {null | { wb: Round[], lb: Round[], gf: Round[] }}  Round cùng dạng `koPreviewOf`
  */
 export function dePreviewOf(stage, source, link, nSource, real = null) {
-  const entrants = previewEntrants(source, link, nSource, real)
-  if (!entrants) return null
-  let k = 0
-  const ms = buildDoubleElim({ stage: previewStage(stage, real), entrants, newId: () => 'm' + k++ })
-  const played = ms.filter((m) => m.status !== 'bye').sort((a, b) => a.round - b.round || a.slot - b.slot)
+  const built = previewMatches(buildDoubleElim, stage, source, link, nSource, real)
+  if (!built) return null
+  const played = built.ms.filter((m) => m.status !== 'bye').sort((a, b) => a.round - b.round || a.slot - b.slot)
   const noOf = new Map(played.map((m, i) => [m.id, i + 1]))
-  const part = (list) => previewRounds(list, previewSide(noOf, source, real), noOf, (m) => m.round)
+  const part = (list) => previewRounds(list, previewSide(noOf, source, built), noOf, (m) => m.round)
   return {
     wb: part(played.filter((m) => !['lb', 'gf'].includes(m.roundKind))),
     lb: part(played.filter((m) => m.roundKind === 'lb')),

@@ -347,7 +347,8 @@ export function makeTournamentActions({ dbRef, tourRef, setTour, toast, uid }) {
       const cur = tour()
       if (cur.stages.some((s) => s.eventId === eventId && s.status !== 'pending')) return toast(t('tournament.err.scheduleExists'))
       const teams = eventTeams(cur, eventId)
-      const drawn = order ? order.map((teamId, i) => ({ teamId, drawNo: i + 1 })) : drawNumbers(teams)
+      // `order` có thể có ô null (ô miễn của xếp "Tự do" — số = ô trong nhánh).
+      const drawn = order ? order.flatMap((teamId, i) => (teamId ? [{ teamId, drawNo: i + 1 }] : [])) : drawNumbers(teams)
       const rows = drawn.map(({ teamId, drawNo }) => ({ ...cur.teams.find((x) => x.id === teamId), drawNo })).filter((x) => x.id)
       if (toastKey) return run(() => write('tournament_teams', 'update', rows), toastKey)
       const no = new Map(rows.map((x) => [x.id, x.drawNo]))
@@ -631,7 +632,8 @@ export function makeTournamentActions({ dbRef, tourRef, setTour, toast, uid }) {
      * "Xong · tạo lại nhánh" (thanh Thiết lập nhánh) và kéo đổi chỗ đội vòng đầu: xoá lịch giai đoạn → sửa → sinh lại.
      * Chỉ khi nhánh CHƯA trận nào có kết quả / đang đánh (DB cũng chặn: `stageHasResults`).
      *   patch: ghép vào giai đoạn (luật, tranh hạng 3, cách xếp).
-     *   order: thứ tự đội vòng đầu (từ `swapOrder`) → số bốc thăm + xếp kiểu 'slot' (chỉ giai đoạn đầu).
+     *   order: id đội theo từng ô vòng đầu, null = ô miễn (từ `swapOrder`) → số bốc thăm = ô + xếp "Tự do"
+     *   (`seeding:'slot', free:true`) — giữ nguyên chỗ miễn đấu đang có (chỉ giai đoạn đầu).
      */
     tourRestage: async (stageId, { patch = {}, order = null } = {}) => {
       const cur = tour()
@@ -641,10 +643,10 @@ export function makeTournamentActions({ dbRef, tourRef, setTour, toast, uid }) {
       if (order && stage.seq !== 1) return false
       try {
         await tournamentRpc('tournament_reset_stage', { p_stage: stageId, p_reason: t('tournament.bracket.restageReason') })
-        const config = { ...stage.config, ...(patch.config || {}), ...(order ? { seeding: 'slot' } : {}) }
+        const config = { ...stage.config, ...(patch.config || {}), ...(order ? { seeding: 'slot', free: true } : {}) }
         await write('tournament_stages', 'upsert', [{ ...base(), ...stage, ...patch, config, status: 'pending' }])
         if (order) {
-          const rows = order.map((id, i) => ({ ...cur.teams.find((x) => x.id === id), drawNo: i + 1 })).filter((x) => x.id)
+          const rows = order.flatMap((id, i) => (id ? [{ ...cur.teams.find((x) => x.id === id), drawNo: i + 1 }] : [])).filter((x) => x.id)
           await write('tournament_teams', 'update', rows.map((x) => ({ ...base(), ...x })))
         }
         await reloadTour()

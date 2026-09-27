@@ -7,6 +7,7 @@ import { useMobile } from '#hooks/useMobile.js'
 import { can } from '#lib/roles.js'
 import { koRounds, progressOf, queueOf, stageEditable, swapOrder, targetStagesOf } from '#lib/tournament/bracketView.js'
 import { entrantsFromLinks } from '#lib/tournament/links.js'
+import { arrangeOf } from '#lib/tournament/bracket.js'
 import { pathOf } from '#routes'
 import { t } from '#i18n'
 import { useTourPoll } from '#hooks/useTourPoll.js'
@@ -163,7 +164,7 @@ export default function TournamentBracket() {
                 {[
                   stageLabel(stage),
                   t('tournament.bracket.slotsN', { n: teamsN }),
-                  !isRR && stage.config?.seeding ? t('tournament.format.seed.' + stage.config.seeding) : null,
+                  !isRR && stage.config?.seeding ? t('tournament.format.seed.' + arrangeOf(stage.config)) : null,
                   stage.type === 'swiss' ? t('tournament.swiss.roundsN', { n: roundsOf(stage, teamsN) }) : null,
                   stage.config?.thirdPlace && !double ? t('tournament.round.third') : null,
                   stage.matchRule ? ruleLabel(stage.matchRule) : null,
@@ -308,7 +309,7 @@ export function StageActions({ tour, stage, groups, a, canEdit, manual, onClosed
  */
 export function BracketSetup({ tour, db, stage, own, a, canEdit, editable, pickedKind = null, onPickKind = () => {} }) {
   const [draft, setDraft] = useState(() => ({
-    seeding: stage.config?.seeding || 'seed', thirdPlace: Boolean(stage.config?.thirdPlace), matchRule: stage.matchRule, overrides: { ...(stage.ruleOverrides || {}) },
+    seeding: arrangeOf(stage.config), thirdPlace: Boolean(stage.config?.thirdPlace), matchRule: stage.matchRule, overrides: { ...(stage.ruleOverrides || {}) },
   }))
   const [busy, setBusy] = useState(false)
   const double = isDouble(stage)
@@ -356,14 +357,14 @@ export function BracketSetup({ tour, db, stage, own, a, canEdit, editable, picke
   })
   const seedOrderChanged = fromGroups && seedOrder.join() !== (Array.isArray(savedOrder) && savedOrder.length === autoEntrants.length ? savedOrder : autoEntrants.map((e) => e.id)).join()
 
-  const changed = draft.seeding !== (stage.config?.seeding || 'seed') || draft.thirdPlace !== Boolean(stage.config?.thirdPlace)
+  const changed = draft.seeding !== arrangeOf(stage.config) || draft.thirdPlace !== Boolean(stage.config?.thirdPlace)
     || !same(draft.matchRule, stage.matchRule) || !same(draft.overrides, stage.ruleOverrides || {})
     || seedOrderChanged
   const restage = async () => {
     setBusy(true)
     await a.tourRestage(stage.id, {
       patch: {
-        config: { seeding: draft.seeding, thirdPlace: draft.thirdPlace, ...(fromGroups ? { seedOrder } : {}) },
+        config: { seeding: draft.seeding === 'free' ? 'slot' : draft.seeding, free: draft.seeding === 'free', thirdPlace: draft.thirdPlace, ...(fromGroups ? { seedOrder } : {}) },
         matchRule: draft.matchRule,
         ruleOverrides: draft.overrides,
       },
@@ -380,10 +381,10 @@ export function BracketSetup({ tour, db, stage, own, a, canEdit, editable, picke
       <div style={{ display: 'grid', gap: 6 }}>
         {label(t('tournament.bracket.setupSource'))}
         {editable && !fromGroups ? (
-          <Seg options={['seed', 'slot'].map((k) => ({ key: k, label: t('tournament.format.seed.' + k) }))} value={draft.seeding}
-            onChange={(k) => (k !== 'slot' || drawn) && setDraft((d) => ({ ...d, seeding: k }))} />
+          <Seg options={['seed', 'slot', ...(arrangeOf(stage.config) === 'free' ? ['free'] : [])].map((k) => ({ key: k, label: t('tournament.format.seed.' + k) }))} value={draft.seeding}
+            onChange={(k) => (k === 'seed' || drawn) && setDraft((d) => ({ ...d, seeding: k }))} />
         ) : (
-          <span style={{ font: '600 13px/1.2 var(--font-sans)', color: 'var(--text-primary)' }}>{t('tournament.format.seed.' + (stage.config?.seeding || 'seed'))}</span>
+          <span style={{ font: '600 13px/1.2 var(--font-sans)', color: 'var(--text-primary)' }}>{t('tournament.format.seed.' + arrangeOf(stage.config))}</span>
         )}
         {editable && !fromGroups && !drawn && <span style={{ font: 'var(--type-caption)', color: 'var(--text-muted)' }}>{t('tournament.format.needDraw')}</span>}
       </div>

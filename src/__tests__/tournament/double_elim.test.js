@@ -71,6 +71,35 @@ test('đánh trọn với kết quả ngẫu nhiên: không kẹt, ai bị loạ
   }
 })
 
+test('xếp tự do (miễn đấu ở ô bất kỳ): con trỏ tiến, đánh trọn không kẹt, ai bị loại cũng đúng 2 trận thua', () => {
+  const free = { ...stage, config: { bracket: 'double', seeding: 'slot', free: true } }
+  for (const n of [3, 5, 6, 7, 9, 11, 12, 13]) {
+    for (const seed of [3, 11, 99]) {
+      const rand = rng(seed * 17 + n)
+      const size = 2 ** Math.ceil(Math.log2(n))
+      // Chọn ngẫu nhiên cặp ô nào được miễn (mỗi cặp tối đa 1 ô trống), rồi rải đội vào các ô còn lại.
+      const pairs = Array.from({ length: size / 2 }, (_, i) => i).sort(() => rand() - 0.5)
+      const empty = new Set(pairs.slice(0, size - n).map((p) => 2 * p + (rand() < 0.5 ? 0 : 1)))
+      const ids = seeded(n).map((x) => x.id).sort(() => rand() - 0.5)
+      const entrants = []
+      for (let p = 0; p < size; p++) if (!empty.has(p)) entrants.push({ id: ids[entrants.length], drawNo: p + 1 })
+      const built = buildDoubleElim({ stage: free, entrants, newId })
+      const byId = new Map(built.map((m) => [m.id, m]))
+      built.forEach((m) => {
+        if (m.nextMatchId) assert.ok(byId.get(m.nextMatchId).round > m.round, `n=${n} seed=${seed} next lùi vòng`)
+        if (m.loserNextMatchId) assert.ok(byId.get(m.loserNextMatchId).round > m.round, `n=${n} seed=${seed} loserNext lùi vòng`)
+      })
+      const ms = playOut(built, () => (rand() < 0.5 ? 'A' : 'B'))
+      assert.equal(ms.filter((m) => m.status === 'pending').length, 0, `n=${n} seed=${seed}: còn trận kẹt`)
+      const champ = deChampion(ms)
+      assert.ok(champ)
+      const losses = new Map()
+      ms.filter((m) => m.status === 'done').forEach((m) => { const l = m.winner === 'A' ? m.teamBId : m.teamAId; losses.set(l, (losses.get(l) || 0) + 1) })
+      ids.forEach((id) => { if (id !== champ) assert.equal(losses.get(id) || 0, 2, `n=${n} seed=${seed}: ${id}`) })
+    }
+  }
+})
+
 test('miễn đấu: nhánh thua không sinh trận miễn, đội đi thẳng tới trận sau; vòng nhánh thua đánh số từ 1', () => {
   const ms = build(5)
   assert.equal(ms.filter((m) => m.roundKind === 'lb').length, 3)

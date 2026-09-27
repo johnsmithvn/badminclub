@@ -1,7 +1,7 @@
 import test from 'node:test'
 import assert from 'node:assert/strict'
 import { canvasChecks, estimateOf, graphIssue, groupsForStage, koPreviewOf, layoutOf, manualGroupsOk, moveTeam, nextFreeRanks, nextSeq, teamsViaLink, unplacedTeams } from '#lib/tournament/canvas.js'
-import { drawOrderOf } from '#lib/tournament/bracket.js'
+import { buildKnockout, slotsOf } from '#lib/tournament/bracket.js'
 import { entrantsOf } from '#lib/tournament/format.js'
 
 const st = (id, seq, type, p = {}) => ({ id, seq, type, status: 'pending', config: {}, ...p })
@@ -139,16 +139,31 @@ test('nhánh nguồn với cặp thật: hiện tên; đổi rating → số b�
   assert.deepEqual(seedView.slice(0, 2), ['D', 'E'])
   assert.ok(seedView.includes('A') && seedView.includes('B') && seedView.includes('C'))
 
-  const order = drawOrderOf(bySeed, 'seed')
-  const drawn = order.map((id, i) => ({ id, drawNo: i + 1, label: id.toUpperCase() }))
-  const slot = sg('k', 1, 'knockout', { seeding: 'slot' })
-  assert.deepEqual(names(koPreviewOf(slot, null, null, 5, drawn)), seedView, 'chuyển sang số bốc thăm: nhánh y nguyên')
+  const order = slotsOf(bySeed, 'seed')
+  const asFree = (pos) => pos.flatMap((id, k) => (id ? [{ id, drawNo: k + 1, label: id.toUpperCase() }] : []))
+  const free = sg('k', 1, 'knockout', { seeding: 'slot', free: true })
+  assert.deepEqual(names(koPreviewOf(free, null, null, 5, asFree(order))), seedView, 'chuyển sang tự do: nhánh y nguyên')
 
   const i = order.indexOf('a')
   const j = order.indexOf('e')
   ;[order[i], order[j]] = [order[j], order[i]]
-  const swapped = names(koPreviewOf(slot, null, null, 5, order.map((id, k) => ({ id, drawNo: k + 1, label: id.toUpperCase() }))))
+  const swapped = names(koPreviewOf(free, null, null, 5, asFree(order)))
   assert.deepEqual(swapped, seedView.map((x) => (x === 'A' ? 'E' : x === 'E' ? 'A' : x)))
+
+  // Dời cả cặp ô: sau A↔E thì A đá vòng đầu (cặp `play`), E được miễn (cặp `bye`). Đổi 2 cặp ô → trận của A
+  // đá ở ô `bye`, E miễn ở ô `play`. Không bao giờ sinh trận 2 ô trống.
+  const play = order.indexOf('a') >> 1
+  const bye = order.indexOf('e') >> 1
+  const moved = [...order]
+  ;[moved[2 * play], moved[2 * bye]] = [moved[2 * bye], moved[2 * play]]
+  ;[moved[2 * play + 1], moved[2 * bye + 1]] = [moved[2 * bye + 1], moved[2 * play + 1]]
+  const pv = koPreviewOf(free, null, null, 5, asFree(moved))
+  assert.equal(pv[0].matches.length, 1, 'vẫn đúng 1 trận vòng đầu')
+  assert.deepEqual([pv[0].matches[0].a.label, pv[0].matches[0].b.label].sort(), [order[2 * play], order[2 * play + 1]].map((x) => x.toUpperCase()).sort())
+  assert.equal(pv[1].matches.flatMap((m) => [m.a, m.b]).find((x) => x.kind === 'winner').pair, bye, '"Thắng trận 1" mang ô cặp mới')
+  // 5 đội ở ô 1–5 của nhánh 8: cặp ô 7–8 trống cả hai → không ai đi tiếp, phải chặn.
+  assert.throws(() => buildKnockout({ stage: free, entrants: Array.from({ length: 5 }, (_, k) => ({ id: 'x' + k, drawNo: k + 1 })), newId: () => 'q' }),
+    /không có đội/)
 })
 
 test('khay cặp chưa xếp: chia tay dở dang giữ nguyên; kéo về khay / vào bảng', () => {

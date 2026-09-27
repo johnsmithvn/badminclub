@@ -177,7 +177,7 @@ hubChecklist({ events: [], registrations: [], entries: [], prizes: [] }).forEach
 ;['ok', 'warn', 'bad', 'idle'].forEach((k) => need('tournament.pairing.tone.' + k))
 Object.keys(RULE_PRESETS).forEach((k) => need('tournament.format.preset.' + k))
 TEMPLATES.forEach((k) => { need('tournament.format.tpl.' + k); need('tournament.format.tplSub.' + k) })
-;['seed', 'slot'].forEach((k) => need('tournament.format.seed.' + k))
+;['seed', 'slot', 'free', 'rank'].forEach((k) => need('tournament.format.seed.' + k))
 ;['r32', 'r16', 'qf', 'sf', 'final', 'third', 'group'].forEach((k) => { need('tournament.round.' + k); need('tournament.code.' + k) })
 ;['pending', 'ready', 'live', 'done', 'walkover', 'retired', 'bye'].forEach((k) => need('tournament.matchStatus.' + k))
 ;['live', 'manual', 'walkover'].forEach((k) => need('tournament.sb.tab.' + k))

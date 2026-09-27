@@ -28,7 +28,7 @@ test('so với TB: lệch trung bình quá ngưỡng thì cảnh báo (handoff: 
   assert.deepEqual(v.c, { diff: 0, warn: false })
 })
 
-test('đổi chỗ vòng đầu: sinh lại kiểu bốc thăm với thứ tự mới → đúng nhánh cũ, chỉ 2 đội đổi chỗ (kể cả khi có bye)', () => {
+test('đổi chỗ vòng đầu: sinh lại kiểu tự do (số = ô) → đúng nhánh cũ, chỉ 2 đội đổi chỗ (kể cả khi có bye)', () => {
   const stage = { id: 's', config: { seeding: 'seed', thirdPlace: true }, matchRule: { sets: 1, points: 21, winBy2: true, cap: 30 }, ruleOverrides: {} }
   for (const n of [8, 6, 5]) {
     let k = 0
@@ -36,7 +36,8 @@ test('đổi chỗ vòng đầu: sinh lại kiểu bốc thăm với thứ tự 
     const before = buildKnockout({ stage, entrants, newId: () => 'a' + k++ })
     const pairs = (ms) => ms.filter((m) => m.round === 0 && m.roundKind !== 'third').sort((a, b) => a.slot - b.slot).map((m) => [m.teamAId, m.teamBId])
     const order = swapOrder(before, 's', 'T1', 'T2')
-    const after = buildKnockout({ stage: { ...stage, config: { ...stage.config, seeding: 'slot' } }, entrants: order.map((id, i) => ({ id, drawNo: i + 1 })), newId: () => 'b' + k++ })
+    const after = buildKnockout({ stage: { ...stage, config: { ...stage.config, seeding: 'slot', free: true } },
+      entrants: order.flatMap((id, i) => (id ? [{ id, drawNo: i + 1 }] : [])), newId: () => 'b' + k++ })
     const swap = (id) => (id === 'T1' ? 'T2' : id === 'T2' ? 'T1' : id)
     assert.deepEqual(pairs(after), pairs(before).map((p) => p.map(swap)), `${n} đội`)
   }
