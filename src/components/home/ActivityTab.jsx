@@ -138,7 +138,7 @@ export default function ActivityTab() {
         if (chal?.botReason) {
           return {
             icon: 'swords',
-            color: '#A855F7',
+            color: '#00F5D4',
             key: 'challenge_created_bot',
             bubbleKey: botLineKey('reason', chal.botReason, chal.id),
             badgeColor: 'rgba(168, 85, 247, 0.15)',
@@ -147,9 +147,17 @@ export default function ActivityTab() {
         return { icon: 'swords', color: '#00F5D4', key: 'challenge_created', badgeColor: 'rgba(0, 245, 212, 0.15)' }
       }
       case 'challenge_declined':
-      case 'challenge_cancelled':
+      case 'challenge_cancelled': {
         // Kèo không diễn ra: chấm xám trung tính, không đỏ — không phải sự cố, và không bêu ai.
-        return { icon: 'x', color: 'var(--status-idle-fg)', key: item.type, badgeColor: 'var(--surface-sunken)' }
+        // Gọi bằng tên hai phe; kèo không còn trong state thì đành dùng mã kèo.
+        const known = (db?.challenges || []).some((c) => c.id === (item.ref_id || item.payload?.chalId))
+        return {
+          icon: 'x',
+          color: 'var(--status-idle-fg)',
+          key: known ? 'challenge_not_played' : 'challenge_not_played_code',
+          badgeColor: 'var(--surface-sunken)',
+        }
+      }
       case 'session_cancelled':
         return { icon: 'x', color: '#EF4444', key: item.type, badgeColor: 'rgba(239, 68, 68, 0.15)' }
       case 'session_opened':
@@ -159,11 +167,10 @@ export default function ActivityTab() {
       case 'member_joined':
         return { icon: 'user', color: '#EC4899', key: 'member_joined', badgeColor: 'rgba(236, 72, 153, 0.15)' }
       case 'arcade_played': {
-        // MỘT dòng mỗi người mỗi ngày, RPC cộng dồn tại chỗ. Màu chấm theo lãi/lỗ cả ngày.
-        const net = Number(item.payload?.net) || 0
+        // MỘT dòng mỗi người mỗi ngày, RPC cộng dồn tại chỗ. Chấm tím như mọi dòng dính tới bot.
         return {
           icon: 'sparkles',
-          color: net > 0 ? '#10B981' : (net < 0 ? '#FF2E7E' : '#FFE24B'),
+          color: '#A855F7',
           key: Number(item.payload?.draw) > 0 ? 'arcade_day_draw' : 'arcade_day',
           badgeColor: 'rgba(168, 85, 247, 0.15)',
         }

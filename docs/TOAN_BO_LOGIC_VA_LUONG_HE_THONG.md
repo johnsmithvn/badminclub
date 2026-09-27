@@ -82,12 +82,12 @@ Khi lập trình trên repo này, bạn **bắt buộc tuân thủ 5 nguyên t�
 - Tiền sân chỉ được ghi nhận một lần (theo tháng hoặc theo buổi tùy chế độ cài đặt CLB). Không ghi nhận tiền sân lặp lại ở từng trận đấu.
 
 ### 🌐 NGUYÊN TẮC 2: KHÔNG HARD-CODE CHỮ HIỂN THỊ (100% QUA i18n)
-- **Cấm viết chuỗi tiếng Việt trực tiếp trong component `.jsx`.** Mọi từ ngữ phải gọi `t('key', { params })` từ `#i18n` và lưu tại [`src/i18n/vi.json`](file:///c:/Workspace/badminclub/src/i18n/vi.json).
+- **Cấm viết chuỗi tiếng Việt trực tiếp trong component `.jsx`.** Mọi từ ngữ phải gọi `t('key', { params })` từ `#i18n` và lưu tại [`src/i18n/vi.json`](../src/i18n/vi.json).
 - Dữ liệu ghi vào database phải là **KEY hệ thống** (ví dụ: `dues`, `court`, `won`, `lost`, `active`), không bao giờ ghi nhãn hiển thị dịch thuật.
 
 ### ⚙️ NGUYÊN TẮC 3: KHÔNG SỐ MA THUẬT (100% QUA CONFIG)
-- Tất cả hằng số nghiệp vụ (số phút mỗi ván, hệ số K Elo, mốc thưởng điểm mùa, dung sai cân bằng trình độ) phải nằm ở [`src/config/app.json`](file:///c:/Workspace/badminclub/src/config/app.json).
-- Ma trận phân quyền 3 vai (`owner`, `treasurer`, `member`) nằm tập trung ở [`src/config/permissions.json`](file:///c:/Workspace/badminclub/src/config/permissions.json).
+- Tất cả hằng số nghiệp vụ (số phút mỗi ván, hệ số K Elo, mốc thưởng điểm mùa, dung sai cân bằng trình độ) phải nằm ở [`src/config/app.json`](../src/config/app.json).
+- Ma trận phân quyền 3 vai (`owner`, `treasurer`, `member`) nằm tập trung ở [`src/config/permissions.json`](../src/config/permissions.json).
 
 ### 🧱 NGUYÊN TẮC 4: PHÂN LỚP KIẾN TRÚC NGHIÊM NGẶT
 | Tầng | Thư mục | Trách nhiệm | Điều cấm kỵ |
@@ -331,7 +331,7 @@ stateDiagram-v2
 
 ### LUỒNG 7: HỆ THỐNG ĐÁNH GIÁ TRÌNH ĐỘ & ELO (CAREER ELO v4.0 ENGINE FLOW)
 
-Đặc tả toán học đầy đủ nằm tại [`src/lib/rating.js`](file:///c:/Workspace/badminclub/src/lib/rating.js) và [`docs/CHI_SO_VA_CONG_THUC.md`](file:///c:/Workspace/badminclub/docs/CHI_SO_VA_CONG_THUC.md).
+Đặc tả toán học đầy đủ nằm tại [`src/lib/rating.js`](../src/lib/rating.js) và [`docs/CHI_SO_VA_CONG_THUC.md`](../docs/CHI_SO_VA_CONG_THUC.md).
 
 #### 1. Công thức Elo Đôi (Doubles Elo)
 Elo của một đội (Team Elo) là trung bình cộng có trọng số của 2 thành viên:
@@ -418,7 +418,7 @@ flowchart LR
     Decision -->|Điểm < 40| None[Im lặng: mode: none]
 ```
 
-#### Chi Tiết 5 Bước Trong Code ([`src/lib/botScenarios.js`](file:///c:/Workspace/badminclub/src/lib/botScenarios.js)):
+#### Chi Tiết 5 Bước Trong Code ([`src/lib/botScenarios.js`](../src/lib/botScenarios.js)):
 1. **`inspectMemberState(db, memberId, now, memoryStore)`**: Thu thập toàn bộ trạng thái toán học: Elo hiện tại, Elo trước trận gần nhất (`preMatchElo`), Thứ hạng trước trận (`preRank`), Chuỗi thắng/thua, Đối thủ kình địch H2H (`rival`), và kiểm tra tính tươi mới của buổi tập (`isMatchSessionFresh`).
 2. **`detectRecentEvents(db, memberId, state, now)`**: Trích xuất các sự kiện thực tế có gắn `eventKey` bắt buộc:
    - `overtake_rival`: Vượt điểm đối thủ cạnh tranh nhờ trận vừa thắng.
@@ -447,7 +447,7 @@ flowchart LR
 
 ### LUỒNG 10: HỆ THỐNG TÀI CHÍNH, CÔNG NỢ & SỔ QUỸ (MONEY, DUES & LEDGER FLOW)
 
-Đây là phân hệ cốt lõi để giữ sự minh bạch tài chính của CLB. Chi tiết mã nguồn nằm tại [`src/lib/money.js`](file:///c:/Workspace/badminclub/src/lib/money.js) và [`src/lib/ledger.js`](file:///c:/Workspace/badminclub/src/lib/ledger.js).
+Đây là phân hệ cốt lõi để giữ sự minh bạch tài chính của CLB. Chi tiết mã nguồn nằm tại [`src/lib/money.js`](../src/lib/money.js) và [`src/lib/ledger.js`](../src/lib/ledger.js).
 
 ```mermaid
 flowchart TD
@@ -491,7 +491,7 @@ flowchart TD
 
 ### LUỒNG 11: HỆ THỐNG GAMIFICATION (XP, CẤP BẬC, DANH XƯNG & KỆ HUY HIỆU FLOW)
 
-Chi tiết mã nguồn tại [`src/lib/xp.js`](file:///c:/Workspace/badminclub/src/lib/xp.js) và [`src/lib/badges.js`](file:///c:/Workspace/badminclub/src/lib/badges.js).
+Chi tiết mã nguồn tại [`src/lib/xp.js`](../src/lib/xp.js) và [`src/lib/badges.js`](../src/lib/badges.js).
 
 #### 1. Trục Gắn Bó & Điểm Cống Hiến (XP Engine)
 Khác với Elo (chỉ đo trình độ thắng/thua), **XP đo lòng trung thành và sự nhiệt tình** với CLB:
@@ -517,7 +517,7 @@ Hội viên có thể ghim 3 huy hiệu danh giá nhất lên hồ sơ cá nhân
 
 ### LUỒNG 12: THƯ VIỆN TRẬN ĐẤU, VIDEO REPLAY TIMELINE & MA TRẬN H2H FLOW
 
-Chi tiết tại [`src/pages/Matches.jsx`](file:///c:/Workspace/badminclub/src/pages/Matches.jsx) và [`src/lib/matchSearch.js`](file:///c:/Workspace/badminclub/src/lib/matchSearch.js).
+Chi tiết tại [`src/pages/Matches.jsx`](../src/pages/Matches.jsx) và [`src/lib/matchSearch.js`](../src/lib/matchSearch.js).
 
 1. **Thư viện trận đấu & Video Replay:**
    - Mỗi trận đấu có thể gắn kèm link Video (YouTube / MP4).

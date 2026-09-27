@@ -7,8 +7,7 @@
 // 4. applySynergy()          -> Gộp candidates CÙNG eventKey thành kịch bản đỉnh cao
 // 5. evaluateEncounter()     -> Tính finalScore phẳng, Daily Cap (1 modal/ngày), trả về Decision
 
-import { findBotMember, botLineKey } from '#lib/bot.js'
-import { calculateSeasonLeaderboard } from '#lib/season.js'
+import { findBotMember } from '#lib/bot.js'
 import { BotMemoryStore } from '#lib/botMemory.js'
 import { getClubEloLeaderboard } from '#lib/homePersonal.js'
 import { getPlayerRating, DEFAULT_RATING } from '#lib/rating.js'
@@ -112,17 +111,6 @@ export function inspectMemberState(db, memberId, now = Date.now(), memoryStore =
   const botRow = board.find((r) => r.id === bot?.id)
   const botElo = botRow?.elo ?? DEFAULT_RATING
   const botRank = botRow?.rank || 99
-
-  // 2. Điểm mùa (Season Points)
-  let currentSp = 0
-  let botSp = 0
-  try {
-    const sb = calculateSeasonLeaderboard(db)
-    const myRow = (sb.leaderboard || []).find((r) => r.id === memberId)
-    currentSp = Number(myRow?.totalSeasonPoints) || 0
-    const botRow = (sb.leaderboard || []).find((r) => r.id === bot?.id)
-    botSp = Number(botRow?.totalSeasonPoints) || 0
-  } catch (e) {}
 
   // 3. Lịch sử trận đấu của thành viên (sắp xếp mới nhất lên đầu)
   const myMatches = (db.matches || [])
@@ -244,8 +232,6 @@ export function inspectMemberState(db, memberId, now = Date.now(), memoryStore =
     preMatchElo,
     botRank,
     botElo,
-    currentSp,
-    botSp,
     lastMatch,
     lastMatchAt,
     isRecentMatch,

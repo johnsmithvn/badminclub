@@ -8,6 +8,7 @@
 // 5. evaluateEncounter() & getPersonalBotEncounter() (Flat score, Daily Modal Cap)
 
 import assert from 'node:assert/strict'
+import vi from '#i18n/vi.json' with { type: 'json' }
 import {
   inspectMemberState,
   detectRecentEvents,
@@ -15,6 +16,7 @@ import {
   applySynergy,
   evaluateEncounter,
   getPersonalBotEncounter,
+  isMatchSessionFresh,
 } from '#lib/botScenarios.js'
 
 const NOW = Date.parse('2026-09-23T12:00:00.000Z')
@@ -429,3 +431,80 @@ console.log('--- Test 8: getPersonalBotEncounter Pipeline E2E ---')
 
   console.log('Bot Scenario Engine: OK')
 }
+
+console.log('--- Test 9: Mỗi kịch bản một câu đúng, đủ tham số ---')
+{
+  // Bản đầu gắn nhầm câu: vào Top 3 thì bot nói "một trận nữa là chuỗi 5", thua Arcade thì bot
+  // nói "{{n}} trận thắng liên tiếp" với `n` trống. Test đọc chính câu trong vi.json và đòi mọi
+  // `{{x}}` trong câu phải có tham số — câu sai chỗ gần như luôn lộ ra ở đây.
+  const lineOf = (key) => key.split('.').reduce((o, k) => o?.[k], vi)
+  const TYPES = [
+    'overtake_bot', 'bot_overtakes', 'overtake_rival', 'overtaken_by_rival', 'revenge_complete',
+    'streak_win_5', 'streak_win_3', 'streak_lose_3', 'top3_entered', 'arcade_loss_revenge',
+    'arcade_win_brag', 'chasing_bot', 'near_streak_5', 'welcome_back',
+  ]
+  const data = { n: 4, rivalName: 'Văn Bắc', stake: 5, rank: 3, diff: 10, rivalId: 'u2' }
+  const events = TYPES.map((type) => ({ type, eventKey: 'ev:' + type, occurredAt: NOW, data }))
+  const state = { member: { name: 'Thành Nam' }, bot: { name: 'Bot AI' } }
+  const cands = detectScenarios(events, state)
+  assert.equal(cands.length, TYPES.length, 'Mỗi loại sự kiện phải ra đúng một kịch bản')
+
+  const byLine = new Map()
+  cands.forEach((c) => {
+    const text = lineOf(c.lineKey)
+    assert.equal(typeof text, 'string', `${c.scenarioKey}: câu ${c.lineKey} không có trong vi.json`)
+    for (const [, name] of text.matchAll(/{{(\w+)}}/g)) {
+      assert.ok(c.params?.[name] !== undefined && c.params?.[name] !== '',
+        `${c.scenarioKey}: câu ${c.lineKey} cần {{${name}}} mà không được truyền — người dùng đọc thấy chữ trống`)
+    }
+    byLine.set(c.lineKey, [...(byLine.get(c.lineKey) || []), c.scenarioKey])
+  })
+  byLine.forEach((keys, lineKey) => {
+    // Chuỗi 3 và chuỗi 5 cố ý dùng chung một câu (câu có {{n}}). Ngoài ra không ai được mượn câu.
+    if (keys.length > 1) {
+      assert.deepEqual(keys.sort(), ['streak_win_3', 'streak_win_5'], `${lineKey} bị dùng chung bởi ${keys.join(', ')}`)
+    }
+  })
+
+  // Synergy chỉ vượt đối thủ: câu riêng (không nhắc vượt bot), tên lấy từ CHÍNH người vừa bị vượt.
+  const same = [
+    { type: 'streak_win_3', eventKey: 'match:x', occurredAt: NOW, data: { n: 3 } },
+    { type: 'overtake_rival', eventKey: 'match:x', occurredAt: NOW, data: { rivalId: 'u2', rivalName: 'Văn Bắc' } },
+  ]
+  const syn = applySynergy(detectScenarios(same, { ...state, rival: { name: 'Người Khác' } }), { ...state, rival: { name: 'Người Khác' } })
+  assert.equal(syn.length, 1)
+  assert.equal(syn[0].scenarioKey, 'synergy_streak_overtake_rival')
+  assert.equal(syn[0].lineKey, 'bot.encounter.synergy.streak_overtake_rival', 'Không vượt bot thì không được dùng câu "vượt cả rival lẫn tôi"')
+  assert.equal(syn[0].params.rival, 'Văn Bắc', 'Tên là người vừa bị vượt trong trận, không phải kình địch mọi thời')
+}
+
+console.log('--- Test 10: Trận buổi sáng vẫn là trận mới (ngày theo giờ máy, không theo UTC) ---')
+{
+  // 06:00 sáng GIỜ MÁY ngày 27/09, buổi 27/09 đã chốt sổ. Tạo bằng `new Date(y, m, d, h)` để test
+  // không phụ thuộc múi giờ của máy chạy. Bản dùng `toISOString` (UTC) trên máy giờ VN tính trận
+  // này sang ngày 26, chính buổi 27 thành "buổi kế tiếp đã chốt" và bot im cả buổi sáng.
+  const matchAt = new Date(2026, 8, 27, 6, 0).getTime()
+  const now = new Date(2026, 8, 27, 20, 0).getTime()
+  const db = { sessions: [{ id: 's1', date: '2026-09-27', status: 'closed' }], matches: [] }
+  const fresh = isMatchSessionFresh(db, 'u1', { id: 'm_morning', at: matchAt }, now, { hasShownRecently: () => false })
+  assert.equal(fresh, true, 'Trận 6 giờ sáng của buổi hôm nay vẫn phải được bot phản ứng')
+}
+
+console.log('--- Test 11: Đối thủ đã đánh tiếp sau trận thì không báo "vừa vượt" ---')
+{
+  // u1 thắng u2: trước trận 1530 < 1565, sau trận 1550 >= 1545 -> vượt thật.
+  const m = { id: 'm_ot', at: NOW - ONE_HOUR, winnerTeam: 'A', eloDelta: 20, teamA: ['u1'], teamB: ['u2'], playerKeys: ['u1', 'u2'] }
+  const noMem = { hasShownRecently: () => false, hasSeenModalToday: () => false }
+  const dbCtrl = makeMockDb({ myElo: 1550, rivalElo: 1545, botElo: 1400, matches: [m] })
+  const evCtrl = detectRecentEvents(dbCtrl, 'u1', inspectMemberState(dbCtrl, 'u1', NOW, noMem), NOW)
+  assert.ok(evCtrl.some((e) => e.type === 'overtake_rival'), 'Đối chứng: đối thủ chưa đánh thêm thì vẫn báo vượt')
+
+  // u2 đánh thêm một trận sau đó: Elo hiện tại của u2 không còn là Elo "sau trận" nữa.
+  const later = { id: 'm_later', at: NOW - 0.5 * ONE_HOUR, winnerTeam: 'B', eloDelta: 15, teamA: ['u2'], teamB: ['u3'], playerKeys: ['u2', 'u3'] }
+  const dbLater = makeMockDb({ myElo: 1550, rivalElo: 1545, botElo: 1400, matches: [m, later] })
+  const evLater = detectRecentEvents(dbLater, 'u1', inspectMemberState(dbLater, 'u1', NOW, noMem), NOW)
+  assert.ok(!evLater.some((e) => e.type === 'overtake_rival' || e.type === 'overtaken_by_rival'),
+    'Đối thủ đã đánh tiếp thì số liệu không còn đúng — thà im còn hơn nói "vừa vượt X" sai')
+}
+
+console.log('Bot Scenario Engine (U2-U4): OK')

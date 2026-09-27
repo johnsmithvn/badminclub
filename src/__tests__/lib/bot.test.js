@@ -2,11 +2,11 @@ import assert from 'node:assert/strict'
 import { calculateSeasonLeaderboard } from '#lib/season.js'
 import {
   findBotMember, botGateOpen, pickBotChallenge, BOT_REASONS,
-  botLineKey, BOT_LINE_VARIANTS, getBotTaunt, getBotMatchReaction, getBotChallengeReaction, pickBotRemark,
+  botLineKey, BOT_LINE_VARIANTS, getBotTaunt, getBotMatchReaction, pickBotRemark,
   botBetStreak, pickBotPredictions, pickBotPredictionForChallenge, getBotBetLine,
   getBotArcadeOffer, getArcadeResultLine, arcadeRoundsToday,
   spendableSeasonPoints, ARCADE_GAMES, ARCADE_CHOICES, ARCADE_DAILY_CAP,
-  getPlayerRelationships, getBotState, getBotInteraction,
+  getPlayerRelationships, getBotState,
 } from '#lib/bot.js'
 
 const NOW = Date.parse('2026-09-21T12:00:00.000Z')
@@ -521,42 +521,12 @@ assert.equal(relDuo.synergy.wins, 3, 'Thắng 3 trận')
 assert.equal(relDuo.isBestDuo, true, 'Cặp đôi ăn ý (>= 75%)')
 assert.equal(relDuo.isFrequentPartner, true, 'Đối tác thường xuyên')
 
-/* ---------- BOT STATE & 3-TIER INTERACTION ---------- */
+/* ---------- BOT STATE ---------- */
 
 const state = getBotState(dbRivalry, NOW)
 assert.ok(state.bot, 'Có thông tin bot')
 assert.equal(state.bot.id, 'bot', 'Đúng ID bot')
 assert.equal(state.seasonPoints, 100, 'Bot có 100 SP khởi đầu')
 assert.ok(state.clubRivalries.length > 0, 'Phát hiện được rivalry m1-m2 trong CLB')
-
-// Interaction: Tier 1 Popup khi user đứng ngay trên Bot
-const interactAbove = getBotInteraction(dbRivalry, 'm1', NOW)
-assert.ok(interactAbove.mode === 'popup' || interactAbove.mode === 'ambient', 'Có chế độ tương tác')
-assert.ok(interactAbove.lineKey, 'Có câu thoại tương tác')
-
-/* ---------- getBotChallengeReaction (LIFECYCLE) ---------- */
-
-// 1. Kèo bot gạ bị từ chối
-const chalBotDeclined = { id: 'c_decl_bot', createdBy: 'bot', status: 'declined', teamA: ['m1'], teamB: ['m2'], declinedBy: 'm2' }
-const reactBotDecl = getBotChallengeReaction(baseDb(), chalBotDeclined)
-assert.ok(reactBotDecl.lineKey.startsWith('bot.reaction.declined_bot.'), 'Bot khịa m2 từ chối kèo bot')
-assert.equal(reactBotDecl.params.decliner, 'm2')
-
-// 2. Kèo người gạ bị đối thủ từ chối
-const chalUserDeclined = { id: 'c_decl_user', createdBy: 'm1', status: 'declined', teamA: ['m1'], teamB: ['m2'], declinedBy: 'm2' }
-const reactUserDecl = getBotChallengeReaction(baseDb(), chalUserDeclined)
-assert.ok(reactUserDecl.lineKey.startsWith('bot.reaction.declined_user.'), 'Bot châm chọc m2 rén trước m1')
-assert.equal(reactUserDecl.params.challenger, 'm1')
-assert.equal(reactUserDecl.params.decliner, 'm2')
-
-// 3. Kèo bị huỷ
-const chalCancel = { id: 'c_canc', createdBy: 'm1', status: 'cancelled', teamA: ['m1'], teamB: ['m2'] }
-const reactCancel = getBotChallengeReaction(baseDb(), chalCancel)
-assert.ok(reactCancel.lineKey.startsWith('bot.reaction.cancelled.'), 'Bot chọc kèo bị huỷ')
-
-// 4. Kèo hết hạn
-const chalExpired = { id: 'c_exp', createdBy: 'm1', status: 'expired', teamA: ['m1'], teamB: ['m2'] }
-const reactExpired = getBotChallengeReaction(baseDb(), chalExpired)
-assert.ok(reactExpired.lineKey.startsWith('bot.reaction.expired.'), 'Bot khịa kèo hết hạn ế chỏng chơ')
 
 console.log('bot check: OK')

@@ -16,7 +16,7 @@ Trong Badminclub, Bot tồn tại dưới hai tư cách hoàn toàn khác nhau. 
 | **Định danh** | 1 bản ghi `club_members` có cờ `is_bot = true`. | Một lớp trải nghiệm tương tác đối thoại 1-1 với từng thành viên. |
 | **Vai trò** | Đứng trên Bảng xếp hạng Elo, đánh minigame Arcade, làm đối thủ tham chiếu cho toàn CLB. | Nhân vật đồng hành, quan sát lịch sử thi đấu của riêng bạn để khen ngợi, cà khịa, gạ kèo, nhắc nợ. |
 | **Hành vi** | Tự động quét CLB để tạo kèo đấu công khai (`create_bot_challenge`: Săn chuỗi, Sát nút BXH). | Bật Popup đối thoại (`BotEncounterModal.jsx`) hoặc hiện thẻ Card trong trang Thống kê cá nhân (`MyStats.jsx`). |
-| **Mã nguồn** | [`src/lib/bot.js`](file:///c:/Workspace/badminclub/src/lib/bot.js) | [`src/lib/botScenarios.js`](file:///c:/Workspace/badminclub/src/lib/botScenarios.js) & [`src/lib/botMemory.js`](file:///c:/Workspace/badminclub/src/lib/botMemory.js) |
+| **Mã nguồn** | [`src/lib/bot.js`](../src/lib/bot.js) | [`src/lib/botScenarios.js`](../src/lib/botScenarios.js) & [`src/lib/botMemory.js`](../src/lib/botMemory.js) |
 
 ### 1.2 "Có Người Đang Nói Chuyện Với Mình" (Trải Nghiệm NPC Sống Động)
 - Bot **không phải là chatbot AI tự do (LLM) trả lời linh tinh**, cũng **không phải là dòng thông báo hệ thống khô khan**.
@@ -75,7 +75,7 @@ flowchart LR
 - **Mục đích:** Chọn ra 1 kịch bản xuất sắc nhất và quyết định hình thức xuất hiện (`modal`, `card`, hoặc `none`).
 - **Các bộ lọc:**
   1. *Penalty thời gian:* Càng xa thời điểm diễn ra, điểm càng bị trừ nhẹ.
-  2. *Deduplication:* Trừ 25 điểm nếu kịch bản này đã từng xuất hiện trong 3 ngày qua (`hasShownRecently`).
+  2. *Deduplication:* Trừ 40 điểm nếu kịch bản này đã từng xuất hiện trong 3 ngày qua (`hasShownRecently`).
   3. *Daily Modal Cap:* Nếu người này đã thấy 1 popup modal trong ngày hôm nay (`hasSeenModalToday`), tự động **hạ cấp xuống `mode: 'card'`**.
 
 ---
@@ -148,7 +148,7 @@ $$\text{preRank} > 3 \quad \text{VÀ} \quad \text{currentRank} \le 3$$
 
 Giả sử bạn muốn thêm kịch bản mới: **"Thợ săn chuỗi - Đánh bại đối thủ đang có chuỗi thắng 5"** (`streak_breaker`). Hãy làm theo đúng quy trình 5 bước sau:
 
-### Bước 1: Khai báo Event trong `detectRecentEvents` ([`src/lib/botScenarios.js`](file:///c:/Workspace/badminclub/src/lib/botScenarios.js))
+### Bước 1: Khai báo Event trong `detectRecentEvents` ([`src/lib/botScenarios.js`](../src/lib/botScenarios.js))
 ```javascript
 // Kiểm tra nếu trận gần nhất thắng một đối thủ đang có chuỗi thắng >= 4
 if (state.lastMatchWon && state.isRecentMatch) {
@@ -184,7 +184,7 @@ case 'streak_breaker':
   break
 ```
 
-### Bước 3: Đăng ký câu thoại i18n trong [`src/i18n/vi.json`](file:///c:/Workspace/badminclub/src/i18n/vi.json)
+### Bước 3: Đăng ký câu thoại i18n trong [`src/i18n/vi.json`](../src/i18n/vi.json)
 > ⛔ **CẤM:** Không viết chữ tiếng Việt trực tiếp trong code.
 ```json
 "bot": {
@@ -196,7 +196,7 @@ case 'streak_breaker':
 }
 ```
 
-### Bước 4: Viết Unit Test Kiểm Định trong [`src/__tests__/lib/bot_scenarios.test.js`](file:///c:/Workspace/badminclub/src/__tests__/lib/bot_scenarios.test.js)
+### Bước 4: Viết Unit Test Kiểm Định trong [`src/__tests__/lib/bot_scenarios.test.js`](../src/__tests__/lib/bot_scenarios.test.js)
 Tạo mock DB, giả lập trận đấu và assert:
 ```javascript
 const events = detectRecentEvents(db, 'u1', state, NOW)
@@ -209,6 +209,22 @@ node src/__tests__/lib/bot_scenarios.test.js
 npm test
 ```
 Tất cả 422+ tests phải PASS 100%.
+
+---
+
+## 5b. LUẬT GÁC PHÍA SERVER (MIGRATION 0064)
+
+Năm RPC của Global Bot đều `SECURITY DEFINER` và mở cho mọi thành viên đăng nhập, nên thành viên nào cũng gọi thẳng được với tham số tự chọn. Luật thật nằm ở SQL, cổng trong `bot.js` chỉ để khỏi gọi thừa. `src/__tests__/sync/bot_rpc_guards.test.js` gác hình dạng các cổng này.
+
+| RPC | Luật |
+| :--- | :--- |
+| `create_bot_challenge(p_team_a uuid[], p_team_b uuid[], p_reason)` | **Luôn kèo đôi** (2 đấu 2, bốn người khác nhau). Một kèo mở tại một thời điểm, tối đa một kèo mỗi 24h. Chỉ dựng khi có buổi `draft`/`open` trong 2 ngày tới; hạn nhận kéo tới hết ngày buổi đó. |
+| `place_bot_prediction(p_challenge_id, p_stake)` | **Server tự chọn phe** theo Elo trung bình trong `player_ratings`, ~1/5 kèo bắt cửa dưới. Mức cược ≤ 45% số dư mùa. Client chỉ gửi mức cược. |
+| `post_bot_reaction(p_kind, p_challenge_id)` | Chỉ nhận xét **sau trận** (`blowout`/`clutch`/`normal`) của kèo do bot dựng, mỗi kèo một dòng. Kèo bị từ chối / huỷ / hết hạn thì bot im. |
+| `post_bot_remark(p_kind, p_subject)` | Chỉ nhận mã có trong `BOT_LINE_VARIANTS.remark` (không có `rank_drop`). Tối đa một câu mỗi 12h, cùng chuyện cùng người không lặp trong 7 ngày. |
+| `play_arcade_round(p_club, p_game, p_stake, p_choice)` | Bắt buộc `p_club`. Từ chối thì trả `{ error }` (`capped`/`broke`/`bot_broke`/`no_bot`/`invalid`). Tab Hoạt động: một dòng mỗi người mỗi ngày, cộng dồn tại chỗ. |
+
+Số dư SP phía server (`member_season_sp`) tính **theo mùa đang chạy** trong `clubs.seasons`, không cộng dồn toàn thời gian. Nó không tính điểm từ trận đấu (server không dựng lại được), nên chặn chặt hơn số dư trên màn hình với người thắng trận nhiều — lệch về phía an toàn.
 
 ---
 
@@ -226,10 +242,10 @@ Tất cả 422+ tests phải PASS 100%.
 
 | Tệp tin | Trách nhiệm |
 | :--- | :--- |
-| [`src/lib/botScenarios.js`](file:///c:/Workspace/badminclub/src/lib/botScenarios.js) | **Trái tim Engine:** Chứa 5 bước pipeline, tính toán preRank/preElo, Session-Aware Freshness và luật Synergy. |
-| [`src/lib/botMemory.js`](file:///c:/Workspace/badminclub/src/lib/botMemory.js) | **Bộ nhớ Bot:** Lưu vết encounter vào `localStorage`, kiểm tra Daily Cap, deduplicate kịch bản và sự kiện. |
-| [`src/lib/bot.js`](file:///c:/Workspace/badminclub/src/lib/bot.js) | **Global Bot:** Quản lý tài khoản Bot trong CLB, tạo kèo tự động (`create_bot_challenge`), tính điểm minigame Arcade. |
-| [`src/components/bot/BotEncounterModal.jsx`](file:///c:/Workspace/badminclub/src/components/bot/BotEncounterModal.jsx) | **Giao diện Đối thoại 1-1:** Popup NPC đạt chuẩn TDMS, hào quang avatar, speech bubble, tone badge và action buttons. |
-| [`src/components/home/personal/BotTauntCard.jsx`](file:///c:/Workspace/badminclub/src/components/home/personal/BotTauntCard.jsx) | **Thẻ Card Cá nhân:** Nơi hiển thị kịch bản Bot khi hạ cấp từ Modal (`mode: 'card'`). |
-| [`src/pages/MyStats.jsx`](file:///c:/Workspace/badminclub/src/pages/MyStats.jsx) | **Điểm neo kích hoạt:** Màn hình thống kê cá nhân nơi gọi `getPersonalBotEncounter` và mở Modal. |
-| [`src/__tests__/lib/bot_scenarios.test.js`](file:///c:/Workspace/badminclub/src/__tests__/lib/bot_scenarios.test.js) | **Bộ Unit Test:** 8 bộ test bao phủ toàn bộ các case toán học, freshness window và synergy. |
+| [`src/lib/botScenarios.js`](../src/lib/botScenarios.js) | **Trái tim Engine:** Chứa 5 bước pipeline, tính toán preRank/preElo, Session-Aware Freshness và luật Synergy. |
+| [`src/lib/botMemory.js`](../src/lib/botMemory.js) | **Bộ nhớ Bot:** Lưu vết encounter vào `localStorage`, kiểm tra Daily Cap, deduplicate kịch bản và sự kiện. |
+| [`src/lib/bot.js`](../src/lib/bot.js) | **Global Bot:** Quản lý tài khoản Bot trong CLB, tạo kèo tự động (`create_bot_challenge`), tính điểm minigame Arcade. |
+| [`src/components/bot/BotEncounterModal.jsx`](../src/components/bot/BotEncounterModal.jsx) | **Giao diện Đối thoại 1-1:** Popup NPC đạt chuẩn TDMS, hào quang avatar, speech bubble, tone badge và action buttons. |
+| [`src/components/home/personal/BotTauntCard.jsx`](../src/components/home/personal/BotTauntCard.jsx) | **Thẻ Card Cá nhân:** Nơi hiển thị kịch bản Bot khi hạ cấp từ Modal (`mode: 'card'`). |
+| [`src/pages/MyStats.jsx`](../src/pages/MyStats.jsx) | **Điểm neo kích hoạt:** Màn hình thống kê cá nhân nơi gọi `getPersonalBotEncounter` và mở Modal. |
+| [`src/__tests__/lib/bot_scenarios.test.js`](../src/__tests__/lib/bot_scenarios.test.js) | **Bộ Unit Test:** 8 bộ test bao phủ toàn bộ các case toán học, freshness window và synergy. |

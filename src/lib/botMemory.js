@@ -18,7 +18,7 @@ export function getBotMemory(memberId) {
   try {
     const raw = localStorage.getItem(`${STORAGE_PREFIX}${memberId}`)
     return raw ? JSON.parse(raw) : []
-  } catch (e) {
+  } catch {
     return []
   }
 }
@@ -34,7 +34,7 @@ function saveBotMemory(memberId, records) {
     const trimmed = (records || []).slice(-50)
     localStorage.setItem(`${STORAGE_PREFIX}${memberId}`, JSON.stringify(trimmed))
     return true
-  } catch (e) {
+  } catch {
     return false
   }
 }

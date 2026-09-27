@@ -5,7 +5,7 @@
 import { getPlayerPartnersAndMatchups } from '#lib/rating.js'
 import { getMemberStreak } from '#lib/badges.js'
 import { seasonMatchesOf } from '#lib/season.js'
-import { dd } from '#utils/dates.js'
+import { dd, isoOf, wd } from '#utils/dates.js'
 import { t } from '#i18n'
 
 /**
@@ -389,6 +389,15 @@ export function resolveActivityPayload(item, db) {
   if (item?.type === 'challenge_created') {
     res.challengers = p.challengers || formatTeamNames(db, p.challengerIds)
     res.opponents = p.opponents || formatTeamNames(db, p.opponentIds)
+    // Kèo do bot dựng: tên bot + ngày cuối được nhận kèo. RPC `create_bot_challenge` đặt hạn ở nửa
+    // đêm SAU ngày buổi tập kế tiếp, nên lùi 1ms là ra đúng ngày buổi đó ("CN 28/09").
+    const chal = (db?.challenges || []).find((c) => c.id === (item.ref_id || item.refId || p.chalId))
+    if (chal?.botReason) {
+      res.bot = getEntityName(db, chal.createdBy)
+      const exp = Date.parse(chal.expiresAt || '')
+      const lastDay = Number.isFinite(exp) ? isoOf(new Date(exp - 1)) : ''
+      res.day = lastDay ? `${wd(lastDay)} ${dd(lastDay)}` : ''
+    }
   }
 
   if (item?.type === 'challenge_completed') {
@@ -399,15 +408,15 @@ export function resolveActivityPayload(item, db) {
     }
   }
 
-  if (item?.type === 'challenge_declined') {
+  // Kèo không diễn ra (từ chối / huỷ): một dòng trung tính gọi tên HAI PHE, không nêu ai là người
+  // từ chối — bêu tên trước cả CLB là chuyện bot từng làm và đã bị bỏ.
+  if (item?.type === 'challenge_declined' || item?.type === 'challenge_cancelled') {
     const chal = (db?.challenges || []).find((c) => c.id === (item.ref_id || item.refId || p.chalId))
     res.code = p.code || chal?.code || ''
-    res.decliner = getEntityName(db, p.declinedById || item.actor_id || item.actorId) || ''
-  }
-
-  if (item?.type === 'challenge_cancelled') {
-    const chal = (db?.challenges || []).find((c) => c.id === (item.ref_id || item.refId || p.chalId))
-    res.code = p.code || chal?.code || ''
+    if (chal) {
+      res.challengers = formatTeamNames(db, chal.teamA)
+      res.opponents = formatTeamNames(db, chal.teamB)
+    }
   }
 
   if (item?.type === 'member_joined') {
