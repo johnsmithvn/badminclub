@@ -444,17 +444,7 @@ export default function ArenaChallengeCard({
             </span>
           )}
 
-          <span
-            style={{
-              font: '600 12.5px/1 "IBM Plex Mono", monospace',
-              color: '#8FE3DA',
-              letterSpacing: '0.02em',
-            }}
-          >
-            {c.code}
-          </span>
-
-          {sessionObj ? (
+          {sessionObj && (
             <span
               style={{
                 fontSize: 11.5,
@@ -465,18 +455,6 @@ export default function ArenaChallengeCard({
               }}
             >
               {t('matchesPage.sessionLinked', { date: dd(sessionObj.date) })}
-            </span>
-          ) : (
-            <span
-              style={{
-                fontSize: 11.5,
-                color: '#A9B6C9',
-                background: 'rgba(255,255,255,0.06)',
-                padding: '3px 8px',
-                borderRadius: 6,
-              }}
-            >
-              {t('matchesPage.noSessionLinked')}
             </span>
           )}
 
@@ -511,25 +489,6 @@ export default function ArenaChallengeCard({
               }}
             >
               Bo{c.bestOf}
-            </span>
-          )}
-
-          {predStats.totalCount > 0 && (
-            <span
-              style={{
-                fontSize: 11,
-                color: '#A9B6C9',
-                background: 'rgba(255,255,255,0.06)',
-                padding: '3px 8px',
-                borderRadius: 999,
-                fontFamily: '"IBM Plex Mono", monospace',
-                display: 'inline-flex',
-                alignItems: 'center',
-                gap: 4,
-              }}
-            >
-              <Icon name="target" size={12} style={{ color: '#2EC4B6' }} />
-              <span>{predStats.pctA}% : {predStats.pctB}%</span>
             </span>
           )}
 
@@ -574,11 +533,11 @@ export default function ArenaChallengeCard({
         <div
           style={{
             display: 'grid',
-            gridTemplateColumns: isFeatured
-              ? (isMobile ? 'minmax(0,1fr) 110px minmax(0,1fr)' : 'minmax(0,1fr) 180px minmax(0,1fr)')
-              : 'minmax(0,1fr) auto minmax(0,1fr)',
+            gridTemplateColumns: isMobile
+              ? 'minmax(0, 1fr) 68px minmax(0, 1fr)'
+              : (isFeatured ? 'minmax(0, 1fr) 160px minmax(0, 1fr)' : 'minmax(0, 1fr) 96px minmax(0, 1fr)'),
             alignItems: 'center',
-            gap: isFeatured ? (isMobile ? 8 : 20) : 12,
+            gap: isFeatured ? (isMobile ? 8 : 20) : (isMobile ? 6 : 12),
           }}
         >
           {/* CỘT PHE A */}
@@ -599,7 +558,7 @@ export default function ArenaChallengeCard({
             </div>
 
             {/* Tên đấu thủ Phe A */}
-            <div style={{ display: 'flex', flexDirection: 'column', gap: 2, minWidth: 0, maxWidth: '100%' }}>
+            <div style={{ display: 'flex', flexDirection: 'column', gap: 2, minWidth: 0, width: '100%' }}>
               {teamA.map((id) => {
                 const isAcc = (c.acceptedPlayers || []).includes(id)
                 return (
@@ -607,21 +566,31 @@ export default function ArenaChallengeCard({
                     key={id}
                     style={{
                       font: isFeatured
-                        ? (isMobile ? '700 15px/1.2 "IBM Plex Sans", sans-serif' : '700 20px/1.2 "IBM Plex Sans", sans-serif')
-                        : '600 14px/1.3 "IBM Plex Sans", sans-serif',
+                        ? (isMobile ? '700 14px/1.2 "IBM Plex Sans", sans-serif' : '700 20px/1.2 "IBM Plex Sans", sans-serif')
+                        : '600 13.5px/1.3 "IBM Plex Sans", sans-serif',
                       color: isPlayed && winnerTeam === 'A' ? '#5FD9A2' : '#F4F7FB',
-                      whiteSpace: 'nowrap',
-                      overflow: 'hidden',
-                      textOverflow: 'ellipsis',
                       display: 'flex',
                       alignItems: 'center',
                       gap: 4,
+                      minWidth: 0,
+                      width: '100%',
                     }}
                   >
-                    {isPlayed && winnerTeam === 'A' && <span>👑</span>}
-                    <span title={memberNameOf(id)}>{shortNameOf(id)}</span>
+                    {isPlayed && winnerTeam === 'A' && <span style={{ flexShrink: 0 }}>👑</span>}
+                    <span
+                      title={memberNameOf(id)}
+                      style={{
+                        overflow: 'hidden',
+                        textOverflow: 'ellipsis',
+                        whiteSpace: 'nowrap',
+                        minWidth: 0,
+                        display: 'block',
+                      }}
+                    >
+                      {shortNameOf(id)}
+                    </span>
                     {isPending && isAcc && (
-                      <Icon name="check" size={13} style={{ color: '#2EC4B6' }} />
+                      <Icon name="check" size={13} style={{ color: '#2EC4B6', flexShrink: 0 }} />
                     )}
                   </div>
                 )
@@ -657,14 +626,14 @@ export default function ArenaChallengeCard({
           </div>
 
           {/* CỘT GIỮA: VS & TỈ SỐ / KHOẢNG CÁCH (4E CHO KÈO ĐÃ ĐẤU) */}
-          <div style={{ display: 'flex', flexDirection: 'column', alignItems: 'center', justifyContent: 'center', gap: 4, textAlign: 'center' }}>
+          <div style={{ display: 'flex', flexDirection: 'column', alignItems: 'center', justifyContent: 'center', gap: 4, textAlign: 'center', minWidth: 0, overflow: 'hidden' }}>
             {isPlayed ? (
               <div style={{ display: 'flex', flexDirection: 'column', alignItems: 'center', gap: 2 }}>
                 <span
                   style={{
                     font: isFeatured
-                      ? (isMobile ? '800 38px/1 "Barlow Condensed", system-ui, sans-serif' : '800 48px/1 "Barlow Condensed", system-ui, sans-serif')
-                      : '800 32px/1 "Barlow Condensed", system-ui, sans-serif',
+                      ? (isMobile ? '800 34px/1 "Barlow Condensed", system-ui, sans-serif' : '800 48px/1 "Barlow Condensed", system-ui, sans-serif')
+                      : '800 30px/1 "Barlow Condensed", system-ui, sans-serif',
                     color: '#F4F7FB',
                     letterSpacing: '0.02em',
                   }}
@@ -687,8 +656,8 @@ export default function ArenaChallengeCard({
                 <span
                   style={{
                     font: isFeatured
-                      ? (isMobile ? 'italic 800 48px/0.95 "Barlow Condensed", system-ui, sans-serif' : 'italic 800 80px/0.9 "Barlow Condensed", system-ui, sans-serif')
-                      : 'italic 800 28px/1 "Barlow Condensed", system-ui, sans-serif',
+                      ? (isMobile ? 'italic 800 36px/0.95 "Barlow Condensed", system-ui, sans-serif' : 'italic 800 80px/0.9 "Barlow Condensed", system-ui, sans-serif')
+                      : (isMobile ? 'italic 800 24px/1 "Barlow Condensed", system-ui, sans-serif' : 'italic 800 28px/1 "Barlow Condensed", system-ui, sans-serif'),
                     color: isFeatured ? '#F4F7FB' : '#5B6A82',
                     letterSpacing: '-0.02em',
                     textShadow: isFeatured ? '0 0 35px rgba(245,196,81,0.35)' : 'none',
@@ -703,12 +672,12 @@ export default function ArenaChallengeCard({
                 ) : ratA > 0 && ratB > 0 ? (
                   <span
                     style={{
-                      font: '500 11.5px/1 "IBM Plex Mono", monospace',
+                      font: '500 11px/1 "IBM Plex Mono", monospace',
                       color: '#8494AA',
                       whiteSpace: 'nowrap',
                     }}
                   >
-                    {t('challenge.pointGapAvg', { gap: gap.toLocaleString('vi-VN') })}
+                    {t(isMobile ? 'challenge.pointGapAvgShort' : 'challenge.pointGapAvg', { gap: gap.toLocaleString('vi-VN') })}
                   </span>
                 ) : null}
               </>
@@ -733,7 +702,7 @@ export default function ArenaChallengeCard({
             </div>
 
             {/* Tên đấu thủ Phe B */}
-            <div style={{ display: 'flex', flexDirection: 'column', alignItems: 'flex-end', gap: 2, minWidth: 0, maxWidth: '100%' }}>
+            <div style={{ display: 'flex', flexDirection: 'column', alignItems: 'flex-end', gap: 2, minWidth: 0, width: '100%' }}>
               {teamB.length > 0 ? (
                 teamB.map((id) => {
                   const isAcc = (c.acceptedPlayers || []).includes(id)
@@ -742,22 +711,34 @@ export default function ArenaChallengeCard({
                       key={id}
                       style={{
                         font: isFeatured
-                          ? (isMobile ? '700 15px/1.2 "IBM Plex Sans", sans-serif' : '700 20px/1.2 "IBM Plex Sans", sans-serif')
-                          : '600 14px/1.3 "IBM Plex Sans", sans-serif',
+                          ? (isMobile ? '700 14px/1.2 "IBM Plex Sans", sans-serif' : '700 20px/1.2 "IBM Plex Sans", sans-serif')
+                          : '600 13.5px/1.3 "IBM Plex Sans", sans-serif',
                         color: isPlayed && winnerTeam === 'B' ? '#5FD9A2' : '#F4F7FB',
-                        whiteSpace: 'nowrap',
-                        overflow: 'hidden',
-                        textOverflow: 'ellipsis',
                         display: 'flex',
                         alignItems: 'center',
+                        justifyContent: 'flex-end',
                         gap: 4,
+                        minWidth: 0,
+                        width: '100%',
                       }}
                     >
                       {isPending && isAcc && (
-                        <Icon name="check" size={13} style={{ color: '#2EC4B6' }} />
+                        <Icon name="check" size={13} style={{ color: '#2EC4B6', flexShrink: 0 }} />
                       )}
-                      <span title={memberNameOf(id)}>{shortNameOf(id)}</span>
-                      {isPlayed && winnerTeam === 'B' && <span>👑</span>}
+                      <span
+                        title={memberNameOf(id)}
+                        style={{
+                          overflow: 'hidden',
+                          textOverflow: 'ellipsis',
+                          whiteSpace: 'nowrap',
+                          minWidth: 0,
+                          display: 'block',
+                          textAlign: 'right',
+                        }}
+                      >
+                        {shortNameOf(id)}
+                      </span>
+                      {isPlayed && winnerTeam === 'B' && <span style={{ flexShrink: 0 }}>👑</span>}
                     </div>
                   )
                 })
@@ -969,245 +950,270 @@ export default function ArenaChallengeCard({
           </div>
         )}
 
-        {/* KHỐI CƯỢC PHONG CÁCH 3D (KHÁN ĐÀI · THẤY RÕ AI CƯỢC AI) */}
+        {/* KHỐI CƯỢC PHONG CÁCH 3D (KHÁN ĐÀI · THẤY RÕ AI CƯỢC AI) - CHỈ HIỆN KHI ĐÃ CÓ CƯỢC */}
+        {predStats.totalCount > 0 && (
+          <div
+            style={{
+              position: 'relative',
+              margin: isFeatured
+                ? (isMobile ? '6px -16px 0' : '8px -30px 0')
+                : '4px -20px 0',
+              display: 'grid',
+              gridTemplateColumns: 'minmax(0, 1fr) auto minmax(0, 1fr)',
+              alignItems: 'center',
+              gap: isMobile ? 6 : 10,
+              padding: isMobile ? '8px 12px' : '12px 20px',
+              background: '#0A1120',
+              borderTop: '1px solid #1E2A40',
+              borderBottom: '1px solid #1E2A40',
+            }}
+          >
+            {/* PHE XANH (BÊN TRÁI) */}
+            <div style={{ display: 'flex', alignItems: 'center', gap: isMobile ? 6 : 8, minWidth: 0 }}>
+              {predStats.countA > 0 ? (
+                <>
+                  <div style={{ display: 'flex', flexShrink: 0 }}>
+                    {predStats.predictorsA.slice(0, 3).map((p, idx) => {
+                      const name = memberNameOf(p.memberId) || ''
+                      const mem = getMemberData(p.memberId)
+                      const avSize = isMobile ? 24 : 28
+                      return (
+                        <div
+                          key={p.id || p.memberId || idx}
+                          title={name}
+                          style={{
+                            width: avSize,
+                            height: avSize,
+                            borderRadius: '50%',
+                            marginRight: isMobile ? -6 : -8,
+                            display: 'grid',
+                            placeItems: 'center',
+                            background: mem?.avatarUrl ? 'transparent' : getAvatarColor(name),
+                            border: '2px solid #0A1120',
+                            color: '#fff',
+                            font: '800 10.5px/1 "Barlow Condensed", sans-serif',
+                            overflow: 'hidden',
+                          }}
+                        >
+                          {mem?.avatarUrl ? (
+                            <img src={mem.avatarUrl} alt={name} style={{ width: '100%', height: '100%', objectFit: 'cover' }} />
+                          ) : (
+                            <span>{getInitials(name)}</span>
+                          )}
+                        </div>
+                      )
+                    })}
+                  </div>
+                  <div style={{ display: 'flex', flexDirection: 'column', minWidth: 0, paddingLeft: 4 }}>
+                    <span style={{ fontSize: isMobile ? 11.5 : 13, color: '#8FE3DA', fontWeight: 600, whiteSpace: 'nowrap' }}>
+                      {t(isMobile ? 'challenge.betBelieversShortA' : 'challenge.betBelieversA', { count: predStats.countA })}
+                    </span>
+                    <span
+                      style={{
+                        font: '500 10.5px/1.3 "IBM Plex Mono", monospace',
+                        color: '#8494AA',
+                        whiteSpace: 'nowrap',
+                        overflow: 'hidden',
+                        textOverflow: 'ellipsis',
+                        maxWidth: isMobile ? 70 : 130,
+                      }}
+                      title={predStats.predictorsA.map((p) => shortNameOf(p.memberId)).join(', ')}
+                    >
+                      {predStats.predictorsA.map((p) => shortNameOf(p.memberId)).join(', ')}
+                    </span>
+                  </div>
+                </>
+              ) : (
+                <div style={{ display: 'flex', alignItems: 'center', gap: 6, minWidth: 0 }}>
+                  <span
+                    style={{
+                      width: isMobile ? 24 : 28,
+                      height: isMobile ? 24 : 28,
+                      borderRadius: '50%',
+                      border: '1.5px dashed rgba(46,196,182,0.5)',
+                      display: 'grid',
+                      placeItems: 'center',
+                      fontWeight: 700,
+                      color: '#8FE3DA',
+                      flexShrink: 0,
+                      fontSize: 13,
+                    }}
+                  >
+                    +
+                  </span>
+                  <span style={{ fontSize: isMobile ? 11.5 : 13, color: '#8FE3DA', fontWeight: 600, whiteSpace: 'nowrap' }}>
+                    {t('challenge.betCheerA')}
+                  </span>
+                </div>
+              )}
+            </div>
+
+            {/* TỔNG HŨ CƯỢC Ở GIỮA */}
+            <div style={{ display: 'flex', flexDirection: 'column', alignItems: 'center', gap: 2, textAlign: 'center', padding: '0 4px', flexShrink: 0, minWidth: isMobile ? 60 : 75 }}>
+              <span
+                style={{
+                  font: isMobile ? '800 18px/1 "Barlow Condensed", system-ui, sans-serif' : '800 22px/1 "Barlow Condensed", system-ui, sans-serif',
+                  color: '#F5C451',
+                  letterSpacing: '0.02em',
+                }}
+              >
+                {t('challenge.betPotPoints', { points: predStats.totalPoints })}
+              </span>
+              <span
+                style={{
+                  font: '600 9.5px/1 "IBM Plex Sans", sans-serif',
+                  letterSpacing: '0.08em',
+                  textTransform: 'uppercase',
+                  color: '#8494AA',
+                  whiteSpace: 'nowrap',
+                }}
+              >
+                {isPlayed
+                  ? t('challenge.potDistributed')
+                  : (c.status === 'oncourt' || (c.status === 'accepted' && hasPlayedSets))
+                    ? t('challenge.betLocked')
+                    : t('challenge.bettingNow')}
+              </span>
+            </div>
+
+            {/* PHE CAM (BÊN PHẢI - ROW REVERSE) */}
+            <div style={{ display: 'flex', flexDirection: 'row-reverse', alignItems: 'center', gap: isMobile ? 6 : 8, minWidth: 0, textAlign: 'right' }}>
+              {predStats.countB > 0 ? (
+                <>
+                  <div style={{ display: 'flex', flexDirection: 'row-reverse', flexShrink: 0 }}>
+                    {predStats.predictorsB.slice(0, 3).map((p, idx) => {
+                      const name = memberNameOf(p.memberId) || ''
+                      const mem = getMemberData(p.memberId)
+                      const avSize = isMobile ? 24 : 28
+                      return (
+                        <div
+                          key={p.id || p.memberId || idx}
+                          title={name}
+                          style={{
+                            width: avSize,
+                            height: avSize,
+                            borderRadius: '50%',
+                            marginLeft: isMobile ? -6 : -8,
+                            display: 'grid',
+                            placeItems: 'center',
+                            background: mem?.avatarUrl ? 'transparent' : getAvatarColor(name),
+                            border: '2px solid #0A1120',
+                            color: '#fff',
+                            font: '800 10.5px/1 "Barlow Condensed", sans-serif',
+                            overflow: 'hidden',
+                          }}
+                        >
+                          {mem?.avatarUrl ? (
+                            <img src={mem.avatarUrl} alt={name} style={{ width: '100%', height: '100%', objectFit: 'cover' }} />
+                          ) : (
+                            <span>{getInitials(name)}</span>
+                          )}
+                        </div>
+                      )
+                    })}
+                  </div>
+                  <div style={{ display: 'flex', flexDirection: 'column', alignItems: 'flex-end', minWidth: 0, paddingRight: 4 }}>
+                    <span style={{ fontSize: isMobile ? 11.5 : 13, color: '#FFB39F', fontWeight: 600, whiteSpace: 'nowrap' }}>
+                      {t(isMobile ? 'challenge.betBelieversShortB' : 'challenge.betBelieversB', { count: predStats.countB })}
+                    </span>
+                    <span
+                      style={{
+                        font: '500 10.5px/1.3 "IBM Plex Mono", monospace',
+                        color: '#8494AA',
+                        whiteSpace: 'nowrap',
+                        overflow: 'hidden',
+                        textOverflow: 'ellipsis',
+                        maxWidth: isMobile ? 70 : 130,
+                      }}
+                      title={predStats.predictorsB.map((p) => shortNameOf(p.memberId)).join(', ')}
+                    >
+                      {predStats.predictorsB.map((p) => shortNameOf(p.memberId)).join(', ')}
+                    </span>
+                  </div>
+                </>
+              ) : (
+                <div style={{ display: 'flex', flexDirection: 'row-reverse', alignItems: 'center', gap: 6, minWidth: 0 }}>
+                  <span
+                    style={{
+                      width: isMobile ? 24 : 28,
+                      height: isMobile ? 24 : 28,
+                      borderRadius: '50%',
+                      border: '1.5px dashed rgba(255,122,89,0.5)',
+                      display: 'grid',
+                      placeItems: 'center',
+                      fontWeight: 700,
+                      color: '#FFB39F',
+                      flexShrink: 0,
+                      fontSize: 13,
+                    }}
+                  >
+                    +
+                  </span>
+                  <span style={{ fontSize: isMobile ? 11.5 : 13, color: '#FFB39F', fontWeight: 600, whiteSpace: 'nowrap' }}>
+                    {t('challenge.betCheerB')}
+                  </span>
+                </div>
+              )}
+            </div>
+          </div>
+        )}
+
+        {/* KÈO CƯỢC RIÊNG (NẾU CÓ) - TÁCH KHỎI HÀNG BUTTON ĐỂ KHÔNG BỊ VỠ LAYOUT */}
+        {c.stakeText && (
+          <div
+            style={{
+              display: 'inline-flex',
+              alignItems: 'center',
+              gap: 6,
+              fontSize: 12,
+              fontWeight: 600,
+              color: '#F5C451',
+              background: 'rgba(245,196,81,0.08)',
+              border: '1px dashed rgba(245,196,81,0.4)',
+              borderRadius: 8,
+              padding: '4px 9px',
+              width: 'fit-content',
+              maxWidth: '100%',
+              marginTop: 2,
+            }}
+          >
+            <Icon name="award" size={13} style={{ color: '#F5C451', flexShrink: 0 }} />
+            <span style={{ overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>
+              {t('challenge.stakeLabelPrefix', { stake: c.stakeText })}
+            </span>
+          </div>
+        )}
+
+        {/* HÀNG FOOTER: CÁC NÚT THAO TÁC THẲNG HÀNG */}
         <div
           style={{
-            position: 'relative',
-            margin: isFeatured
-              ? (isMobile ? '6px -16px 0' : '8px -30px 0')
-              : '4px -20px 0',
-            display: 'grid',
-            gridTemplateColumns: 'minmax(0, 1fr) auto minmax(0, 1fr)',
+            display: 'flex',
+            gap: 8,
             alignItems: 'center',
-            gap: 10,
-            padding: isMobile ? '10px 14px' : '12px 20px',
-            background: '#0A1120',
-            borderTop: '1px solid #1E2A40',
-            borderBottom: '1px solid #1E2A40',
+            justifyContent: 'flex-end',
+            flexWrap: 'nowrap',
+            marginTop: 4,
+            width: '100%',
           }}
         >
-          {/* PHE XANH (BÊN TRÁI) */}
-          <div style={{ display: 'flex', alignItems: 'center', gap: 8, minWidth: 0 }}>
-            {predStats.countA > 0 ? (
-              <>
-                <div style={{ display: 'flex', flexShrink: 0 }}>
-                  {predStats.predictorsA.slice(0, 3).map((p, idx) => {
-                    const name = memberNameOf(p.memberId) || ''
-                    const mem = getMemberData(p.memberId)
-                    return (
-                      <div
-                        key={p.id || p.memberId || idx}
-                        title={name}
-                        style={{
-                          width: 28,
-                          height: 28,
-                          borderRadius: '50%',
-                          marginRight: -8,
-                          display: 'grid',
-                          placeItems: 'center',
-                          background: mem?.avatarUrl ? 'transparent' : getAvatarColor(name),
-                          border: '2px solid #0A1120',
-                          color: '#fff',
-                          font: '800 11px/1 "Barlow Condensed", sans-serif',
-                          overflow: 'hidden',
-                        }}
-                      >
-                        {mem?.avatarUrl ? (
-                          <img src={mem.avatarUrl} alt={name} style={{ width: '100%', height: '100%', objectFit: 'cover' }} />
-                        ) : (
-                          <span>{getInitials(name)}</span>
-                        )}
-                      </div>
-                    )
-                  })}
-                </div>
-                <div style={{ display: 'flex', flexDirection: 'column', minWidth: 0, paddingLeft: 6 }}>
-                  <span style={{ fontSize: isMobile ? 12 : 13, color: '#8FE3DA', fontWeight: 600, whiteSpace: 'nowrap' }}>
-                    {t('challenge.betBelieversA', { count: predStats.countA })}
-                  </span>
-                  <span
-                    style={{
-                      font: '500 11px/1.3 "IBM Plex Mono", monospace',
-                      color: '#8494AA',
-                      whiteSpace: 'nowrap',
-                      overflow: 'hidden',
-                      textOverflow: 'ellipsis',
-                    }}
-                    title={predStats.predictorsA.map((p) => shortNameOf(p.memberId)).join(', ')}
-                  >
-                    {predStats.predictorsA.map((p) => shortNameOf(p.memberId)).join(', ')}
-                  </span>
-                </div>
-              </>
-            ) : (
-              <div style={{ display: 'flex', alignItems: 'center', gap: 8, minWidth: 0 }}>
-                <span
-                  style={{
-                    width: 28,
-                    height: 28,
-                    borderRadius: '50%',
-                    border: '1.5px dashed rgba(46,196,182,0.5)',
-                    display: 'grid',
-                    placeItems: 'center',
-                    fontWeight: 700,
-                    color: '#8FE3DA',
-                    flexShrink: 0,
-                    fontSize: 14,
-                  }}
-                >
-                  +
-                </span>
-                <span style={{ fontSize: isMobile ? 12 : 13, color: '#8FE3DA', fontWeight: 600, whiteSpace: 'nowrap' }}>
-                  {t('challenge.betCheerA')}
-                </span>
-              </div>
-            )}
-          </div>
-
-          {/* TỔNG HŨ CƯỢC Ở GIỮA */}
-          <div style={{ display: 'flex', flexDirection: 'column', alignItems: 'center', gap: 2, textAlign: 'center', padding: '0 4px' }}>
-            <span
-              style={{
-                font: '800 22px/1 "Barlow Condensed", system-ui, sans-serif',
-                color: '#F5C451',
-                letterSpacing: '0.02em',
-              }}
-            >
-              {t('challenge.betPotPoints', { points: predStats.totalPoints })}
-            </span>
-            <span
-              style={{
-                font: '600 10px/1 "IBM Plex Sans", sans-serif',
-                letterSpacing: '0.12em',
-                textTransform: 'uppercase',
-                color: '#8494AA',
-                whiteSpace: 'nowrap',
-              }}
-            >
-              {isPlayed
-                ? t('challenge.potDistributed')
-                : (c.status === 'oncourt' || (c.status === 'accepted' && hasPlayedSets))
-                  ? t('challenge.betLocked')
-                  : t('challenge.bettingNow')}
-            </span>
-          </div>
-
-          {/* PHE CAM (BÊN PHẢI - ROW REVERSE) */}
-          <div style={{ display: 'flex', flexDirection: 'row-reverse', alignItems: 'center', gap: 8, minWidth: 0, textAlign: 'right' }}>
-            {predStats.countB > 0 ? (
-              <>
-                <div style={{ display: 'flex', flexDirection: 'row-reverse', flexShrink: 0 }}>
-                  {predStats.predictorsB.slice(0, 3).map((p, idx) => {
-                    const name = memberNameOf(p.memberId) || ''
-                    const mem = getMemberData(p.memberId)
-                    return (
-                      <div
-                        key={p.id || p.memberId || idx}
-                        title={name}
-                        style={{
-                          width: 28,
-                          height: 28,
-                          borderRadius: '50%',
-                          marginLeft: -8,
-                          display: 'grid',
-                          placeItems: 'center',
-                          background: mem?.avatarUrl ? 'transparent' : getAvatarColor(name),
-                          border: '2px solid #0A1120',
-                          color: '#fff',
-                          font: '800 11px/1 "Barlow Condensed", sans-serif',
-                          overflow: 'hidden',
-                        }}
-                      >
-                        {mem?.avatarUrl ? (
-                          <img src={mem.avatarUrl} alt={name} style={{ width: '100%', height: '100%', objectFit: 'cover' }} />
-                        ) : (
-                          <span>{getInitials(name)}</span>
-                        )}
-                      </div>
-                    )
-                  })}
-                </div>
-                <div style={{ display: 'flex', flexDirection: 'column', alignItems: 'flex-end', minWidth: 0, paddingRight: 6 }}>
-                  <span style={{ fontSize: isMobile ? 12 : 13, color: '#FFB39F', fontWeight: 600, whiteSpace: 'nowrap' }}>
-                    {t('challenge.betBelieversB', { count: predStats.countB })}
-                  </span>
-                  <span
-                    style={{
-                      font: '500 11px/1.3 "IBM Plex Mono", monospace',
-                      color: '#8494AA',
-                      whiteSpace: 'nowrap',
-                      overflow: 'hidden',
-                      textOverflow: 'ellipsis',
-                      maxWidth: '100%',
-                    }}
-                    title={predStats.predictorsB.map((p) => shortNameOf(p.memberId)).join(', ')}
-                  >
-                    {predStats.predictorsB.map((p) => shortNameOf(p.memberId)).join(', ')}
-                  </span>
-                </div>
-              </>
-            ) : (
-              <div style={{ display: 'flex', flexDirection: 'row-reverse', alignItems: 'center', gap: 8, minWidth: 0 }}>
-                <span
-                  style={{
-                    width: 28,
-                    height: 28,
-                    borderRadius: '50%',
-                    border: '1.5px dashed rgba(255,122,89,0.5)',
-                    display: 'grid',
-                    placeItems: 'center',
-                    fontWeight: 700,
-                    color: '#FFB39F',
-                    flexShrink: 0,
-                    fontSize: 14,
-                  }}
-                >
-                  +
-                </span>
-                <span style={{ fontSize: isMobile ? 12 : 13, color: '#FFB39F', fontWeight: 600, whiteSpace: 'nowrap' }}>
-                  {t('challenge.betCheerB')}
-                </span>
-              </div>
-            )}
-          </div>
-        </div>
-
-        {/* HÀNG FOOTER: CƯỢC & NÚT THAO TÁC */}
-        <div style={{ display: 'flex', gap: 8, alignItems: 'center', flexWrap: 'wrap', marginTop: 4 }}>
-          {/* Badge cược */}
-          {c.stakeText && (
-            <span
-              style={{
-                fontSize: isFeatured ? 13 : 12,
-                fontWeight: 600,
-                color: '#F5C451',
-                background: 'rgba(245,196,81,0.08)',
-                border: '1px dashed rgba(245,196,81,0.5)',
-                padding: isFeatured ? '7px 12px' : '5px 9px',
-                borderRadius: 8,
-                display: 'inline-flex',
-                alignItems: 'center',
-                gap: 5,
-              }}
-            >
-              <Icon name="award" size={13} style={{ color: '#F5C451' }} />
-              <span>{t('challenge.stakeLabelPrefix', { stake: c.stakeText })}</span>
-            </span>
-          )}
-
           {/* Badge Chờ đối thủ nếu tôi đã nhận */}
           {isPending && !isExpired && hasAccepted && !prog.isFullyAccepted && (
             <span
               style={{
-                fontSize: 12,
+                fontSize: 11.5,
                 color: '#5FD9A2',
                 display: 'inline-flex',
                 alignItems: 'center',
                 gap: 4,
                 fontFamily: '"IBM Plex Mono", monospace',
+                marginRight: 'auto',
+                minWidth: 0,
+                overflow: 'hidden',
+                textOverflow: 'ellipsis',
+                whiteSpace: 'nowrap',
               }}
             >
-              <Icon name="check" size={13} />
+              <Icon name="check" size={12} style={{ flexShrink: 0 }} />
               <span>{t('challenge.youAcceptedWaiting')}</span>
             </span>
           )}
@@ -1230,13 +1236,15 @@ export default function ArenaChallengeCard({
               }}
               style={{
                 fontWeight: 600,
-                fontSize: isFeatured ? 13.5 : 12.5,
+                fontSize: isFeatured ? 13 : 12,
                 color: '#FF9C9C',
-                padding: isFeatured ? '8px 14px' : '6px 12px',
+                padding: '6px 12px',
                 borderRadius: 8,
                 border: '1px solid rgba(255,120,120,0.3)',
                 background: 'none',
                 cursor: 'pointer',
+                whiteSpace: 'nowrap',
+                flexShrink: 0,
               }}
             >
               {t('challenge.btnCancelChallenge')}
@@ -1253,16 +1261,18 @@ export default function ArenaChallengeCard({
               }}
               style={{
                 fontWeight: 700,
-                fontSize: isFeatured ? 14 : 13,
+                fontSize: isFeatured ? 13 : 12,
                 color: '#04201D',
                 background: '#2EC4B6',
-                padding: isFeatured ? '9px 18px' : '7px 14px',
+                padding: '6px 14px',
                 borderRadius: 8,
                 border: 'none',
                 cursor: 'pointer',
                 display: 'inline-flex',
                 alignItems: 'center',
                 gap: 4,
+                whiteSpace: 'nowrap',
+                flexShrink: 0,
               }}
             >
               <Icon name="check" size={14} />
@@ -1280,9 +1290,9 @@ export default function ArenaChallengeCard({
               }}
               style={{
                 fontWeight: 600,
-                fontSize: isFeatured ? 13.5 : 12.5,
+                fontSize: isFeatured ? 13 : 12,
                 color: '#FF9C9C',
-                padding: isFeatured ? '8px 14px' : '6px 12px',
+                padding: '6px 12px',
                 borderRadius: 8,
                 border: '1px solid rgba(255,120,120,0.3)',
                 background: 'none',
@@ -1290,6 +1300,8 @@ export default function ArenaChallengeCard({
                 display: 'inline-flex',
                 alignItems: 'center',
                 gap: 4,
+                whiteSpace: 'nowrap',
+                flexShrink: 0,
               }}
             >
               <Icon name="circle-x" size={14} />
@@ -1307,16 +1319,18 @@ export default function ArenaChallengeCard({
               }}
               style={{
                 fontWeight: 700,
-                fontSize: isFeatured ? 14 : 13,
+                fontSize: isFeatured ? 13 : 12,
                 color: '#04201D',
                 background: '#2EC4B6',
-                padding: isFeatured ? '9px 18px' : '7px 14px',
+                padding: '6px 14px',
                 borderRadius: 8,
                 border: 'none',
                 cursor: 'pointer',
                 display: 'inline-flex',
                 alignItems: 'center',
                 gap: 4,
+                whiteSpace: 'nowrap',
+                flexShrink: 0,
               }}
             >
               <Icon name="check" size={14} />
@@ -1324,7 +1338,7 @@ export default function ArenaChallengeCard({
             </button>
           )}
 
-          {/* Nút Vào buổi tập */}
+          {/* Nút GO (Vào buổi tập) */}
           {isAccepted && sessionObj && (
             <button
               type="button"
@@ -1333,20 +1347,23 @@ export default function ArenaChallengeCard({
                 navigate(`/buoi-tap/${sessionObj.id}`)
               }}
               style={{
-                fontWeight: 600,
-                fontSize: isFeatured ? 13.5 : 12.5,
+                fontWeight: 700,
+                fontSize: 12.5,
                 color: '#E9EFF7',
                 background: '#1B2842',
-                padding: isFeatured ? '8px 14px' : '6px 12px',
+                padding: '6px 12px',
                 borderRadius: 8,
-                border: '1px solid rgba(255,255,255,0.15)',
+                border: '1px solid rgba(255,255,255,0.18)',
                 cursor: 'pointer',
                 display: 'inline-flex',
                 alignItems: 'center',
-                gap: 5,
+                gap: 4,
+                whiteSpace: 'nowrap',
+                flexShrink: 0,
               }}
+              title={t('matchesPage.viewInSession')}
             >
-              <span>{t('matchesPage.viewInSession')}</span>
+              <span>GO</span>
               <Icon name="arrow-right" size={13} />
             </button>
           )}
@@ -1361,16 +1378,18 @@ export default function ArenaChallengeCard({
               }}
               style={{
                 fontWeight: 700,
-                fontSize: isFeatured ? 14 : 13,
+                fontSize: isFeatured ? 13 : 12,
                 color: '#04201D',
                 background: '#2EC4B6',
-                padding: isFeatured ? '8px 16px' : '6px 12px',
+                padding: '6px 12px',
                 borderRadius: 8,
                 border: 'none',
                 cursor: 'pointer',
                 display: 'inline-flex',
                 alignItems: 'center',
                 gap: 4,
+                whiteSpace: 'nowrap',
+                flexShrink: 0,
               }}
             >
               <Icon name="plus" size={14} />
@@ -1388,10 +1407,10 @@ export default function ArenaChallengeCard({
               }}
               style={{
                 fontWeight: 700,
-                fontSize: isFeatured ? 14 : 13,
+                fontSize: isFeatured ? 13 : 12,
                 color: '#1A1204',
                 background: '#F5C451',
-                padding: isFeatured ? '9px 18px' : '7px 14px',
+                padding: '6px 14px',
                 borderRadius: 8,
                 border: 'none',
                 cursor: 'pointer',
@@ -1399,6 +1418,7 @@ export default function ArenaChallengeCard({
                 alignItems: 'center',
                 gap: 5,
                 whiteSpace: 'nowrap',
+                flexShrink: 0,
               }}
             >
               <Icon name="swords" size={14} />
@@ -1417,16 +1437,18 @@ export default function ArenaChallengeCard({
               }}
               style={{
                 fontWeight: 600,
-                fontSize: isFeatured ? 13.5 : 12.5,
+                fontSize: isFeatured ? 13 : 12,
                 color: '#E9EFF7',
                 background: '#1B2842',
-                padding: isFeatured ? '8px 14px' : '6px 12px',
+                padding: '6px 12px',
                 borderRadius: 8,
                 border: '1px solid rgba(255,255,255,0.15)',
                 cursor: 'pointer',
                 display: 'inline-flex',
                 alignItems: 'center',
                 gap: 4,
+                whiteSpace: 'nowrap',
+                flexShrink: 0,
               }}
             >
               <Icon name="eye" size={13} />
