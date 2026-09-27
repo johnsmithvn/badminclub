@@ -287,5 +287,35 @@ assert.deepEqual(
 )
 assert.deepEqual(abandonedChallenges(null, nowTs), [], 'CLB rỗng không được throw')
 
+/* ---------- getChallengeMatchTags: Quét tag tính chất trận đấu tự động ---------- */
+import { getChallengeMatchTags } from '#lib/challenge.js'
+
+// 1. Chưa từng gặp bao giờ -> Lần đầu so vợt + Một chín một mười
+const tFirst = getChallengeMatchTags({ teamA: ['m1'], teamB: ['m2'] }, [], 1000, 1000)
+assert.ok(tFirst.some((t) => t.id === 'firstTime'), 'Chưa từng gặp nhau phải có tag firstTime')
+assert.ok(tFirst.some((t) => t.id === 'balanced'), 'Chênh lệch 0 điểm phải có tag balanced (Một chín một mười)')
+
+// 2. Chênh lệch trình độ lớn >= 150 điểm -> Châu chấu đá xe (underdog)
+const tUnderdog = getChallengeMatchTags({ teamA: ['m1'], teamB: ['m2'] }, [], 800, 1000)
+assert.ok(tUnderdog.some((t) => t.id === 'underdog'), 'Chênh lệch 200 điểm phải có tag underdog (Châu chấu đá xe)')
+assert.ok(!tUnderdog.some((t) => t.id === 'balanced'), 'Đã là underdog thì không được có balanced')
+
+// 3. Đã gặp nhau 1 trận và có bên thắng/thua -> Phục thù (revenge)
+const pastMatches = [
+  { id: 'mt1', teamA: ['m1'], teamB: ['m2'], winnerTeam: 'A', at: 1000 },
+]
+const tRevenge = getChallengeMatchTags({ teamA: ['m1'], teamB: ['m2'] }, pastMatches, 1000, 1020)
+assert.ok(tRevenge.some((t) => t.id === 'revenge'), 'Đã từng gặp nhau và có kết quả trước đó phải có tag revenge')
+
+// 4. Đã gặp nhau >= 3 trận và thắng qua lại sít sao -> Duyên nợ (rivalry)
+const pastRivalryMatches = [
+  { id: 'mt1', teamA: ['m1'], teamB: ['m2'], winnerTeam: 'A', at: 1000 },
+  { id: 'mt2', teamA: ['m1'], teamB: ['m2'], winnerTeam: 'B', at: 2000 },
+  { id: 'mt3', teamA: ['m1'], teamB: ['m2'], winnerTeam: 'A', at: 3000 },
+]
+const tRivalry = getChallengeMatchTags({ teamA: ['m1'], teamB: ['m2'] }, pastRivalryMatches, 1000, 1000)
+assert.ok(tRivalry.some((t) => t.id === 'rivalry'), 'Gặp nhau 3 trận thắng 2-1 phải có tag rivalry')
+assert.ok(!tRivalry.some((t) => t.id === 'revenge'), 'Đã là rivalry thì không gắn revenge')
+
 console.log('challenge check: OK')
 

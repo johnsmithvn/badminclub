@@ -583,3 +583,103 @@ export function settlePredictionsLocal(predictions = [], challengeId, winnerTeam
     return { ...p, status: 'refunded', payoutPoints: Number(p.stakePoints) || 0, settledAt: at, updatedAt: at }
   })
 }
+
+/**
+ * Quét và phân loại tính chất trận đấu tự động theo 2 trục độc lập:
+ * 1. Trục Lịch sử đối đầu (H2H): Lần đầu so vợt / Duyên nợ / Phục thù
+ * 2. Trục Trình độ (Rating Gap): Một chín một mười / Châu chấu đá xe
+ *
+ * @param {object} challenge
+ * @param {Array} matches
+ * @param {number} ratA
+ * @param {number} ratB
+ * @returns {Array<{ id: string, labelKey: string, color: string, bg: string, border: string }>}
+ */
+export function getChallengeMatchTags(challenge, matches = [], ratA = 0, ratB = 0) {
+  const teamA = challenge?.teamA || []
+  const teamB = challenge?.teamB || []
+  if (!teamA.length || !teamB.length) return []
+
+  const tags = []
+
+  // 1. TRỤC ĐỐI ĐẦU (H2H STORY) - Chọn 1 tag tiêu biểu
+  const pA1 = teamA[0]
+  const pA2 = teamA[1]
+  const pB1 = teamB[0]
+  const pB2 = teamB[1]
+
+  const h2hMatches = []
+  ;(matches || []).forEach((m) => {
+    if (!m || !m.winnerTeam) return
+    const mA = m.teamA || (m.playerKeys ? m.playerKeys.slice(0, 2) : [])
+    const mB = m.teamB || (m.playerKeys ? m.playerKeys.slice(2, 4) : [])
+
+    const aInA = pA2 ? (mA.includes(pA1) && mA.includes(pA2)) : mA.includes(pA1)
+    const bInB = pB2 ? (mB.includes(pB1) && mB.includes(pB2)) : mB.includes(pB1)
+    const aInB = pA2 ? (mB.includes(pA1) && mB.includes(pA2)) : mB.includes(pA1)
+    const bInA = pB2 ? (mA.includes(pB1) && mA.includes(pB2)) : mA.includes(pB1)
+
+    if ((aInA && bInB) || (aInB && bInA)) {
+      const wonA = aInA ? m.winnerTeam === 'A' : m.winnerTeam === 'B'
+      const at = m.at || (m.playedAt ? Date.parse(m.playedAt) : (m.date ? Date.parse(m.date) : 0))
+      h2hMatches.push({ id: m.id, wonA, at })
+    }
+  })
+
+  h2hMatches.sort((a, b) => a.at - b.at)
+
+  if (h2hMatches.length === 0) {
+    tags.push({
+      id: 'firstTime',
+      labelKey: 'challenge.tagFirstTime',
+      color: '#8FE3DA',
+      bg: 'rgba(143,227,218,0.12)',
+      border: 'rgba(143,227,218,0.4)',
+    })
+  } else {
+    const winsA = h2hMatches.filter((x) => x.wonA).length
+    const winsB = h2hMatches.length - winsA
+
+    if (h2hMatches.length >= 3 && Math.abs(winsA - winsB) <= 1) {
+      tags.push({
+        id: 'rivalry',
+        labelKey: 'challenge.tagRivalry',
+        color: '#FFB39F',
+        bg: 'rgba(255,179,159,0.12)',
+        border: 'rgba(255,179,159,0.4)',
+      })
+    } else {
+      tags.push({
+        id: 'revenge',
+        labelKey: 'challenge.tagRevenge',
+        color: '#FF9C9C',
+        bg: 'rgba(255,156,156,0.12)',
+        border: 'rgba(255,156,156,0.4)',
+      })
+    }
+  }
+
+  // 2. TRỤC TRÌNH ĐỘ (RATING GAP) - Chọn 1 tag tiêu biểu
+  if (ratA > 0 && ratB > 0) {
+    const gap = Math.abs(ratA - ratB)
+    if (gap <= 50) {
+      tags.push({
+        id: 'balanced',
+        labelKey: 'challenge.tagBalanced',
+        color: '#5FD9A2',
+        bg: 'rgba(95,217,162,0.12)',
+        border: 'rgba(95,217,162,0.4)',
+      })
+    } else if (gap >= 150) {
+      tags.push({
+        id: 'underdog',
+        labelKey: 'challenge.tagUnderdog',
+        color: '#F5C451',
+        bg: 'rgba(245,196,81,0.12)',
+        border: 'rgba(245,196,81,0.4)',
+      })
+    }
+  }
+
+  return tags
+}
