@@ -159,7 +159,8 @@ export default function FlowCanvas({ tour, event, db, a, canEdit, onBack, onOpen
     if (s.id !== source?.id) return null
     const seeding = s.config?.seeding === 'slot' ? 'slot' : 'seed'
     const r = entrantsOf(full, seeding)
-    return r.error ? null : r.entrants.map((e) => ({ ...e, label: teamName(tour, db, e.id) }))
+    const hideNo = seedingOf(s.config) === 'pos'
+    return r.error ? null : r.entrants.map((e) => ({ ...e, label: teamName(tour, db, e.id), hideNo }))
   }
   const previewOf = (s) => (isDouble(s) ? dePreviewOf : koPreviewOf)(s, source, links.find((l) => l.toStageId === s.id), sourceTeams, realOf(s))
   // Kéo đội trong nhánh nguồn → chế độ "Tự do" (số bốc thăm = ô trong nhánh, `slotOrder`):
@@ -779,7 +780,7 @@ function Block({ s, at, size, on, dragging, isSource, linked, est, stages, full,
     // Bấm chỗ nào trong khối cũng chọn khối (handoff: n.onSelect) — không chỉ tiêu đề.
     <div onPointerDown={(e) => { e.stopPropagation(); if (e.button === 0) onSelect?.() }} style={{
       position: 'absolute', left: at.x, top: at.y, width: size.w, height: size.h, boxSizing: 'border-box', display: 'grid',
-      gridTemplateRows: 'auto 1fr auto', borderRadius: 12, background: 'var(--surface-card)', zIndex: dragging ? 3 : 1,
+      gridTemplateRows: 'auto 1fr auto', borderRadius: 12, background: 'var(--surface-card)', zIndex: dragging ? 3 : on ? 2 : 1,
       border: `1px solid ${on ? 'var(--teal-500)' : swiss ? 'color-mix(in srgb, var(--violet-400) 55%, transparent)' : 'var(--border-default)'}`,
       boxShadow: on || dragging ? 'var(--shadow-sm)' : 'var(--shadow-xs)',
     }}>
@@ -949,7 +950,7 @@ function MiniSide({ x, onSwap }) {
         background: over ? 'var(--surface-accent-soft)' : 'transparent', outline: over ? '1px dashed var(--teal-500)' : 'none',
         font: `${strong ? 600 : 400} 10.5px/1.25 var(--font-sans)`, color: strong ? 'var(--text-primary)' : 'var(--text-muted)',
       }}>
-      {x.kind === 'team' && <Mono size={9.5} weight={700} color="var(--text-muted)">{x.n}</Mono>}
+      {x.kind === 'team' && x.n != null && <Mono size={9.5} weight={700} color="var(--text-muted)">{x.n}</Mono>}
       <span style={{ whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis', minWidth: 0 }}>{sideText(x)}</span>
     </span>
   )

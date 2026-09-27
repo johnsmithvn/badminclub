@@ -263,7 +263,8 @@ function previewSide(noOf, source, { ms, real }) {
     const team = s === 'A' ? m.teamAId : m.teamBId
     if (team && byId.has(team)) {
       const e = byId.get(team)
-      return { kind: 'team', id: team, label: e.label, n: e.seed ?? e.drawNo }
+      // Tự do: số bốc thăm chỉ là số ô (đổi mỗi lần kéo) → không hiện, kẻo tưởng cả nhánh bị xáo.
+      return { kind: 'team', id: team, label: e.label, n: e.seed ?? (e.hideNo ? null : e.drawNo) }
     }
     if (team) {
       if (team.startsWith('#')) return { kind: 'seed', n: Number(team.slice(1)) }
