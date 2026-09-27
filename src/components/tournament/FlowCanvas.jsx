@@ -254,6 +254,7 @@ export default function FlowCanvas({ tour, event, db, a, canEdit, onBack, onOpen
     const p = pointIn(e.clientX, e.clientY)
     const q = pos(s.id)
     e.currentTarget.setPointerCapture?.(e.pointerId)
+    if (selId !== s.id || selLinkId) choose(s.id)
     setDrag({ id: s.id, ox: p.x - q.x, oy: p.y - q.y, x: q.x, y: q.y, moved: false })
   }
   const startWire = (e) => {
@@ -261,9 +262,10 @@ export default function FlowCanvas({ tour, event, db, a, canEdit, onBack, onOpen
     e.currentTarget.setPointerCapture?.(e.pointerId)
     setWire(pointIn(e.clientX, e.clientY))
   }
-  // Kéo nền (chỗ không có khối) = di chuyển khung nhìn; bấm nền không kéo = bỏ chọn.
+  // Bấm nền (chỗ không có khối) = bỏ chọn ngay (handoff: onCanvasDown); kéo tiếp = di chuyển khung nhìn.
   const startPan = (e) => {
     if (e.button !== 0 || e.target !== e.currentTarget) return
+    choose(null)
     e.currentTarget.setPointerCapture?.(e.pointerId)
     setPan({ sx: e.clientX, sy: e.clientY, left: viewRef.current.scrollLeft, top: viewRef.current.scrollTop, moved: false })
   }
@@ -301,7 +303,6 @@ export default function FlowCanvas({ tour, event, db, a, canEdit, onBack, onOpen
         act(a.tourCanvasSave(drag.id, { canvasX: drag.x, canvasY: drag.y }))
         setDrag(null)
       } else {
-        choose(selId === drag.id ? null : drag.id)
         setDrag(null)
       }
     }
@@ -314,10 +315,7 @@ export default function FlowCanvas({ tour, event, db, a, canEdit, onBack, onOpen
       }
       setWire(null)
     }
-    if (pan) {
-      if (!pan.moved) choose(null)
-      setPan(null)
-    }
+    if (pan) setPan(null)
   }
 
   // Thả khối từ khay trái: nguồn chưa có → thành khối nguồn; có vòng bảng → nhánh mới tại chỗ thả.
@@ -463,7 +461,9 @@ export default function FlowCanvas({ tour, event, db, a, canEdit, onBack, onOpen
 
         {/* Giữa: canvas */}
         <div style={{ position: 'relative', minWidth: 0 }}>
+          {/* Bấm phần nền NGOÀI khung canvas (khung nhìn rộng hơn sơ đồ) cũng bỏ chọn. */}
           <div ref={viewRef} onDragOver={(e) => e.preventDefault()} onDrop={onDropCanvas}
+            onPointerDown={(e) => { if (e.button === 0 && (e.target === e.currentTarget || e.target === e.currentTarget.firstChild)) choose(null) }}
             style={{ position: 'absolute', inset: 0, overflow: 'auto', background: 'var(--surface-inset)',
               backgroundImage: 'radial-gradient(var(--border-default) 1px, transparent 1px)', backgroundSize: `${18 * zoom}px ${18 * zoom}px` }}>
             <div style={{ width: width * zoom, height: height * zoom }}>
@@ -510,6 +510,7 @@ export default function FlowCanvas({ tour, event, db, a, canEdit, onBack, onOpen
                     est={est.stages[s.id]} stages={stages} full={full} tour={tour} db={db}
                     preview={s.type === 'knockout' ? previewOf(s) : null}
                     onSwap={s.id === source?.id && s.type === 'knockout' && !hasSchedule ? swapTeams(s) : null}
+                    onSelect={() => { if (selId !== s.id || selLinkId) choose(s.id) }}
                     onMoveStart={startMove(s)} onWireStart={s.id === source?.id && feeds ? startWire : null}
                     onDropTeam={dropTeam} onRun={s.id === source?.id && !blocked && !busy ? publish : null} />
                 ))}
@@ -752,7 +753,7 @@ const sideText = (x) => (x.kind === 'slot' || x.kind === 'team' ? x.label : x.ki
   : x.kind === 'winner' ? t('tournament.canvas.won', { n: x.no }) : x.kind === 'loser' ? t('tournament.canvas.lost', { n: x.no }) : t('tournament.canvas.bye'))
 
 /** Một khối trên canvas: tiêu đề (kéo để dời) · nội dung (bảng có đội / nhánh thu nhỏ) · chân (số trận · luật · giờ). */
-function Block({ s, at, size, on, dragging, isSource, linked, est, stages, full, tour, db, preview, onMoveStart, onWireStart, onDropTeam, onSwap, onRun }) {
+function Block({ s, at, size, on, dragging, isSource, linked, est, stages, full, tour, db, preview, onSelect, onMoveStart, onWireStart, onDropTeam, onSwap, onRun }) {
   const rr = s.type === 'round_robin'
   const swiss = s.type === 'swiss'
   const double = isDouble(s)
@@ -775,7 +776,8 @@ function Block({ s, at, size, on, dragging, isSource, linked, est, stages, full,
     : swiss ? { fg: 'var(--violet-400)', bg: 'color-mix(in srgb, var(--violet-400) 16%, transparent)' }
       : { fg: 'var(--status-delayed-fg)', bg: 'var(--status-delayed-bg)' }
   return (
-    <div onPointerDown={(e) => e.stopPropagation()} style={{
+    // Bấm chỗ nào trong khối cũng chọn khối (handoff: n.onSelect) — không chỉ tiêu đề.
+    <div onPointerDown={(e) => { e.stopPropagation(); if (e.button === 0) onSelect?.() }} style={{
       position: 'absolute', left: at.x, top: at.y, width: size.w, height: size.h, boxSizing: 'border-box', display: 'grid',
       gridTemplateRows: 'auto 1fr auto', borderRadius: 12, background: 'var(--surface-card)', zIndex: dragging ? 3 : 1,
       border: `1px solid ${on ? 'var(--teal-500)' : swiss ? 'color-mix(in srgb, var(--violet-400) 55%, transparent)' : 'var(--border-default)'}`,
