@@ -456,9 +456,9 @@ export default function ChallengeDetailModal({ challenge, session, onClose, onSc
                   width: 28,
                   height: 28,
                   borderRadius: 'var(--radius-sm)',
-                  background: 'rgba(239, 68, 68, 0.1)',
-                  border: '1px solid rgba(239, 68, 68, 0.25)',
-                  color: 'var(--red-500, #ef4444)',
+                  background: 'rgba(255, 107, 107, 0.12)',
+                  border: '1px solid rgba(255, 107, 107, 0.3)',
+                  color: '#FF8585',
                   cursor: submitting ? 'not-allowed' : 'pointer',
                   padding: 0,
                   transition: 'background 0.15s ease',
@@ -504,9 +504,9 @@ export default function ChallengeDetailModal({ challenge, session, onClose, onSc
               width: '100%',
               padding: '10px 14px',
               borderRadius: 'var(--radius-md)',
-              background: 'rgba(239, 68, 68, 0.1)',
-              border: '1px solid var(--red-500, #ef4444)',
-              color: 'var(--red-500, #ef4444)',
+              background: 'rgba(255, 107, 107, 0.12)',
+              border: '1px solid rgba(255, 107, 107, 0.35)',
+              color: '#FF8585',
               fontSize: 13,
               fontWeight: 600,
               textAlign: 'center',
@@ -579,10 +579,10 @@ export default function ChallengeDetailModal({ challenge, session, onClose, onSc
                 alignItems: 'center',
                 padding: '0 16px',
                 borderRadius: 'var(--radius-md)',
-                background: 'rgba(239, 68, 68, 0.1)',
-                border: '1px solid rgba(239, 68, 68, 0.25)',
+                background: 'rgba(255, 107, 107, 0.12)',
+                border: '1px solid rgba(255, 107, 107, 0.3)',
                 font: '600 14px/1 "IBM Plex Sans", sans-serif',
-                color: 'var(--red-500, #ef4444)',
+                color: '#FF8585',
                 cursor: submitting ? 'not-allowed' : 'pointer',
               }}
             >
@@ -682,10 +682,10 @@ export default function ChallengeDetailModal({ challenge, session, onClose, onSc
                 alignItems: 'center',
                 padding: '0 14px',
                 borderRadius: 'var(--radius-md)',
-                background: 'rgba(239, 68, 68, 0.1)',
-                border: '1px solid rgba(239, 68, 68, 0.25)',
+                background: 'rgba(255, 107, 107, 0.12)',
+                border: '1px solid rgba(255, 107, 107, 0.3)',
                 font: '600 13px/1 "IBM Plex Sans", sans-serif',
-                color: 'var(--red-500, #ef4444)',
+                color: '#FF8585',
                 cursor: submitting ? 'not-allowed' : 'pointer',
               }}
             >
@@ -983,6 +983,7 @@ export default function ChallengeDetailModal({ challenge, session, onClose, onSc
                     team="A"
                     isAccepted={isPending && (c.acceptedPlayers || []).includes(id)}
                     isWinner={isPlayed && c.winner === 'A'}
+                    isMobile={isMobile}
                     maxLines={3}
                     align="left"
                   />
@@ -1005,6 +1006,7 @@ export default function ChallengeDetailModal({ challenge, session, onClose, onSc
                     team="B"
                     isAccepted={isPending && (c.acceptedPlayers || []).includes(id)}
                     isWinner={isPlayed && c.winner === 'B'}
+                    isMobile={isMobile}
                     maxLines={3}
                     align="right"
                   />
@@ -1068,7 +1070,7 @@ export default function ChallengeDetailModal({ challenge, session, onClose, onSc
               <span style={{ font: '700 12.5px/1.2 var(--font-mono)' }}>
                 <span style={{ color: 'var(--status-delivered-fg)' }}>+{seasonPreview.aWin}</span>
                 <span style={{ color: 'var(--text-disabled)' }}> / </span>
-                <span style={{ color: 'var(--red-500, #ef4444)' }}>{seasonPreview.aLose}</span>
+                <span style={{ color: '#FF8585' }}>{seasonPreview.aLose}</span>
               </span>
             </div>
           )}
@@ -1108,13 +1110,13 @@ export default function ChallengeDetailModal({ challenge, session, onClose, onSc
                 <span style={{ color: 'var(--action-accent-bg, var(--teal-500))', fontWeight: 600 }}>
                   {t('challenge.teamA')}: {predStats.pctA}% ({predStats.pointsA} SP)
                 </span>
-                <span style={{ color: 'var(--status-incident, var(--red-500))', fontWeight: 600 }}>
+                <span style={{ color: '#FF7A59', fontWeight: 600 }}>
                   {t('challenge.teamB')}: {predStats.pctB}% ({predStats.pointsB} SP)
                 </span>
               </div>
               <div style={{ display: 'flex', height: 8, borderRadius: 999, overflow: 'hidden', background: 'var(--surface-sunken)' }}>
                 <div style={{ width: `${predStats.pctA}%`, background: 'var(--action-accent-bg, var(--teal-500))', height: '100%', transition: 'width 0.3s' }} />
-                <div style={{ width: `${predStats.pctB}%`, background: 'var(--status-incident, var(--red-500))', height: '100%', transition: 'width 0.3s' }} />
+                <div style={{ width: `${predStats.pctB}%`, background: '#FF7A59', height: '100%', transition: 'width 0.3s' }} />
               </div>
             </div>
 
@@ -1149,7 +1151,7 @@ export default function ChallengeDetailModal({ challenge, session, onClose, onSc
                       points: myPred.stakePoints,
                     })}
                   </span>
-                  <span style={{ font: '500 11.5px/1.2 "IBM Plex Sans", sans-serif', color: myPred.status === 'won' ? 'var(--status-delivered-fg)' : myPred.status === 'lost' ? 'var(--red-500, #ef4444)' : 'var(--text-muted)' }}>
+                  <span style={{ font: '500 11.5px/1.2 "IBM Plex Sans", sans-serif', color: myPred.status === 'won' ? 'var(--status-delivered-fg)' : myPred.status === 'lost' ? '#FF8585' : 'var(--text-muted)' }}>
                     {myPred.status === 'won'
                       ? t('challenge.predictionStatusWon', { net: myPred.stakePoints })
                       : myPred.status === 'lost'
@@ -1167,9 +1169,9 @@ export default function ChallengeDetailModal({ challenge, session, onClose, onSc
                     style={{
                       padding: '6px 12px',
                       borderRadius: 'var(--radius-sm)',
-                      background: 'rgba(239, 68, 68, 0.1)',
-                      border: '1px solid rgba(239, 68, 68, 0.25)',
-                      color: 'var(--red-500, #ef4444)',
+                      background: 'rgba(255, 107, 107, 0.12)',
+                      border: '1px solid rgba(255, 107, 107, 0.35)',
+                      color: '#FF8585',
                       font: '600 12px/1 "IBM Plex Sans", sans-serif',
                       cursor: submitting ? 'not-allowed' : 'pointer',
                     }}
@@ -1232,15 +1234,15 @@ export default function ChallengeDetailModal({ challenge, session, onClose, onSc
                     style={{
                       padding: '10px 12px',
                       borderRadius: 'var(--radius-md)',
-                      background: predTeam === 'B' ? 'rgba(239,68,68,0.12)' : 'var(--surface-sunken)',
-                      border: predTeam === 'B' ? '1.5px solid var(--status-incident, var(--red-500))' : '1px solid var(--border-subtle)',
+                      background: predTeam === 'B' ? 'rgba(255,122,89,0.16)' : 'var(--surface-sunken)',
+                      border: predTeam === 'B' ? '1.5px solid #FF7A59' : '1px solid var(--border-subtle)',
                       cursor: 'pointer',
                       display: 'flex',
                       alignItems: 'center',
                       justifyContent: 'center',
                     }}
                   >
-                    <span style={{ font: '700 13.5px/1.2 "IBM Plex Sans", sans-serif', color: predTeam === 'B' ? 'var(--red-500, #ef4444)' : 'var(--text-primary)' }}>
+                    <span style={{ font: '700 13.5px/1.2 "IBM Plex Sans", sans-serif', color: predTeam === 'B' ? '#FF7A59' : 'var(--text-primary)' }}>
                       {t('challenge.teamB')}
                     </span>
                   </button>
@@ -1294,7 +1296,7 @@ export default function ChallengeDetailModal({ challenge, session, onClose, onSc
                   fontFamily: 'var(--font-sans)',
                 }}>
                   <span>{t('challenge.predictionAvailableSp', { points: availableSp })}</span>
-                  <span style={{ color: overStake ? 'var(--red-500, #ef4444)' : 'var(--status-delivered-fg)' }}>
+                  <span style={{ color: overStake ? '#FF8585' : 'var(--status-delivered-fg)' }}>
                     {t('challenge.predictionWinReward', { payout: stakeNum * 2, stake: stakeNum })}
                   </span>
                 </div>
@@ -1412,9 +1414,9 @@ export default function ChallengeDetailModal({ challenge, session, onClose, onSc
                     <span
                       title={nameB}
                       style={{
-                        color: 'var(--red-500, #ef4444)',
-                        background: 'rgba(239,68,68,0.1)',
-                        border: '1px solid rgba(239,68,68,0.25)',
+                        color: '#FF7A59',
+                        background: 'rgba(255, 122, 89, 0.14)',
+                        border: '1px solid rgba(255, 122, 89, 0.35)',
                         padding: '1px 6px',
                         borderRadius: 4,
                         maxWidth: 130,
@@ -1455,8 +1457,9 @@ export default function ChallengeDetailModal({ challenge, session, onClose, onSc
                         width: 20, height: 20, borderRadius: 4,
                         display: 'inline-flex', alignItems: 'center', justifyContent: 'center',
                         font: '700 11px/1 Barlow, sans-serif',
-                        background: r === 'W' ? 'rgba(18,168,103,0.18)' : 'rgba(239,68,68,0.18)',
-                        color: r === 'W' ? 'var(--status-delivered-fg)' : 'var(--red-500, #ef4444)',
+                        background: r === 'W' ? 'rgba(46,196,182,0.18)' : 'rgba(255,107,107,0.16)',
+                        border: r === 'W' ? '1px solid rgba(46,196,182,0.3)' : '1px solid rgba(255,107,107,0.3)',
+                        color: r === 'W' ? '#5FD9A2' : '#FF8585',
                       }}
                     >
                       {r}

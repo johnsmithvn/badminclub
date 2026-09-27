@@ -32,8 +32,8 @@ export default function ArenaPlayerTag({
     : (isTeamA ? '#2EC4B6' : '#FF7A59')
 
   const fontSize = isFeatured
-    ? (isMobile ? 13.5 : 15.5)
-    : (isMobile ? 12 : 13.5)
+    ? (isMobile ? 11.5 : 15)
+    : (isMobile ? 11 : 13)
 
   return (
     <div
@@ -41,30 +41,35 @@ export default function ArenaPlayerTag({
         display: 'inline-flex',
         alignItems: 'center',
         flexDirection: isRight ? 'row-reverse' : 'row',
-        gap: 5,
-        padding: isFeatured ? '3px 8px' : '2.5px 7px',
+        gap: isMobile ? 3 : 5,
+        padding: isMobile
+          ? '1.5px 5px'
+          : (isFeatured ? '3px 8px' : '2.5px 7px'),
         borderRadius: 6,
         background: bgColor,
         border: `1px solid ${borderColor}`,
         maxWidth: '100%',
+        minWidth: 0,
         boxSizing: 'border-box',
         ...style,
       }}
     >
-      {/* Bullet Dot phân biệt thành viên */}
-      <span
-        style={{
-          width: 5,
-          height: 5,
-          borderRadius: '50%',
-          background: dotColor,
-          flexShrink: 0,
-          boxShadow: `0 0 5px ${dotColor}`,
-        }}
-      />
+      {/* Bullet Dot phân biệt thành viên (ẩn trên mobile để tối đa chỗ cho tên) */}
+      {!isMobile && (
+        <span
+          style={{
+            width: 5,
+            height: 5,
+            borderRadius: '50%',
+            background: dotColor,
+            flexShrink: 0,
+            boxShadow: `0 0 5px ${dotColor}`,
+          }}
+        />
+      )}
 
-      {/* Vương miện thắng */}
-      {isWinner && (
+      {/* Vương miện thắng (ẩn trên mobile để không chiếm chỗ tên) */}
+      {!isMobile && isWinner && (
         <span style={{ fontSize: 11, flexShrink: 0, lineHeight: 1 }}>👑</span>
       )}
 

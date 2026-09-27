@@ -379,8 +379,8 @@ export default function ArenaChallengeCard({
   // Thành viên cho avatar
   const getMemberData = (id) => (db.members || []).find((m) => m.id === id) || null
 
-  const avatarSize = isFeatured ? (isMobile ? 54 : 76) : (isMobile ? 40 : 44)
-  const avatarOverlap = isFeatured ? (isMobile ? -14 : -18) : (isMobile ? -10 : -12)
+  const avatarSize = isFeatured ? (isMobile ? 38 : 76) : (isMobile ? 30 : 44)
+  const avatarOverlap = isFeatured ? (isMobile ? -10 : -18) : (isMobile ? -8 : -12)
 
   // Style cho Card Kèo Tâm Điểm hoặc Card Lưới
   return (
@@ -391,6 +391,9 @@ export default function ArenaChallengeCard({
         position: 'relative',
         borderRadius: isFeatured ? 20 : 16,
         background: '#0D1526',
+        maxWidth: '100%',
+        boxSizing: 'border-box',
+        overflow: 'hidden',
         border: isHighlighted
           ? '2px solid #00F5D4'
           : isFeatured
@@ -421,10 +424,11 @@ export default function ArenaChallengeCard({
       <div
         style={{
           position: 'relative',
-          padding: isFeatured ? (isMobile ? '18px 16px' : '26px 30px') : '18px 20px',
+          padding: isFeatured ? (isMobile ? '16px 12px' : '26px 30px') : (isMobile ? '14px 12px' : '18px 20px'),
           display: 'flex',
           flexDirection: 'column',
-          gap: isFeatured ? 20 : 16,
+          gap: isFeatured ? (isMobile ? 14 : 20) : (isMobile ? 12 : 16),
+          minWidth: 0,
         }}
       >
         {/* HÀNG 1: BADGES, MÃ KÈO & TRẠNG THÁI */}
@@ -535,10 +539,11 @@ export default function ArenaChallengeCard({
           style={{
             display: 'grid',
             gridTemplateColumns: isMobile
-              ? 'minmax(0, 1fr) 68px minmax(0, 1fr)'
+              ? 'minmax(0, 1fr) 46px minmax(0, 1fr)'
               : (isFeatured ? 'minmax(0, 1fr) 160px minmax(0, 1fr)' : 'minmax(0, 1fr) 96px minmax(0, 1fr)'),
             alignItems: 'center',
-            gap: isFeatured ? (isMobile ? 8 : 20) : (isMobile ? 6 : 12),
+            gap: isFeatured ? (isMobile ? 4 : 20) : (isMobile ? 4 : 12),
+            minWidth: 0,
           }}
         >
           {/* CỘT PHE A */}
@@ -559,7 +564,7 @@ export default function ArenaChallengeCard({
             </div>
 
             {/* Tên đấu thủ Phe A */}
-            <div style={{ display: 'flex', flexDirection: 'column', gap: isFeatured ? 6 : 5, minWidth: 0, width: '100%', alignItems: 'flex-start' }}>
+            <div style={{ display: 'flex', flexDirection: 'column', gap: isFeatured ? 5 : 4, minWidth: 0, width: '100%', alignItems: 'flex-start', overflow: 'hidden' }}>
               {teamA.map((id) => {
                 const isAcc = (c.acceptedPlayers || []).includes(id)
                 return (
@@ -606,14 +611,14 @@ export default function ArenaChallengeCard({
           </div>
 
           {/* CỘT GIỮA: VS & TỈ SỐ / KHOẢNG CÁCH (4E CHO KÈO ĐÃ ĐẤU) */}
-          <div style={{ display: 'flex', flexDirection: 'column', alignItems: 'center', justifyContent: 'center', gap: 4, textAlign: 'center', minWidth: 0, overflow: 'hidden' }}>
+          <div style={{ display: 'flex', flexDirection: 'column', alignItems: 'center', justifyContent: 'center', gap: 3, textAlign: 'center', minWidth: 0, overflow: 'hidden' }}>
             {isPlayed ? (
-              <div style={{ display: 'flex', flexDirection: 'column', alignItems: 'center', gap: 2 }}>
+              <div style={{ display: 'flex', flexDirection: 'column', alignItems: 'center', gap: 1 }}>
                 <span
                   style={{
                     font: isFeatured
-                      ? (isMobile ? '800 34px/1 "Barlow Condensed", system-ui, sans-serif' : '800 48px/1 "Barlow Condensed", system-ui, sans-serif')
-                      : '800 30px/1 "Barlow Condensed", system-ui, sans-serif',
+                      ? (isMobile ? '800 30px/1 "Barlow Condensed", system-ui, sans-serif' : '800 46px/1 "Barlow Condensed", system-ui, sans-serif')
+                      : (isMobile ? '800 26px/1 "Barlow Condensed", system-ui, sans-serif' : '800 30px/1 "Barlow Condensed", system-ui, sans-serif'),
                     color: '#F4F7FB',
                     letterSpacing: '0.02em',
                   }}
@@ -628,7 +633,7 @@ export default function ArenaChallengeCard({
                     textTransform: 'lowercase',
                   }}
                 >
-                  {t('challenge.setScoreLabel')}
+                  {t(setsList.length > 1 || isBoSeries ? 'challenge.setScoreLabel' : 'challenge.matchScoreLabel')}
                 </span>
               </div>
             ) : (
@@ -682,7 +687,7 @@ export default function ArenaChallengeCard({
             </div>
 
             {/* Tên đấu thủ Phe B */}
-            <div style={{ display: 'flex', flexDirection: 'column', gap: isFeatured ? 6 : 5, minWidth: 0, width: '100%', alignItems: 'flex-end' }}>
+            <div style={{ display: 'flex', flexDirection: 'column', gap: isFeatured ? 5 : 4, minWidth: 0, width: '100%', alignItems: 'flex-end', overflow: 'hidden' }}>
               {teamB.length > 0 ? (
                 teamB.map((id) => {
                   const isAcc = (c.acceptedPlayers || []).includes(id)
@@ -737,7 +742,7 @@ export default function ArenaChallengeCard({
 
         {/* HÀNG 3: DIỄN BIẾN SÉC ĐẤU (4E) CHO KÈO ĐÃ ĐẤU, HOẶC THANH KHẢ NĂNG THẮNG CHO KÈO CHƯA ĐẤU */}
         {isPlayed ? (
-          setsList.length > 0 && (
+          setsList.length > 1 && (
             <div style={{ display: 'flex', justifyContent: 'center', gap: 8, flexWrap: 'wrap' }}>
               {setsList.map((s, idx) => (
                 <span
@@ -1148,7 +1153,7 @@ export default function ArenaChallengeCard({
             gap: 8,
             alignItems: 'center',
             justifyContent: 'flex-end',
-            flexWrap: 'nowrap',
+            flexWrap: 'wrap',
             marginTop: 4,
             width: '100%',
           }}
@@ -1157,7 +1162,7 @@ export default function ArenaChallengeCard({
           {isPending && !isExpired && hasAccepted && !prog.isFullyAccepted && (
             <span
               style={{
-                fontSize: 11.5,
+                fontSize: isMobile ? 11 : 11.5,
                 color: '#5FD9A2',
                 display: 'inline-flex',
                 alignItems: 'center',
@@ -1165,13 +1170,14 @@ export default function ArenaChallengeCard({
                 fontFamily: '"IBM Plex Mono", monospace',
                 marginRight: 'auto',
                 minWidth: 0,
+                maxWidth: '100%',
                 overflow: 'hidden',
                 textOverflow: 'ellipsis',
                 whiteSpace: 'nowrap',
               }}
             >
               <Icon name="check" size={12} style={{ flexShrink: 0 }} />
-              <span>{t('challenge.youAcceptedWaiting')}</span>
+              <span>{t(isMobile ? 'challenge.youAcceptedWaitingShort' : 'challenge.youAcceptedWaiting')}</span>
             </span>
           )}
 

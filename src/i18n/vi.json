@@ -3102,6 +3102,8 @@
     "betPotPoints": "{{points}}",
     "btnRevenge": "Phục thù",
     "setScoreLabel": "tỉ số set",
+    "matchScoreLabel": "điểm số",
+    "youAcceptedWaitingShort": "Đã nhận · Chờ đối thủ",
     "wonBadgeShort": "Thắng",
     "createChallengeBtn": "Tạo kèo mới",
     "stakeLabelPrefix": "Cược: {{stake}}",
