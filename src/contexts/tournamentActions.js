@@ -273,14 +273,20 @@ export function makeTournamentActions({ dbRef, tourRef, setTour, toast, uid }) {
     /** Xoá mọi cặp CHƯA ghim (người về danh sách chờ). Cặp ghim giữ nguyên. */
     tourClearPairs: (eventId) => run(() => dropUnpinned(eventId)),
 
-    /** Ghép tự động: gỡ cặp chưa ghim rồi ghép lại toàn bộ người chưa có cặp. */
-    tourAutoPair: (eventId, mode) => run(async () => {
+    /**
+     * Ghép tự động: gỡ cặp chưa ghim rồi ghép lại toàn bộ người chưa có cặp.
+     * `given` (từ hộp quay ghép cặp): [[regId, regId], …] đã bốc sẵn — dùng đúng các cặp đó thay vì tự tính.
+     */
+    tourAutoPair: (eventId, mode, given = null) => run(async () => {
       await dropUnpinned(eventId)
       const cur = tour()
       const ev = cur.events.find((e) => e.id === eventId)
       const pinnedIds = new Set(cur.teams.filter((t) => t.eventId === eventId && t.pinned).map((t) => t.id))
       const pool = eventPlayers(cur, eventId).filter((p) => !p.teamId || !pinnedIds.has(p.teamId))
-      const pairs = autoPair(pool, { genderRule: ev.genderRule, mode, history: db().matches || [] })
+      const inPool = new Map(pool.map((p) => [p.id, p]))
+      const pairs = given
+        ? given.map((pair) => pair.map((id) => inPool.get(id))).filter((pair) => pair.every(Boolean))
+        : autoPair(pool, { genderRule: ev.genderRule, mode, history: db().matches || [] })
       if (!pairs.length) return
       const teams = pairs.map(() => ({ ...base(), id: uid(), eventId, pinned: false, status: 'active' }))
       await write('tournament_teams', 'insert', teams)
@@ -333,10 +339,12 @@ export function makeTournamentActions({ dbRef, tourRef, setTour, toast, uid }) {
     },
 
     /** Bốc thăm: số 1..n ngẫu nhiên cho các đội đủ người. Làm lại được tới khi tạo lịch. */
-    tourDraw: (eventId) => {
+    /** `order` (từ hộp quay bốc thăm): id đội theo thứ tự trúng → Đ1, Đ2…; không có thì bốc ngẫu nhiên một lần. */
+    tourDraw: (eventId, order = null) => {
       const cur = tour()
       const teams = eventTeams(cur, eventId)
-      const rows = drawNumbers(teams).map(({ teamId, drawNo }) => ({ ...cur.teams.find((x) => x.id === teamId), drawNo }))
+      const drawn = order ? order.map((teamId, i) => ({ teamId, drawNo: i + 1 })) : drawNumbers(teams)
+      const rows = drawn.map(({ teamId, drawNo }) => ({ ...cur.teams.find((x) => x.id === teamId), drawNo })).filter((x) => x.id)
       return run(() => write('tournament_teams', 'upsert', rows), 'tournament.toast.drawn')
     },
 

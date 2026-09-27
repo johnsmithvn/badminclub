@@ -6,6 +6,7 @@ import { PAIR_MODES, balanceOf, chemistryOf, eventPlayers, eventTeams, lineupIss
 import cfg from '#config/app.json' with { type: 'json' }
 import { t } from '#i18n'
 import { Seg } from './TourBits.jsx'
+import SpinDraw from './SpinDraw.jsx'
 
 const TONE = {
   ok: 'var(--status-delivered-fg)', warn: 'var(--status-delayed-fg)', bad: 'var(--status-incident-fg)', idle: 'var(--text-muted)',
@@ -21,6 +22,7 @@ export default function PairingTab({ tour, event, db, a, canEdit, isMobile }) {
   // Chặn bấm chồng (VD spam "Tự ghép"): mỗi cú bấm gọi thẳng DB dựa trên state CŨ (chưa tải lại xong sau cú
   // bấm trước) — 2 request cùng lúc dẫm lên nhau, có thể ra lỗi trùng khoá thật từ DB (uq_tournament_team_players_event).
   const [busy, setBusy] = useState(false)
+  const [spinning, setSpinning] = useState(false)
   const run = (fn) => async () => {
     if (busy) return
     setBusy(true)
@@ -111,6 +113,20 @@ export default function PairingTab({ tour, event, db, a, canEdit, isMobile }) {
     )
   }
 
+  // Quay ghép cặp: bốc lại mọi người không nằm trong cặp đã ghim (y như "Tự ghép"), từng người một vào ô.
+  // Đôi nam nữ: mỗi cặp ô Nam (chỉ bốc nam) + ô Nữ (chỉ bốc nữ); còn lại 2 ô bất kỳ. Lẻ người thì người cuối chờ.
+  const pinnedTeams = new Set(teams.filter((x) => x.pinned).map((x) => x.id))
+  const spinPool = players.filter((p) => !p.teamId || !pinnedTeams.has(p.teamId))
+  const mixed = event.genderRule === 'mixed'
+  const pairsN = mixed
+    ? Math.min(spinPool.filter((p) => p.gender === 'nam').length, spinPool.filter((p) => p.gender === 'nu').length)
+    : Math.floor(spinPool.length / 2)
+  const spinSlots = Array.from({ length: pairsN }, (_, k) => (mixed
+    ? [{ label: t('tournament.spin.slotPairMan', { n: k + 1 }), pool: 'nam' }, { label: t('tournament.spin.slotPairWoman', { n: k + 1 }), pool: 'nu' }]
+    : [{ label: t('tournament.spin.slotPair', { n: k + 1, i: 1 }) }, { label: t('tournament.spin.slotPair', { n: k + 1, i: 2 }) }])).flat()
+  const spinItems = spinPool.map((p) => ({ id: p.id, label: name(p), sub: String(Math.round(p.ratingSnapshot || 0)), pool: p.gender }))
+  const spinDone = (order) => a.tourAutoPair(event.id, 'random', Array.from({ length: pairsN }, (_, k) => [order[2 * k], order[2 * k + 1]]))
+
   const bal = balanceOf(teams)
   const maxSum = Math.max(1, ...teams.map((x) => x.sum))
   const cols = isMobile ? '1fr' : '250px minmax(0,1fr) 320px'
@@ -124,6 +140,7 @@ export default function PairingTab({ tour, event, db, a, canEdit, isMobile }) {
           <Seg options={PAIR_MODES.map((k) => ({ key: k, label: t('tournament.pairing.mode.' + k) }))} value={mode} onChange={setMode} />
           <span style={{ font: 'var(--type-caption)', color: 'var(--text-muted)', flex: '1 1 200px' }}>{t('tournament.pairing.modeHint.' + mode)}</span>
           <Button size="sm" variant="secondary" disabled={busy} onClick={run(() => a.tourClearPairs(event.id))}>{t('tournament.pairing.clear')}</Button>
+          <Button size="sm" variant="secondary" icon="sparkles" disabled={busy || spinSlots.length === 0} onClick={() => setSpinning(true)}>{t('tournament.spin.openPairs')}</Button>
           <Button size="sm" icon="wand-sparkles" disabled={busy} loading={busy} onClick={run(() => a.tourAutoPair(event.id, mode))}>{t('tournament.pairing.auto')}</Button>
         </div>
       )}
@@ -240,6 +257,10 @@ export default function PairingTab({ tour, event, db, a, canEdit, isMobile }) {
           {issue && <span style={{ font: 'var(--type-caption)', color: 'var(--status-delayed-fg)' }}>{t(issue)}</span>}
           {lockButtons(issue, 'tournament.pairing.lock')}
         </div>
+      )}
+      {spinning && (
+        <SpinDraw title={t('tournament.spin.titlePairs')} hint={t('tournament.spin.hintPairs')}
+          items={spinItems} slots={spinSlots} columns={2} onDone={spinDone} onClose={() => setSpinning(false)} />
       )}
     </div>
   )

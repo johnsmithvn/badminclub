@@ -177,3 +177,28 @@ test('Nhánh: tên cột vòng bấm được khi có onPickRound (BTC, nhánh c
   assert.equal((html(BracketBoard, props).match(/role="button"/g) || []).length, 0)
   assert.equal((html(BracketBoard, { ...props, onPickRound: noop }).match(/role="button"[^>]*title="Bấm tên một vòng/g) || []).length, 4, 'TK · BK · CK · 3-4')
 })
+
+const { default: SpinDraw } = await load('#components/tournament/SpinDraw.jsx')
+const { default: PairingTab } = await load('#components/tournament/PairingTab.jsx')
+
+test('Quay bốc thăm: màn quay + các ô trống theo thứ tự, chưa bốc xong thì chưa lưu được', () => {
+  const items = [{ id: 'a', label: 'An' }, { id: 'b', label: 'Bình' }]
+  const h = html(SpinDraw, { title: 'Quay bốc thăm', items, slots: [{ label: 'Đ1' }, { label: 'Đ2' }], onDone: noop, onClose: noop })
+  const s = h.replace(/<style[\s\S]*?<\/style>/g, ' ').replace(/<[^>]+>/g, ' ').replace(/\s+/g, ' ')
+  assert.match(s, /Đang bốc · Đ1 Bấm Quay để bốc Quay Quay hết/)
+  assert.match(s, /Đ1 — Đ2 —/)
+  assert.match(h, /<button[^>]*disabled[^>]*>(?:(?!<\/button>)[\s\S])*Lưu kết quả/, 'chưa bốc đủ thì nút Lưu khoá')
+})
+
+test('Ghép cặp: có nút "Quay ghép cặp" cạnh "Tự ghép"', () => {
+  const t0 = tour()
+  const tr = tour({ entries: ['r1', 'r2', 'r3', 'r4'].map((registrationId) => ({ eventId: 'e-md', registrationId })) })
+  const s = text(PairingTab, { tour: tr, event: { ...t0.events[0], genderRule: 'any' }, db, a: fakeActions(), canEdit: true, isMobile: false })
+  assert.match(s, /Quay ghép cặp Tự ghép/)
+})
+
+test('Sơ đồ: thanh đáy có nút Phóng to, gợi ý nằm cùng hàng (không đè nút)', () => {
+  const x = koSetup()
+  const s = text(FlowCanvas, { tour: { ...x.tr, stages: [{ ...x.stage, status: 'pending' }], matches: [] }, event: x.tr.events[0], db, a: fakeActions(), canEdit: true, onBack: noop, onOpenBracket: noop })
+  assert.match(s, /Căn lại khung nhìn Phóng to Kéo khối từ trái vào/)
+})

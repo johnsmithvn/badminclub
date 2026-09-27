@@ -10,11 +10,12 @@ import { nextPowerOf2 } from '#lib/tournament/bracket.js'
 import { linkShape } from '#lib/tournament/bracketView.js'
 import { isDouble } from '#lib/tournament/doubleElim.js'
 import { roundsOf, swissRounds } from '#lib/tournament/swiss.js'
-import { eventTeams, shuffle } from '#lib/tournament/pairing.js'
+import { eventTeams } from '#lib/tournament/pairing.js'
 import cfg from '#config/app.json' with { type: 'json' }
 import { t } from '#i18n'
 import { RuleCard, Seg, TeamNameLines } from './TourBits.jsx'
 import RecommendDialog from './RecommendDialog.jsx'
+import SpinDraw from './SpinDraw.jsx'
 import { rankLabel, ruleLabel, stageName, teamName } from './tourUtils.js'
 
 const TEAM_MIME = 'text/x-tour-team'
@@ -106,10 +107,19 @@ export default function FlowCanvas({ tour, event, db, a, canEdit, onBack, onOpen
   const [savingTpl, setSavingTpl] = useState(false)
   const [resetting, setResetting] = useState(false)
   const [busy, setBusy] = useState(false)
+  const [focus, setFocus] = useState(false) // phóng to: phủ cả màn, ẩn 2 thanh bên tới khi chọn khối
   const [save, setSave] = useState('idle') // 'idle' | 'saving' | 'saved' — nhãn "vừa lưu" (handoff)
   const viewRef = useRef(null)
   const zoomRef = useRef(zoom)
   zoomRef.current = zoom
+
+  // Esc thoát phóng to (trừ khi đang mở hộp thoại — Esc đó là của hộp thoại).
+  useEffect(() => {
+    if (!focus) return undefined
+    const onKey = (e) => { if (e.key === 'Escape' && !document.querySelector('[role="dialog"]')) setFocus(false) }
+    window.addEventListener('keydown', onKey)
+    return () => window.removeEventListener('keydown', onKey)
+  }, [focus])
 
   // Mọi thao tác ghi trên canvas đi qua đây để thanh trên báo "đang lưu… / vừa lưu".
   const act = (p) => {
@@ -315,9 +325,21 @@ export default function FlowCanvas({ tour, event, db, a, canEdit, onBack, onOpen
     if (ok) onOpenBracket(event.id)
   }
   const unplaced = source?.type === 'round_robin' ? unplacedTeams(source, full) : []
+  // Chế độ phóng to: sơ đồ phủ cả màn, ẩn 2 thanh bên — bấm vào khối / đường nối thì 2 thanh hiện lại để chỉnh.
+  const sides = !focus || Boolean(sel || selLink)
+  const toggleFocus = () => {
+    setFocus((f) => !f)
+    // Đợi khung đổi cỡ xong (2 khung hình) rồi mới căn cho vừa toàn bộ sơ đồ.
+    requestAnimationFrame(() => requestAnimationFrame(fit))
+  }
 
   return (
-    <div style={{ display: 'grid', gridTemplateRows: 'auto 1fr', borderRadius: 12, overflow: 'hidden', border: '1px solid var(--border-subtle)', background: 'var(--surface-card)', height: 'calc(100vh - 110px)', minHeight: 650 }}>
+    <div style={{
+      display: 'grid', gridTemplateRows: 'auto 1fr', overflow: 'hidden', background: 'var(--surface-card)',
+      ...(focus
+        ? { position: 'fixed', inset: 0, zIndex: 55, height: '100vh' }
+        : { borderRadius: 12, border: '1px solid var(--border-subtle)', height: 'calc(100vh - 110px)', minHeight: 650 }),
+    }}>
       <div>
         {/* Thanh trên */}
         <div style={{ display: 'flex', alignItems: 'center', gap: 12, flexWrap: 'wrap', padding: '12px 16px', borderBottom: '1px solid var(--border-subtle)' }}>
@@ -358,9 +380,9 @@ export default function FlowCanvas({ tour, event, db, a, canEdit, onBack, onOpen
         {hasSchedule && <Alert tone="info" style={{ margin: '10px 16px 0' }}>{t('tournament.format.lockedRules')}</Alert>}
       </div>
 
-      <div style={{ display: 'grid', gridTemplateColumns: '220px minmax(0,1fr) 300px', minHeight: 0, height: '100%', overflow: 'hidden' }}>
+      <div style={{ display: 'grid', gridTemplateColumns: sides ? '220px minmax(0,1fr) 300px' : 'minmax(0,1fr)', minHeight: 0, height: '100%', overflow: 'hidden' }}>
         {/* Trái: khối + cặp chưa xếp */}
-        <aside style={{ display: 'flex', flexDirection: 'column', gap: 14, padding: 14, borderRight: '1px solid var(--border-subtle)', minHeight: 0 }}>
+        {sides && <aside style={{ display: 'flex', flexDirection: 'column', gap: 14, padding: 14, borderRight: '1px solid var(--border-subtle)', minHeight: 0 }}>
           {overline(t('tournament.canvas.palette'))}
           <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 8, flex: '0 0 auto' }}>
             {PALETTE.map((item) => {
@@ -407,7 +429,7 @@ export default function FlowCanvas({ tour, event, db, a, canEdit, onBack, onOpen
               </div>
             </div>
           )}
-        </aside>
+        </aside>}
 
         {/* Giữa: canvas */}
         <div style={{ position: 'relative', minWidth: 0 }}>
@@ -463,25 +485,28 @@ export default function FlowCanvas({ tour, event, db, a, canEdit, onBack, onOpen
               </div>
             </div>
           </div>
-          <div style={{
-            position: 'absolute', left: '50%', bottom: 14, transform: 'translateX(-50%)', display: 'flex', gap: 16,
-            padding: '8px 14px', borderRadius: 999, background: 'var(--surface-card)', border: '1px solid var(--border-subtle)',
-            font: 'var(--type-caption)', color: 'var(--text-muted)', whiteSpace: 'nowrap', pointerEvents: 'none',
-          }}>
-            <span>{t('tournament.canvas.hintPalette')}</span>
-            <span>{t('tournament.canvas.portHint')}</span>
-            <span>{t('tournament.canvas.panHint')}</span>
-          </div>
-          <div style={{ position: 'absolute', left: 12, bottom: 12, display: 'flex', gap: 6 }}>
-            <Button size="sm" variant="secondary" aria-label={t('tournament.canvas.zoomOut')} onClick={() => setZoom((z) => Math.max(ZOOM_MIN, +(z - 0.1).toFixed(2)))}>−</Button>
-            <Mono size={11} color="var(--text-muted)" style={{ alignSelf: 'center', minWidth: 36, textAlign: 'center' }}>{Math.round(zoom * 100)}%</Mono>
-            <Button size="sm" variant="secondary" aria-label={t('tournament.canvas.zoomIn')} onClick={() => setZoom((z) => Math.min(ZOOM_MAX, +(z + 0.1).toFixed(2)))}>+</Button>
-            <Button size="sm" variant="secondary" onClick={fit}>{t('tournament.canvas.fit')}</Button>
+          {/* Thanh đáy MỘT hàng: nút phóng/căn trái · gợi ý thao tác phải, hẹp thì gợi ý tự cắt "…" — không đè nhau. */}
+          <div style={{ position: 'absolute', left: 12, right: 12, bottom: 12, display: 'flex', alignItems: 'center', gap: 12, pointerEvents: 'none' }}>
+            <div style={{ display: 'flex', gap: 6, flex: '0 0 auto', pointerEvents: 'auto' }}>
+              <Button size="sm" variant="secondary" aria-label={t('tournament.canvas.zoomOut')} onClick={() => setZoom((z) => Math.max(ZOOM_MIN, +(z - 0.1).toFixed(2)))}>−</Button>
+              <Mono size={11} color="var(--text-muted)" style={{ alignSelf: 'center', minWidth: 36, textAlign: 'center' }}>{Math.round(zoom * 100)}%</Mono>
+              <Button size="sm" variant="secondary" aria-label={t('tournament.canvas.zoomIn')} onClick={() => setZoom((z) => Math.min(ZOOM_MAX, +(z + 0.1).toFixed(2)))}>+</Button>
+              <Button size="sm" variant="secondary" onClick={fit}>{t('tournament.canvas.fit')}</Button>
+              <Button size="sm" variant={focus ? 'accent' : 'secondary'} icon={focus ? 'minimize-2' : 'maximize-2'} onClick={toggleFocus}>
+                {t(focus ? 'tournament.canvas.unfocus' : 'tournament.canvas.focus')}
+              </Button>
+            </div>
+            <span style={{
+              marginLeft: 'auto', minWidth: 0, padding: '8px 14px', borderRadius: 999, background: 'var(--surface-card)', border: '1px solid var(--border-subtle)',
+              font: 'var(--type-caption)', color: 'var(--text-muted)', whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis',
+            }}>
+              {[focus ? t('tournament.canvas.focusHint') : t('tournament.canvas.hintPalette'), t('tournament.canvas.portHint'), t('tournament.canvas.panHint')].join('   ·   ')}
+            </span>
           </div>
         </div>
 
         {/* Phải: toàn giải / khối đang chọn / đường nối đang chọn */}
-        <aside style={{ padding: 14, borderLeft: '1px solid var(--border-subtle)', overflowY: 'auto' }}>
+        {sides && <aside style={{ padding: 14, borderLeft: '1px solid var(--border-subtle)', overflowY: 'auto' }}>
           {selLink && source ? (
             <LinkPanel link={selLink} source={source} stages={stages} links={links} teams={est.stages[selLink.toStageId]?.teams ?? 0}
               // Thụy Sĩ một bảng: lấy top 8 vào knock-out là thường → cho chọn tới hạng cuối (tối đa 16).
@@ -491,7 +516,7 @@ export default function FlowCanvas({ tour, event, db, a, canEdit, onBack, onOpen
               onClose={() => choose(null)} />
           ) : sel ? (
             <StagePanel key={sel.id} stage={sel} stages={stages} source={source} links={links} full={full} est={est}
-              act={act} a={a} onSaveGroups={saveGroups} onPickLink={(id) => choose(null, id)} onClose={() => choose(null)} />
+              act={act} a={a} tour={tour} db={db} onSaveGroups={saveGroups} onPickLink={(id) => choose(null, id)} onClose={() => choose(null)} />
           ) : (
             <div style={{ display: 'grid', gap: 14 }}>
               <div style={{ display: 'grid', gap: 6 }}>
@@ -516,7 +541,7 @@ export default function FlowCanvas({ tour, event, db, a, canEdit, onBack, onOpen
               </div>
             </div>
           )}
-        </aside>
+        </aside>}
       </div>
 
       {quick && <QuickDialog tour={tour} event={event} n={full.length} a={a} act={act} onClose={() => setQuick(false)} />}
@@ -901,7 +926,7 @@ function LinkPanel({ link, source, stages, links, teams, choices, onRanks, onDel
  * Bảng sửa khối đang chọn: tên, số bảng / số cặp mỗi bảng / số lượt, chia bảng (rắn · bốc thăm · đưa hết về khay),
  * độ cân các bảng, luật, đường vào (nhánh), xoá.
  */
-function StagePanel({ stage, stages, source, links, full, est, act, a, onSaveGroups, onPickLink, onClose }) {
+function StagePanel({ stage, stages, source, links, full, est, act, a, tour, db, onSaveGroups, onPickLink, onClose }) {
   const [name, setName] = useState(stage.title || '')
   const isSource = stage.id === source?.id
   const link = links.find((l) => l.toStageId === stage.id)
@@ -923,10 +948,16 @@ function StagePanel({ stage, stages, source, links, full, est, act, a, onSaveGro
   const qualifyList = rr ? t('tournament.round.group') : swiss ? t('tournament.round.swiss')
     : double ? `${t('tournament.double.wbLabel')}, ${t('tournament.double.lbLabel')}` : names(koKinds.filter((k) => k !== 'final' && k !== 'third'))
   const rankList = double ? t('tournament.round.gf') : names(koKinds.filter((k) => k === 'final' || k === 'third'))
-  const draw = () => {
-    const ids = shuffle(full.map((x) => x.id))
-    onSaveGroups(Array.from({ length: numGroups }, (_, g) => ids.filter((_, i) => i % numGroups === g)))
-  }
+  // Quay bốc thăm từng lượt (hộp `SpinDraw`): 'groups' = chia bảng (lượt i vào bảng i % số bảng, nên cột = bảng),
+  // 'draw' = số bốc thăm nhánh (Đ1, Đ2…). Chỉ ghi khi bấm "Lưu kết quả".
+  const [spin, setSpin] = useState(null)
+  const spinItems = full.map((x) => ({ id: x.id, label: teamName(tour, db, x.id), sub: String(Math.round(x.sum || 0)) }))
+  const spinSlots = spin === 'groups'
+    ? full.map((_, i) => ({ label: t('tournament.spin.slotGroup', { g: String.fromCharCode(65 + (i % numGroups)), n: Math.floor(i / numGroups) + 1 }) }))
+    : full.map((_, i) => ({ label: t('tournament.format.drawNo', { n: i + 1 }) }))
+  const spinDone = (order) => (spin === 'groups'
+    ? onSaveGroups(Array.from({ length: numGroups }, (_, g) => order.filter((_, i) => i % numGroups === g)))
+    : act(a.tourDraw(stage.eventId, order)))
   const perNow = numGroups > 0 ? Math.ceil(full.length / numGroups) : 0
   const bal = rr && numGroups > 1 && full.length ? groupBalanceOf(stage, full) : null
 
@@ -959,7 +990,7 @@ function StagePanel({ stage, stages, source, links, full, est, act, a, onSaveGro
       {rr && numGroups > 1 && full.length > 0 && (
         <div style={{ display: 'grid', gap: 6 }}>
           <PanelButton title={t('tournament.canvas.snake')} sub={t('tournament.canvas.snakeSub')} onClick={() => onSaveGroups(null)} />
-          <PanelButton title={t('tournament.canvas.draw')} sub={t('tournament.canvas.drawSub')} onClick={draw} />
+          <PanelButton title={t('tournament.canvas.draw')} sub={t('tournament.canvas.drawSub')} onClick={() => setSpin('groups')} />
           <PanelButton title={t('tournament.canvas.clearGroups')} sub={t('tournament.canvas.clearGroupsSub')} onClick={() => onSaveGroups(Array.from({ length: numGroups }, () => []))} />
         </div>
       )}
@@ -999,10 +1030,16 @@ function StagePanel({ stage, stages, source, links, full, est, act, a, onSaveGro
         <Seg options={['seed', 'slot'].map((k) => ({ key: k, label: t('tournament.format.seed.' + k) }))}
           value={stage.config?.seeding || 'seed'} onChange={(k) => saveConfig({ seeding: k })} />
       ))}
-      {(ko || swiss) && isSource && stage.config?.seeding === 'slot' && full.length > 0 && (
-        <Button size="sm" variant="secondary" icon="rotate-ccw" onClick={() => act(a.tourDraw(stage.eventId))}>
+      {(ko || swiss) && isSource && stage.config?.seeding === 'slot' && full.length > 1 && (
+        <Button size="sm" variant="secondary" icon="sparkles" onClick={() => setSpin('draw')}>
           {t(full.some((x) => x.drawNo) ? 'tournament.format.redraw' : 'tournament.format.draw')}
         </Button>
+      )}
+      {spin && (
+        <SpinDraw title={t(spin === 'groups' ? 'tournament.spin.titleGroups' : 'tournament.spin.titleDraw')}
+          hint={t(spin === 'groups' ? 'tournament.spin.hintGroups' : 'tournament.spin.hintDraw')}
+          items={spinItems} slots={spinSlots} columns={spin === 'groups' ? Math.min(numGroups, 4) : 2}
+          onDone={spinDone} onClose={() => setSpin(null)} />
       )}
       {ko && !double && panelRow(t('tournament.format.thirdPlace'), (
         <Seg options={[{ key: 'on', label: t('tournament.format.on') }, { key: 'off', label: t('tournament.format.off') }]}
