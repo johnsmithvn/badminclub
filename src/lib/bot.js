@@ -2,7 +2,7 @@
 // Pure functions, không React / không Supabase / không tiếng Việt (RULES §3.1: câu chữ ở i18n).
 //
 // PHÂN VAI. File này chỉ QUYẾT ĐỊNH. Việc ghi xuống DB nằm ở RPC `create_bot_challenge`
-// (migration 0055), vì RLS cố ý cấm client tạo kèo hộ người khác. Mọi luật gác đều được RPC
+// (migration 0064), vì RLS cố ý cấm client tạo kèo hộ người khác. Mọi luật gác đều được RPC
 // kiểm lại — những cổng ở đây chỉ để KHỎI GỌI RPC VÔ ÍCH, không phải để bảo vệ.
 //
 // Đây là chỗ rẻ nhất để bot "sống" thêm: thêm tiêu chí săn kèo, thêm tính cách, thêm kiểu chọn
@@ -87,7 +87,7 @@ const BOT_CHALLENGE_COOLDOWN_MS = 24 * 60 * 60 * 1000
 /**
  * Bot có được dựng kèo mới lúc này không.
  *
- * Kiểm tra 2 cổng độc lập (khớp 1:1 với RPC `create_bot_challenge` trong migration 0055):
+ * Kiểm tra 2 cổng độc lập (khớp 1:1 với RPC `create_bot_challenge` trong migration 0064):
  *   · Cổng 1: Không có kèo bot nào đang mở nhận (status = 'pending' và chưa hết hạn nhận).
  *   · Cổng 2: Không có kèo bot nào được tạo trong vòng 24h qua (cooldown nhịp tạo kèo).
  *

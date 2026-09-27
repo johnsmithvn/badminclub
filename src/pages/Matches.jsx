@@ -8,11 +8,10 @@ import { useMobile } from '#hooks/useMobile.js'
 import { t } from '#i18n'
 import NotificationBell from '#components/notification/NotificationBell.jsx'
 import cfg from '#config/app.json' with { type: 'json' }
-import { playerName, courtOf, myMember, playerOf, sessionMembers, sGuests, isPresent, timeTxt, courtTxt, presentCount, shortName } from '#lib/money.js'
-import { sessionPlayers } from '#lib/assign.js'
+import { playerName, courtOf, myMember, playerOf, timeTxt, courtTxt, presentCount, shortName } from '#lib/money.js'
 import { dd, isoOf, todayISO, weekdayOf, wd } from '#utils/dates.js'
 import {
-  getPlayerRating, expectedScore,
+  getPlayerRating,
   BALANCE_THRESHOLD, IMBALANCE_THRESHOLD, matchCodeOf, DEFAULT_RATING,
 } from '#lib/rating.js'
 import {
@@ -20,7 +19,7 @@ import {
   isCloseMatch, isThreeSetMatch, isUpsetMatch,
 } from '#lib/matchSearch.js'
 import { formatGapMinutes, parseVideoProvider } from '#utils/videoUtils.js'
-import { getChallengeAcceptanceProgress, canMemberAcceptChallenge, getChallengeSeriesProgress, getPredictionStats, challengeExpiryAt, challengeCountdown, isChallengeExpired, isChallengeAccepted } from '#lib/challenge.js'
+import { isChallengeAccepted } from '#lib/challenge.js'
 import EditScoreModal from '#components/challenge/EditScoreModal.jsx'
 import CreateChallengeModal from '#components/challenge/CreateChallengeModal.jsx'
 import MatchDetailModal from '#components/challenge/MatchDetailModal.jsx'
@@ -28,6 +27,7 @@ import ChallengeDetailModal from '#components/challenge/ChallengeDetailModal.jsx
 import ScoreModal from '#components/challenge/ScoreModal.jsx'
 import AttachVideoModal, { MatchVideoInlineExpander } from '#components/challenge/AttachVideoModal.jsx'
 import { VideoPlayerModal } from '#components/challenge/VideoPlayerModal.jsx'
+import ArenaChallengeCard from '#components/challenge/ArenaChallengeCard.jsx'
 
 /**
  * Lấy tên gọi ngắn gọn của thành viên (ưu tiên tên chính, kèm chữ lót nếu trùng)
@@ -696,14 +696,6 @@ export default function Matches() {
 
 
 
-  // Grid style dùng lại cho cả sections
-  const challengeGridStyle = {
-    display: 'grid',
-    gridTemplateColumns: isMobile ? '1fr' : 'repeat(auto-fill, minmax(420px, 1fr))',
-    gap: 12,
-    width: '100%',
-    alignItems: 'start',
-  }
 
   return (
     <div style={{ ...S.page, gap: isMobile ? 10 : 16 }}>
@@ -738,13 +730,19 @@ export default function Matches() {
               onClick={() => a.openDialog('importMatches', {})}
             />
             <Button
-              variant="accent"
               size="sm"
               icon="plus"
               onClick={() => {
                 setInitialTeamA(myId ? [myId] : [])
                 setInitialTeamB([])
                 setChallengeModalOpen(true)
+              }}
+              style={{
+                background: '#F5C451',
+                color: '#1A1204',
+                border: 'none',
+                fontWeight: 700,
+                boxShadow: '0 2px 8px rgba(245,196,81,0.25)',
               }}
             >
               {isMobile ? t('challenge.challenge') : t('matchesPage.createBtn')}
@@ -759,7 +757,7 @@ export default function Matches() {
         onChange={handleSelectTab}
         style={{ marginBottom: 4 }}
         items={[
-          { key: 'challenges', label: t('matchesPage.tabChallenges'), tone: 'accent', badge: pendingChallenges.length || null },
+          { key: 'challenges', label: t('matchesPage.tabChallenges'), tone: 'primary', badge: pendingChallenges.length || null },
           { key: 'search', label: 'History', tone: 'primary', badge: (db.matches || []).length },
           { key: 'matrix', label: t('matchesPage.tabMatrix'), tone: 'violet' },
         ]}
@@ -768,832 +766,494 @@ export default function Matches() {
       {/* ========================================================================= */}
       {/* TAB 1: SÀN KÈO / THÁCH ĐẤU */}
       {/* ========================================================================= */}
-      {activeTab === 'challenges' && (
-        <div style={{ display: 'grid', gap: 14, width: '100%', minWidth: 0 }}>
-          {/* Subtabs lọc kèo & Ô tìm kiếm */}
-          <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', gap: 10, flexWrap: 'wrap' }}>
-            <div style={S.subTabWrap}>
-              {[
-                { id: 'my', label: t('challenge.tabMy'), count: myChallenges.length },
-                { id: 'pending', label: t('challenge.tabPending'), count: pendingChallenges.length, color: 'var(--status-delayed-fg)' },
-                { id: 'accepted', label: t('challenge.tabAccepted'), count: acceptedChallenges.length, color: 'var(--status-transit-fg)' },
-                { id: 'played', label: t('challenge.tabPlayed'), count: playedChallenges.length },
-              ].map((st) => {
-                const active = challengeSubTab === st.id
-                return (
-                  <button
-                    key={st.id}
-                    type="button"
-                    onClick={() => setChallengeSubTab(st.id)}
-                    style={{
-                      ...S.subTabBtn,
-                      background: active ? 'var(--surface-card)' : 'transparent',
-                      border: active ? '1px solid var(--border-default)' : '1px solid transparent',
-                      color: active ? 'var(--text-primary)' : 'var(--text-secondary)',
-                    }}
-                  >
-                    <span style={{ fontWeight: active ? 600 : 500 }}>{st.label}</span>
-                    <span style={{ ...S.subTabCount, color: st.color || (active ? 'var(--text-primary)' : 'var(--text-muted)') }}>
-                      {st.count}
-                    </span>
-                  </button>
-                )
-              })}
-            </div>
+      {/* ========================================================================= */}
+      {/* TAB 1: SÀN KÈO / THÁCH ĐẤU — PHONG CÁCH 1a ĐẤU TRƯỜNG */}
+      {/* ========================================================================= */}
+      {activeTab === 'challenges' && (() => {
+        const subTabs = [
+          { id: 'my', label: t('challenge.tabMy'), count: myChallenges.length },
+          { id: 'pending', label: t('challenge.tabPending'), count: pendingChallenges.length, color: '#F0B75C' },
+          { id: 'accepted', label: t('challenge.tabAccepted'), count: acceptedChallenges.length, color: '#2EC4B6' },
+          { id: 'played', label: t('challenge.tabPlayed'), count: playedChallenges.length },
+        ]
+        const currentTabObj = subTabs.find((st) => st.id === challengeSubTab) || subTabs[0]
+        const arenaSubtitleText = t('challenge.arenaSubtitle', {
+          tab: currentTabObj.label,
+          count: currentTabObj.count,
+        })
 
-            {/* Ô tìm kiếm theo tên hoặc mã kèo */}
-            <div style={{ position: 'relative', display: 'flex', alignItems: 'center', minWidth: isMobile ? '100%' : 240, flex: isMobile ? '1 1 100%' : '0 0 auto' }}>
-              <Icon name="search" size={14} style={{ position: 'absolute', left: 10, color: 'var(--text-muted)', pointerEvents: 'none' }} />
-              <input
-                type="text"
-                placeholder={t('challenge.searchPlaceholder')}
-                value={challengeSearch}
-                onChange={(e) => setChallengeSearch(e.target.value)}
-                style={{
-                  width: '100%',
-                  height: 34,
-                  borderRadius: 8,
-                  border: '1px solid var(--border-default)',
-                  background: 'var(--surface-sunken)',
-                  color: 'var(--text-primary)',
-                  padding: '0 28px 0 32px',
-                  fontSize: 12.5,
-                  outline: 'none',
-                }}
-              />
-              {challengeSearch && (
-                <button
-                  type="button"
-                  onClick={() => setChallengeSearch('')}
-                  style={{
-                    position: 'absolute',
-                    right: 8,
-                    background: 'none',
-                    border: 'none',
-                    color: 'var(--text-muted)',
-                    cursor: 'pointer',
-                    padding: 0,
-                    display: 'flex',
-                    alignItems: 'center',
-                  }}
-                >
-                  <Icon name="x" size={13} />
-                </button>
-              )}
-            </div>
-          </div>
+        const arenaGridStyle = {
+          display: 'grid',
+          gridTemplateColumns: isMobile ? '1fr' : 'repeat(2, minmax(0, 1fr))',
+          gap: 16,
+          width: '100%',
+          alignItems: 'start',
+        }
 
-          {/* Banner thông báo kèo đang được chọn/làm nổi bật */}
-          {highlightedChallengeId && (
+        const cardCommonProps = {
+          db,
+          a,
+          myId,
+          isAdmin,
+          isMobile,
+          highlightedChallengeId,
+          now,
+          getRating,
+          memberNameOf,
+          shortNameOf,
+          onViewChallenge: setViewingChallenge,
+          onSelectSession: setSelectingSessionChallenge,
+          onViewMatch: setViewingMatch,
+          onRevenge: (c) => {
+            const isLoserA = c.winnerTeam === 'B'
+            const loserTeam = isLoserA ? (c.teamA || []) : (c.teamB || [])
+            const winTeam = isLoserA ? (c.teamB || []) : (c.teamA || [])
+            setInitialTeamA(loserTeam)
+            setInitialTeamB(winTeam)
+            setChallengeModalOpen(true)
+          },
+        }
+
+        return (
+          <div
+            style={{
+              background: '#080D18',
+              border: '1px solid #182236',
+              borderRadius: isMobile ? 16 : 22,
+              padding: isMobile ? '18px 14px' : '28px 32px',
+              display: 'flex',
+              flexDirection: 'column',
+              gap: 22,
+              width: '100%',
+              minWidth: 0,
+            }}
+          >
+            {/* ARENA HEADER: SUBTITLE, HERO TITLE, SUBTABS, SEARCH & TẠO KÈO */}
             <div
               style={{
                 display: 'flex',
-                alignItems: 'center',
+                alignItems: isMobile ? 'stretch' : 'flex-end',
                 justifyContent: 'space-between',
-                padding: '10px 16px',
-                borderRadius: 8,
-                backgroundColor: 'rgba(0, 245, 212, 0.08)',
-                border: '1px solid rgba(0, 245, 212, 0.35)',
-                gap: 8,
+                gap: 16,
                 flexWrap: 'wrap',
               }}
             >
-              <div style={{ display: 'flex', alignItems: 'center', gap: 8, fontSize: 13, color: 'var(--text-primary)' }}>
-                <span style={{ fontSize: 16 }}>🎯</span>
-                <span style={{ fontWeight: 600 }}>
-                  {t('challenge.focusedNotice', {
-                    code: (allChallenges.find((c) => c.id === highlightedChallengeId)?.code) || highlightedChallengeId,
-                  })}
-                </span>
-              </div>
-              <button
-                type="button"
-                onClick={() => {
-                  setHighlightedChallengeId(null)
-                  const next = new URLSearchParams(searchParams)
-                  next.delete('challengeId')
-                  setSearchParams(next, { replace: true })
-                }}
-                style={{
-                  background: 'none',
-                  border: 'none',
-                  color: 'var(--teal-400, #00F5D4)',
-                  fontSize: 12,
-                  cursor: 'pointer',
-                  fontWeight: 600,
-                  textDecoration: 'underline',
-                }}
-              >
-                {t('challenge.viewAll')}
-              </button>
-            </div>
-          )}
-
-          {/* Danh sách thẻ Kèo — tab "Của tôi" chia sections, tab khác flat list */}
-          {(() => {
-            // Card renderer dùng chung — extract để tránh duplicate 530 dòng
-            const challengeCardMapper = (c) => {
-              const teamA = c.teamA || []
-              const teamB = c.teamB || []
-              const ratA = teamA.length ? Math.round(teamA.reduce((sum, id) => sum + getRating(id), 0) / teamA.length) : 0
-              const ratB = teamB.length ? Math.round(teamB.reduce((sum, id) => sum + getRating(id), 0) / teamB.length) : 0
-              const gap = Math.abs(ratA - ratB)
-              const pA = expectedScore(ratA, ratB || ratA)
-              const pctA = Math.round(pA * 100)
-              const pctB = 100 - pctA
-
-              const isPlayed = c.status === 'played'
-              const isPending = c.status === 'pending'
-              // "Đang đánh" suy từ SỐ HIỆP ĐÃ GHI, xem `statusBadgeText`.
-              const isAccepted = isChallengeAccepted(c)
-              const isParticipant = myId && [...teamA, ...teamB].includes(myId)
-              const isOpen = !teamB.length || teamB.length < (teamA.length > 1 ? 2 : 1)
-
-              // Tiến độ nhận kèo
-              const prog = getChallengeAcceptanceProgress(c)
-              const canAccept = canMemberAcceptChallenge(c, myId, isAdmin)
-              const hasAccepted = myId && (c.acceptedPlayers || []).includes(myId)
-
-              // Countdown hết hạn
-              const expTime = challengeExpiryAt(c)
-              const isExpired = isChallengeExpired(c, now)
-              // Chia bậc: hạn nhận kèo là 7 ngày, in phút:giây thì ra "10080:23".
-              let expStr = ''
-              if (expTime && isPending && !isExpired) {
-                const cd = challengeCountdown(expTime - now)
-                expStr = !cd || cd.kind === 'over' ? ''
-                  : cd.kind === 'day' ? `${cd.n} ${t('units.day')}`
-                    : cd.kind === 'hour' ? `${cd.n} ${t('units.hour')}`
-                      : cd.text
-              }
-
-              const isBoSeries = (c.bestOf || 1) > 1
-              const seriesProg = isBoSeries ? getChallengeSeriesProgress(c, db.matches || []) : null
-              const hasPlayedSets = seriesProg && seriesProg.totalSetsPlayed > 0
-
-              const chalProg = seriesProg || getChallengeSeriesProgress(c, db.matches || [])
-              const winnerTeam = chalProg.winnerTeam || c.winnerTeam
-              const playedMts = chalProg.playedMatches || []
-              const firstMatch = playedMts[0] || (c.matchId ? (db.matches || []).find((m) => m.id === c.matchId) : null)
-              let singleScoreA = null
-              let singleScoreB = null
-              if (firstMatch) {
-                if (firstMatch.sets && firstMatch.sets.length > 0) {
-                  singleScoreA = firstMatch.sets[0][0]
-                  singleScoreB = firstMatch.sets[0][1]
-                } else if (firstMatch.scoreText && firstMatch.scoreText.includes('-')) {
-                  const [sa, sb] = firstMatch.scoreText.split('-').map((v) => Number(v.trim()))
-                  singleScoreA = sa
-                  singleScoreB = sb
-                }
-              }
-              const setsDetailText = isBoSeries
-                ? playedMts.map((m) => (m.sets?.[0] ? `${m.sets[0][0]}:${m.sets[0][1]}` : m.scoreText)).filter(Boolean).join(', ')
-                : ''
-
-              const statusBadgeText = (isPending && isExpired) || c.status === 'expired'
-                ? t('challenge.status.expired')
-                : isPending
-                  ? `${t('challenge.status.pending')}${expStr ? ` · ${expStr}` : ''}`
-                  : isAccepted && hasPlayedSets
-                    ? `${t('challenge.seriesPlaying', { score: seriesProg.seriesScoreText })} · ${t('challenge.seriesSetShort', { set: seriesProg.nextSetNumber })}`
-                    : isPlayed && isBoSeries && seriesProg
-                      ? `${t('challenge.status.played')} (${seriesProg.seriesScoreText})`
-                      : (t('challenge.status.' + c.status) || c.status)
-
-              const sessionObj = c.sessionId ? (db.sessions || []).find((s) => s.id === c.sessionId) : null
-              const allPlayers = [...teamA, ...teamB]
-              const att = sessionObj ? (db.attendance?.[sessionObj.id] || {}) : {}
-              const mems = sessionObj ? sessionMembers(db, sessionObj) : []
-              const guests = sessionObj ? sGuests(db, sessionObj.id) : []
-              const eligibleKeys = new Set([
-                ...mems.map((m) => m.id),
-                ...guests.map((g) => g.guestId || g.memberId || g.id),
-              ])
-              const hasStartedAttendance = Object.values(att).some((v) => isPresent(v))
-              const sessPlayers = (sessionObj && hasStartedAttendance) ? sessionPlayers(db, sessionObj) : []
-              const presentKeys = new Set(sessPlayers.map((p) => p.key))
-
-              const absentPlayerKeys = sessionObj && !isPlayed
-                ? allPlayers.filter((id) => {
-                    if (att[id] === false || att[id] === 'noshow') return true
-                    if (!eligibleKeys.has(id)) return true
-                    if (hasStartedAttendance && !presentKeys.has(id)) return true
-                    return false
-                  })
-                : []
-              const hasAbsentInSession = absentPlayerKeys.length > 0
-              const absentInSessionNames = absentPlayerKeys.map((id) => memberNameOf(id) || id)
-
-              const predStats = getPredictionStats(db.challengePredictions || [], c.id)
-
-              return (
-                <div
-                  key={c.id}
-                  id={`challenge-card-${c.id}`}
-                  onClick={() => setViewingChallenge(c)}
+              {/* Tiêu đề Đấu trường */}
+              <div style={{ display: 'flex', flexDirection: 'column', gap: 4 }}>
+                <span
                   style={{
-                    ...S.challengeCard,
-                    cursor: 'pointer',
-                    ...(highlightedChallengeId === c.id
-                      ? {
-                          borderColor: '#00F5D4',
-                          boxShadow: '0 0 0 2px rgba(0, 245, 212, 0.4), 0 0 24px rgba(0, 245, 212, 0.35)',
-                          transform: 'scale(1.015)',
-                          transition: 'all 0.3s ease',
-                          zIndex: 2,
-                        }
-                      : hasAbsentInSession
-                        ? {
-                            borderColor: 'rgba(239, 68, 68, 0.45)',
-                            boxShadow: '0 0 0 1px rgba(239, 68, 68, 0.25)',
-                          }
-                        : hasPlayedSets && !isPlayed
-                          ? {
-                              borderColor: 'rgba(168, 85, 247, 0.35)',
-                              boxShadow: '0 0 0 1px rgba(168, 85, 247, 0.15)',
-                            }
-                          : {}),
+                    font: '700 12px/1 "IBM Plex Sans", sans-serif',
+                    letterSpacing: '0.16em',
+                    textTransform: 'uppercase',
+                    color: '#2EC4B6',
                   }}
                 >
-                  {/* Hàng 1: Mã kèo & Trạng thái & Buổi & Tiến độ nhận & Dự đoán */}
-                  <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', gap: 8, flexWrap: 'wrap' }}>
-                    <div style={{ display: 'flex', alignItems: 'center', gap: 8, flexWrap: 'wrap' }}>
-                      <span style={S.monoCode}>{c.code}</span>
-                      {highlightedChallengeId === c.id && (
+                  {arenaSubtitleText}
+                </span>
+                <span
+                  style={{
+                    font: isMobile
+                      ? '800 22px/1.1 "Barlow Condensed", system-ui, sans-serif'
+                      : '800 32px/1.1 "Barlow Condensed", system-ui, sans-serif',
+                    textTransform: 'uppercase',
+                    letterSpacing: '0.01em',
+                    color: '#F4F7FB',
+                  }}
+                >
+                  {t('challenge.arenaHeroTitle')}
+                </span>
+              </div>
+
+              {/* Bộ lọc Subtabs & Search */}
+              <div
+                style={{
+                  display: 'flex',
+                  alignItems: 'center',
+                  gap: 10,
+                  flexWrap: 'wrap',
+                  width: isMobile ? '100%' : 'auto',
+                }}
+              >
+                {/* Pill Subtabs */}
+                <div
+                  style={{
+                    display: 'flex',
+                    gap: 3,
+                    background: '#0F1728',
+                    border: '1px solid #1E2A40',
+                    borderRadius: 12,
+                    padding: 4,
+                    overflowX: 'auto',
+                    maxWidth: '100%',
+                  }}
+                >
+                  {subTabs.map((st) => {
+                    const active = challengeSubTab === st.id
+                    return (
+                      <button
+                        key={st.id}
+                        type="button"
+                        onClick={() => setChallengeSubTab(st.id)}
+                        style={{
+                          padding: isMobile ? '6px 10px' : '8px 12px',
+                          borderRadius: 9,
+                          background: active ? '#1B2842' : 'transparent',
+                          color: active ? '#F4F7FB' : '#8494AA',
+                          fontWeight: active ? 700 : 500,
+                          fontSize: 13,
+                          border: 'none',
+                          cursor: 'pointer',
+                          display: 'inline-flex',
+                          alignItems: 'center',
+                          gap: 6,
+                          whiteSpace: 'nowrap',
+                          transition: 'background 0.15s ease, color 0.15s ease',
+                        }}
+                      >
+                        <span>{st.label}</span>
                         <span
                           style={{
-                            padding: '2px 8px',
-                            borderRadius: 4,
                             fontSize: 11,
-                            fontWeight: 700,
-                            backgroundColor: 'rgba(0, 245, 212, 0.15)',
-                            color: '#00F5D4',
-                            border: '1px solid #00F5D4',
-                            display: 'inline-flex',
-                            alignItems: 'center',
-                            gap: 4,
+                            fontFamily: '"IBM Plex Mono", monospace',
+                            color: st.color || (active ? '#F4F7FB' : '#8494AA'),
+                            background: active ? 'rgba(255,255,255,0.08)' : 'transparent',
+                            padding: '1px 5px',
+                            borderRadius: 999,
                           }}
                         >
-                          <Icon name="check" size={12} />
-                          {t('challenge.focusedBadge')}
+                          {st.count}
                         </span>
-                      )}
-                      {sessionObj ? (
-                        <span style={S.sessionBadge}>
-                          {t('matchesPage.sessionLinked', { date: dd(sessionObj.date) })}
-                        </span>
-                      ) : (
-                        <span style={S.casualBadge}>{t('matchesPage.noSessionLinked')}</span>
-                      )}
-                      {c.ratingEnabled === false && (
-                        <span style={S.casualBadge}>{t('challenge.casual')}</span>
-                      )}
-                      {hasPlayedSets && (
-                        <span style={{
-                          fontSize: 11,
-                          fontFamily: 'var(--font-mono)',
-                          fontWeight: 700,
-                          padding: '2px 8px',
-                          borderRadius: 999,
-                          background: 'rgba(168,85,247,0.2)',
-                          color: '#D8B4FE',
-                          display: 'inline-flex',
-                          alignItems: 'center',
-                          gap: 4,
-                        }}>
-                          <Icon name="flame" size={12} style={{ color: '#C084FC' }} />
-                          <span>{seriesProg.seriesScoreText}</span>
-                        </span>
-                      )}
-                      {isPending && !isExpired && (
-                        <span style={{
-                          fontSize: 11,
-                          fontFamily: 'var(--font-mono)',
-                          fontWeight: 600,
-                          padding: '2px 8px',
-                          borderRadius: 999,
-                          background: 'rgba(0,178,169,0.12)',
-                          color: 'var(--status-transit-fg)',
-                          display: 'inline-flex',
-                          alignItems: 'center',
-                          gap: 4,
-                        }}>
-                          <Icon name="check" size={12} />
-                          <span>{t('challenge.acceptedProgress', { count: prog.acceptedCount, total: prog.totalCount })}</span>
-                        </span>
-                      )}
-                      {predStats.totalCount > 0 && (
-                        <span style={{
-                          fontSize: 11,
-                          fontFamily: 'var(--font-mono)',
-                          fontWeight: 600,
-                          padding: '2px 8px',
-                          borderRadius: 999,
-                          background: 'var(--surface-sunken)',
-                          color: 'var(--text-secondary)',
-                          border: '1px solid var(--border-subtle)',
-                          display: 'inline-flex',
-                          alignItems: 'center',
-                          gap: 4,
-                        }}>
-                          <Icon name="target" size={12} style={{ color: 'var(--status-transit-fg)' }} />
-                          <span>{predStats.pctA}% : {predStats.pctB}% ({predStats.totalCount})</span>
-                        </span>
-                      )}
-                    </div>
-                    <span style={{
-                      ...S.statusBadge,
-                      background: isPlayed ? 'var(--surface-brand-soft)' : (isAccepted && hasPlayedSets) ? 'rgba(168,85,247,0.15)' : isAccepted ? 'var(--surface-nav-active)' : isExpired ? 'rgba(239,68,68,0.1)' : 'rgba(240,183,92,0.14)',
-                      borderColor: isPlayed ? 'var(--status-delivered-fg)' : (isAccepted && hasPlayedSets) ? '#A855F7' : isAccepted ? 'var(--teal-700)' : isExpired ? 'var(--red-500, #ef4444)' : 'var(--border-subtle)',
-                      color: isPlayed ? 'var(--status-delivered-fg)' : (isAccepted && hasPlayedSets) ? '#D8B4FE' : isAccepted ? 'var(--status-transit-fg)' : isExpired ? 'var(--red-500, #ef4444)' : 'var(--status-delayed-fg)',
-                    }}>
-                      {statusBadgeText}
-                    </span>
-                  </div>
+                      </button>
+                    )
+                  })}
+                </div>
 
-                  {/* Hàng 2: Đối đầu Team A vs Team B (Kèm swords icon, điểm số & crown nếu đã đấu) */}
-                  <div style={{ display: 'flex', alignItems: 'center', gap: 10, padding: '4px 0' }}>
-                    <div style={{ flex: 1, minWidth: 0 }}>
-                      <div style={{
-                        ...S.teamName,
-                        color: isPlayed && winnerTeam === 'A' ? 'var(--status-delivered-fg)' : 'var(--text-primary)',
-                        display: 'flex',
-                        flexWrap: 'wrap',
-                        alignItems: 'center',
-                        gap: 6,
-                      }}>
-                        {isPlayed && winnerTeam === 'A' && (
-                          <span style={{ fontSize: 13 }} title={t('challenge.winnerBadge')}>👑</span>
-                        )}
-                        {teamA.map((id) => {
-                          const isAcc = (c.acceptedPlayers || []).includes(id)
-                          return (
-                            <span key={id} style={{ display: 'inline-flex', alignItems: 'center', gap: 3 }}>
-                              <span title={memberNameOf(id)}>{shortNameOf(id)}</span>
-                              {isPending && isAcc && (
-                                <Icon name="check" size={12} style={{ color: 'var(--status-delivered-fg)' }} title={t('challenge.statusAccepted')} />
-                              )}
-                            </span>
-                          )
-                        })}
-                      </div>
-                      <div style={S.teamRatingMono}>
-                        {ratA > 0 ? t('challenge.avgRating', { r: ratA.toLocaleString('vi-VN') }) : '—'}
-                      </div>
-                    </div>
-
-                    {/* Icon kiếm và điểm số */}
-                    <div style={{ display: 'flex', flexDirection: 'column', alignItems: 'center', justifyContent: 'center', gap: 2, padding: '0 8px', flexShrink: 0 }}>
-                      <Icon name="swords" size={16} style={{ color: 'var(--text-muted)', opacity: 0.7 }} />
-                      {isPlayed && (
-                        <div style={{ display: 'flex', flexDirection: 'column', alignItems: 'center' }}>
-                          <div style={{ font: "700 15px/1 var(--font-mono)", display: 'flex', alignItems: 'center', gap: 3 }}>
-                            <span style={{ color: winnerTeam === 'A' ? 'var(--status-delivered-fg)' : 'var(--text-secondary)' }}>
-                              {isBoSeries ? chalProg.winsA : (singleScoreA ?? chalProg.winsA)}
-                            </span>
-                            <span style={{ color: 'var(--text-muted)', fontSize: 12 }}>–</span>
-                            <span style={{ color: winnerTeam === 'B' ? 'var(--status-delivered-fg)' : 'var(--text-secondary)' }}>
-                              {isBoSeries ? chalProg.winsB : (singleScoreB ?? chalProg.winsB)}
-                            </span>
-                          </div>
-                          {isBoSeries && setsDetailText && (
-                            <div style={{ font: "500 10px/1 var(--font-mono)", color: 'var(--text-muted)', marginTop: 2, whiteSpace: 'nowrap' }}>
-                              ({setsDetailText})
-                            </div>
-                          )}
-                        </div>
-                      )}
-                      {!isPlayed && hasPlayedSets && (
-                        <div style={{ font: "700 13px/1 var(--font-mono)", color: '#D8B4FE' }}>
-                          {seriesProg.seriesScoreText}
-                        </div>
-                      )}
-                    </div>
-
-                    <div style={{ flex: 1, minWidth: 0, textAlign: 'right' }}>
-                      <div style={{
-                        ...S.teamName,
-                        color: isPlayed && winnerTeam === 'B' ? 'var(--status-delivered-fg)' : (teamB.length ? 'var(--text-primary)' : 'var(--text-muted)'),
-                        display: 'flex',
-                        flexWrap: 'wrap',
-                        justifyContent: 'flex-end',
-                        alignItems: 'center',
-                        gap: 6,
-                      }}>
-                        {teamB.length ? teamB.map((id) => {
-                          const isAcc = (c.acceptedPlayers || []).includes(id)
-                          return (
-                            <span key={id} style={{ display: 'inline-flex', alignItems: 'center', gap: 3 }}>
-                              <span title={memberNameOf(id)}>{shortNameOf(id)}</span>
-                              {isPending && isAcc && (
-                                <Icon name="check" size={12} style={{ color: 'var(--status-delivered-fg)' }} title={t('challenge.statusAccepted')} />
-                              )}
-                            </span>
-                          )
-                        }) : t('challenge.teamEmptyHint')}
-                        {isPlayed && winnerTeam === 'B' && (
-                          <span style={{ fontSize: 13 }} title={t('challenge.winnerBadge')}>👑</span>
-                        )}
-                      </div>
-                      <div style={S.teamRatingMono}>
-                        {ratB > 0 ? t('challenge.avgRating', { r: ratB.toLocaleString('vi-VN') }) : '—'}
-                      </div>
-                    </div>
-                  </div>
-
-                  {/* Giao kèo đời thật. Chỉ hiện khi có — kèo không giao kèo thì không chiếm chỗ. */}
-                  {c.stakeText && (
-                    <div style={{
-                      display: 'inline-flex',
-                      alignItems: 'center',
-                      gap: 6,
-                      alignSelf: 'flex-start',
-                      maxWidth: '100%',
-                      padding: '4px 10px',
-                      borderRadius: 999,
-                      background: 'var(--status-delayed-bg)',
-                      border: '1px solid var(--status-delayed)',
-                    }}>
-                      <Icon name="award" size={13} style={{ color: 'var(--status-delayed-fg)', flexShrink: 0 }} />
-                      <span style={{
-                        font: '600 12px/1.4 var(--font-sans)',
-                        color: 'var(--text-primary)',
-                        overflow: 'hidden',
-                        textOverflow: 'ellipsis',
-                        whiteSpace: 'nowrap',
-                      }}>
-                        {c.stakeText}
-                      </span>
-                    </div>
-                  )}
-
-                  {/* Cảnh báo thành viên báo vắng trong buổi đã gắn kèo */}
-                  {hasAbsentInSession && (
-                    <div style={{
-                      display: 'flex',
-                      alignItems: 'center',
-                      justifyContent: 'space-between',
-                      gap: 10,
-                      padding: '8px 12px',
-                      borderRadius: 'var(--radius-md, 8px)',
-                      background: 'rgba(239, 68, 68, 0.08)',
-                      border: '1px solid rgba(239, 68, 68, 0.3)',
-                      color: 'var(--status-incident-fg, #ef4444)',
+                {/* Input Tìm kiếm */}
+                <div
+                  style={{
+                    position: 'relative',
+                    display: 'flex',
+                    alignItems: 'center',
+                    minWidth: isMobile ? '100%' : 220,
+                    flex: isMobile ? '1 1 100%' : '0 0 auto',
+                  }}
+                >
+                  <Icon
+                    name="search"
+                    size={14}
+                    style={{ position: 'absolute', left: 10, color: '#8494AA', pointerEvents: 'none' }}
+                  />
+                  <input
+                    type="text"
+                    placeholder={t('challenge.searchPlaceholder')}
+                    value={challengeSearch}
+                    onChange={(e) => setChallengeSearch(e.target.value)}
+                    style={{
+                      width: '100%',
+                      height: 36,
+                      borderRadius: 10,
+                      border: '1px solid #1E2A40',
+                      background: '#0F1728',
+                      color: '#F4F7FB',
+                      padding: '0 28px 0 32px',
                       fontSize: 12.5,
-                      lineHeight: 1.4,
-                      flexWrap: 'wrap',
-                    }}>
-                      <div style={{ display: 'flex', alignItems: 'center', gap: 6, flex: 1, minWidth: 200 }}>
-                        <Icon name="triangle-alert" size={16} style={{ color: 'var(--status-incident-fg, #ef4444)', flexShrink: 0 }} />
-                        <span>
-                          {t('challenge.absentInSessionAlert', { names: absentInSessionNames.join(', '), date: dd(sessionObj.date) })}
-                        </span>
-                      </div>
-                      {(isParticipant || isAdmin) && (
-                        <div style={{ display: 'flex', alignItems: 'center', gap: 6, marginLeft: 'auto' }}>
-                          <button
-                            type="button"
-                            onClick={(e) => {
-                              e.stopPropagation()
-                              setSelectingSessionChallenge(c)
-                            }}
-                            style={{
-                              ...S.smallSecondaryBtn,
-                              background: 'var(--surface-card)',
-                              borderColor: 'var(--status-incident-fg, #ef4444)',
-                              color: 'var(--status-incident-fg, #ef4444)',
-                              padding: '3px 9px',
-                              height: 28,
-                              fontSize: 12,
-                              fontWeight: 600,
-                            }}
-                            title={t('challenge.changeSession')}
-                          >
-                            <Icon name="calendar-days" size={13} />
-                            <span>{t('challenge.changeSession')}</span>
-                          </button>
-                          <button
-                            type="button"
-                            onClick={(e) => {
-                              e.stopPropagation()
-                              a.confirm({
-                                title: t('challenge.confirmUnlinkTitle'),
-                                message: t('challenge.confirmUnlinkMsg', { code: c.code }),
-                                tone: 'danger',
-                                onConfirm: () => a.linkChallengeToSession(c.id, null),
-                              })
-                            }}
-                            style={{
-                              ...S.smallGhostBtn,
-                              color: 'var(--status-incident-fg, #ef4444)',
-                              borderColor: 'rgba(239, 68, 68, 0.4)',
-                              padding: '3px 9px',
-                              height: 28,
-                              fontSize: 12,
-                              fontWeight: 600,
-                            }}
-                            title={t('challenge.btnUnlinkSession')}
-                          >
-                            <Icon name="unlink" size={13} />
-                            <span>{t('challenge.btnUnlinkSession')}</span>
-                          </button>
-                        </div>
-                      )}
-                    </div>
-                  )}
-
-                  {/* Cảnh báo lệch trình */}
-                  {gap > IMBALANCE_THRESHOLD && ratA > 0 && ratB > 0 && (
-                    <div style={S.warnBox}>
-                      {t('challenge.gapWarningNotBlocked', { gap: gap.toLocaleString('vi-VN') })}
-                    </div>
-                  )}
-
-                  {/* Thanh win% preview */}
-                  {!isPlayed && ratB > 0 && (
-                    <div style={{ display: 'grid', gap: 4 }}>
-                      <div style={{ display: 'flex', justifyContent: 'space-between', fontSize: 11, fontFamily: 'var(--font-mono)' }}>
-                        <span style={{ color: 'var(--status-transit-fg)' }}>{pctA}%</span>
-                        <span style={{ color: 'var(--text-muted)' }}>{t('rating.gap', { gap })}</span>
-                        <span style={{ color: 'var(--text-secondary)' }}>{pctB}%</span>
-                      </div>
-                      <div style={{ display: 'flex', height: 6, borderRadius: 999, overflow: 'hidden', background: 'var(--surface-sunken)' }}>
-                        <div style={{ width: `${pctA}%`, background: 'var(--action-accent-bg, var(--teal-500))', height: '100%' }} />
-                        <div style={{ width: `${pctB}%`, background: 'var(--border-default)', height: '100%' }} />
-                      </div>
-                    </div>
-                  )}
-
-                  {/* Hàng nút bấm thao tác */}
-                  <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'flex-end', gap: 8, marginTop: 4, flexWrap: 'wrap' }}>
-                    {/* Badge Bạn đã nhận (chờ đối thủ) nếu bản thân đã bấm nhận nhưng kèo chưa full */}
-                    {isPending && !isExpired && hasAccepted && !prog.isFullyAccepted && (
-                      <span style={{
-                        fontSize: 12,
-                        color: 'var(--status-delivered-fg)',
-                        display: 'inline-flex',
+                      outline: 'none',
+                    }}
+                  />
+                  {challengeSearch && (
+                    <button
+                      type="button"
+                      onClick={() => setChallengeSearch('')}
+                      style={{
+                        position: 'absolute',
+                        right: 8,
+                        background: 'none',
+                        border: 'none',
+                        color: '#8494AA',
+                        cursor: 'pointer',
+                        padding: 0,
+                        display: 'flex',
                         alignItems: 'center',
-                        gap: 4,
-                        marginRight: 'auto',
-                        fontFamily: 'var(--font-mono)',
-                      }}>
-                        <Icon name="check" size={13} />
-                        <span>{t('challenge.youAcceptedWaiting')}</span>
-                      </span>
-                    )}
+                      }}
+                    >
+                      <Icon name="x" size={13} />
+                    </button>
+                  )}
+                </div>
+              </div>
+            </div>
 
-                    {/* Nhận / Duyệt kèo nếu có quyền */}
-                    {isPending && !isExpired && canAccept && (
-                      <button
-                        type="button"
-                        onClick={(e) => {
-                          e.stopPropagation()
-                          a.respondChallenge(c.id, true)
-                        }}
-                        style={S.smallPrimaryBtn}
-                      >
-                        <Icon name="check" size={14} />
-                        <span>{isAdmin && !isParticipant ? t('challenge.btnAdminApprove') : t('challenge.btnAccept')}</span>
-                      </button>
-                    )}
+            {/* BANNER KÈO ĐƯỢC HIGHLIGHT / CHỌN */}
+            {highlightedChallengeId && (
+              <div
+                style={{
+                  display: 'flex',
+                  alignItems: 'center',
+                  justifyContent: 'space-between',
+                  padding: '10px 16px',
+                  borderRadius: 10,
+                  backgroundColor: 'rgba(0, 245, 212, 0.08)',
+                  border: '1px solid rgba(0, 245, 212, 0.35)',
+                  gap: 8,
+                  flexWrap: 'wrap',
+                }}
+              >
+                <div style={{ display: 'flex', alignItems: 'center', gap: 8, fontSize: 13, color: '#F4F7FB' }}>
+                  <span style={{ fontSize: 16 }}>🎯</span>
+                  <span style={{ fontWeight: 600 }}>
+                    {t('challenge.focusedNotice', {
+                      code: (allChallenges.find((c) => c.id === highlightedChallengeId)?.code) || highlightedChallengeId,
+                    })}
+                  </span>
+                </div>
+                <button
+                  type="button"
+                  onClick={() => {
+                    setHighlightedChallengeId(null)
+                    const next = new URLSearchParams(searchParams)
+                    next.delete('challengeId')
+                    setSearchParams(next, { replace: true })
+                  }}
+                  style={{
+                    background: 'none',
+                    border: 'none',
+                    color: '#00F5D4',
+                    fontSize: 12,
+                    cursor: 'pointer',
+                    fontWeight: 600,
+                    textDecoration: 'underline',
+                  }}
+                >
+                  {t('challenge.viewAll')}
+                </button>
+              </div>
+            )}
 
-                    {/* Từ chối nếu tôi là đấu thủ tham gia hoặc Admin */}
-                    {isPending && !isExpired && (isParticipant || isAdmin) && (
-                      <button
-                        type="button"
-                        onClick={(e) => {
-                          e.stopPropagation()
-                          a.respondChallenge(c.id, false)
-                        }}
-                        style={S.smallGhostBtn}
-                      >
-                        <Icon name="circle-x" size={14} />
-                        <span>{t('challenge.btnDecline')}</span>
-                      </button>
-                    )}
-
-                    {/* Nhận kèo mở nếu đã đăng nhập và tôi chưa thuộc Team A lẫn Team B */}
-                    {isPending && !isExpired && isOpen && myId && !teamA.includes(myId) && !teamB.includes(myId) && (
-                      <button
-                        type="button"
-                        onClick={(e) => {
-                          e.stopPropagation()
-                          a.acceptOpenChallenge({ challengeId: c.id })
-                        }}
-                        style={S.smallPrimaryBtn}
-                      >
-                        <Icon name="check" size={14} />
-                        <span>{t('matchesPage.acceptOpenChallenge')}</span>
-                      </button>
-                    )}
-
-                    {/* Vào buổi tập */}
-                    {isAccepted && sessionObj && (
-                      <button
-                        type="button"
-                        onClick={(e) => {
-                          e.stopPropagation()
-                          navigate(`/buoi-tap/${sessionObj.id}`)
-                        }}
-                        style={S.smallGhostBtn}
-                      >
-                        <Icon name="arrow-right" size={14} />
-                        <span>{t('matchesPage.viewInSession')}</span>
-                      </button>
-                    )}
-
-                    {/* Đổi buổi hoặc Gỡ khỏi buổi nếu kèo đã gắn vào buổi */}
-                    {/* Đưa kèo tự do vào buổi chơi: Mở dialog chọn buổi rõ ràng */}
-                    {isAccepted && !sessionObj && (
-                      <button
-                        type="button"
-                        onClick={(e) => {
-                          e.stopPropagation()
-                          setSelectingSessionChallenge(c)
-                        }}
-                        style={S.smallPrimaryBtn}
-                      >
-                        <Icon name="plus" size={14} />
-                        <span>{t('challenge.chooseSession')}</span>
-                      </button>
-                    )}
-
-                    {/* Hủy kèo nếu là người trong kèo hoặc admin (khi chưa đấu) */}
-                    {(isPending || isAccepted) && !isPlayed && (isParticipant || isAdmin) && (
-                      <button
-                        type="button"
-                        onClick={(e) => {
-                          e.stopPropagation()
-                          a.confirm({
-                            title: t('challenge.confirmCancelTitle'),
-                            message: t('challenge.confirmCancelMsg', { code: c.code }),
-                            tone: 'danger',
-                            confirmText: t('challenge.btnCancelChallenge'),
-                            onConfirm: () => a.cancelChallenge(c.id),
-                          })
-                        }}
-                        style={S.smallDangerBtn}
-                      >
-                        <Icon name="circle-x" size={14} />
-                        <span>{t('challenge.btnCancelChallenge')}</span>
-                      </button>
-                    )}
-
-                    {/* Xem trận đấu nếu đã đấu xong */}
-                    {isPlayed && c.matchId && (
-                      <button
-                        type="button"
-                        onClick={(e) => {
-                          e.stopPropagation()
-                          const m = (db.matches || []).find((x) => x.id === c.matchId)
-                          if (m) setViewingMatch(m)
-                        }}
-                        style={S.smallSecondaryBtn}
-                      >
-                        <Icon name="eye" size={14} />
-                        <span>{t('challenge.details')}</span>
-                      </button>
-                    )}
-
-                    {/* Xóa vĩnh viễn kèo nếu là Chủ CLB/Admin (mọi trạng thái) */}
-                    {/* Thao tác dọn dẹp gom vào menu ⋯: chúng là việc thỉnh thoảng mới làm,
-                        để phẳng ra thì card kèo có tới 6 nút ngang hàng nhau và không nút nào
-                        nổi lên là việc chính. */}
-                    <CardMenu
-                      items={[
-                        ...(isAccepted && sessionObj && (isParticipant || isAdmin) ? [
-                          {
-                            key: 'change',
-                            icon: 'calendar-days',
-                            label: t('challenge.changeSession'),
-                            onClick: () => setSelectingSessionChallenge(c),
-                          },
-                          {
-                            key: 'unlink',
-                            icon: 'unlink',
-                            label: t('challenge.btnUnlinkSession'),
-                            onClick: () => a.linkChallengeToSession(c.id, null),
-                          },
-                        ] : []),
-                        ...(isAdmin ? [{
-                          key: 'delete',
-                          icon: 'trash-2',
-                          label: t('challenge.btnDelete'),
-                          danger: true,
-                          onClick: () => a.confirm({
-                            title: t('challenge.confirmDeleteTitle'),
-                            message: t('challenge.confirmDeleteMsg'),
-                            tone: 'danger',
-                            confirmText: t('challenge.btnDelete'),
-                            onConfirm: () => a.deleteChallenge(c.id),
-                          }),
-                        }] : []),
-                      ]}
+            {/* DANH SÁCH THẺ KÈO: KÈO TÂM ĐIỂM + LƯỚI KÈO */}
+            {challengeSubTab === 'my' ? (
+              <div style={{ display: 'grid', gap: 20, width: '100%' }}>
+                {/* SECTION 1: ĐANG DIỄN RA */}
+                {myActiveChallenges.length > 0 ? (
+                  <div style={{ display: 'flex', flexDirection: 'column', gap: 16 }}>
+                    {/* KÈO TÂM ĐIỂM PHÓNG TO (KÈO ĐẦU TIÊN) */}
+                    <ArenaChallengeCard
+                      challenge={myActiveChallenges[0]}
+                      isFeatured={true}
+                      {...cardCommonProps}
                     />
-                  </div>
-                </div>
-              )
-            }
 
-            // Tab "Của tôi" → chia sections
-            if (challengeSubTab === 'my') {
-              return (
-                <div style={{ display: 'grid', gap: 16, width: '100%' }}>
-                  {/* Section 1: Đang diễn ra — luôn mở */}
-                  <div>
-                    <div style={S.sectionHeader}>
-                      <Icon name="zap" size={15} style={{ color: 'var(--status-transit-fg)' }} />
-                      <span style={S.sectionLabel}>{t('challenge.sectionActive')}</span>
-                      <span style={S.sectionCount}>{myActiveChallenges.length}</span>
-                    </div>
-                    {myActiveChallenges.length > 0 ? (
-                      <div style={challengeGridStyle}>
-                        {myActiveChallenges.map(challengeCardMapper)}
-                      </div>
-                    ) : (
-                      <div style={{ ...S.emptyBox, padding: '24px 20px' }}>
-                        <Icon name="circle-check" size={24} style={{ color: 'var(--text-muted)' }} />
-                        <div style={S.emptySub}>{t('matchesPage.emptyChallenges')}</div>
+                    {/* CÁC KÈO CÒN LẠI HIỂN THỊ DẠNG LƯỚI 2 CỘT */}
+                    {myActiveChallenges.length > 1 && (
+                      <div style={arenaGridStyle}>
+                        {myActiveChallenges.slice(1).map((c) => (
+                          <ArenaChallengeCard
+                            key={c.id}
+                            challenge={c}
+                            isFeatured={false}
+                            {...cardCommonProps}
+                          />
+                        ))}
                       </div>
                     )}
                   </div>
+                ) : (
+                  <div
+                    style={{
+                      background: '#0D1526',
+                      border: '1px dashed #1E2A40',
+                      borderRadius: 16,
+                      padding: '32px 20px',
+                      display: 'flex',
+                      flexDirection: 'column',
+                      alignItems: 'center',
+                      gap: 8,
+                      textAlign: 'center',
+                    }}
+                  >
+                    <Icon name="circle-check" size={28} style={{ color: '#2EC4B6' }} />
+                    <span style={{ fontSize: 14, color: '#8494AA' }}>{t('matchesPage.emptyChallenges')}</span>
+                  </div>
+                )}
 
-                  {/* Section 2: Đã kết thúc — collapse mặc định */}
-                  {myEndedChallenges.length > 0 && (
-                    <div>
-                      <button
-                        type="button"
-                        onClick={() => setMyEndedCollapsed(!myEndedCollapsed)}
-                        style={{ ...S.sectionHeader, cursor: 'pointer', background: 'none', border: 'none', width: '100%', textAlign: 'left' }}
-                      >
-                        <Icon
-                          name={myEndedCollapsed ? 'chevron-right' : 'chevron-down'}
-                          size={15}
-                          style={{ color: 'var(--text-muted)' }}
-                        />
-                        <span style={S.sectionLabel}>{t('challenge.sectionEnded')}</span>
-                        <span style={S.sectionCount}>{myEndedChallenges.length}</span>
-                      </button>
-                      {!myEndedCollapsed && (
-                        <div style={challengeGridStyle}>
-                          {myEndedChallenges.map(challengeCardMapper)}
-                        </div>
-                      )}
-                    </div>
-                  )}
-
-                  {myChallenges.length === 0 && (
-                    <div style={S.emptyBox}>
-                      <Icon name="history" size={32} style={{ color: 'var(--text-muted)' }} />
-                      <div style={S.emptyTitle}>{t('matchesPage.emptyChallenges')}</div>
-                      <div style={S.emptySub}>{t('matchesPage.createChallengePrompt')}</div>
-                      <Button
-                        variant="secondary"
-                        icon="plus"
-                        onClick={() => {
-                          setInitialTeamA(myId ? [myId] : [])
-                          setInitialTeamB([])
-                          setChallengeModalOpen(true)
+                {/* SECTION 2: ĐÃ KẾT THÚC (COLLAPSIBLE) */}
+                {myEndedChallenges.length > 0 && (
+                  <div style={{ display: 'flex', flexDirection: 'column', gap: 12, marginTop: 4 }}>
+                    <button
+                      type="button"
+                      onClick={() => setMyEndedCollapsed(!myEndedCollapsed)}
+                      style={{
+                        display: 'flex',
+                        alignItems: 'center',
+                        gap: 8,
+                        cursor: 'pointer',
+                        background: 'none',
+                        border: 'none',
+                        textAlign: 'left',
+                        padding: 0,
+                        color: '#8494AA',
+                      }}
+                    >
+                      <Icon
+                        name={myEndedCollapsed ? 'chevron-right' : 'chevron-down'}
+                        size={16}
+                        style={{ color: '#8494AA' }}
+                      />
+                      <span style={{ fontWeight: 600, fontSize: 14, color: '#E9EFF7' }}>
+                        {t('challenge.sectionEnded')}
+                      </span>
+                      <span
+                        style={{
+                          fontSize: 12,
+                          fontFamily: '"IBM Plex Mono", monospace',
+                          color: '#8494AA',
+                          background: '#1B2842',
+                          padding: '2px 8px',
+                          borderRadius: 999,
                         }}
-                        style={{ marginTop: 8 }}
                       >
-                        {t('matchesPage.createBtn')}
-                      </Button>
-                    </div>
-                  )}
-                </div>
-              )
-            }
+                        {myEndedChallenges.length}
+                      </span>
+                    </button>
 
-            // Tab khác → flat list
-            return (
-              <div style={challengeGridStyle}>
-                {displayedChallenges.map(challengeCardMapper)}
-                {displayedChallenges.length === 0 && (
-                  <div style={S.emptyBox}>
-                    <Icon name="history" size={32} style={{ color: 'var(--text-muted)' }} />
-                    <div style={S.emptyTitle}>{t('matchesPage.emptyChallenges')}</div>
-                    <div style={S.emptySub}>{t('matchesPage.createChallengePrompt')}</div>
-                    <Button
-                      variant="secondary"
-                      icon="plus"
+                    {!myEndedCollapsed && (
+                      <div style={arenaGridStyle}>
+                        {myEndedChallenges.map((c) => (
+                          <ArenaChallengeCard
+                            key={c.id}
+                            challenge={c}
+                            isFeatured={false}
+                            {...cardCommonProps}
+                          />
+                        ))}
+                      </div>
+                    )}
+                  </div>
+                )}
+
+                {myChallenges.length === 0 && (
+                  <div
+                    style={{
+                      background: '#0D1526',
+                      border: '1px dashed #1E2A40',
+                      borderRadius: 16,
+                      padding: '48px 24px',
+                      display: 'flex',
+                      flexDirection: 'column',
+                      alignItems: 'center',
+                      gap: 12,
+                      textAlign: 'center',
+                    }}
+                  >
+                    <Icon name="history" size={36} style={{ color: '#5B6A82' }} />
+                    <div style={{ fontWeight: 600, fontSize: 16, color: '#F4F7FB' }}>
+                      {t('matchesPage.emptyChallenges')}
+                    </div>
+                    <div style={{ fontSize: 13, color: '#8494AA' }}>
+                      {t('matchesPage.createChallengePrompt')}
+                    </div>
+                    <button
+                      type="button"
                       onClick={() => {
                         setInitialTeamA(myId ? [myId] : [])
                         setInitialTeamB([])
                         setChallengeModalOpen(true)
                       }}
-                      style={{ marginTop: 8 }}
+                      style={{
+                        marginTop: 4,
+                        font: '700 13px/1 "IBM Plex Sans", sans-serif',
+                        color: '#1A1204',
+                        background: '#F5C451',
+                        padding: '10px 18px',
+                        borderRadius: 10,
+                        border: 'none',
+                        cursor: 'pointer',
+                        display: 'inline-flex',
+                        alignItems: 'center',
+                        gap: 6,
+                      }}
                     >
-                      {t('matchesPage.createBtn')}
-                    </Button>
+                      <Icon name="plus" size={14} />
+                      <span>{t('matchesPage.createBtn')}</span>
+                    </button>
                   </div>
                 )}
               </div>
-            )
-          })()}
-        </div>
-      )}
+            ) : (
+              /* CÁC TAB KHÁC: PENDING, ACCEPTED, PLAYED */
+              displayedChallenges.length > 0 ? (
+                <div style={{ display: 'flex', flexDirection: 'column', gap: 16 }}>
+                  {/* KÈO TÂM ĐIỂM (KÈO ĐẦU TIÊN) */}
+                  <ArenaChallengeCard
+                    challenge={displayedChallenges[0]}
+                    isFeatured={true}
+                    {...cardCommonProps}
+                  />
+
+                  {/* CÁC KÈO CÒN LẠI TRONG LƯỚI 2 CỘT */}
+                  {displayedChallenges.length > 1 && (
+                    <div style={arenaGridStyle}>
+                      {displayedChallenges.slice(1).map((c) => (
+                        <ArenaChallengeCard
+                          key={c.id}
+                          challenge={c}
+                          isFeatured={false}
+                          {...cardCommonProps}
+                        />
+                      ))}
+                    </div>
+                  )}
+                </div>
+              ) : (
+                <div
+                  style={{
+                    background: '#0D1526',
+                    border: '1px dashed #1E2A40',
+                    borderRadius: 16,
+                    padding: '48px 24px',
+                    display: 'flex',
+                    flexDirection: 'column',
+                    alignItems: 'center',
+                    gap: 12,
+                    textAlign: 'center',
+                  }}
+                >
+                  <Icon name="history" size={36} style={{ color: '#5B6A82' }} />
+                  <div style={{ fontWeight: 600, fontSize: 16, color: '#F4F7FB' }}>
+                    {t('matchesPage.emptyChallenges')}
+                  </div>
+                  <div style={{ fontSize: 13, color: '#8494AA' }}>
+                    {t('matchesPage.createChallengePrompt')}
+                  </div>
+                  <button
+                    type="button"
+                    onClick={() => {
+                      setInitialTeamA(myId ? [myId] : [])
+                      setInitialTeamB([])
+                      setChallengeModalOpen(true)
+                    }}
+                    style={{
+                      marginTop: 4,
+                      font: '700 13px/1 "IBM Plex Sans", sans-serif',
+                      color: '#1A1204',
+                      background: '#F5C451',
+                      padding: '10px 18px',
+                      borderRadius: 10,
+                      border: 'none',
+                      cursor: 'pointer',
+                      display: 'inline-flex',
+                      alignItems: 'center',
+                      gap: 6,
+                    }}
+                  >
+                    <Icon name="plus" size={14} />
+                    <span>{t('matchesPage.createBtn')}</span>
+                  </button>
+                </div>
+              )
+            )}
+          </div>
+        )
+      })()}
 
       {/* ========================================================================= */}
       {/* TAB 2: LỊCH SỬ ĐẤU & VIDEO (SEARCH) - 100% NGUYÊN BẢN LEADERBOARD CŨ */}
@@ -2043,10 +1703,11 @@ export default function Matches() {
                     alignItems: 'center',
                     padding: '0 8px',
                     borderRadius: 999,
-                    background: 'rgba(0,178,169,.14)',
-                    border: '1px solid rgba(0,178,169,.42)',
+                    background: isDark ? 'rgba(0,178,169,.14)' : 'var(--status-transit-bg)',
+                    border: '1px solid',
+                    borderColor: isDark ? 'rgba(0,178,169,.42)' : 'var(--teal-300)',
                     font: "600 11px/1 'IBM Plex Sans', sans-serif",
-                    color: '#5FDBD3',
+                    color: isDark ? '#5FDBD3' : 'var(--status-transit-fg)',
                     whiteSpace: 'nowrap',
                     flexShrink: 0,
                   }}
@@ -2065,11 +1726,11 @@ export default function Matches() {
                     gap: 4,
                     padding: '0 8px',
                     borderRadius: 999,
-                    background: sourceFilter === 'challenge' ? 'rgba(168,85,247,.22)' : 'var(--surface-inset)',
+                    background: sourceFilter === 'challenge' ? (isDark ? 'rgba(168,85,247,.22)' : 'var(--violet-100)') : 'var(--surface-inset)',
                     border: '1px solid',
-                    borderColor: sourceFilter === 'challenge' ? '#A855F7' : 'var(--border-subtle)',
+                    borderColor: sourceFilter === 'challenge' ? (isDark ? '#A855F7' : 'var(--violet-500)') : 'var(--border-subtle)',
                     font: "600 11px/1 'IBM Plex Sans', sans-serif",
-                    color: sourceFilter === 'challenge' ? '#D8B4FE' : 'var(--text-secondary)',
+                    color: sourceFilter === 'challenge' ? (isDark ? '#D8B4FE' : 'var(--violet-700)') : 'var(--text-secondary)',
                     cursor: 'pointer',
                     transition: 'all 0.15s ease',
                     whiteSpace: 'nowrap',
@@ -2092,11 +1753,11 @@ export default function Matches() {
                     gap: 4,
                     padding: '0 8px',
                     borderRadius: 999,
-                    background: qualityFilter === 'close' ? 'rgba(224,138,0,.22)' : 'var(--surface-inset)',
+                    background: qualityFilter === 'close' ? (isDark ? 'rgba(224,138,0,.22)' : 'var(--status-delayed-bg)') : 'var(--surface-inset)',
                     border: '1px solid',
-                    borderColor: qualityFilter === 'close' ? '#E08A00' : 'var(--border-subtle)',
+                    borderColor: qualityFilter === 'close' ? (isDark ? '#E08A00' : 'var(--amber-500)') : 'var(--border-subtle)',
                     font: "600 11px/1 'IBM Plex Sans', sans-serif",
-                    color: qualityFilter === 'close' ? '#FFCB77' : 'var(--text-secondary)',
+                    color: qualityFilter === 'close' ? (isDark ? '#FFCB77' : 'var(--status-delayed-fg)') : 'var(--text-secondary)',
                     cursor: 'pointer',
                     transition: 'all 0.15s ease',
                     whiteSpace: 'nowrap',
@@ -2119,11 +1780,11 @@ export default function Matches() {
                     gap: 4,
                     padding: '0 8px',
                     borderRadius: 999,
-                    background: qualityFilter === 'threeSets' ? 'rgba(124,58,237,.22)' : 'var(--surface-inset)',
+                    background: qualityFilter === 'threeSets' ? (isDark ? 'rgba(124,58,237,.22)' : 'var(--violet-100)') : 'var(--surface-inset)',
                     border: '1px solid',
-                    borderColor: qualityFilter === 'threeSets' ? '#7C3AED' : 'var(--border-subtle)',
+                    borderColor: qualityFilter === 'threeSets' ? (isDark ? '#7C3AED' : 'var(--violet-500)') : 'var(--border-subtle)',
                     font: "600 11px/1 'IBM Plex Sans', sans-serif",
-                    color: qualityFilter === 'threeSets' ? '#C4B5FD' : 'var(--text-secondary)',
+                    color: qualityFilter === 'threeSets' ? (isDark ? '#C4B5FD' : 'var(--violet-700)') : 'var(--text-secondary)',
                     cursor: 'pointer',
                     transition: 'all 0.15s ease',
                     whiteSpace: 'nowrap',
@@ -2146,11 +1807,11 @@ export default function Matches() {
                     gap: 4,
                     padding: '0 8px',
                     borderRadius: 999,
-                    background: qualityFilter === 'upset' ? 'rgba(225,68,52,.24)' : 'var(--surface-inset)',
+                    background: qualityFilter === 'upset' ? (isDark ? 'rgba(225,68,52,.24)' : 'var(--status-incident-bg)') : 'var(--surface-inset)',
                     border: '1px solid',
-                    borderColor: qualityFilter === 'upset' ? 'rgba(225,68,52,.7)' : 'var(--border-subtle)',
+                    borderColor: qualityFilter === 'upset' ? (isDark ? 'rgba(225,68,52,.7)' : 'var(--red-500)') : 'var(--border-subtle)',
                     font: "600 11px/1 'IBM Plex Sans', sans-serif",
-                    color: qualityFilter === 'upset' ? '#FFB0A5' : 'var(--text-secondary)',
+                    color: qualityFilter === 'upset' ? (isDark ? '#FFB0A5' : 'var(--status-incident-fg)') : 'var(--text-secondary)',
                     cursor: 'pointer',
                     transition: 'all 0.15s ease',
                     whiteSpace: 'nowrap',
@@ -2197,8 +1858,8 @@ export default function Matches() {
                         gap: 8,
                         padding: '8px 12px',
                         borderRadius: 8,
-                        background: 'rgba(0,178,169,.08)',
-                        border: '1px solid rgba(0,178,169,.15)',
+                        background: isDark ? 'rgba(0,178,169,.08)' : 'var(--surface-inset)',
+                        border: '1px solid var(--border-subtle)',
                       }}
                     >
                       <div
@@ -2206,11 +1867,11 @@ export default function Matches() {
                           width: 6,
                           height: 6,
                           borderRadius: 999,
-                          background: 'var(--teal-500)',
+                          background: 'var(--text-accent)',
                           flexShrink: 0,
                         }}
                       />
-                      <div style={{ font: "600 12.5px/1 'IBM Plex Sans', sans-serif", color: 'var(--teal-500)' }}>
+                      <div style={{ font: "600 12.5px/1 'IBM Plex Sans', sans-serif", color: 'var(--text-accent)' }}>
                         {group.dateLabel}
                       </div>
                       <div style={{ font: "400 11px/1 'IBM Plex Mono', monospace", color: 'var(--text-muted)', marginLeft: 'auto', whiteSpace: 'nowrap' }}>
@@ -2720,7 +2381,7 @@ export default function Matches() {
                         gap: 10,
                         minHeight: 36,
                         padding: '0 14px',
-                        background: 'rgba(0,178,169,.06)',
+                        background: isDark ? 'rgba(0,178,169,.06)' : 'var(--surface-inset)',
                         borderBottom: '1px solid var(--border-subtle)',
                       }}
                     >
@@ -2729,13 +2390,13 @@ export default function Matches() {
                           width: 6,
                           height: 6,
                           borderRadius: 999,
-                          background: 'var(--teal-500)',
+                          background: 'var(--text-accent)',
                         }}
                       />
-                      <div style={{ font: "600 12px/1 'IBM Plex Sans', sans-serif", color: 'var(--teal-500)' }}>
+                      <div style={{ font: "600 12px/1 'IBM Plex Sans', sans-serif", color: 'var(--text-accent)' }}>
                         {group.dateLabel}
                       </div>
-                      <div style={{ font: "400 11.5px/1 'IBM Plex Mono', monospace", color: 'var(--text-muted)' }}>
+                      <div style={{ font: "400 11.5px/1 'IBM Plex Mono', monospace", color: 'var(--text-secondary)' }}>
                         {t('matchVideo.subDaySummary', { range: group.timeRange, matches: group.totalMatches, videos: group.videoCount })}
                       </div>
                       <div style={{ flex: 1, height: 1, background: 'linear-gradient(90deg, rgba(0,178,169,.25), rgba(0,178,169,0))' }} />
@@ -2795,28 +2456,28 @@ export default function Matches() {
 
                       if (isUpset) {
                         leftBorderColor = '#E14434'
-                        rowBg = 'rgba(225,68,52,.07)'
+                        rowBg = isDark ? 'rgba(225,68,52,.07)' : 'rgba(225,68,52,.05)'
                         tagLabel = t('matchVideo.tagUpset')
-                        tagBg = 'rgba(225,68,52,.24)'
-                        tagColor = '#FFB0A5'
+                        tagBg = isDark ? 'rgba(225,68,52,.24)' : 'var(--status-incident-bg)'
+                        tagColor = isDark ? '#FFB0A5' : 'var(--status-incident-fg)'
                       } else if (isClose) {
                         leftBorderColor = '#E08A00'
-                        rowBg = 'rgba(224,138,0,.07)'
+                        rowBg = isDark ? 'rgba(224,138,0,.07)' : 'rgba(224,138,0,.05)'
                         tagLabel = t('matchVideo.tagClose')
-                        tagBg = 'rgba(224,138,0,.22)'
-                        tagColor = '#FFCB77'
+                        tagBg = isDark ? 'rgba(224,138,0,.22)' : 'var(--status-delayed-bg)'
+                        tagColor = isDark ? '#FFCB77' : 'var(--status-delayed-fg)'
                       } else if (isThreeSets) {
                         leftBorderColor = '#7C3AED'
-                        rowBg = 'rgba(124,58,237,.07)'
+                        rowBg = isDark ? 'rgba(124,58,237,.07)' : 'rgba(124,58,237,.05)'
                         tagLabel = t('matchVideo.tagThreeSets')
-                        tagBg = 'rgba(124,58,237,.22)'
-                        tagColor = '#C4B5FD'
+                        tagBg = isDark ? 'rgba(124,58,237,.22)' : 'var(--violet-100)'
+                        tagColor = isDark ? '#C4B5FD' : 'var(--violet-700)'
                       } else if (isStreak) {
                         leftBorderColor = '#00B2A9'
-                        rowBg = 'rgba(0,178,169,.06)'
+                        rowBg = isDark ? 'rgba(0,178,169,.06)' : 'rgba(0,178,169,.04)'
                         tagLabel = t('matchVideo.tagStreak', { n: m.brokenStreak })
-                        tagBg = 'rgba(0,178,169,.22)'
-                        tagColor = '#7FE6DF'
+                        tagBg = isDark ? 'rgba(0,178,169,.22)' : 'var(--status-transit-bg)'
+                        tagColor = isDark ? '#7FE6DF' : 'var(--status-transit-fg)'
                       }
 
                       const isChallenge = Boolean(m.challengeId || m.sourceType === 'challenge')
@@ -2861,7 +2522,7 @@ export default function Matches() {
                                   background: 'transparent',
                                   padding: 0,
                                   font: "600 11.5px/1.3 'IBM Plex Mono', monospace",
-                                  color: 'var(--teal-500)',
+                                  color: 'var(--text-accent)',
                                   cursor: 'pointer',
                                   textAlign: 'left',
                                 }}
@@ -2920,7 +2581,7 @@ export default function Matches() {
                                     textDecoration: 'none',
                                   }}
                                   title={`${venue?.name || ''} · ${t('pages.sessions.title')}`}
-                                  onMouseEnter={(e) => { e.currentTarget.style.color = 'var(--teal-500)' }}
+                                  onMouseEnter={(e) => { e.currentTarget.style.color = 'var(--text-accent)' }}
                                   onMouseLeave={(e) => { e.currentTarget.style.color = 'var(--text-secondary)' }}
                                 >
                                   {courtLabel || t('session.courtNum', { n: 1 })}
@@ -2945,7 +2606,7 @@ export default function Matches() {
                             {/* Cột 6: Tỷ số */}
                             <div style={{ padding: '0 4px', textAlign: 'center', display: 'flex', flexDirection: 'column', alignItems: 'center', justifyContent: 'center' }}>
                               <div style={{ font: "600 16px/1 'IBM Plex Mono', monospace" }}>
-                                <span style={{ color: 'var(--teal-500)' }}>
+                                <span style={{ color: 'var(--text-accent)' }}>
                                   {isMultiSet ? winSetsCount : (scoreSets.length > 0 ? scoreSets[0].winPts : 21)}
                                 </span>
                                 <span style={{ color: 'var(--text-muted)', padding: '0 3px' }}>–</span>
@@ -3013,10 +2674,11 @@ export default function Matches() {
                                     gap: 5,
                                     padding: '0 9px',
                                     borderRadius: 999,
-                                    background: 'rgba(225,68,52,.14)',
-                                    border: '1px solid rgba(225,68,52,.45)',
+                                    background: isDark ? 'rgba(225,68,52,.14)' : 'var(--status-incident-bg)',
+                                    border: '1px solid',
+                                    borderColor: isDark ? 'rgba(225,68,52,.45)' : 'var(--red-500)',
                                     font: "600 10.5px/1 'IBM Plex Sans', sans-serif",
-                                    color: '#FF9A8F',
+                                    color: isDark ? '#FF9A8F' : 'var(--status-incident-fg)',
                                     cursor: 'pointer',
                                     whiteSpace: 'nowrap',
                                   }}
@@ -3692,8 +3354,10 @@ export default function Matches() {
                       key={s.id}
                       type="button"
                       onClick={() => {
-                        a.linkChallengeToSession(selectingSessionChallenge.id, s.id)
-                        setSelectingSessionChallenge(null)
+                        const ok = a.linkChallengeToSession(selectingSessionChallenge.id, s.id)
+                        if (ok !== false) {
+                          setSelectingSessionChallenge(null)
+                        }
                       }}
                       style={{
                         display: 'flex',
@@ -3713,7 +3377,7 @@ export default function Matches() {
                           <span style={{ font: '600 14px/1.2 var(--font-sans)', color: 'var(--text-primary)' }}>
                             {wd(s.date)} · {t('challenge.sessionItemDate', { date: dd(s.date) })}
                           </span>
-                          {s.status === 'open' ? (
+                          {isOpen ? (
                             <span style={{
                               fontSize: 11,
                               padding: '2px 7px',
@@ -3786,8 +3450,10 @@ export default function Matches() {
                 <button
                   type="button"
                   onClick={() => {
-                    a.linkChallengeToSession(selectingSessionChallenge.id, null)
-                    setSelectingSessionChallenge(null)
+                    const ok = a.linkChallengeToSession(selectingSessionChallenge.id, null)
+                    if (ok !== false) {
+                      setSelectingSessionChallenge(null)
+                    }
                   }}
                   style={{
                     ...S.smallGhostBtn,
@@ -3980,33 +3646,39 @@ const S = {
     color: 'var(--text-muted)',
   },
   subTabWrap: {
-    display: 'flex',
+    display: 'inline-flex',
     alignItems: 'center',
-    gap: 6,
+    gap: 3,
+    padding: 3,
+    borderRadius: 8,
+    background: 'var(--surface-inset)',
+    border: '1px solid var(--border-subtle)',
     overflowX: 'auto',
-    paddingBottom: 4,
+    maxWidth: '100%',
   },
   subTabBtn: {
     display: 'inline-flex',
     alignItems: 'center',
     gap: 6,
-    padding: '6px 12px',
+    padding: '5px 12px',
     borderRadius: 6,
     font: '500 12.5px/1 var(--font-sans)',
     cursor: 'pointer',
     whiteSpace: 'nowrap',
+    transition: 'all 0.15s ease',
   },
   subTabCount: {
     font: '600 11px/1 var(--font-mono)',
   },
   challengeCard: {
     background: 'var(--surface-card)',
-    border: '1px solid var(--border-subtle)',
-    borderRadius: 8,
-    padding: '12px 14px',
+    border: '1px solid var(--border-default)',
+    borderRadius: 10,
+    padding: '13px 14px',
     display: 'grid',
     gap: 8,
-    transition: 'border-color 0.15s ease',
+    boxShadow: 'var(--shadow-xs)',
+    transition: 'border-color 0.15s ease, box-shadow 0.15s ease',
   },
   monoCode: {
     font: '600 12.5px/1.3 "IBM Plex Mono", monospace',
@@ -4074,13 +3746,14 @@ const S = {
     display: 'inline-flex',
     alignItems: 'center',
     gap: 5,
-    padding: '0 10px',
+    padding: '0 11px',
     borderRadius: 6,
-    background: 'var(--action-accent-bg, var(--teal-500))',
-    color: 'var(--action-accent-fg, #04302C)',
+    background: 'var(--action-primary-bg)',
+    color: '#FFFFFF',
     font: '600 12px/1 var(--font-sans)',
     border: 'none',
     cursor: 'pointer',
+    transition: 'opacity 0.15s ease',
   },
   smallSecondaryBtn: {
     height: 28,
@@ -4128,8 +3801,9 @@ const S = {
     display: 'flex',
     alignItems: 'center',
     gap: 8,
-    padding: '8px 4px',
-    marginBottom: 8,
+    padding: '8px 2px',
+    marginBottom: 12,
+    borderBottom: '1px solid var(--border-subtle)',
   },
   sectionLabel: {
     font: '600 13px/1.2 var(--font-sans)',

@@ -188,5 +188,36 @@
     "warnSessionCount": 5,
     "barChartHeight": 170,
     "barMonthCount": 4
+  },
+  "tournament": {
+    "_notePoll": "Trang nhánh / Hub khi giải đang chạy nạp lại bảng trận mỗi pollMs (Supabase free: poll thay realtime). Tab ẩn thì dừng.",
+    "pollMs": 15000,
+    "_note": "Luật điểm mẫu cho nút chọn ở tab Thể thức. sets 1|3|5 · points: điểm chạm · winBy2: phải cách 2 · cap: trần (29–29 ai được 30 thắng).",
+    "rulePresets": {
+      "r1x15": { "sets": 1, "points": 15, "winBy2": false, "cap": 15 },
+      "r1x21": { "sets": 1, "points": 21, "winBy2": true, "cap": 30 },
+      "r1x30": { "sets": 1, "points": 30, "winBy2": false, "cap": 30 },
+      "r3x11": { "sets": 3, "points": 11, "winBy2": false, "cap": 11 },
+      "r3x15": { "sets": 3, "points": 15, "winBy2": false, "cap": 15 },
+      "r3x21": { "sets": 3, "points": 21, "winBy2": true, "cap": 30 }
+    },
+    "_noteDefault": "Mặc định khi tạo thể thức — theo quy chế giải mùa 1 (Masters Phú Khê 2026).",
+    "defaultRules": {
+      "qualify": { "md": "r1x30", "wd": "r1x30", "xd": "r1x21", "default": "r1x21" },
+      "ranking": "r3x15"
+    },
+    "_noteGroupBalance": "Vòng bảng: lệch rating TRUNG BÌNH giữa bảng mạnh nhất và yếu nhất ≤ số này là 'cân' (README handoff §5.3, chỉnh theo thang Elo thật).",
+    "groupBalanceOk": 15,
+    "_noteEstimate": "Tổng quan · 'Còn lại ước tính' = trận còn lại × số phút này / số sân. Ước tính thô, chưa tính đội không đánh 2 trận cùng lúc (plan §5.7).",
+    "estimateMatchMin": 18,
+    "_noteRecommender": "Gợi ý thể thức (README handoff §5.7): phút sân mỗi trận theo luật mẫu (luật tự chỉnh → estimateMatchMin), phút nghỉ giữa 2 trận. Chỉ là ƯỚC TÍNH theo tổng phút sân / số sân — chưa tính đội không đánh 2 trận cùng lúc. finalFactor: trận chung kết / tranh 3 dài hơn trận vòng loại bao nhiêu lần — GIẢ ĐỊNH để gợi ý luật chung kết, chỉnh theo số liệu thật.",
+    "_notePairing": "Ghép cặp: gợi ý đổi 2 người chỉ khi độ lệch giảm HƠN swapMinGain điểm rating; 'ăn ý' chỉ tin cặp đã đánh chung từ chemistryMinGames trận.",
+    "_notePairingInsight": "Nhận xét từng cặp (handoff): chênh trình trong cặp > gapWarn → cảnh báo người yếu bị nhắm; tổng cặp lệch trung bình > avgWarn → tô vàng; đã đánh chung đủ trận mà thắng ≥ chemGood% / ≤ chemBad% → ăn ý / kém ăn ý.",
+    "pairing": { "swapMinGain": 6, "chemistryMinGames": 2, "gapWarn": 80, "avgWarn": 40, "chemGood": 60, "chemBad": 40 },
+    "recommender": {
+      "restMin": 3,
+      "finalFactor": 1.6,
+      "minutesByPreset": { "r1x15": 10, "r1x21": 14, "r1x30": 18, "r3x11": 16, "r3x15": 22, "r3x21": 35 }
+    }
   }
 }

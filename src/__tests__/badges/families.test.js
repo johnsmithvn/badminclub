@@ -22,14 +22,14 @@ const makeBadges = (ids, unlockedIds = []) =>
 
 test('Families: gộp các mốc cùng họ thành MỘT thẻ, mốc lẻ vẫn đứng riêng', () => {
   const famIds = cfgBadges.families.bat_bai.badgeIds
-  const list = makeBadges([...famIds, 'so_sach'])
+  const list = makeBadges([...famIds, 'can_quet_clb'])
 
   const grouped = groupBadgesByFamily(list)
 
   assert.equal(
     grouped.length,
     2,
-    '4 mốc Bất bại phải gộp thành 1 thẻ, cộng thêm so_sach đứng riêng = 2 thẻ. Không gộp thì người chơi thấy 4 ô gần như giống hệt nhau trên cùng một màn.',
+    '4 mốc Bất bại phải gộp thành 1 thẻ, cộng thêm can_quet_clb đứng riêng = 2 thẻ. Không gộp thì người chơi thấy 4 ô gần như giống hệt nhau trên cùng một màn.',
   )
 
   const fam = grouped.find((g) => g.familyKey === 'bat_bai')
@@ -37,7 +37,7 @@ test('Families: gộp các mốc cùng họ thành MỘT thẻ, mốc lẻ vẫn
   assert.equal(fam.isFamily, true)
   assert.equal(fam.totalTiers, famIds.length)
 
-  const solo = grouped.find((g) => g.id === 'so_sach')
+  const solo = grouped.find((g) => g.id === 'can_quet_clb')
   assert.equal(solo.isFamily, false, 'Badge không thuộc họ nào phải giữ nguyên, không bị nuốt mất')
   assert.equal(solo.totalTiers, 1)
 })
@@ -87,7 +87,7 @@ test('Families: chỉ có một phần số mốc trong danh sách thì vẫn d�
 test('Families: getBadgeFamily tra đúng họ, badge lẻ trả null', () => {
   const fam = getBadgeFamily(cfgBadges.families.bat_bai.badgeIds[0])
   assert.equal(fam.key, 'bat_bai')
-  assert.equal(getBadgeFamily('so_sach'), null, 'Badge không thuộc họ nào phải trả null')
+  assert.equal(getBadgeFamily('can_quet_clb'), null, 'Badge không thuộc họ nào phải trả null')
   assert.equal(getBadgeFamily(''), null)
 })
 

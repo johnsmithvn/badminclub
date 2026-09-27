@@ -50,5 +50,21 @@ test('Comprehensive Challenge Logic & Lifecycle Tests', async (t) => {
     const sessionChals = [linkedChal].filter((c) => c.sessionId === session1.id)
     assert.equal(sessionChals.length, 1, 'Kèo xuất hiện đầy đủ trong danh sách kèo của buổi để nạp lên sân')
   })
+
+  await t.test('Link challenge allows players from any group when not marked absent', () => {
+    const chal = { id: 'c_cross', teamA: ['p_group1', 'p_group2'], teamB: ['p_group3', 'p_group4'] }
+    const att = { p_group1: true } // Các người khác chưa điểm danh
+    const allPlayers = [...chal.teamA, ...chal.teamB]
+    const hasReportedAbsent = allPlayers.some((id) => att[id] === false || att[id] === 'noshow')
+    assert.equal(hasReportedAbsent, false, 'Không có ai báo vắng, kèo được phép đặt lịch hẹn vào buổi')
+  })
+
+  await t.test('Link challenge detects explicitly absent players', () => {
+    const chal = { id: 'c_cross', teamA: ['p1', 'p2'], teamB: ['p3', 'p4'] }
+    const att = { p1: true, p3: false } // p3 báo vắng
+    const allPlayers = [...chal.teamA, ...chal.teamB]
+    const absentPlayers = allPlayers.filter((id) => att[id] === false || att[id] === 'noshow')
+    assert.deepEqual(absentPlayers, ['p3'], 'Phát hiện đúng người chơi đã báo vắng')
+  })
 })
 

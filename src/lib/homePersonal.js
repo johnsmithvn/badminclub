@@ -1255,18 +1255,89 @@ export function getRecentPlayerMatches(db, memberId, limit = 3) {
 }
 
 /**
- * 07. Thông tin buổi tập sắp tới gần nhất
+ * Trả về khung giờ { from, to } của buổi tập dựa vào các sân hoặc chuỗi time
+ * @param {Object} s
+ */
+export function getSessionTimeRange(s) {
+  if (!s) return { from: '00:00', to: '23:59' }
+  const courts = s.courts || []
+  let from = ''
+  let to = ''
+  for (const c of courts) {
+    if (c.from && (!from || c.from < from)) from = c.from
+    if (c.to && (!to || c.to > to)) to = c.to
+  }
+  if ((!from || !to) && typeof s.time === 'string') {
+    const parts = s.time.split(/[-→]/).map((p) => p.trim())
+    if (parts[0] && /^\d{2}:\d{2}$/.test(parts[0])) from = from || parts[0]
+    if (parts[1] && /^\d{2}:\d{2}$/.test(parts[1])) to = to || parts[1]
+  }
+  return {
+    from: from || '00:00',
+    to: to || '23:59',
+  }
+}
+
+/**
+ * 07. Thông tin buổi tập sắp tới gần nhất (hoặc đang diễn ra)
  * @param {Object} db
  * @param {string} memberId
+ * @param {Date|string} [nowTime=new Date()]
  */
-export function getNextUpcomingSession(db, memberId) {
-  if (!db || !Array.isArray(db.sessions)) return null
-  const nowStr = db.today || new Date().toISOString().slice(0, 10)
-  const openSessionsList = db.sessions
-    .filter((s) => s.status === 'open' && s.date >= nowStr)
-    .sort((a, b) => a.date.localeCompare(b.date))
+export function getNextUpcomingSession(db, memberId, nowTime = new Date()) {
+  if (!db || !Array.isArray(db.sessions) || db.sessions.length === 0) return null
+  const now = nowTime instanceof Date ? nowTime : new Date(nowTime)
+  const currentHHMM = String(now.getHours()).padStart(2, '0') + ':' + String(now.getMinutes()).padStart(2, '0')
+  const todayStr = db.today || (
+    now.getFullYear() + '-' + String(now.getMonth() + 1).padStart(2, '0') + '-' + String(now.getDate()).padStart(2, '0')
+  )
 
-  const s = openSessionsList[0] || db.sessions.find((x) => x.status === 'open') || null
+  // Lọc các buổi hợp lệ (kể cả đã chốt, đang mở hay chưa mở; bỏ qua buổi đã huỷ)
+  const validSessions = db.sessions.filter((s) => s && s.status !== 'cancelled')
+  if (!validSessions.length) return null
+
+  // 1. Các buổi chưa kết thúc:
+  // - Hoặc ở ngày tương lai (s.date > todayStr)
+  // - Hoặc ở ngày hôm nay (s.date === todayStr) và giờ kết thúc chưa qua (currentHHMM <= to)
+  //   -> Trong khoảng thời gian buổi tập (từ 'from' đến 'to'), buổi vẫn được hiển thị là buổi hiện tại.
+  //      Chỉ khi đã qua giờ kết thúc ('to') thì mới chuyển sang buổi tiếp theo.
+  const activeAndFuture = validSessions
+    .filter((s) => {
+      if (s.date > todayStr) return true
+      if (s.date === todayStr) {
+        const { to } = getSessionTimeRange(s)
+        return currentHHMM <= to
+      }
+      return false
+    })
+    .sort((a, b) => {
+      const cmp = a.date.localeCompare(b.date)
+      if (cmp !== 0) return cmp
+      const rangeA = getSessionTimeRange(a)
+      const rangeB = getSessionTimeRange(b)
+      return rangeA.from.localeCompare(rangeB.from) || rangeA.to.localeCompare(rangeB.to)
+    })
+
+  // 2. Nếu tất cả các buổi đều đã kết thúc (trong ngày hôm nay đã qua giờ hoặc toàn bộ buổi ở quá khứ),
+  // lấy buổi vừa kết thúc gần nhất để thẻ không bị trống.
+  const endedSessions = validSessions
+    .filter((s) => {
+      if (s.date < todayStr) return true
+      if (s.date === todayStr) {
+        const { to } = getSessionTimeRange(s)
+        return currentHHMM > to
+      }
+      return false
+    })
+    .sort((a, b) => {
+      const cmp = b.date.localeCompare(a.date)
+      if (cmp !== 0) return cmp
+      const rangeA = getSessionTimeRange(a)
+      const rangeB = getSessionTimeRange(b)
+      return rangeB.to.localeCompare(rangeA.to) || rangeB.from.localeCompare(rangeA.from)
+    })
+
+  const s = activeAndFuture[0] || endedSessions[0] || null
   if (!s) return null
 
   const att = db.attendance?.[s.id] || {}
@@ -1285,7 +1356,9 @@ export function getNextUpcomingSession(db, memberId) {
     }
   }
   const time = timeTxt(s) || s.time || ''
-  const isToday = s.date === nowStr
+  const isToday = s.date === todayStr
+  const { from: sFrom, to: sTo } = getSessionTimeRange(s)
+  const isHappeningNow = isToday && sFrom <= currentHHMM && currentHHMM <= sTo
 
   let dateFormatted = ''
   if (s.date) {
@@ -1338,6 +1411,7 @@ export function getNextUpcomingSession(db, memberId) {
     date: s.date,
     dateFormatted,
     isToday,
+    isHappeningNow,
     time,
     venue,
     courtsCount,
@@ -1345,6 +1419,7 @@ export function getNextUpcomingSession(db, memberId) {
     isRegistered,
     expectedMatches,
     challenges: challengesList,
+    status: s.status,
   }
 }
 

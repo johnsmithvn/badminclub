@@ -10,7 +10,7 @@
 // thì người ghi sau thắng. Chấp nhận được vì đơn vị ghi là từng dòng, không phải cả CLB.
 
 import { supabase, unwrap } from '#supabase'
-import { clubRow, diff, toDb, toRows } from '#contexts/dbmap.js'
+import { clubRow, diff, toDb, toRows, toTour, toTourMatch, toTourMatchEdit } from '#contexts/dbmap.js'
 import { monthOf } from '#utils/dates.js'
 import { t } from '#i18n'
 import cfg from '#config/app.json' with { type: 'json' }
@@ -44,7 +44,10 @@ export async function load(clubId) {
   ] = await Promise.all([
     supabase.from('clubs').select('*').eq('id', clubId).single(),
     of('courts'),
-    of('member_groups', '*, group_courts(court_id)'),
+    of('member_groups', '*, group_courts(court_id)').order('sort_order', { ascending: true })
+      .then((res) => (res.error && res.error.message?.includes('sort_order')
+        ? of('member_groups', '*, group_courts(court_id)')
+        : res)),
     of('club_members', '*, club_member_groups(group_id), profile:profiles(*)'),
     of('guests'),
     of('schedules', '*, schedule_slots(*)'),
@@ -223,11 +226,16 @@ async function flush() {
     if (club !== synced.club) {
       const row = clubRow(db)
       let res = await supabase.from('clubs').update(row).eq('id', cid)
-      if (res.error && (res.error.message?.includes('has_member_extra_discount') || res.error.message?.includes('member_extra_discount'))) {
-        console.warn('[storage] DB chưa chạy migration 0024 (thiếu cột member_extra_discount). Bỏ qua 2 cột này để không chặn lưu cài đặt CLB.')
+      if (res.error && (res.error.message?.includes('has_member_extra_discount') || res.error.message?.includes('member_extra_discount') || res.error.message?.includes('seasons'))) {
+        console.warn('[storage] DB chưa chạy migration 0024 hoặc 0055. Bỏ qua các cột mới để không chặn lưu cài đặt CLB.')
         const fallback = { ...row }
-        delete fallback.has_member_extra_discount
-        delete fallback.member_extra_discount
+        if (res.error.message?.includes('member_extra_discount') || res.error.message?.includes('has_member_extra_discount')) {
+          delete fallback.has_member_extra_discount
+          delete fallback.member_extra_discount
+        }
+        if (res.error.message?.includes('seasons')) {
+          delete fallback.seasons
+        }
         res = await supabase.from('clubs').update(fallback).eq('id', cid)
       }
       unwrap(res)
@@ -266,6 +274,28 @@ async function apply(op) {
       const cleanRows = op.rows.map((r) => {
         const copy = { ...r }
         delete copy.court_label
+        return copy
+      })
+      res = op.conflict
+        ? await q.upsert(cleanRows, { onConflict: op.conflict, ignoreDuplicates: Boolean(op.ignoreDuplicates) })
+        : await q.insert(cleanRows)
+    }
+    if (res.error && res.error.message?.includes('sort_order')) {
+      console.warn('[storage] DB chưa chạy migration 0056 (thiếu cột sort_order). Bỏ qua sort_order để không chặn lưu.')
+      const cleanRows = op.rows.map((r) => {
+        const copy = { ...r }
+        delete copy.sort_order
+        return copy
+      })
+      res = op.conflict
+        ? await q.upsert(cleanRows, { onConflict: op.conflict, ignoreDuplicates: Boolean(op.ignoreDuplicates) })
+        : await q.insert(cleanRows)
+    }
+    if (res.error && res.error.message?.includes('has_custom_pricing')) {
+      console.warn('[storage] DB chưa chạy migration 0062 (thiếu cột has_custom_pricing). Bỏ qua has_custom_pricing để không chặn lưu.')
+      const cleanRows = op.rows.map((r) => {
+        const copy = { ...r }
+        delete copy.has_custom_pricing
         return copy
       })
       res = op.conflict
@@ -324,5 +354,147 @@ export function syncPatchMatchVideo(matchId, videoUrl, videoTimestamp, videoNote
     row.video_note = videoNote || null
   }
 }
+
+/* ================= GIẢI ĐẤU (TOURNAMENT) I/O ================= */
+
+/** Nạp danh sách các giải đấu của CLB. */
+export async function loadTournaments(clubId) {
+  if (!supabase) throw new Error('Chưa cấu hình Supabase')
+  const res = await supabase
+    .from('tournaments')
+    .select('*')
+    .eq('club_id', clubId)
+    .is('deleted_at', null)   // xoá mềm: giải đã xoá không hiện
+    .order('starts_on', { ascending: false })
+  return (unwrap(res) || []).map((t) => toTour({ tournament: t }))
+}
+
+/** Nạp toàn bộ dữ liệu của 1 giải đấu (song song theo tournament_id). */
+export async function loadTournament(tournamentId) {
+  if (!supabase) throw new Error('Chưa cấu hình Supabase')
+  const ofT = (table, sel) => supabase.from(table).select(sel || '*').eq('tournament_id', tournamentId)
+
+  const [
+    tourRes,
+    eventsRes,
+    stagesRes,
+    stageLinksRes,
+    registrationsRes,
+    entriesRes,
+    teamsRes,
+    teamPlayersRes,
+    groupsRes,
+    groupTeamsRes,
+    matchesRes,
+    matchEditsRes,
+    prizesRes,
+    budgetLinesRes,
+  ] = await Promise.all([
+    supabase.from('tournaments').select('*').eq('id', tournamentId).single(),
+    ofT('tournament_events').order('sort_order', { ascending: true }),
+    ofT('tournament_stages').order('seq', { ascending: true }),
+    ofT('tournament_stage_links'),
+    ofT('tournament_registrations'),
+    ofT('tournament_event_entries'),
+    ofT('tournament_teams'),
+    ofT('tournament_team_players'),
+    ofT('tournament_groups').order('seq', { ascending: true }),
+    ofT('tournament_group_teams'),
+    ofT('tournament_matches').order('round', { ascending: true }).order('slot', { ascending: true }),
+    ofT('tournament_match_edits').order('edited_at', { ascending: false }),
+    ofT('tournament_prizes').order('rank', { ascending: true }),
+    ofT('tournament_budget_lines').order('sort_order', { ascending: true }),
+  ])
+
+  // Khách ngoài CLB là danh sách của CLB (dùng lại qua nhiều giải), không theo tournament_id → nạp theo club_id.
+  const tourRow = unwrap(tourRes)
+  const [guestsRes, templatesRes] = tourRow ? await Promise.all([
+    supabase.from('tournament_guests').select('*').eq('club_id', tourRow.club_id).is('deleted_at', null),
+    // Mẫu thể thức của CLB (0060). Chưa áp 0060 thì bảng chưa có → coi như chưa có mẫu, không làm hỏng trang giải.
+    supabase.from('tournament_templates').select('*').eq('club_id', tourRow.club_id).order('created_at', { ascending: true }),
+  ]) : [null, null]
+
+  return toTour({
+    tournament: tourRow,
+    guests: guestsRes ? unwrap(guestsRes) || [] : [],
+    templates: templatesRes && !templatesRes.error ? templatesRes.data || [] : [],
+    events: unwrap(eventsRes) || [],
+    stages: unwrap(stagesRes) || [],
+    stageLinks: unwrap(stageLinksRes) || [],
+    registrations: unwrap(registrationsRes) || [],
+    entries: unwrap(entriesRes) || [],
+    teams: unwrap(teamsRes) || [],
+    teamPlayers: unwrap(teamPlayersRes) || [],
+    groups: unwrap(groupsRes) || [],
+    groupTeams: unwrap(groupTeamsRes) || [],
+    matches: unwrap(matchesRes) || [],
+    matchEdits: unwrap(matchEditsRes) || [],
+    prizes: unwrap(prizesRes) || [],
+    budgetLines: unwrap(budgetLinesRes) || [],
+  })
+}
+
+/** Nạp riêng danh sách trận và lịch sử sửa để phục vụ polling 15s. */
+export async function loadTournamentMatches(tournamentId) {
+  if (!supabase) throw new Error('Chưa cấu hình Supabase')
+  const [matchesRes, editsRes] = await Promise.all([
+    supabase.from('tournament_matches').select('*').eq('tournament_id', tournamentId).order('round', { ascending: true }).order('slot', { ascending: true }),
+    supabase.from('tournament_match_edits').select('*').eq('tournament_id', tournamentId).order('edited_at', { ascending: false }),
+  ])
+  const matches = unwrap(matchesRes) || []
+  const edits = unwrap(editsRes) || []
+  return {
+    matches: matches.map(toTourMatch),
+    matchEdits: edits.map(toTourMatchEdit),
+  }
+}
+
+// Bảng khoá chính kép (không có cột `id`) → khoá để upsert / xoá theo dòng.
+const TOUR_KEYS = {
+  tournament_event_entries: ['event_id', 'registration_id'],
+  tournament_team_players: ['team_id', 'registration_id'],
+  tournament_group_teams: ['group_id', 'team_id'],
+}
+// Chỉ RPC được ghi (DB cũng không có policy ghi) — gọi nhầm ở đây là lỗi lập trình, báo sớm.
+const RPC_ONLY = new Set(['tournament_matches', 'tournament_match_edits'])
+
+/**
+ * Ghi trực tiếp một bảng giải đấu, theo từng dòng. `rows` là dòng DB (snake_case, qua `tourRows`).
+ * `delete` nhận dòng (bảng khoá kép) hoặc id.
+ */
+export async function tournamentWrite(table, op, rows) {
+  if (!supabase) throw new Error('Chưa cấu hình Supabase')
+  if (RPC_ONLY.has(table)) throw new Error(`tournamentWrite: ${table} chỉ ghi qua RPC`)
+  const keys = TOUR_KEYS[table] || ['id']
+  if (op === 'upsert') return unwrap(await supabase.from(table).upsert(rows, { onConflict: keys.join(',') }))
+  if (op === 'insert') return unwrap(await supabase.from(table).insert(rows))
+  // Sửa hàng CÓ SẴN. Không dùng upsert: INSERT … ON CONFLICT vẫn chạy trigger BEFORE INSERT — với
+  // tournament_teams đó là khoá đội hình (0057), nên đội đã chốt không ghi được số bốc thăm / ghim.
+  if (op === 'update') {
+    for (const { id, ...patch } of rows) unwrap(await supabase.from(table).update(patch).eq('id', id))
+    return null
+  }
+  if (op === 'delete') {
+    if (keys[0] === 'id') {
+      const ids = rows.map((r) => (r && typeof r === 'object' ? r.id : r))
+      return unwrap(await supabase.from(table).delete().in('id', ids))
+    }
+    for (const r of rows) {
+      const match = Object.fromEntries(keys.map((k) => [k, r[k]]))
+      if (keys.some((k) => !match[k])) throw new Error(`tournamentWrite: thiếu khoá ${keys.join('+')} để xoá ${table}`)
+      unwrap(await supabase.from(table).delete().match(match))
+    }
+    return null
+  }
+  throw new Error('tournamentWrite: op không hỗ trợ: ' + op)
+}
+
+/** Gọi RPC giải đấu (SECURITY DEFINER). */
+export async function tournamentRpc(name, args) {
+  if (!supabase) throw new Error('Chưa cấu hình Supabase')
+  const res = await supabase.rpc(name, args)
+  return unwrap(res)
+}
+
 
 

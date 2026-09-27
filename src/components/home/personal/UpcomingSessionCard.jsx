@@ -1,3 +1,4 @@
+import { SessionPill } from '#ui'
 import { t } from '#i18n'
 
 export default function UpcomingSessionCard({
@@ -43,16 +44,36 @@ export default function UpcomingSessionCard({
     : `${statusText} · ${t('home.personal.expectedMatchesCount', { n: expectedMatches })}`
 
   const timePart = session.time || '—'
-  const overlineText = session.isToday
-    ? t('home.personal.upcomingSessionToday', { time: timePart })
-    : t('home.personal.upcomingSessionDate', { date: session.dateFormatted || session.date, time: timePart })
+  const overlineText = session.isHappeningNow
+    ? t('home.personal.upcomingSessionLive', { time: timePart })
+    : session.isToday
+      ? t('home.personal.upcomingSessionToday', { time: timePart })
+      : t('home.personal.upcomingSessionDate', { date: session.dateFormatted || session.date, time: timePart })
 
   const challenges = session.challenges || []
 
   return (
     <div style={isMobile ? S.cardMobile : S.cardDesktop}>
       <div style={S.infoCol}>
-        <span style={S.overline}>{overlineText}</span>
+        <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', gap: 8 }}>
+          <span style={session.isHappeningNow ? { ...S.overline, color: 'var(--teal-500)' } : S.overline}>
+            {session.isHappeningNow && (
+              <span
+                style={{
+                  display: 'inline-block',
+                  width: 6,
+                  height: 6,
+                  borderRadius: 99,
+                  background: 'var(--teal-500)',
+                  marginRight: 6,
+                  verticalAlign: 'middle',
+                }}
+              />
+            )}
+            {overlineText}
+          </span>
+          {session.status && <SessionPill status={session.status} size="sm" />}
+        </div>
         <span style={isMobile ? S.titleMobile : S.titleDesktop}>{venueStr}</span>
         <span style={S.meta}>{subtitle}</span>
       </div>

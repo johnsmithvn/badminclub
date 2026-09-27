@@ -13,6 +13,7 @@ import {
   getPersonalGreeting,
   getClubTodayHighlights,
   calcSessionAttendanceHistory,
+  getNextUpcomingSession,
 } from '../../lib/homePersonal.js'
 import { isFemalePlayer } from '../../lib/rating.js'
 
@@ -396,6 +397,86 @@ test('Home Personal Dashboard Logic Suite', async (t) => {
 
     const seasonStandings = getSurroundingSeasonStandings(mockDb, 'm1', 5)
     assert.ok(Array.isArray(seasonStandings), 'Season standings returns an array')
+  })
+
+  await t.test('17. getNextUpcomingSession chọn đúng buổi gần nhất kể cả closed, open hay draft', () => {
+    // 1. Buổi hôm nay là 'closed' (đã chốt), buổi ngày mai là 'open' -> Phải lấy buổi hôm nay
+    const dbWithClosedToday = {
+      today: '2026-09-24',
+      courts: [],
+      sessions: [
+        { id: 's-today', date: '2026-09-24', status: 'closed', courts: [{ from: '18:00', to: '20:00' }] },
+        { id: 's-tomorrow', date: '2026-09-25', status: 'open', courts: [{ from: '18:00', to: '20:00' }] },
+      ],
+    }
+    const resToday = getNextUpcomingSession(dbWithClosedToday, 'm1')
+    assert.equal(resToday?.id, 's-today', 'Phải lấy buổi hôm nay dù đã chốt (closed)')
+    assert.equal(resToday?.status, 'closed')
+
+    // 2. Buổi sắp tới gần nhất là 'draft' (chưa mở điểm danh) -> Vẫn phải lấy
+    const dbWithDraft = {
+      today: '2026-09-24',
+      courts: [],
+      sessions: [
+        { id: 's-draft', date: '2026-09-26', status: 'draft', courts: [{ from: '19:00', to: '21:00' }] },
+        { id: 's-later', date: '2026-09-28', status: 'open', courts: [{ from: '18:00', to: '20:00' }] },
+      ],
+    }
+    const resDraft = getNextUpcomingSession(dbWithDraft, 'm1')
+    assert.equal(resDraft?.id, 's-draft', 'Phải lấy buổi draft gần nhất phía trước')
+    assert.equal(resDraft?.status, 'draft')
+
+    // 3. Bỏ qua buổi cancelled (đã huỷ)
+    const dbWithCancelled = {
+      today: '2026-09-24',
+      courts: [],
+      sessions: [
+        { id: 's-canc', date: '2026-09-25', status: 'cancelled' },
+        { id: 's-valid', date: '2026-09-26', status: 'draft' },
+      ],
+    }
+    const resCanc = getNextUpcomingSession(dbWithCancelled, 'm1')
+    assert.equal(resCanc?.id, 's-valid', 'Phải bỏ qua buổi cancelled')
+
+    // 4. Khi tất cả các buổi đều ở quá khứ -> Lấy buổi quá khứ gần hiện tại nhất
+    const dbPastOnly = {
+      today: '2026-09-24',
+      courts: [],
+      sessions: [
+        { id: 's-old1', date: '2026-09-20', status: 'closed' },
+        { id: 's-old2', date: '2026-09-22', status: 'closed' },
+      ],
+    }
+    const resPast = getNextUpcomingSession(dbPastOnly, 'm1')
+    assert.equal(resPast?.id, 's-old2', 'Lấy buổi quá khứ gần thời điểm hiện tại nhất (22/09 thay vì 20/09)')
+
+    // 5. Kiểm tra khung giờ đang diễn ra (ví dụ 18:00 - 20:00 ngày 25/09)
+    const dbTimeWindow = {
+      today: '2026-09-25',
+      courts: [],
+      sessions: [
+        { id: 's-session-18-20', date: '2026-09-25', status: 'open', courts: [{ from: '18:00', to: '20:00' }] },
+        { id: 's-session-next', date: '2026-09-26', status: 'open', courts: [{ from: '18:00', to: '20:00' }] },
+      ],
+    }
+
+    // 5.1 Lúc 17:30 (trước giờ bắt đầu) -> hiện buổi 18:00 - 20:00, isHappeningNow = false
+    const timeBefore = new Date('2026-09-25T17:30:00')
+    const resBefore = getNextUpcomingSession(dbTimeWindow, 'm1', timeBefore)
+    assert.equal(resBefore?.id, 's-session-18-20')
+    assert.equal(resBefore?.isHappeningNow, false)
+
+    // 5.2 Lúc 18:30 (đang trong khoảng 18h - 20h) -> vẫn hiện buổi 18:00 - 20:00, isHappeningNow = true
+    const timeDuring = new Date('2026-09-25T18:30:00')
+    const resDuring = getNextUpcomingSession(dbTimeWindow, 'm1', timeDuring)
+    assert.equal(resDuring?.id, 's-session-18-20', 'Đang trong giờ 18-20h vẫn phải hiện buổi đó')
+    assert.equal(resDuring?.isHappeningNow, true, 'isHappeningNow phải là true')
+
+    // 5.3 Lúc 20:05 (đã qua 20h) -> tự động chuyển sang buổi tiếp theo (26/09)
+    const timeAfter = new Date('2026-09-25T20:05:00')
+    const resAfter = getNextUpcomingSession(dbTimeWindow, 'm1', timeAfter)
+    assert.equal(resAfter?.id, 's-session-next', 'Sau 20h phải chuyển sang buổi tiếp theo')
+    assert.equal(resAfter?.isHappeningNow, false)
   })
 })
 

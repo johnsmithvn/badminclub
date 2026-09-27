@@ -1,7 +1,7 @@
 // node src/__tests__/ledger.test.js
 import assert from 'node:assert/strict'
 import { seed } from '../fixture.js'
-import { CATS, MANUAL_CATS, availableBalance, catLabel, dailySummary, fundBalance, groupKey, ledger, ledgerGrouped, monthFlow } from '#lib/ledger.js'
+import { CATS, MANUAL_CATS, availableBalance, canEditTxDate, catLabel, dailySummary, fundBalance, groupKey, ledger, ledgerGrouped, monthFlow } from '#lib/ledger.js'
 import { advanceRows, courtCost, courtExtraCost, freezeCost, isVault, soldTotal, unfrozenCost } from '#lib/money.js'
 import { monthOf } from '#utils/dates.js'
 
@@ -348,3 +348,26 @@ assert.ok(MANUAL_CATS.includes(CATS.back),
   'phải ghi tay được khoản back: người đã ngưng hoạt động không còn sinh dòng đối chiếu nào')
 
 console.log('ledger check: OK')
+
+/* ---------- canEditTxDate: cho phép sửa ngày giao dịch ---------- */
+assert.equal(canEditTxDate(db, null), false)
+assert.equal(canEditTxDate(db, { id: '' }), false)
+assert.equal(canEditTxDate(db, { id: 'open' }), false, 'dòng mang sang không đổi ngày')
+assert.equal(canEditTxDate(db, { id: 'du_feba9401' }), true, 'quỹ tháng đổi được ngày')
+assert.equal(canEditTxDate(db, { id: 'cbSB1' }), true, 'hoá đơn sân đổi được ngày')
+assert.equal(canEditTxDate(db, { id: 'aj1' }), true, 'đối chiếu đổi được ngày')
+const manualTx = db.manual[0]
+if (manualTx) {
+  assert.equal(canEditTxDate(db, { id: manualTx.id }), true, 'ghi tay đổi được ngày')
+}
+
+// Kiểm tra khi đổi paidAt của due thì ledger() tự động chuyển ngày
+const due0 = db.dues.find((d) => d.paidAmount > 0)
+if (due0) {
+  const dbUpdatedDate = {
+    ...db,
+    dues: db.dues.map((d) => (d.id === due0.id ? { ...d, paidAt: '2026-09-01' } : d)),
+  }
+  const rowUpdated = ledger(dbUpdatedDate).find((r) => r.id === 'du' + due0.id)
+  assert.equal(rowUpdated.date, '2026-09-01', 'ledger() phải lấy ngày paidAt mới')
+}

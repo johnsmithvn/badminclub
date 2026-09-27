@@ -45,7 +45,8 @@ export const SCHEMA_GROUPS = [
           f('id', 'uuid', 'PK'), f('club_id', 'uuid', 'FK'), f('name', 'text'), f('short', 'text'),
           f('weekday', 'int 0-6'), f('fee_male', 'bigint'), f('fee_female', 'bigint'),
           f('unit_male', 'bigint'), f('unit_female', 'bigint'),
-          f('start_time', 'time'), f('end_time', 'time'), f('active', 'bool'),
+          f('start_time', 'time'), f('end_time', 'time'),
+          f('sort_order', 'int'), f('active', 'bool'), f('created_at', 'timestamptz'),
         ],
       },
       {

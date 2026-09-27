@@ -10,7 +10,7 @@ import { useMobile } from '#hooks/useMobile.js'
 import { dd, ddmy, monthOf, monthTxt, WD_FULL, weekdayOf, addMonth } from '#utils/dates.js'
 import { fmt } from '#lib/money.js'
 import {
-  CATS, availableBalance, catLabel, editTarget, ledger,
+  CATS, availableBalance, canEditTxDate, catLabel, editTarget, ledger,
   ledgerGrouped, monthFlow, undoTarget,
 } from '#lib/ledger.js'
 import { courtBillForm, editBillForm, editLedgerForm, ledgerForm } from '#lib/forms.js'
@@ -50,6 +50,12 @@ export default function Fund() {
   const [selectedId, setSelectedId] = useState(null)
   const [expandedClusters, setExpandedClusters] = useState({})
   const [mobileDetailOpen, setMobileDetailOpen] = useState(false)
+  const [editingDateTxId, setEditingDateTxId] = useState(null)
+  const [editDateValue, setEditDateValue] = useState('')
+
+  useEffect(() => {
+    setEditingDateTxId(null)
+  }, [selectedId])
   const filterRef = useRef(null)
   const timeRef = useRef(null)
 
@@ -304,6 +310,45 @@ export default function Fund() {
       daysWithOut,
     }
   }, [monthLedger])
+
+  // Trạng thái đang lọc
+  const isFiltering = Boolean(
+    quickDate !== 'all' ||
+    selectedDay !== null ||
+    dirFilter !== 'all' ||
+    catFilter.length > 0 ||
+    search.trim()
+  )
+
+  const resetAllFilters = () => {
+    setQuickDate('all')
+    setSelectedDay(null)
+    setDirFilter('all')
+    setCatFilter([])
+    setSearch('')
+  }
+
+  // Thống kê các giao dịch đã lọc
+  const filteredStats = useMemo(() => {
+    let inAmount = 0
+    let outAmount = 0
+    const dates = new Set()
+
+    filteredRows.forEach((r) => {
+      dates.add(r.date)
+      if (r.dir === 'in') inAmount += r.amount
+      else if (r.dir === 'out') outAmount += r.amount
+    })
+
+    const net = inAmount - outAmount
+    return {
+      inAmount,
+      outAmount,
+      net,
+      count: filteredRows.length,
+      days: dates.size,
+    }
+  }, [filteredRows])
 
   // Cơ cấu các nhóm chi trong kỳ
   const categoryBreakdown = useMemo(() => {
@@ -823,6 +868,73 @@ export default function Fund() {
       }}>
         {/* Cột Trái: Danh sách giao dịch gom theo ngày */}
         <div style={S.listColumn}>
+          {/* Thanh tổng tiền khi đang lọc */}
+          {isFiltering && filteredRows.length > 0 && (
+            <div style={{
+              display: 'flex',
+              alignItems: 'center',
+              justifyContent: 'space-between',
+              gap: 10,
+              padding: isMobile ? '10px 12px' : '10px 16px',
+              marginBottom: 10,
+              borderRadius: 10,
+              background: isDark
+                ? 'linear-gradient(135deg, rgba(108,92,231,0.15), rgba(108,92,231,0.06))'
+                : 'linear-gradient(135deg, rgba(108,92,231,0.08), rgba(108,92,231,0.03))',
+              border: `1px solid ${isDark ? 'rgba(108,92,231,0.25)' : 'rgba(108,92,231,0.15)'}`,
+            }}>
+              <div style={{ display: 'flex', flexDirection: 'column', gap: 2, minWidth: 0 }}>
+                <div style={{
+                  fontSize: 10.5,
+                  fontWeight: 600,
+                  textTransform: 'uppercase',
+                  letterSpacing: '0.04em',
+                  color: isDark ? '#A29BFE' : '#6C5CE7',
+                }}>
+                  {t('fund.filteredTotal')}
+                </div>
+                <div style={{
+                  fontSize: 11,
+                  color: 'var(--text-muted, #A8A29E)',
+                }}>
+                  {t('fund.filteredCountInDays', { n: filteredStats.count, days: filteredStats.days })}
+                </div>
+              </div>
+              <div style={{ display: 'flex', alignItems: 'center', gap: isMobile ? 10 : 16, flexShrink: 0 }}>
+                {filteredStats.inAmount > 0 && (
+                  <div style={{ textAlign: 'right' }}>
+                    <div style={{ fontSize: 10, color: 'var(--text-muted, #A8A29E)' }}>{t('fund.filteredIn')}</div>
+                    <div style={{ fontSize: isMobile ? 12.5 : 13.5, fontWeight: 600, color: isDark ? '#55efc4' : '#00b894' }}>
+                      +{fmt(filteredStats.inAmount)}
+                    </div>
+                  </div>
+                )}
+                {filteredStats.outAmount > 0 && (
+                  <div style={{ textAlign: 'right' }}>
+                    <div style={{ fontSize: 10, color: 'var(--text-muted, #A8A29E)' }}>{t('fund.filteredOut')}</div>
+                    <div style={{ fontSize: isMobile ? 12.5 : 13.5, fontWeight: 600, color: isDark ? '#ff7675' : '#d63031' }}>
+                      −{fmt(filteredStats.outAmount)}
+                    </div>
+                  </div>
+                )}
+                {filteredStats.inAmount > 0 && filteredStats.outAmount > 0 && (
+                  <div style={{ textAlign: 'right' }}>
+                    <div style={{ fontSize: 10, color: 'var(--text-muted, #A8A29E)' }}>{t('fund.filteredNet')}</div>
+                    <div style={{
+                      fontSize: isMobile ? 12.5 : 13.5,
+                      fontWeight: 700,
+                      color: filteredStats.net >= 0
+                        ? (isDark ? '#55efc4' : '#00b894')
+                        : (isDark ? '#ff7675' : '#d63031'),
+                    }}>
+                      {filteredStats.net >= 0 ? '+' : '−'}{fmt(Math.abs(filteredStats.net))}
+                    </div>
+                  </div>
+                )}
+              </div>
+            </div>
+          )}
+
           {dateGroups.length === 0 ? (
             <Empty icon="wallet" title={t('fund.empty')} hint={t('fund.noTxPeriod')} />
           ) : (
@@ -1022,6 +1134,19 @@ export default function Fund() {
                     )
                   })()}
 
+                  {canMoney && selectedTx.id.startsWith('du') && (
+                    <button
+                      type="button"
+                      onClick={() => {
+                        setEditingDateTxId(selectedTx.id)
+                        setEditDateValue(selectedTx.date)
+                      }}
+                      style={S.editActionBtn}
+                    >
+                      {t('fund.editDueDate')}
+                    </button>
+                  )}
+
                   {(() => {
                     const undo = undoTarget(db, selectedTx.raw || selectedTx)
                     if (!undo || !canMoney) return null
@@ -1043,7 +1168,53 @@ export default function Fund() {
               <div style={S.detailFieldsBox}>
                 <div style={S.detailFieldRow}>
                   <span style={S.fieldKey}>{t('fund.fieldDate')}</span>
-                  <span style={S.fieldVal}>{ddmy(selectedTx.date)}</span>
+                  {editingDateTxId === selectedTx.id ? (
+                    <div style={S.dateEditContainer}>
+                      <input
+                        type="date"
+                        value={editDateValue}
+                        onChange={(e) => setEditDateValue(e.target.value)}
+                        style={S.dateInputInline}
+                      />
+                      <button
+                        type="button"
+                        title={t('common.save')}
+                        onClick={() => {
+                          if (!editDateValue) return
+                          a.updateTxDate(selectedTx.id, editDateValue)
+                          setEditingDateTxId(null)
+                        }}
+                        style={S.saveDateMiniBtn}
+                      >
+                        <Icon name="check" size={13} color="#fff" />
+                      </button>
+                      <button
+                        type="button"
+                        title={t('common.cancel')}
+                        onClick={() => setEditingDateTxId(null)}
+                        style={S.cancelDateMiniBtn}
+                      >
+                        <Icon name="x" size={13} color="var(--text-muted, #78716C)" />
+                      </button>
+                    </div>
+                  ) : (
+                    <span style={S.fieldValRow}>
+                      <span>{ddmy(selectedTx.date)}</span>
+                      {canMoney && canEditTxDate(db, selectedTx) && (
+                        <button
+                          type="button"
+                          title={t('fund.editTxDate')}
+                          onClick={() => {
+                            setEditingDateTxId(selectedTx.id)
+                            setEditDateValue(selectedTx.date)
+                          }}
+                          style={S.editDateMiniBtn}
+                        >
+                          <Icon name="pencil" size={12} />
+                        </button>
+                      )}
+                    </span>
+                  )}
                 </div>
                 <div style={S.detailFieldRow}>
                   <span style={S.fieldKey}>{t('fund.fieldCat')}</span>
@@ -1164,7 +1335,53 @@ export default function Fund() {
             <div style={S.detailFieldsBox}>
               <div style={S.detailFieldRow}>
                 <span style={S.fieldKey}>{t('fund.fieldDate')}</span>
-                <span style={S.fieldVal}>{ddmy(selectedTx.date)}</span>
+                {editingDateTxId === selectedTx.id ? (
+                  <div style={S.dateEditContainer}>
+                    <input
+                      type="date"
+                      value={editDateValue}
+                      onChange={(e) => setEditDateValue(e.target.value)}
+                      style={S.dateInputInline}
+                    />
+                    <button
+                      type="button"
+                      title={t('common.save')}
+                      onClick={() => {
+                        if (!editDateValue) return
+                        a.updateTxDate(selectedTx.id, editDateValue)
+                        setEditingDateTxId(null)
+                      }}
+                      style={S.saveDateMiniBtn}
+                    >
+                      <Icon name="check" size={13} color="#fff" />
+                    </button>
+                    <button
+                      type="button"
+                      title={t('common.cancel')}
+                      onClick={() => setEditingDateTxId(null)}
+                      style={S.cancelDateMiniBtn}
+                    >
+                      <Icon name="x" size={13} color="var(--text-muted, #78716C)" />
+                    </button>
+                  </div>
+                ) : (
+                  <span style={S.fieldValRow}>
+                    <span>{ddmy(selectedTx.date)}</span>
+                    {canMoney && canEditTxDate(db, selectedTx) && (
+                      <button
+                        type="button"
+                        title={t('fund.editTxDate')}
+                        onClick={() => {
+                          setEditingDateTxId(selectedTx.id)
+                          setEditDateValue(selectedTx.date)
+                        }}
+                        style={S.editDateMiniBtn}
+                      >
+                        <Icon name="pencil" size={12} />
+                      </button>
+                    )}
+                  </span>
+                )}
               </div>
               <div style={S.detailFieldRow}>
                 <span style={S.fieldKey}>{t('fund.fieldCat')}</span>
@@ -1234,6 +1451,19 @@ export default function Fund() {
                   </button>
                 )
               })()}
+
+              {canMoney && selectedTx.id.startsWith('du') && (
+                <button
+                  type="button"
+                  onClick={() => {
+                    setEditingDateTxId(selectedTx.id)
+                    setEditDateValue(selectedTx.date)
+                  }}
+                  style={S.mobilePrimaryActionBtn}
+                >
+                  {t('fund.editDueDate')}
+                </button>
+              )}
 
               {(() => {
                 const undo = undoTarget(db, selectedTx.raw || selectedTx)
@@ -2033,6 +2263,71 @@ const S = {
     display: 'flex',
     flexDirection: 'column',
     gap: 10,
+  },
+  dateEditContainer: {
+    display: 'flex',
+    alignItems: 'center',
+    gap: 6,
+  },
+  dateInputInline: {
+    height: 26,
+    padding: '2px 6px',
+    fontSize: 12,
+    borderRadius: 6,
+    border: '1px solid var(--border-subtle, #CBD5E1)',
+    background: 'var(--surface-card, #fff)',
+    color: 'var(--text-primary, #1C1917)',
+    outline: 'none',
+    fontFamily: 'inherit',
+  },
+  saveDateMiniBtn: {
+    display: 'inline-flex',
+    alignItems: 'center',
+    justifyContent: 'center',
+    width: 24,
+    height: 24,
+    borderRadius: 6,
+    border: 'none',
+    background: 'var(--action-primary-bg, #0D2B5E)',
+    cursor: 'pointer',
+    padding: 0,
+  },
+  cancelDateMiniBtn: {
+    display: 'inline-flex',
+    alignItems: 'center',
+    justifyContent: 'center',
+    width: 24,
+    height: 24,
+    borderRadius: 6,
+    border: '1px solid var(--border-subtle, #CBD5E1)',
+    background: 'transparent',
+    cursor: 'pointer',
+    padding: 0,
+  },
+  fieldValRow: {
+    display: 'flex',
+    alignItems: 'center',
+    gap: 6,
+    fontSize: 12.5,
+    fontWeight: 500,
+    color: 'var(--text-secondary, #44403C)',
+    textAlign: 'right',
+    wordBreak: 'break-word',
+  },
+  editDateMiniBtn: {
+    display: 'inline-flex',
+    alignItems: 'center',
+    justifyContent: 'center',
+    width: 20,
+    height: 20,
+    borderRadius: 4,
+    border: 'none',
+    background: 'var(--surface-card, #fff)',
+    border: '1px solid var(--border-subtle, #E7E5E4)',
+    color: 'var(--text-muted, #78716C)',
+    cursor: 'pointer',
+    padding: 0,
+    transition: 'all 0.15s ease',
   },
   detailFieldRow: {
     display: 'flex',

@@ -1,0 +1,1165 @@
+import { useEffect, useRef, useState } from 'react'
+import { Alert, Button, Dialog, Input } from '#ds'
+import { Mono } from '#ui'
+import {
+  CANVAS, RANK_CHOICES, byesOf, canvasChecks, dePreviewOf, estimateOf, groupBalanceOf, koPreviewOf, layoutOf, moveTeam, nextFreeRanks,
+  quickPlan, shownGroups, unplacedTeams,
+} from '#lib/tournament/canvas.js'
+import { TEMPLATES, entrantsOf, groupSizes, koPreview } from '#lib/tournament/format.js'
+import { nextPowerOf2, seedingOf, slotsOf } from '#lib/tournament/bracket.js'
+import { linkShape } from '#lib/tournament/bracketView.js'
+import { isDouble } from '#lib/tournament/doubleElim.js'
+import { roundsOf, swissRounds } from '#lib/tournament/swiss.js'
+import { eventTeams } from '#lib/tournament/pairing.js'
+import cfg from '#config/app.json' with { type: 'json' }
+import { t } from '#i18n'
+import { RuleCard, Seg, TeamNameLines } from './TourBits.jsx'
+import RecommendDialog from './RecommendDialog.jsx'
+import SpinDraw from './SpinDraw.jsx'
+import { rankLabel, ruleLabel, stageName, teamName } from './tourUtils.js'
+
+const TEAM_MIME = 'text/x-tour-team'
+const SWAP_MIME = 'text/x-tour-swap'
+const BLOCK_MIME = 'text/x-tour-block'
+const ZOOM_MIN = 0.4
+const ZOOM_MAX = 1.6
+
+// Khay trái (handoff): kiểu khối kéo vào sơ đồ. Nguồn (khối đầu, nhận mọi đội): vòng bảng / vòng tròn / Thụy Sĩ /
+// loại trực tiếp / 2 nhánh. Nhánh sau (nối từ vòng bảng hoặc Thụy Sĩ): loại trực tiếp / chung kết / 2 nhánh.
+// `source: true` = chỉ làm nguồn được (Thụy Sĩ không nhận đội theo hạng từ khối khác).
+// `art`: hình nhỏ trên thẻ khối (handoff) — [rộng, cao, màu, mờ?], xếp đáy bằng nhau: bảng = ô teal, vòng tròn = khối
+// teal rộng, Thụy Sĩ = vạch tím, loại trực tiếp = cột cam thấp dần (vòng sau ít trận hơn), chung kết = vạch vàng,
+// 2 nhánh = cột cam nhánh thắng + cột mờ nhánh thua.
+const PALETTE = [
+  { key: 'rr', type: 'round_robin', config: { numGroups: 2 }, art: [[13, 13, 'teal'], [13, 13, 'teal'], [13, 13, 'teal']] },
+  { key: 'round', type: 'round_robin', config: { numGroups: 1 }, art: [[30, 13, 'teal']] },
+  { key: 'ko', type: 'knockout', config: { thirdPlace: true }, art: [[8, 15, 'amber'], [8, 9, 'amber'], [8, 5, 'amber']] },
+  { key: 'swiss', type: 'swiss', config: { rounds: null }, source: true, art: [[6, 14, 'violet'], [6, 14, 'violet'], [6, 14, 'violet'], [6, 14, 'violet']] },
+  { key: 'final', type: 'knockout', config: { thirdPlace: false }, art: [[22, 5, 'gold']] },
+  { key: 'de', type: 'knockout', config: { bracket: 'double', thirdPlace: false }, art: [[8, 15, 'amber'], [8, 9, 'amber'], [8, 15, 'amber', true], [8, 9, 'amber', true]] },
+]
+const PAL_KEY = { rr: 'palRr', round: 'palRound', swiss: 'palSwiss', ko: 'palKo', final: 'palFinal', de: 'palDe' }
+const BAR = { teal: 'var(--teal-500)', amber: 'var(--status-delayed-fg)', gold: 'var(--podium-gold)', violet: 'var(--violet-400)' }
+// Hình thu nhỏ cho thẻ mẫu trong hộp "Tạo nhanh" (handoff): mỗi thanh = một khối.
+// Hình minh hoạ thẻ mẫu (hộp "Tạo nhanh"): nhóm hình nối bằng gạch ngang — bảng = 2 khối cao, nhánh = ô vuông,
+// Thụy Sĩ = 4 vạch mảnh, loại trực tiếp = cây 4-2-1, 2 nhánh = hàng thắng + hàng thua (mờ). [w, h] = một ô.
+const G = { dir: 'row', items: [[12, 26], [12, 26]] }
+const SW = { dir: 'row', items: [[6, 26], [6, 26], [6, 26], [6, 26]] }
+const TREE = [{ dir: 'col', items: [[12, 6], [12, 6], [12, 6], [12, 6]] }, { dir: 'col', items: [[12, 6], [12, 6]] }, { dir: 'col', items: [[12, 6]] }]
+const TPL_ART = {
+  ko: TREE,
+  rr: [{ dir: 'row', items: [[40, 24]] }],
+  rr_ko: [G, { dir: 'row', items: [[16, 14]] }],
+  rr_ko_plate: [G, { dir: 'row', items: [[16, 10], [16, 10]] }],
+  swiss: [SW],
+  swiss_ko: [SW, { dir: 'row', items: [[16, 14]] }],
+  de: [{ dir: 'col', items: [{ dir: 'row', items: [[10, 8], [10, 8], [10, 8]] }, { dir: 'row', dim: true, items: [[10, 8], [10, 8], [10, 8]] }] }, { dir: 'row', items: [[16, 14]] }],
+}
+const STAGE_ART = { round_robin: G, swiss: SW, knockout: { dir: 'row', items: [[16, 14]] } }
+
+function TplArt({ spec, on }) {
+  const shape = (x, i, dim) => (Array.isArray(x)
+    ? <span key={i} style={{ width: x[0], height: x[1], borderRadius: 3, opacity: dim ? 0.5 : 1, boxSizing: 'border-box',
+      background: on ? 'var(--surface-accent-soft)' : 'var(--surface-raised)', border: `1.5px solid ${on ? 'var(--teal-500)' : 'var(--border-default)'}` }} />
+    : <span key={i} style={{ display: 'flex', flexDirection: x.dir === 'col' ? 'column' : 'row', gap: 3 }}>{x.items.map((y, j) => shape(y, j, dim || x.dim))}</span>)
+  return (
+    <span aria-hidden style={{ display: 'flex', alignItems: 'center', gap: 6, height: 32 }}>
+      {spec.map((g, i) => (
+        <span key={i} style={{ display: 'contents' }}>
+          {i > 0 && <span style={{ width: 8, borderTop: `1.5px solid ${on ? 'var(--teal-500)' : 'var(--border-default)'}` }} />}
+          {shape(g, i, false)}
+        </span>
+      ))}
+    </span>
+  )
+}
+
+/** Thời lượng kiểu handoff: 143 phút → "2g23". */
+const dur = (min) => t('tournament.canvas.dur', { h: Math.floor(min / 60), m: String(min % 60).padStart(2, '0') })
+const overline = (x) => <span style={{ font: '700 10.5px/1 var(--font-sans)', letterSpacing: '0.08em', textTransform: 'uppercase', color: 'var(--text-muted)' }}>{x}</span>
+
+/**
+ * Trình dựng sơ đồ (handoff "Giải đấu · sơ đồ tự do") cho MỘT nội dung chưa có lịch — màn rộng.
+ *   Thanh trên: số khối · số trận · thời gian ước tính · "vừa lưu" · Tạo nhanh · Công bố & chạy nhánh (tạo lịch).
+ *   Trái: khối kéo vào sơ đồ · khay "cặp chưa xếp" (kéo cặp vào / ra khỏi bảng).
+ *   Giữa: canvas lưới chấm — kéo nền để di chuyển, cuộn chuột để phóng; khối vòng bảng hiện đội từng bảng, khối
+ *         loại hiện nhánh thu nhỏ; kéo tiêu đề khối để dời; kéo chấm tròn bên phải vòng bảng sang một nhánh để nối.
+ *   Phải: Toàn giải (tạo nhanh, căn khung, kiểm tra sơ đồ) · bảng sửa khối · bảng sửa đường nối.
+ * Luật & số liệu thuần ở `lib/tournament/canvas.js` (có test); đây chỉ vẽ và gọi action.
+ */
+export default function FlowCanvas({ tour, event, db, a, canEdit, onBack, onOpenBracket }) {
+  const stages = tour.stages.filter((s) => s.eventId === event.id).sort((x, y) => x.seq - y.seq)
+  const links = (tour.stageLinks || []).filter((l) => stages.some((s) => s.id === l.toStageId))
+  const source = stages.find((s) => s.seq === 1) || null
+  const full = eventTeams(tour, event.id).filter((x) => x.full)
+  const est = estimateOf(tour, event)
+  const checks = canvasChecks(tour, event)
+  const blocked = checks.some((c) => c.tone === 'bad') || !stages.length
+  const hasSchedule = stages.some((s) => s.status !== 'pending')
+
+  const [selId, setSelId] = useState(null)
+  const [selLinkId, setSelLinkId] = useState(null)
+  const [drag, setDrag] = useState(null) // dời khối: { id, ox, oy, x, y, moved }
+  const [wire, setWire] = useState(null) // kéo dây nối: { x, y }
+  const [pan, setPan] = useState(null) // kéo nền: { sx, sy, left, top }
+  const [zoom, setZoom] = useState(1)
+  const [quick, setQuick] = useState(false)
+  const [recommending, setRecommending] = useState(false)
+  const [savingTpl, setSavingTpl] = useState(false)
+  const [resetting, setResetting] = useState(false)
+  const [busy, setBusy] = useState(false)
+  const [focus, setFocus] = useState(false) // phóng to: phủ cả màn, ẩn 2 thanh bên tới khi chọn khối
+  const [save, setSave] = useState('idle') // 'idle' | 'saving' | 'saved' — nhãn "vừa lưu" (handoff)
+  const viewRef = useRef(null)
+  const zoomRef = useRef(zoom)
+  zoomRef.current = zoom
+
+  // Esc thoát phóng to (trừ khi đang mở hộp thoại — Esc đó là của hộp thoại).
+  useEffect(() => {
+    if (!focus) return undefined
+    const onKey = (e) => { if (e.key === 'Escape' && !document.querySelector('[role="dialog"]')) setFocus(false) }
+    window.addEventListener('keydown', onKey)
+    return () => window.removeEventListener('keydown', onKey)
+  }, [focus])
+
+  // Mọi thao tác ghi trên canvas đi qua đây để thanh trên báo "đang lưu… / vừa lưu".
+  const act = (p) => {
+    setSave('saving')
+    Promise.resolve(p).then((ok) => setSave(ok === false ? 'idle' : 'saved'), () => setSave('idle'))
+    return p
+  }
+
+  // Cuộn chuột = phóng quanh con trỏ (handoff "cuộn để phóng"). Listener thật (passive:false) để chặn cuộn trang.
+  useEffect(() => {
+    const el = viewRef.current
+    if (!el) return undefined
+    const onWheel = (e) => {
+      e.preventDefault()
+      const z0 = zoomRef.current
+      const z1 = Math.min(ZOOM_MAX, Math.max(ZOOM_MIN, +(z0 * (e.deltaY < 0 ? 1.1 : 1 / 1.1)).toFixed(3)))
+      if (z1 === z0) return
+      const r = el.getBoundingClientRect()
+      const px = (e.clientX - r.left + el.scrollLeft) / z0
+      const py = (e.clientY - r.top + el.scrollTop) / z0
+      setZoom(z1)
+      requestAnimationFrame(() => {
+        el.scrollLeft = px * z1 - (e.clientX - r.left)
+        el.scrollTop = py * z1 - (e.clientY - r.top)
+      })
+    }
+    el.addEventListener('wheel', onWheel, { passive: false })
+    return () => el.removeEventListener('wheel', onWheel)
+  }, [])
+
+  // Cỡ khối theo nội dung thật (đội trong bảng / nhánh thu nhỏ) — dùng cho xếp chỗ, dây nối, vùng thả.
+  const sourceTeams = source ? est.stages[source.id]?.teams ?? full.length : full.length
+  // Khối nhánh là nguồn (nhận mọi cặp): dựng bằng cặp THẬT theo đúng cách xếp (rating / số bốc thăm) → thấy
+  // ngay ai gặp ai. Chọn "Bốc thăm" mà chưa bốc thì còn ô "Hạt giống" giả tới khi bốc.
+  const realOf = (s) => {
+    if (s.id !== source?.id) return null
+    const seeding = s.config?.seeding === 'slot' ? 'slot' : 'seed'
+    const r = entrantsOf(full, seeding)
+    const hideNo = seedingOf(s.config) === 'pos'
+    return r.error ? null : r.entrants.map((e) => ({ ...e, label: teamName(tour, db, e.id), hideNo }))
+  }
+  const previewOf = (s) => (isDouble(s) ? dePreviewOf : koPreviewOf)(s, source, links.find((l) => l.toStageId === s.id), sourceTeams, realOf(s))
+  // Kéo đội trong nhánh nguồn → chế độ "Tự do" (số bốc thăm = ô trong nhánh, `slotOrder`):
+  //   thả lên đội khác = đổi chỗ 2 đội; thả lên "Thắng trận k" (trận vòng đầu) = đổi cả cặp ô vòng đầu của mình
+  //   với trận k — cách dời chỗ miễn đấu (VD đội được miễn sang ô tứ kết khác).
+  const swapTeams = (s) => (id, to) => {
+    const pos = slotOrder(full, s.config)
+    const i = pos.indexOf(id)
+    if (i < 0) return
+    const swap = (x, y) => { [pos[x], pos[y]] = [pos[y], pos[x]] }
+    if (to.id) {
+      const j = pos.indexOf(to.id)
+      if (j < 0 || j === i) return
+      swap(i, j)
+    } else {
+      const p = i >> 1
+      if (to.pair === p) return
+      swap(2 * p, 2 * to.pair)
+      swap(2 * p + 1, 2 * to.pair + 1)
+    }
+    act(a.tourDraw(s.eventId, pos, null))
+    if (seedingOf(s.config) !== 'pos') act(a.tourCanvasSave(s.id, { config: { ...s.config, seeding: 'slot', free: true } }))
+  }
+  // Bề rộng 1 cột bảng theo tên đội DÀI NHẤT đang có (không phải số cố định) — tên dài (VD "A / B") không bị cắt "...".
+  const nameColW = full.length
+    ? Math.min(280, Math.max(150, 50 + Math.max(...full.map((x) => teamName(tour, db, x.id).length)) * 6))
+    : 150
+  const sizeOf = (s) => {
+    if (s.type === 'round_robin') {
+      const groups = shownGroups(s, full)
+      const cols = groups.length
+      const rows = Math.max(3, ...groups.map((g) => g.length))
+      // 48/đội: TeamChip xếp 2 dòng tên (TeamNameLines, đôi) + đệm + viền + gap — đo thật trong Block, không
+      // phải số áng chừng; 160 = tiêu đề khối + đệm nội dung + tiêu đề bảng + ô "thả cặp vào" + chân khối.
+      return { w: Math.max(280, 24 + cols * nameColW + (cols - 1) * 8), h: 160 + rows * 48 }
+    }
+    if (s.type === 'swiss') {
+      // Một hàng ô vòng (58/ô) + một dòng giải thích — cặp đấu vòng sau tuỳ kết quả nên không vẽ đội trước.
+      const rounds = roundsOf(s, est.stages[s.id]?.teams ?? full.length)
+      return { w: Math.max(280, 24 + rounds * 58), h: 210 }
+    }
+    if (isDouble(s)) {
+      // Hai hàng (nhánh thắng + chung kết tổng · nhánh thua), mỗi hàng: nhãn + tên cột + ô trận 64/trận.
+      const pv = previewOf(s)
+      const wb = pv ? [...pv.wb, ...pv.gf] : []
+      const lb = pv ? pv.lb : []
+      const rowOf = (rs) => (rs.length ? 40 + Math.max(...rs.map((r) => r.matches.length)) * 64 : 0)
+      const cols = Math.max(1, wb.length, lb.length)
+      return { w: Math.max(280, 24 + cols * 140 + (cols - 1) * 10), h: 58 + 16 + rowOf(wb) + rowOf(lb) + 10 + 36 }
+    }
+    const pv = previewOf(s) || []
+    const rounds = pv.filter((r) => r.roundKind !== 'third')
+    const third = pv.some((r) => r.roundKind === 'third')
+    const first = rounds[0]?.matches.length || 1
+    const totalCols = Math.max(1, rounds.length) + (third ? 1 : 0)
+    return {
+      w: Math.max(280, 24 + totalCols * 140 + Math.max(0, totalCols - 1) * 10),
+      h: 58 + 20 + Math.max(first * 64, third ? 90 : 64) + 36,
+    }
+  }
+  const base = layoutOf(stages, sizeOf)
+  const pos = (id) => (drag?.id === id ? { x: drag.x, y: drag.y } : base[id])
+  const width = Math.max(900, ...stages.map((s) => pos(s.id).x + sizeOf(s).w + CANVAS.pad * 4))
+  const height = Math.max(520, ...stages.map((s) => pos(s.id).y + sizeOf(s).h + CANVAS.pad * 4))
+  const sel = stages.find((s) => s.id === selId) || null
+  const selLink = links.find((l) => l.id === selLinkId) || null
+  const choose = (stageId, linkId = null) => { setSelId(stageId); setSelLinkId(linkId) }
+
+  // Toạ độ con trỏ trong canvas (đã tính cuộn + phóng to).
+  const pointIn = (clientX, clientY) => {
+    const r = viewRef.current.getBoundingClientRect()
+    return { x: (clientX - r.left + viewRef.current.scrollLeft) / zoom, y: (clientY - r.top + viewRef.current.scrollTop) / zoom }
+  }
+  const moveRef = useRef({ x: 0, y: 0 })
+  const rafRef = useRef(0)
+  const blockAt = (p) => stages.find((s) => {
+    const q = pos(s.id)
+    const z = sizeOf(s)
+    return p.x >= q.x && p.x <= q.x + z.w && p.y >= q.y && p.y <= q.y + z.h
+  })
+  // Đầu dây vào khối nhánh: chấm trái, ngang tiêu đề.
+  const wireEnds = (to) => {
+    const p1 = pos(source.id)
+    const z1 = sizeOf(source)
+    const p2 = pos(to.id)
+    return { x1: p1.x + z1.w, y1: p1.y + z1.h / 2, x2: p2.x, y2: p2.y + 30 }
+  }
+
+  const startMove = (s) => (e) => {
+    if (e.button !== 0) return
+    e.stopPropagation()
+    const p = pointIn(e.clientX, e.clientY)
+    const q = pos(s.id)
+    e.currentTarget.setPointerCapture?.(e.pointerId)
+    if (selId !== s.id || selLinkId) choose(s.id)
+    setDrag({ id: s.id, ox: p.x - q.x, oy: p.y - q.y, x: q.x, y: q.y, moved: false })
+  }
+  const startWire = (e) => {
+    e.stopPropagation()
+    e.currentTarget.setPointerCapture?.(e.pointerId)
+    setWire(pointIn(e.clientX, e.clientY))
+  }
+  // Bấm nền (chỗ không có khối) = bỏ chọn ngay (handoff: onCanvasDown); kéo tiếp = di chuyển khung nhìn.
+  const startPan = (e) => {
+    if (e.button !== 0 || e.target !== e.currentTarget) return
+    choose(null)
+    e.currentTarget.setPointerCapture?.(e.pointerId)
+    setPan({ sx: e.clientX, sy: e.clientY, left: viewRef.current.scrollLeft, top: viewRef.current.scrollTop, moved: false })
+  }
+  // Gộp mọi pointermove trong một khung hình lại làm một (chuột báo nhanh hơn 60Hz sẽ gây giật nếu
+  // setState theo từng sự kiện thô) — chỉ xử lý toạ độ MỚI NHẤT mỗi khung hình vẽ.
+  const onMove = (e) => {
+    moveRef.current = { x: e.clientX, y: e.clientY }
+    if (rafRef.current) return
+    rafRef.current = requestAnimationFrame(() => {
+      rafRef.current = 0
+      const { x: cx, y: cy } = moveRef.current
+      if (drag) {
+        const p = pointIn(cx, cy)
+        const x = Math.max(0, Math.round(p.x - drag.ox))
+        const y = Math.max(0, Math.round(p.y - drag.oy))
+        setDrag((d) => (d ? { ...d, x, y, moved: d.moved || Math.abs(x - d.x) + Math.abs(y - d.y) > 3 } : d))
+      } else if (wire) {
+        setWire((w) => (w ? pointIn(cx, cy) : w))
+      } else if (pan) {
+        setPan((p) => {
+          if (!p) return p
+          viewRef.current.scrollLeft = p.left - (cx - p.sx)
+          viewRef.current.scrollTop = p.top - (cy - p.sy)
+          return !p.moved && Math.abs(cx - p.sx) + Math.abs(cy - p.sy) > 3 ? { ...p, moved: true } : p
+        })
+      }
+    })
+  }
+  useEffect(() => () => rafRef.current && cancelAnimationFrame(rafRef.current), [])
+  const onUp = (e) => {
+    if (drag) {
+      if (drag.moved) {
+        // tourCanvasSave ghi lạc quan (state cục bộ cập nhật đồng bộ trong runOptimistic) nên gỡ drag ngay
+        // sau đó là an toàn — base[] đã có toạ độ mới trước khi React kịp render lại.
+        act(a.tourCanvasSave(drag.id, { canvasX: drag.x, canvasY: drag.y }))
+        setDrag(null)
+      } else {
+        setDrag(null)
+      }
+    }
+    if (wire) {
+      const target = blockAt(pointIn(e.clientX, e.clientY))
+      if (target && source && target.id !== source.id && target.type === 'knockout') {
+        const cur = links.find((l) => l.toStageId === target.id)
+        if (!cur) act(a.tourCanvasLink(source.id, target.id, nextFreeRanks(links, source.id)))
+        choose(target.id)
+      }
+      setWire(null)
+    }
+    if (pan) setPan(null)
+  }
+
+  // Thả khối từ khay trái: nguồn chưa có → thành khối nguồn; có vòng bảng → nhánh mới tại chỗ thả.
+  const feeds = source?.type === 'round_robin' || source?.type === 'swiss' // nguồn xếp hạng được → có nhánh sau
+  const canAdd = (item) => (!source ? true : feeds && !item.source && item.type === 'knockout')
+  const addBlock = (item, at) => canAdd(item) && act(a.tourCanvasAdd(event.id, item.type, at, item.config))
+  const onDropCanvas = (e) => {
+    const key = e.dataTransfer.getData(BLOCK_MIME)
+    if (!key) return
+    e.preventDefault()
+    const p = pointIn(e.clientX, e.clientY)
+    addBlock(PALETTE.find((x) => x.key === key), { x: Math.max(0, Math.round(p.x - 40)), y: Math.max(0, Math.round(p.y - 20)) })
+  }
+  const saveGroups = (manualGroups) => source && act(a.tourCanvasSave(source.id, { config: { ...source.config, manualGroups } }))
+  const dropTeam = (toGroup) => (e) => {
+    const id = e.dataTransfer.getData(TEAM_MIME)
+    if (!id || !source) return
+    e.preventDefault()
+    e.stopPropagation()
+    saveGroups(moveTeam(source, full, id, toGroup))
+  }
+
+  const fit = () => {
+    const el = viewRef.current
+    if (!el) return
+    setZoom(Math.max(ZOOM_MIN, Math.min(1, (el.clientWidth - 24) / width, (el.clientHeight - 24) / height)))
+    el.scrollLeft = 0
+    el.scrollTop = 0
+  }
+  const relayout = () => stages.forEach((s) => (s.canvasX != null || s.canvasY != null) && act(a.tourCanvasSave(s.id, { canvasX: null, canvasY: null })))
+  const publish = async () => {
+    setBusy(true)
+    const ok = await a.tourGenerate(event.id, 1)
+    setBusy(false)
+    if (ok) onOpenBracket(event.id)
+  }
+  const unplaced = source?.type === 'round_robin' ? unplacedTeams(source, full) : []
+  // Chế độ phóng to: sơ đồ phủ cả màn, ẩn 2 thanh bên — bấm vào khối / đường nối thì 2 thanh hiện lại để chỉnh.
+  const sides = !focus || Boolean(sel || selLink)
+  const toggleFocus = () => {
+    setFocus((f) => !f)
+    // Đợi khung đổi cỡ xong (2 khung hình) rồi mới căn cho vừa toàn bộ sơ đồ.
+    requestAnimationFrame(() => requestAnimationFrame(fit))
+  }
+
+  return (
+    <div style={{
+      display: 'grid', gridTemplateRows: 'auto 1fr', overflow: 'hidden', background: 'var(--surface-card)',
+      ...(focus
+        ? { position: 'fixed', inset: 0, zIndex: 55, height: '100vh' }
+        : { borderRadius: 12, border: '1px solid var(--border-subtle)', height: 'calc(100vh - 110px)', minHeight: 650 }),
+    }}>
+      <div>
+        {/* Thanh trên */}
+        <div style={{ display: 'flex', alignItems: 'center', gap: 12, flexWrap: 'wrap', padding: '12px 16px', borderBottom: '1px solid var(--border-subtle)' }}>
+          <Button size="sm" variant="ghost" icon="arrow-left" onClick={onBack}>{t('tournament.canvas.back')}</Button>
+          <span style={{ display: 'grid', gap: 3, flex: '1 1 200px', minWidth: 0 }}>
+            <span style={{ font: '700 16px/1.2 var(--font-display)', color: 'var(--text-primary)' }}>{t('tournament.canvas.title')}</span>
+            <Mono size={11.5} color="var(--text-muted)">
+              {t('tournament.canvas.sub', { event: t('tournament.kind.' + event.kind), n: full.length })}
+              {est.minPerTeam > 0 && ' · ' + t('tournament.format.minPerTeam') + ' ' + t('tournament.format.minPerTeamVal', { n: est.minPerTeam })}
+              {save !== 'idle' && ' · ' + t(save === 'saving' ? 'tournament.canvas.saving' : 'tournament.canvas.saved')}
+            </Mono>
+          </span>
+          <span style={{ display: 'flex', alignItems: 'baseline', gap: 14, padding: '8px 14px', borderRadius: 10, background: 'var(--surface-inset)', border: '1px solid var(--border-subtle)' }}>
+            {[[stages.length, 'statBlocks'], [est.matches, 'statMatches']].map(([v, k]) => (
+              <span key={k}><Mono size={15} weight={700} color="var(--text-primary)">{v}</Mono> <Mono size={11} color="var(--text-muted)">{t('tournament.canvas.' + k)}</Mono></span>
+            ))}
+            <span>
+              <Mono size={15} weight={700} color="var(--text-primary)">{est.courts ? dur(Math.ceil(est.minutes / est.courts)) : '—'}</Mono>{' '}
+              {est.courts > 0 && <Mono size={11} color="var(--text-muted)">{t('tournament.canvas.statCourts', { n: est.courts })}</Mono>}
+            </span>
+          </span>
+          {!hasSchedule && <Button size="sm" variant="accent" icon="wand-sparkles" onClick={() => setQuick(true)}>{t('tournament.canvas.quick')}</Button>}
+          {hasSchedule ? (
+            <>
+              {canEdit && <Button size="sm" variant="secondary" icon="rotate-ccw" onClick={() => setResetting(true)}>{t('tournament.format.reset')}</Button>}
+              <Button size="sm" iconAfter="arrow-right" onClick={() => onOpenBracket(event.id)}>
+                {t('tournament.module.bracket')} →
+              </Button>
+            </>
+          ) : (
+            <Button size="sm" iconAfter="arrow-right" disabled={blocked || busy} loading={busy} onClick={publish}>
+              {t('tournament.canvas.publish')}
+            </Button>
+          )}
+        </div>
+        {/* Đã có lịch: tourCanvasSave/Link/Add/Delete đều no-op im lặng (stage.status !== 'pending') — cùng câu
+            cảnh báo với tab Thể thức để hai màn không "nói" khác nhau về cùng một trạng thái khoá. */}
+        {hasSchedule && <Alert tone="info" style={{ margin: '10px 16px 0' }}>{t('tournament.format.lockedRules')}</Alert>}
+      </div>
+
+      <div style={{ display: 'grid', gridTemplateColumns: sides ? '220px minmax(0,1fr) 300px' : 'minmax(0,1fr)', minHeight: 0, height: '100%', overflow: 'hidden' }}>
+        {/* Trái: khối + cặp chưa xếp */}
+        {sides && <aside style={{ display: 'flex', flexDirection: 'column', gap: 14, padding: 14, borderRight: '1px solid var(--border-subtle)', minHeight: 0 }}>
+          {overline(t('tournament.canvas.palette'))}
+          <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 8, flex: '0 0 auto' }}>
+            {PALETTE.map((item) => {
+              const ok = canAdd(item)
+              return (
+                <button key={item.key} type="button" draggable={ok} disabled={!ok}
+                  title={ok ? undefined : t('tournament.canvas.palSourceTaken')}
+                  onDragStart={(e) => e.dataTransfer.setData(BLOCK_MIME, item.key)}
+                  onClick={() => addBlock(item, null)}
+                  style={{
+                    display: 'grid', gap: 8, padding: '10px 10px 9px', borderRadius: 10, textAlign: 'left', color: 'inherit',
+                    cursor: ok ? 'grab' : 'not-allowed', opacity: ok ? 1 : 0.4,
+                    background: 'var(--surface-raised)', border: '1px solid var(--border-default)',
+                  }}>
+                  <span style={{ display: 'flex', alignItems: 'flex-end', gap: 3, height: 15 }}>
+                    {item.art.map(([w, h, c, dim], i) => (
+                      <span key={i} style={{ width: w, height: h, borderRadius: 2, background: BAR[c], opacity: dim ? 0.4 : 1 }} />
+                    ))}
+                  </span>
+                  <span style={{ font: '600 12.5px/1.2 var(--font-sans)', color: 'var(--text-primary)' }}>{t('tournament.canvas.' + PAL_KEY[item.key])}</span>
+                </button>
+              )
+            })}
+          </div>
+
+          {source?.type === 'round_robin' && (
+            // flex:1 + minHeight:0 để vùng thả chiếm hết khoảng trống còn lại của sidebar (kể cả khi
+            // danh sách rỗng) — trước đây div chỉ cao bằng nội dung, thả hụt ra ngoài là rơi mất tác dụng.
+            <div onDragOver={(e) => e.preventDefault()} onDrop={dropTeam(-1)}
+              style={{ display: 'flex', flexDirection: 'column', gap: 6, paddingTop: 12, borderTop: '1px solid var(--border-subtle)', flex: '1 1 auto', minHeight: 0 }}>
+              <span style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', flex: '0 0 auto' }}>
+                {overline(t('tournament.canvas.tray'))}
+                {unplaced.length > 0 && <Mono size={11} weight={700} color="var(--status-delayed-fg)">{unplaced.length}</Mono>}
+              </span>
+              {unplaced.length > 0 && (
+                <span style={{ font: 'var(--type-caption)', color: 'var(--text-muted)', flex: '0 0 auto' }}>{t('tournament.canvas.trayHint')}</span>
+              )}
+              <div style={{ flex: '1 1 auto', minHeight: 60, overflowY: 'auto', display: 'flex', flexDirection: 'column', gap: 6 }}>
+                {unplaced.length ? unplaced.map((x) => <TeamChip key={x.id} team={x} tour={tour} db={db} />) : (
+                  <div style={{ flex: 1, display: 'grid', placeItems: 'center', padding: 12, borderRadius: 8, border: '1px dashed var(--border-default)', textAlign: 'center' }}>
+                    <span style={{ font: 'var(--type-caption)', color: 'var(--text-muted)' }}>{t('tournament.canvas.trayEmpty')}</span>
+                  </div>
+                )}
+              </div>
+            </div>
+          )}
+        </aside>}
+
+        {/* Giữa: canvas */}
+        <div style={{ position: 'relative', minWidth: 0 }}>
+          {/* Bấm phần nền NGOÀI khung canvas (khung nhìn rộng hơn sơ đồ) cũng bỏ chọn. */}
+          <div ref={viewRef} onDragOver={(e) => e.preventDefault()} onDrop={onDropCanvas}
+            onPointerDown={(e) => { if (e.button === 0 && (e.target === e.currentTarget || e.target === e.currentTarget.firstChild)) choose(null) }}
+            style={{ position: 'absolute', inset: 0, overflow: 'auto', background: 'var(--surface-inset)',
+              backgroundImage: 'radial-gradient(var(--border-default) 1px, transparent 1px)', backgroundSize: `${18 * zoom}px ${18 * zoom}px` }}>
+            <div style={{ width: width * zoom, height: height * zoom }}>
+              <div onPointerDown={startPan} onPointerMove={onMove} onPointerUp={onUp} onPointerCancel={() => { setDrag(null); setWire(null); setPan(null) }}
+                style={{ position: 'relative', width, height, transform: `scale(${zoom})`, transformOrigin: '0 0', touchAction: 'none', cursor: pan?.moved ? 'grabbing' : 'default' }}>
+                <svg width={width} height={height} style={{ position: 'absolute', inset: 0, pointerEvents: 'none' }}>
+                  {source && links.map((l) => {
+                    const to = stages.find((s) => s.id === l.toStageId)
+                    if (!to) return null
+                    const { x1, y1, x2, y2 } = wireEnds(to)
+                    const mx = (x1 + x2) / 2
+                    const on = l.id === selLinkId
+                    return <path key={l.id} d={`M${x1},${y1} C${mx},${y1} ${mx},${y2} ${x2},${y2}`} fill="none" stroke="var(--teal-500)" strokeWidth={on ? 3.5 : 2} />
+                  })}
+                  {wire && source && (() => {
+                    const p1 = pos(source.id)
+                    const z1 = sizeOf(source)
+                    return <path d={`M${p1.x + z1.w},${p1.y + z1.h / 2} L${wire.x},${wire.y}`} fill="none" stroke="var(--teal-500)" strokeWidth="2" strokeDasharray="6 4" />
+                  })()}
+                </svg>
+
+                {/* Nhãn dây nối: hạng · số đội — bấm để sửa riêng đường nối đó */}
+                {source && links.map((l) => {
+                  const to = stages.find((s) => s.id === l.toStageId)
+                  if (!to) return null
+                  const { x1, y1, x2, y2 } = wireEnds(to)
+                  const on = l.id === selLinkId
+                  return (
+                    <button key={'lb' + l.id} type="button" onPointerDown={(e) => e.stopPropagation()} onClick={() => choose(null, l.id)}
+                      style={{
+                        position: 'absolute', left: (x1 + x2) / 2 - 62, top: (y1 + y2) / 2 - 13, width: 124,
+                        padding: '4px 8px', borderRadius: 99, cursor: 'pointer', font: '600 10.5px/1.2 var(--font-mono)',
+                        color: on ? 'var(--action-accent-fg)' : 'var(--text-primary)',
+                        background: on ? 'var(--action-accent-bg)' : 'var(--surface-card)', border: '1px solid var(--teal-500)',
+                      }}>
+                      {t('tournament.canvas.linkTeams', { ranks: rankLabel(l.ranks), n: est.stages[to.id]?.teams ?? 0 })}
+                    </button>
+                  )
+                })}
+
+                {stages.map((s) => (
+                  <Block key={s.id} s={s} at={pos(s.id)} size={sizeOf(s)} on={s.id === selId} dragging={drag?.id === s.id}
+                    isSource={s.id === source?.id} linked={links.some((l) => l.toStageId === s.id)}
+                    est={est.stages[s.id]} stages={stages} full={full} tour={tour} db={db}
+                    preview={s.type === 'knockout' ? previewOf(s) : null}
+                    onSwap={s.id === source?.id && s.type === 'knockout' && !hasSchedule ? swapTeams(s) : null}
+                    onSelect={() => { if (selId !== s.id || selLinkId) choose(s.id) }}
+                    onMoveStart={startMove(s)} onWireStart={s.id === source?.id && feeds ? startWire : null}
+                    onDropTeam={dropTeam} onRun={s.id === source?.id && !blocked && !busy ? publish : null} />
+                ))}
+              </div>
+            </div>
+          </div>
+          {/* Thanh đáy MỘT hàng: nút phóng/căn trái · gợi ý thao tác phải, hẹp thì gợi ý tự cắt "…" — không đè nhau. */}
+          <div style={{ position: 'absolute', left: 12, right: 12, bottom: 12, display: 'flex', alignItems: 'center', gap: 12, pointerEvents: 'none' }}>
+            <div style={{ display: 'flex', gap: 6, flex: '0 0 auto', pointerEvents: 'auto' }}>
+              <Button size="sm" variant="secondary" aria-label={t('tournament.canvas.zoomOut')} onClick={() => setZoom((z) => Math.max(ZOOM_MIN, +(z - 0.1).toFixed(2)))}>−</Button>
+              <Mono size={11} color="var(--text-muted)" style={{ alignSelf: 'center', minWidth: 36, textAlign: 'center' }}>{Math.round(zoom * 100)}%</Mono>
+              <Button size="sm" variant="secondary" aria-label={t('tournament.canvas.zoomIn')} onClick={() => setZoom((z) => Math.min(ZOOM_MAX, +(z + 0.1).toFixed(2)))}>+</Button>
+              <Button size="sm" variant="secondary" onClick={fit}>{t('tournament.canvas.fit')}</Button>
+              <Button size="sm" variant={focus ? 'accent' : 'secondary'} icon={focus ? 'minimize-2' : 'maximize-2'} onClick={toggleFocus}>
+                {t(focus ? 'tournament.canvas.unfocus' : 'tournament.canvas.focus')}
+              </Button>
+            </div>
+            <span style={{
+              marginLeft: 'auto', minWidth: 0, padding: '8px 14px', borderRadius: 999, background: 'var(--surface-card)', border: '1px solid var(--border-subtle)',
+              font: 'var(--type-caption)', color: 'var(--text-muted)', whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis',
+            }}>
+              {[focus ? t('tournament.canvas.focusHint') : t('tournament.canvas.hintPalette'), t('tournament.canvas.portHint'), t('tournament.canvas.panHint')].join('   ·   ')}
+            </span>
+          </div>
+        </div>
+
+        {/* Phải: toàn giải / khối đang chọn / đường nối đang chọn */}
+        {sides && <aside style={{ padding: 14, borderLeft: '1px solid var(--border-subtle)', overflowY: 'auto' }}>
+          {selLink && source ? (
+            <LinkPanel link={selLink} source={source} stages={stages} links={links} teams={est.stages[selLink.toStageId]?.teams ?? 0}
+              // Thụy Sĩ một bảng: lấy top 8 vào knock-out là thường → cho chọn tới hạng cuối (tối đa 16).
+              choices={source.type === 'swiss' ? Array.from({ length: Math.min(16, full.length) }, (_, i) => i + 1) : RANK_CHOICES}
+              onRanks={(ranks) => act(a.tourCanvasLink(source.id, selLink.toStageId, ranks))}
+              onDelete={() => { act(a.tourCanvasLink(source.id, selLink.toStageId, [])); choose(null) }}
+              onClose={() => choose(null)} />
+          ) : sel ? (
+            <StagePanel key={sel.id} stage={sel} stages={stages} source={source} links={links} full={full} est={est}
+              act={act} a={a} tour={tour} db={db} onSaveGroups={saveGroups} onPickLink={(id) => choose(null, id)} onClose={() => choose(null)} />
+          ) : (
+            <div style={{ display: 'grid', gap: 14 }}>
+              <div style={{ display: 'grid', gap: 6 }}>
+                {overline(t('tournament.canvas.whole'))}
+                <span style={{ font: '700 18px/1.2 var(--font-display)', color: 'var(--text-primary)' }}>{t('tournament.kind.' + event.kind)}</span>
+                <span style={{ font: 'var(--type-caption)', color: 'var(--text-muted)' }}>{t('tournament.canvas.wholeHint')}</span>
+              </div>
+              <PanelButton title={t('tournament.recommend.open')} sub={t('tournament.recommend.hint')} onClick={() => setRecommending(true)} />
+              <PanelButton title={t('tournament.canvas.quickTitle')} sub={t('tournament.canvas.quickSub')} onClick={() => setQuick(true)} />
+              {stages.length > 0 && <PanelButton title={t('tournament.format.saveTemplate')} onClick={() => setSavingTpl(true)} />}
+              <PanelButton title={t('tournament.canvas.fit')} onClick={fit} />
+              <PanelButton title={t('tournament.canvas.relayout')} onClick={relayout} />
+              <div style={{ display: 'grid', gap: 8, paddingTop: 12, borderTop: '1px solid var(--border-subtle)' }}>
+                {overline(t('tournament.canvas.checks'))}
+                {checks.map((c) => (
+                  <span key={c.key} style={{ display: 'flex', gap: 8, font: '500 12.5px/1.4 var(--font-sans)', color: 'var(--text-secondary)' }}>
+                    <span style={{ width: 8, height: 8, marginTop: 5, borderRadius: 99, flex: '0 0 auto',
+                      background: c.tone === 'ok' ? 'var(--status-delivered-fg)' : c.tone === 'bad' ? 'var(--status-incident-fg)' : 'var(--status-delayed-fg)' }} />
+                    {t(c.key, { ...c.vars, end: c.vars?.end?.slice?.(0, 5) })}
+                  </span>
+                ))}
+              </div>
+            </div>
+          )}
+        </aside>}
+      </div>
+
+      {quick && <QuickDialog tour={tour} event={event} n={full.length} a={a} act={act} onClose={() => setQuick(false)} />}
+      {recommending && <RecommendDialog tour={tour} onClose={() => setRecommending(false)} onApply={a.tourApplyRecommendation} />}
+      {savingTpl && (
+        <TemplateDialog onClose={() => setSavingTpl(false)}
+          onSave={async (name) => (await a.tourSaveClubTemplate(event.id, name)) && setSavingTpl(false)} />
+      )}
+      {resetting && <ResetDialog onClose={() => setResetting(false)} onReset={(reason) => a.tourResetSchedule(event.id, reason)} />}
+    </div>
+  )
+}
+
+function ResetDialog({ onClose, onReset }) {
+  const [reason, setReason] = useState('')
+  const [busy, setBusy] = useState(false)
+  const submit = async () => {
+    setBusy(true)
+    if (await onReset(reason.trim())) onClose()
+    else setBusy(false)
+  }
+  return (
+    <Dialog open width={460} title={t('tournament.format.resetTitle')} description={t('tournament.format.resetBody')}
+      onClose={busy ? undefined : onClose}
+      footer={(
+        <>
+          <Button variant="secondary" disabled={busy} onClick={onClose}>{t('common.cancel')}</Button>
+          <Button variant="danger" loading={busy} disabled={!reason.trim()} onClick={submit}>{t('tournament.format.reset')}</Button>
+        </>
+      )}>
+      <Input label={t('tournament.format.resetReason')} value={reason} onChange={(e) => setReason(e.target.value)} autoFocus />
+    </Dialog>
+  )
+}
+
+function PanelButton({ title, sub, onClick }) {
+  return (
+    <button type="button" onClick={onClick}
+      style={{ display: 'grid', gap: 3, textAlign: 'left', padding: '10px 12px', borderRadius: 10, cursor: 'pointer', color: 'inherit',
+        background: 'var(--surface-raised)', border: '1px solid var(--border-default)' }}>
+      <span style={{ font: '600 13px/1.2 var(--font-sans)', color: 'var(--text-primary)' }}>{title}</span>
+      {sub && <span style={{ font: 'var(--type-caption)', color: 'var(--text-muted)' }}>{sub}</span>}
+    </button>
+  )
+}
+
+/** "Lưu làm mẫu CLB": chỉ hỏi tên mẫu — sơ đồ hiện tại (khối + đường nối) lưu nguyên hình. */
+function TemplateDialog({ onClose, onSave }) {
+  const [name, setName] = useState('')
+  const [busy, setBusy] = useState(false)
+  const submit = async () => {
+    setBusy(true)
+    if (!(await onSave(name.trim()))) setBusy(false)
+  }
+  return (
+    <Dialog open width={420} title={t('tournament.format.saveTemplate')} onClose={busy ? undefined : onClose}
+      footer={(
+        <>
+          <Button variant="secondary" disabled={busy} onClick={onClose}>{t('common.cancel')}</Button>
+          <Button loading={busy} disabled={!name.trim()} onClick={submit}>{t('tournament.format.templateSaveBtn')}</Button>
+        </>
+      )}>
+      <Input label={t('tournament.format.templateName')} placeholder={t('tournament.format.templateNamePh')} value={name}
+        onChange={(e) => setName(e.target.value)} onKeyDown={(e) => e.key === 'Enter' && name.trim() && submit()} autoFocus />
+    </Dialog>
+  )
+}
+
+/**
+ * Hộp "Tạo nhanh sơ đồ" (handoff): chọn mẫu (có sẵn + mẫu CLB) · cách chia đội vào bảng · số cặp mỗi bảng →
+ * tóm tắt "n khối · m đường nối · ~x trận" (tính bằng chính hàm dựng) → "Dựng sơ đồ" thay toàn bộ sơ đồ.
+ */
+function QuickDialog({ tour, event, n, a, act, onClose }) {
+  const [tpl, setTpl] = useState('rr_ko')
+  const [fill, setFill] = useState('snake')
+  const [per, setPer] = useState(4)
+  const [busy, setBusy] = useState(false)
+  const club = tpl.startsWith('club:') ? (tour.templates || []).find((x) => 'club:' + x.id === tpl) : null
+  const grouped = tpl === 'rr_ko' || tpl === 'rr_ko_plate'
+  const plan = club ? null : quickPlan(tpl, event, n, per)
+  const build = async () => {
+    setBusy(true)
+    const ok = await act(club ? a.tourSaveTemplate(event.id, tpl) : a.tourQuickBuild(event.id, tpl, { numGroups: plan.numGroups, advance: plan.advance, fill: grouped || tpl === 'rr' ? fill : 'snake' }))
+    setBusy(false)
+    if (ok) onClose()
+  }
+  const card = (key, title, sub, art) => (
+    <button key={key} type="button" aria-pressed={tpl === key} onClick={() => setTpl(key)}
+      style={{
+        display: 'grid', gap: 8, alignContent: 'start', textAlign: 'left', padding: 12, borderRadius: 10, cursor: 'pointer', color: 'inherit',
+        background: tpl === key ? 'var(--surface-accent-soft)' : 'var(--surface-raised)',
+        border: `1px solid ${tpl === key ? 'var(--teal-500)' : 'var(--border-default)'}`,
+      }}>
+      <TplArt spec={art} on={tpl === key} />
+      <span style={{ font: '700 12.5px/1.2 var(--font-sans)', color: 'var(--text-primary)' }}>{title}</span>
+      <span style={{ font: 'var(--type-caption)', color: 'var(--text-muted)' }}>{sub}</span>
+    </button>
+  )
+  return (
+    <Dialog open width={600} title={t('tournament.canvas.quickDialog')} onClose={busy ? undefined : onClose}
+      footer={(
+        <>
+          <Button variant="secondary" disabled={busy} onClick={onClose}>{t('common.cancel')}</Button>
+          <Button variant="accent" loading={busy} onClick={build}>{t('tournament.canvas.quickBuild')}</Button>
+        </>
+      )}>
+      <div style={{ display: 'grid', gap: 14 }}>
+        <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fill,minmax(160px,1fr))', gap: 8 }}>
+          {TEMPLATES.map((k) => card(k, t('tournament.format.tpl.' + k), t('tournament.format.tplSub.' + k), TPL_ART[k]))}
+          {(tour.templates || []).map((x) => card('club:' + x.id, x.name, t('tournament.format.clubTemplate', { n: x.graph?.stages?.length || 0 }),
+            (x.graph?.stages || []).map((s) => STAGE_ART[s.type] || STAGE_ART.knockout)))}
+        </div>
+        {!club && (grouped || tpl === 'rr') && (
+          <div style={{ display: 'grid', gap: 6 }}>
+            <span style={{ font: '600 12px/1.3 var(--font-sans)', color: 'var(--text-secondary)' }}>{t('tournament.canvas.fill')}</span>
+            <Seg options={['snake', 'draw', 'empty'].map((k) => ({ key: k, label: t('tournament.canvas.fill' + k[0].toUpperCase() + k.slice(1)) }))} value={fill} onChange={setFill} />
+          </div>
+        )}
+        {!club && grouped && (
+          <div style={{ display: 'grid', gap: 6 }}>
+            <span style={{ font: '600 12px/1.3 var(--font-sans)', color: 'var(--text-secondary)' }}>{t('tournament.canvas.perGroup')}</span>
+            <Seg options={[3, 4, 5, 6].map((k) => ({ key: k, label: t('tournament.canvas.perGroupOpt', { k, g: Math.max(2, Math.min(4, Math.ceil(n / Math.max(2, k)))) }) }))} value={per} onChange={setPer} />
+          </div>
+        )}
+        {plan && (
+          <Mono size={12} color="var(--text-secondary)">
+            {t('tournament.canvas.quickSummary', { b: plan.blocks, l: plan.links, m: plan.matches })}
+          </Mono>
+        )}
+      </div>
+    </Dialog>
+  )
+}
+
+/** Cặp kéo được (khay trái hoặc trong bảng) — có nhãn KHÁCH khi cặp có người ngoài CLB. */
+function TeamChip({ team, tour, db, seed }) {
+  const guest = team.players?.some((p) => p.playerType === 'guest')
+  return (
+    <span draggable onDragStart={(e) => e.dataTransfer.setData(TEAM_MIME, team.id)}
+      style={{ display: 'flex', alignItems: 'center', gap: 6, padding: '5px 8px', borderRadius: 7, cursor: 'grab', minWidth: 0,
+        background: 'var(--surface-card)', border: '1px solid var(--border-default)' }}>
+      {seed != null && <Mono size={10} weight={700} color="var(--text-muted)">{seed}</Mono>}
+      <TeamNameLines name={teamName(tour, db, team.id)} fontSize={11.5} weight={600} />
+      {guest && <Mono size={9} weight={700} color="var(--status-transit-fg)">{t('tournament.players.guestTag')}</Mono>}
+      <Mono size={10} color="var(--text-muted)">{Math.round(team.sum || 0)}</Mono>
+    </span>
+  )
+}
+
+/**
+ * Id cặp theo từng ô nhánh ĐANG THẤY (null = ô miễn): theo số bốc thăm nếu đã bốc đủ, không thì theo rating.
+ * Ghi ô i làm số bốc thăm i + 1 với "Tự do" → nhánh y nguyên (`slotsOf`).
+ */
+function slotOrder(full, config) {
+  const seeding = seedingOf(config)
+  const drawn = seeding !== 'seed' && entrantsOf(full, 'slot')
+  return drawn && !drawn.error ? slotsOf(drawn.entrants, seeding) : slotsOf(entrantsOf(full, 'seed').entrants, 'seed')
+}
+
+/**
+ * Ô hộp quay bốc thăm nhánh, theo ĐÚNG nhánh sẽ sinh: số bốc k rơi vào ô không-miễn thứ k từ trái (`slotsOf` kiểu
+ * 'slot') → hai ô cùng trận nằm cùng hàng ("Trận 1" | "Trận 1"), ô miễn đấu chiếm cả hàng.
+ */
+function drawSlots(n) {
+  const ps = slotsOf(Array.from({ length: n }, (_, i) => ({ id: String(i + 1), drawNo: i + 1 })), 'slot')
+  let m = 0
+  return ps.flatMap((id, p) => {
+    if (!id) return []
+    if (!ps[p ^ 1]) return [{ label: t('tournament.spin.slotBye'), wide: true }]
+    if (p % 2 === 0) m++
+    return [{ label: t('tournament.spin.slotMatch', { n: m }) }]
+  })
+}
+
+const sideText = (x) => (x.kind === 'slot' || x.kind === 'team' ? x.label : x.kind === 'rank' ? t('tournament.flow.rank', { n: x.n })
+  : x.kind === 'seed' ? t('tournament.canvas.seed', { n: x.n })
+  : x.kind === 'winner' ? t('tournament.canvas.won', { n: x.no }) : x.kind === 'loser' ? t('tournament.canvas.lost', { n: x.no }) : t('tournament.canvas.bye'))
+
+/** Một khối trên canvas: tiêu đề (kéo để dời) · nội dung (bảng có đội / nhánh thu nhỏ) · chân (số trận · luật · giờ). */
+function Block({ s, at, size, on, dragging, isSource, linked, est, stages, full, tour, db, preview, onSelect, onMoveStart, onWireStart, onDropTeam, onSwap, onRun }) {
+  const rr = s.type === 'round_robin'
+  const swiss = s.type === 'swiss'
+  const double = isDouble(s)
+  const groups = rr ? shownGroups(s, full) : []
+  const byId = new Map(full.map((x) => [x.id, x]))
+  const teams = est?.teams ?? 0
+  const byes = rr || swiss ? 0 : byesOf(teams)
+  const swissRoundsN = swiss ? roundsOf(s, teams) : 0
+  const sub = rr
+    ? `${t('tournament.format.groupCount', { n: s.config?.numGroups || 1 })} × ${Math.max(0, ...groups.map((g) => g.length))} · ${t('tournament.bracket.slotsN', { n: teams })}`
+    : swiss ? t('tournament.swiss.block', { rounds: roundsOf(s, teams), n: teams })
+      : [isSource ? t('tournament.bracket.slotsN', { n: teams }) : t('tournament.canvas.fromPrev', { n: teams }),
+        // < 4 đội thì không có bán kết để lấy 2 đội thua tranh 3-4 (khớp bracket.js: buildKnockout chỉ sinh
+        // trận 3-4 khi n >= 4) — nhãn "có tranh 3" mà vẫn hiện dù không sinh được trận là nói dối trên khối.
+        s.config?.thirdPlace && !double && teams >= 4 ? t('tournament.canvas.third') : null,
+        byes ? t('tournament.canvas.byes', { n: byes }) : null].filter(Boolean).join(' · ')
+  const tag = rr ? 'tagRr' : swiss ? 'tagSwiss' : double ? 'tagDe' : 'tagKo'
+  // Màu nhãn khối khớp hình ở khay: bảng teal, Thụy Sĩ tím, nhánh cam.
+  const tone = rr ? { fg: 'var(--status-transit-fg)', bg: 'var(--surface-accent-soft)' }
+    : swiss ? { fg: 'var(--violet-400)', bg: 'color-mix(in srgb, var(--violet-400) 16%, transparent)' }
+      : { fg: 'var(--status-delayed-fg)', bg: 'var(--status-delayed-bg)' }
+  return (
+    // Bấm chỗ nào trong khối cũng chọn khối (handoff: n.onSelect) — không chỉ tiêu đề.
+    <div onPointerDown={(e) => { e.stopPropagation(); if (e.button === 0) onSelect?.() }} style={{
+      position: 'absolute', left: at.x, top: at.y, width: size.w, height: size.h, boxSizing: 'border-box', display: 'grid',
+      gridTemplateRows: 'auto 1fr auto', borderRadius: 12, background: 'var(--surface-card)', zIndex: dragging ? 3 : on ? 2 : 1,
+      border: `1px solid ${on ? 'var(--teal-500)' : swiss ? 'color-mix(in srgb, var(--violet-400) 55%, transparent)' : 'var(--border-default)'}`,
+      boxShadow: on || dragging ? 'var(--shadow-sm)' : 'var(--shadow-xs)',
+    }}>
+      {/* chấm nối: trái = nhận đội (nhánh), phải = đẩy đội (vòng bảng nguồn — kéo để nối) */}
+      {!isSource && (
+        <span style={{ position: 'absolute', left: -7, top: 23, width: 12, height: 12, borderRadius: 99, background: 'var(--surface-card)',
+          border: `2px solid ${linked ? 'var(--teal-500)' : 'var(--status-delayed-fg)'}` }} />
+      )}
+      {onWireStart && (
+        <span role="button" aria-label={t('tournament.canvas.portHint')} title={t('tournament.canvas.portHint')} onPointerDown={onWireStart}
+          style={{ position: 'absolute', right: -8, top: size.h / 2 - 8, width: 16, height: 16, borderRadius: 99, cursor: 'crosshair',
+            background: 'var(--surface-card)', border: '2px solid var(--teal-500)', zIndex: 2 }} />
+      )}
+
+      <div onPointerDown={onMoveStart} style={{ display: 'flex', alignItems: 'center', gap: 8, padding: '10px 12px 8px', cursor: dragging ? 'grabbing' : 'grab', userSelect: 'none', borderBottom: '1px solid var(--border-subtle)' }}>
+        <Mono size={9.5} weight={700} color={tone.fg} style={{ padding: '2px 5px', borderRadius: 4, background: tone.bg }}>
+          {t('tournament.canvas.' + tag)}
+        </Mono>
+        <span style={{ display: 'grid', gap: 2, minWidth: 0 }}>
+          <span style={{ font: '700 13px/1.2 var(--font-sans)', color: 'var(--text-primary)', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>{stageName(s, stages)}</span>
+          <Mono size={10.5} color="var(--text-muted)">{sub}</Mono>
+        </span>
+      </div>
+
+      <div style={{ padding: '8px 12px', overflowX: 'auto', overflowY: 'hidden' }}>
+        {rr ? (
+          <div style={{ display: 'grid', gridTemplateColumns: `repeat(${groups.length}, minmax(0,1fr))`, gap: 8 }}>
+            {groups.map((ids, gi) => {
+              const members = ids.map((id) => byId.get(id)).filter(Boolean)
+              const avg = members.length ? Math.round(members.reduce((x, m) => x + (m.sum || 0), 0) / members.length) : null
+              return (
+                <div key={gi} onDragOver={(e) => e.preventDefault()} onDrop={onDropTeam(gi)}
+                  style={{ display: 'grid', alignContent: 'start', gap: 4, padding: 6, borderRadius: 8, background: 'var(--surface-inset)', border: '1px solid var(--border-subtle)' }}>
+                  <span style={{ display: 'flex', justifyContent: 'space-between', font: '700 11.5px/1.2 var(--font-sans)', color: 'var(--text-primary)' }}>
+                    {t('tournament.standings.groupTitle', { label: String.fromCharCode(65 + gi) })}
+                    {avg != null && <Mono size={10} color="var(--text-muted)">{avg}</Mono>}
+                  </span>
+                  {members.map((m, k) => <TeamChip key={m.id} team={m} tour={tour} db={db} seed={k + 1} />)}
+                  <span style={{ padding: '5px 8px', borderRadius: 7, border: '1px dashed var(--border-default)', font: '500 10.5px/1.2 var(--font-sans)', color: 'var(--text-disabled)', textAlign: 'center' }}>
+                    {t('tournament.canvas.dropHere')}
+                  </span>
+                </div>
+              )
+            })}
+          </div>
+        ) : swiss ? (
+          // Thụy Sĩ: ô từng vòng (số trận mỗi vòng) + một câu luật ghép — cặp vòng sau tuỳ kết quả, không vẽ trước.
+          <div style={{ display: 'grid', gap: 10, alignContent: 'start' }}>
+            <div style={{ display: 'flex', gap: 6 }}>
+              {Array.from({ length: swissRoundsN }, (_, i) => (
+                <span key={i} style={{ display: 'grid', gap: 2, justifyItems: 'center', width: 52, padding: '6px 0', borderRadius: 8,
+                  background: 'var(--surface-inset)', border: '1px solid var(--border-subtle)' }}>
+                  <span style={{ font: '700 12px/1 var(--font-sans)', color: 'var(--text-primary)' }}>{t('tournament.swiss.chip', { n: i + 1 })}</span>
+                  <Mono size={9.5} color="var(--text-muted)">{t('tournament.swiss.chipSub', { n: Math.floor(teams / 2) })}</Mono>
+                </span>
+              ))}
+            </div>
+            <span style={{ font: '400 11.5px/1.4 var(--font-sans)', color: 'var(--text-secondary)' }}>{t('tournament.swiss.blockHint')}</span>
+          </div>
+        ) : double && preview ? (
+          <div style={{ display: 'grid', gap: 10 }}>
+            <Mono size={10} weight={700} color="var(--text-secondary)">{t('tournament.double.wbLabel')}</Mono>
+            <PreviewRow rounds={[...preview.wb, ...preview.gf]} titleOf={(r) => t('tournament.round.' + r.roundKind)} onSwap={onSwap} />
+            {preview.lb.length > 0 && <Mono size={10} weight={700} color="var(--text-secondary)">{t('tournament.double.lbLabel')}</Mono>}
+            {preview.lb.length > 0 && (
+              <PreviewRow rounds={preview.lb}
+                titleOf={(r, i) => t(i === preview.lb.length - 1 ? 'tournament.double.lbFinal' : 'tournament.double.lbRound', { n: i + 1 })} />
+            )}
+          </div>
+        ) : preview ? (
+          <PreviewRow rounds={preview.filter((r) => r.roundKind !== 'third')} third={preview.find((r) => r.roundKind === 'third')}
+            titleOf={(r) => t('tournament.round.' + r.roundKind)} onSwap={onSwap} />
+        ) : null}
+      </div>
+
+      <div style={{ display: 'flex', alignItems: 'center', gap: 8, padding: '7px 12px', borderTop: '1px solid var(--border-subtle)' }}>
+        <Mono size={10.5} color="var(--text-muted)" style={{ flex: 1 }}>
+          {t('tournament.canvas.footer', { n: est?.matches ?? 0, rule: s.matchRule ? ruleLabel(s.matchRule) : '—', time: dur(est?.minutes ?? 0) })}
+        </Mono>
+        {onRun && (
+          <button type="button" onClick={onRun}
+            style={{ border: 'none', background: 'transparent', cursor: 'pointer', font: '700 11px/1 var(--font-sans)', color: 'var(--status-transit-fg)' }}>
+            {t('tournament.canvas.runBranch')} →
+          </button>
+        )}
+      </div>
+    </div>
+  )
+}
+
+/**
+ * Một hàng cột trận thu nhỏ (xem trước nhánh). Đường nối theo con trỏ THẬT (`linkShape`: 2 gộp 1 / 1 sang 1) —
+ * dùng cho nhánh loại thường lẫn nhánh thắng / nhánh thua. `third` = cột tranh 3-4 đứng riêng, không nối.
+ */
+function PreviewRow({ rounds, third, titleOf, onSwap }) {
+  const rowH = 64
+  const height = Math.max(1, ...rounds.map((r) => r.matches.length)) * rowH
+  const shapes = rounds.map((r, i) => (rounds[i + 1]
+    ? linkShape(r.matches.map((m) => ({ key: m.no, to: m.to })), rounds[i + 1].matches.map((m) => ({ key: m.no })))
+    : null))
+  const line = '1.5px solid var(--border-default)'
+  const head = (x) => <Mono size={9.5} weight={700} color="var(--text-muted)" style={{ textTransform: 'uppercase' }}>{x}</Mono>
+  return (
+    <div style={{ display: 'flex', gap: 10 }}>
+      {rounds.map((r, ri) => (
+        <div key={ri} style={{ display: 'flex', flexDirection: 'column', gap: 4, width: 140, flex: '0 0 auto' }}>
+          {head(titleOf(r, ri))}
+          <div style={{ display: 'grid', gridTemplateRows: `repeat(${r.matches.length}, 1fr)`, height, width: '100%' }}>
+            {r.matches.map((m, mi) => (
+              <div key={m.no} style={{ position: 'relative', display: 'flex', alignItems: 'center', minWidth: 0 }}>
+                {shapes[ri] === 'fork' && (
+                  <span aria-hidden style={{
+                    position: 'absolute', right: -10, width: 10, ...(mi % 2 === 0 ? { top: '50%', bottom: 0 } : { top: 0, bottom: '50%' }),
+                    [mi % 2 === 0 ? 'borderTop' : 'borderBottom']: line, borderRight: line,
+                    [mi % 2 === 0 ? 'borderTopRightRadius' : 'borderBottomRightRadius']: 5,
+                  }} />
+                )}
+                {shapes[ri] === 'straight' && <span aria-hidden style={{ position: 'absolute', right: -10, width: 10, top: '50%', borderTop: line }} />}
+                {ri > 0 && shapes[ri - 1] && <span aria-hidden style={{ position: 'absolute', left: -10, width: 10, top: '50%', borderTop: line }} />}
+                <div style={{ flex: 1, minWidth: 0 }}><MiniMatch m={m} onSwap={onSwap} /></div>
+              </div>
+            ))}
+          </div>
+        </div>
+      ))}
+      {third && (
+        <div style={{ display: 'grid', alignContent: 'end', gap: 6, width: 140, flex: '0 0 auto' }}>
+          {head(t('tournament.round.third'))}
+          {third.matches.map((m) => <MiniMatch key={m.no} m={m} />)}
+        </div>
+      )}
+    </div>
+  )
+}
+
+function MiniMatch({ m, onSwap }) {
+  return (
+    <div style={{ display: 'grid', gap: 2, padding: '4px 7px', borderRadius: 6, background: 'var(--surface-inset)', border: '1px solid var(--border-subtle)' }}>
+      <MiniSide x={m.a} onSwap={onSwap} />
+      <MiniSide x={m.b} onSwap={onSwap} />
+    </div>
+  )
+}
+
+/** Một bên trận thu nhỏ. Cặp thật + `onSwap` → kéo thả lên cặp khác để đổi chỗ. */
+function MiniSide({ x, onSwap }) {
+  const [over, setOver] = useState(false)
+  const strong = ['slot', 'seed', 'rank', 'team'].includes(x.kind)
+  const swap = onSwap && x.kind === 'team'
+  // "Thắng trận k" của trận vòng đầu: nhận thả (dời cả cặp ô) nhưng không kéo đi được.
+  const target = swap || (onSwap && x.kind === 'winner' && x.pair != null)
+  return (
+    <span draggable={swap || undefined} title={swap ? `${x.label} — ${t('tournament.canvas.swapHint')}` : undefined}
+      onDragStart={swap ? (e) => { e.stopPropagation(); e.dataTransfer.setData(SWAP_MIME, x.id) } : undefined}
+      onDragOver={target ? (e) => { if (e.dataTransfer.types.includes(SWAP_MIME)) { e.preventDefault(); setOver(true) } } : undefined}
+      onDragLeave={target ? () => setOver(false) : undefined}
+      onDrop={target ? (e) => {
+        const id = e.dataTransfer.getData(SWAP_MIME)
+        setOver(false)
+        if (!id) return
+        e.preventDefault()
+        e.stopPropagation()
+        if (id !== x.id) onSwap(id, swap ? { id: x.id } : { pair: x.pair })
+      } : undefined}
+      style={{
+        display: 'flex', gap: 4, minWidth: 0, margin: '0 -3px', padding: '0 3px', borderRadius: 4, cursor: swap ? 'grab' : 'default',
+        background: over ? 'var(--surface-accent-soft)' : 'transparent', outline: over ? '1px dashed var(--teal-500)' : 'none',
+        font: `${strong ? 600 : 400} 10.5px/1.25 var(--font-sans)`, color: strong ? 'var(--text-primary)' : 'var(--text-muted)',
+      }}>
+      {x.kind === 'team' && x.n != null && <Mono size={9.5} weight={700} color="var(--text-muted)">{x.n}</Mono>}
+      <span style={{ whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis', minWidth: 0 }}>{sideText(x)}</span>
+    </span>
+  )
+}
+
+const panelRow = (label, control) => (
+  <div style={{ display: 'grid', gap: 6 }}>
+    <span style={{ font: '600 11.5px/1.2 var(--font-sans)', color: 'var(--text-secondary)' }}>{label}</span>
+    {control}
+  </div>
+)
+const panelHead = (title, onClose) => (
+  <span style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between' }}>
+    <span style={{ font: '700 15px/1.2 var(--font-display)', color: 'var(--text-primary)' }}>{title}</span>
+    <Button size="sm" variant="ghost" icon="x" aria-label={t('tournament.canvas.done')} onClick={onClose} />
+  </span>
+)
+
+/** Bảng sửa đường nối (handoff): hạng nào của mỗi bảng đi theo đường này · xoá đường nối. */
+function LinkPanel({ link, source, stages, links, teams, choices, onRanks, onDelete, onClose }) {
+  const to = stages.find((s) => s.id === link.toStageId)
+  const taken = new Set(links.filter((l) => l.id !== link.id).flatMap((l) => l.ranks))
+  const toggle = (r) => {
+    const cur = new Set(link.ranks)
+    if (cur.has(r)) cur.delete(r)
+    else cur.add(r)
+    onRanks([...cur])
+  }
+  return (
+    <div style={{ display: 'grid', gap: 12 }}>
+      {panelHead(t('tournament.canvas.link'), onClose)}
+      <Mono size={11.5} color="var(--text-muted)">{stageName(source, stages)} → {to ? stageName(to, stages) : ''}</Mono>
+      <span style={{ font: 'var(--type-caption)', color: 'var(--text-muted)' }}>{t('tournament.canvas.linkHint')}</span>
+      <span style={{ display: 'flex', gap: 6, flexWrap: 'wrap' }}>
+        {choices.map((r) => {
+          const on = link.ranks.includes(r)
+          const off = !on && taken.has(r)
+          return (
+            <button key={r} type="button" disabled={off} onClick={() => toggle(r)} aria-pressed={on}
+              style={{
+                minWidth: 40, height: 34, borderRadius: 8, font: '700 12px/1 var(--font-mono)', cursor: off ? 'default' : 'pointer',
+                opacity: off ? 0.4 : 1, color: on ? 'var(--status-transit-fg)' : 'var(--text-secondary)',
+                background: on ? 'var(--surface-accent-soft)' : 'transparent', border: `1px solid ${on ? 'var(--teal-500)' : 'var(--border-default)'}`,
+              }}>
+              {t('tournament.flow.rank', { n: r })}
+            </button>
+          )
+        })}
+      </span>
+      <Mono size={11.5} color="var(--text-secondary)">{t('tournament.canvas.linkTeams', { ranks: rankLabel(link.ranks), n: teams })}</Mono>
+      <Button size="sm" variant="ghost" icon="trash-2" onClick={onDelete}>{t('tournament.canvas.linkDelete')}</Button>
+    </div>
+  )
+}
+
+/**
+ * Bảng sửa khối đang chọn: tên, số bảng / số cặp mỗi bảng / số lượt, chia bảng (rắn · bốc thăm · đưa hết về khay),
+ * độ cân các bảng, luật, đường vào (nhánh), xoá.
+ */
+function StagePanel({ stage, stages, source, links, full, est, act, a, tour, db, onSaveGroups, onPickLink, onClose }) {
+  const [name, setName] = useState(stage.title || '')
+  const isSource = stage.id === source?.id
+  const link = links.find((l) => l.toStageId === stage.id)
+  const save = (patch) => act(a.tourCanvasSave(stage.id, patch))
+  const saveConfig = (patch) => save({ config: { ...stage.config, ...patch } })
+  const numGroups = stage.config?.numGroups || 1
+  const rr = stage.type === 'round_robin'
+  const swiss = stage.type === 'swiss'
+  const ko = stage.type === 'knockout'
+  const double = isDouble(stage)
+  const teams = est.stages[stage.id]?.teams ?? 0
+  const arrange = stage.config?.seeding !== 'slot' ? 'seed' : stage.config?.free && ko ? 'free' : 'slot'
+  // Thụy Sĩ: không quá số vòng còn ghép được mà không gặp lại (n lẻ: n vòng, n chẵn: n − 1).
+  const maxRounds = full.length % 2 ? full.length : full.length - 1
+  // Thẻ luật (cùng kiểu thanh Thiết lập nhánh): "Vòng loại" / "Vòng tranh hạng" + áp dụng cho vòng nào.
+  const ov = stage.ruleOverrides || {}
+  const sameRule = (x, y) => JSON.stringify(x) === JSON.stringify(y)
+  const koKinds = ko && !double ? koPreview(teams, stage).rounds.map((r) => r.kind) : []
+  const names = (ks) => (ks.length ? ks.map((k) => t('tournament.round.' + k)).join(', ') : t('tournament.rule.none'))
+  const qualifyList = rr ? t('tournament.round.group') : swiss ? t('tournament.round.swiss')
+    : double ? `${t('tournament.double.wbLabel')}, ${t('tournament.double.lbLabel')}` : names(koKinds.filter((k) => k !== 'final' && k !== 'third'))
+  const rankList = double ? t('tournament.round.gf') : names(koKinds.filter((k) => k === 'final' || k === 'third'))
+  // Quay bốc thăm từng lượt (hộp `SpinDraw`): 'groups' = chia bảng (lượt i vào bảng i % số bảng, nên cột = bảng),
+  // 'draw' = số bốc thăm nhánh (Đ1, Đ2…). Chỉ ghi khi bấm "Lưu kết quả".
+  const [spin, setSpin] = useState(null)
+  // Nhãn lọc khi quay: nhóm rating (chia 3 theo tổng rating — "tệp" mạnh / giữa / yếu), thành phần giới, có khách.
+  const potOf = new Map([...full].sort((x, y) => (y.sum || 0) - (x.sum || 0)).map((x, i) => [x.id, Math.floor((i * 3) / full.length) + 1]))
+  const spinItems = full.map((x) => ({
+    id: x.id, label: teamName(tour, db, x.id), sub: String(Math.round(x.sum || 0)),
+    tags: {
+      pot: full.length >= 6 ? t('tournament.spin.pot', { n: potOf.get(x.id) }) : null,
+      gender: (x.players || []).map((p) => p.gender && t('gender.' + p.gender)).filter(Boolean).sort().join(' – ') || null,
+      guest: x.players?.some((p) => p.playerType === 'guest') ? t('tournament.players.guestTag') : null,
+    },
+  }))
+  const spinSlots = spin === 'groups'
+    ? full.map((_, i) => ({ label: t('tournament.spin.slotGroup', { g: String.fromCharCode(65 + (i % numGroups)), n: Math.floor(i / numGroups) + 1 }) }))
+    : ko ? drawSlots(full.length) : full.map((_, i) => ({ label: t('tournament.format.drawNo', { n: i + 1 }) }))
+  const spinDone = (order) => (spin === 'groups'
+    ? onSaveGroups(Array.from({ length: numGroups }, (_, g) => order.filter((_, i) => i % numGroups === g)))
+    : act(a.tourDraw(stage.eventId, order)))
+  const bal = rr && numGroups > 1 && full.length ? groupBalanceOf(stage, full) : null
+
+  return (
+    <div style={{ display: 'grid', gap: 12 }}>
+      {panelHead(stageName(stage, stages), onClose)}
+      {panelRow(t('tournament.canvas.name'), (
+        <Input value={name} placeholder={t('tournament.canvas.namePh')} onChange={(e) => setName(e.target.value)}
+          onBlur={() => name.trim() !== (stage.title || '') && save({ title: name.trim() || null })} />
+      ))}
+      {swiss && panelRow(t('tournament.swiss.rounds'), (
+        <Seg options={[{ key: 0, label: t('tournament.swiss.roundsAuto', { n: swissRounds(full.length) }) },
+          ...[3, 4, 5, 6, 7].filter((k) => k <= maxRounds).map((k) => ({ key: k, label: String(k) }))]}
+          value={stage.config?.rounds || 0} onChange={(k) => saveConfig({ rounds: Number(k) || null })} />
+      ))}
+      {swiss && <span style={{ font: 'var(--type-caption)', color: 'var(--text-muted)' }}>{t('tournament.swiss.roundsHint')}</span>}
+      {double && <span style={{ font: 'var(--type-caption)', color: 'var(--text-muted)' }}>{t('tournament.double.note')}</span>}
+      {rr && panelRow(t('tournament.format.groups'), (
+        <Seg options={[1, 2, 3, 4].map((k) => ({ key: k, label: String(k) }))} value={numGroups}
+          onChange={(k) => saveConfig({ numGroups: Number(k), manualGroups: null })} />
+      ))}
+      {rr && full.length > 0 && (
+        <span style={{ font: 'var(--type-caption)', color: 'var(--text-muted)' }}>
+          {t('tournament.canvas.groupSizes', { list: groupSizes(full.length, numGroups).join(' · ') })}
+        </span>
+      )}
+      {rr && panelRow(t('tournament.format.legs'), (
+        <Seg options={[{ key: 1, label: t('tournament.format.oneLeg') }, { key: 2, label: t('tournament.format.twoLegs') }]}
+          value={stage.config?.legs || 1} onChange={(k) => saveConfig({ legs: Number(k) })} />
+      ))}
+      {rr && numGroups > 1 && full.length > 0 && (
+        <div style={{ display: 'grid', gap: 6 }}>
+          <PanelButton title={t('tournament.canvas.snake')} sub={t('tournament.canvas.snakeSub')} onClick={() => onSaveGroups(null)} />
+          <PanelButton title={t('tournament.canvas.draw')} sub={t('tournament.canvas.drawSub')} onClick={() => setSpin('groups')} />
+          <PanelButton title={t('tournament.canvas.clearGroups')} sub={t('tournament.canvas.clearGroupsSub')} onClick={() => onSaveGroups(Array.from({ length: numGroups }, () => []))} />
+        </div>
+      )}
+      {bal && (
+        <div style={{ display: 'grid', gap: 8, padding: 10, borderRadius: 8, background: 'var(--surface-inset)', border: '1px solid var(--border-subtle)' }}>
+          <span style={{ display: 'flex', justifyContent: 'space-between', font: '600 12px/1.2 var(--font-sans)', color: 'var(--text-primary)' }}>
+            {t('tournament.canvas.balance')}
+            <Mono size={11} weight={700} color={bal.isBalanced ? 'var(--status-delivered-fg)' : 'var(--status-delayed-fg)'}>{t('tournament.canvas.balanceSpread', { n: bal.spread })}</Mono>
+          </span>
+          {bal.avgs.map((v, i) => {
+            const base = bal.min - 30
+            const range = (bal.max - base) || 1
+            const pct = v == null ? 0 : Math.max(8, Math.round(((v - base) / range) * 100))
+            const outlier = v != null && (v === bal.max || v === bal.min) && bal.spread > cfg.tournament.groupBalanceOk
+            return (
+              <span key={i} style={{ display: 'grid', gridTemplateColumns: '20px minmax(0,1fr) 38px', gap: 8, alignItems: 'center' }}>
+                <span style={{ font: '700 12px/1 var(--font-display)', color: 'var(--text-secondary)' }}>{String.fromCharCode(65 + i)}</span>
+                <span style={{ height: 8, borderRadius: 4, background: 'var(--surface-sunken)', overflow: 'hidden', display: 'block' }}>
+                  <span style={{ display: 'block', height: '100%', borderRadius: 4, width: pct + '%', background: outlier ? 'var(--status-delayed-fg)' : 'var(--teal-500)' }} />
+                </span>
+                <Mono size={11} weight={600} color="var(--text-secondary)" style={{ textAlign: 'right' }}>{v ?? '—'}</Mono>
+              </span>
+            )
+          })}
+          <span style={{ font: 'var(--type-caption)', color: 'var(--text-muted)' }}>{t('tournament.canvas.balanceHint', { n: cfg.tournament.groupBalanceOk })}</span>
+        </div>
+      )}
+      {ko && (
+        <span style={{ font: 'var(--type-caption)', color: link || isSource ? 'var(--text-secondary)' : 'var(--status-delayed-fg)' }}>
+          {isSource ? t('tournament.canvas.koSource', { n: teams, size: teams >= 2 ? nextPowerOf2(teams) : 0 })
+            : link ? t('tournament.canvas.koIn', { n: teams, size: teams >= 2 ? nextPowerOf2(teams) : 0 }) : t('tournament.canvas.koUnlinked')}
+          {byesOf(teams) > 0 && ' ' + t('tournament.canvas.byes', { n: byesOf(teams) }) + '.'}
+        </span>
+      )}
+      {ko && isSource && teams >= 2 && <span style={{ font: 'var(--type-caption)', color: 'var(--text-muted)' }}>{t('tournament.canvas.swapHint')}</span>}
+      {ko && link && <Button size="sm" variant="secondary" onClick={() => onPickLink(link.id)}>{t('tournament.canvas.link')} · {rankLabel(link.ranks)}</Button>}
+      {(ko || swiss) && isSource && panelRow(t('tournament.format.seeding'), (
+        // "Tự do" = số bốc thăm do BTC kéo thả tay (`free`); chọn nó thì giữ nguyên nhánh đang thấy làm điểm bắt đầu.
+        <Seg options={(ko ? ['seed', 'slot', 'free'] : ['seed', 'slot']).map((k) => ({ key: k, label: t('tournament.format.seed.' + k) }))}
+          value={arrange} onChange={(k) => {
+            if (k === 'free') act(a.tourDraw(stage.eventId, slotOrder(full, stage.config), null))
+            saveConfig({ seeding: k === 'seed' ? 'seed' : 'slot', free: k === 'free' })
+          }} />
+      ))}
+      {(ko || swiss) && isSource && arrange === 'slot' && full.length > 1 && (
+        <Button size="sm" variant="secondary" icon="sparkles" onClick={() => setSpin('draw')}>
+          {t(full.some((x) => x.drawNo) ? 'tournament.format.redraw' : 'tournament.format.draw')}
+        </Button>
+      )}
+      {spin && (
+        <SpinDraw title={t(spin === 'groups' ? 'tournament.spin.titleGroups' : 'tournament.spin.titleDraw')}
+          hint={t(spin === 'groups' ? 'tournament.spin.hintGroups' : ko ? 'tournament.spin.hintDraw' : 'tournament.spin.hintSeed')}
+          items={spinItems} slots={spinSlots} columns={spin === 'groups' ? Math.min(numGroups, 4) : 2}
+          onDone={spinDone} onClose={() => setSpin(null)} />
+      )}
+      {ko && !double && panelRow(t('tournament.format.thirdPlace'), (
+        <Seg options={[{ key: 'on', label: t('tournament.format.on') }, { key: 'off', label: t('tournament.format.off') }]}
+          value={stage.config?.thirdPlace ? 'on' : 'off'} onChange={(k) => saveConfig({ thirdPlace: k === 'on' })} />
+      ))}
+      <RuleCard title={t('tournament.rule.qualify')} applies={t('tournament.rule.applies', { list: qualifyList })}
+        value={stage.matchRule} onChange={(rule) => save({ matchRule: rule })} />
+      {ko && (
+        // Tranh 3 theo chung kết, trừ khi đã đặt riêng khác đi (ở thanh Thiết lập nhánh).
+        <RuleCard title={t('tournament.rule.ranking')} applies={t('tournament.rule.applies', { list: rankList })}
+          value={ov.final || stage.matchRule}
+          onChange={(rule) => save({ ruleOverrides: { ...ov, final: rule, ...(double || (ov.third && !sameRule(ov.third, ov.final)) ? {} : { third: rule }) } })} />
+      )}
+      <div style={{ display: 'grid', gap: 4 }}>
+        <Button size="sm" variant="ghost" icon="trash-2" disabled={isSource && stages.length > 1} onClick={() => { act(a.tourCanvasDelete(stage.id)); onClose() }}>
+          {t('tournament.canvas.delete')}
+        </Button>
+        <span style={{ font: 'var(--type-caption)', color: 'var(--text-muted)' }}>
+          {t(isSource && stages.length > 1 ? 'tournament.canvas.errDeleteSource' : 'tournament.canvas.deleteHint')}
+        </span>
+      </div>
+    </div>
+  )
+}

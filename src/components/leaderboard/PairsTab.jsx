@@ -14,6 +14,14 @@ import PairH2HModal from './PairH2HModal.jsx'
 const PAIR_OFFICIAL_MIN_GAMES = 5
 
 function ConfidenceExplainerSheet({ onClose }) {
+  const { isDark } = useTheme()
+  const bgCard = isDark ? '#141D2E' : 'var(--surface-card)'
+  const bgSunken = isDark ? '#101927' : 'var(--surface-sunken)'
+  const borderCard = isDark ? '#2E3E5C' : 'var(--border-default)'
+  const textWhite = isDark ? '#E9EFF7' : 'var(--text-primary)'
+  const textSecondary = isDark ? '#A8B7CB' : 'var(--text-secondary)'
+  const textMuted = isDark ? '#8494AA' : 'var(--text-muted)'
+
   return (
     <div
       style={{
@@ -31,8 +39,8 @@ function ConfidenceExplainerSheet({ onClose }) {
       <div
         data-screen-label="P4 Sheet do tin cay"
         style={{
-          background: '#141D2E',
-          borderTop: '1px solid #2E3E5C',
+          background: bgCard,
+          borderTop: `1px solid ${borderCard}`,
           borderRadius: '16px 16px 0 0',
           padding: '10px 16px 22px',
           display: 'grid',
@@ -42,71 +50,71 @@ function ConfidenceExplainerSheet({ onClose }) {
         }}
         onClick={(e) => e.stopPropagation()}
       >
-        <div style={{ width: 36, height: 4, borderRadius: 999, background: '#2E3E5C', justifySelf: 'center' }} />
+        <div style={{ width: 36, height: 4, borderRadius: 999, background: isDark ? '#2E3E5C' : 'var(--border-default)', justifySelf: 'center' }} />
 
-        <div style={{ font: '600 17px/1.25 Barlow, sans-serif', color: '#E9EFF7' }}>
+        <div style={{ font: '600 17px/1.25 Barlow, sans-serif', color: textWhite }}>
           {t('leaderboard.confidenceExplainerTitle')}
         </div>
-        <div style={{ font: "400 13px/1.55 'IBM Plex Sans', sans-serif", color: '#A8B7CB' }}>
+        <div style={{ font: "400 13px/1.55 'IBM Plex Sans', sans-serif", color: textSecondary }}>
           {t('leaderboard.confidenceExplainerSub')}
         </div>
 
         <div style={{ display: 'grid', gap: 7 }}>
           {/* R1 */}
-          <div style={{ padding: '11px 12px', borderRadius: 6, background: '#101927', border: '1px solid rgba(225,68,52,.32)', display: 'grid', gap: 4 }}>
+          <div style={{ padding: '11px 12px', borderRadius: 6, background: bgSunken, border: isDark ? '1px solid rgba(225,68,52,.32)' : '1px solid rgba(239,68,68,.25)', display: 'grid', gap: 4 }}>
             <div style={{ display: 'flex', alignItems: 'center', gap: 10 }}>
-              <span style={{ font: "600 13px/1 'IBM Plex Mono', monospace", color: '#FF9A8F' }}>R1 ●○○○</span>
+              <span style={{ font: "600 13px/1 'IBM Plex Mono', monospace", color: isDark ? '#FF9A8F' : '#DC2626' }}>R1 ●○○○</span>
               <div style={{ flex: 1 }} />
-              <span style={{ font: "400 12.5px/1 'IBM Plex Mono', monospace", color: '#A8B7CB' }}>{t('leaderboard.r1GamesRange')}</span>
+              <span style={{ font: "400 12.5px/1 'IBM Plex Mono', monospace", color: textSecondary }}>{t('leaderboard.r1GamesRange')}</span>
             </div>
-            <div style={{ font: "400 12.5px/1.5 'IBM Plex Sans', sans-serif", color: '#8494AA' }}>
+            <div style={{ font: "400 12.5px/1.5 'IBM Plex Sans', sans-serif", color: textMuted }}>
               {t('leaderboard.r1Desc')}
             </div>
           </div>
 
           {/* R2 */}
-          <div style={{ padding: '11px 12px', borderRadius: 6, background: '#101927', border: '1px solid rgba(224,138,0,.38)', display: 'grid', gap: 4 }}>
+          <div style={{ padding: '11px 12px', borderRadius: 6, background: bgSunken, border: isDark ? '1px solid rgba(224,138,0,.38)' : '1px solid rgba(217,119,6,.25)', display: 'grid', gap: 4 }}>
             <div style={{ display: 'flex', alignItems: 'center', gap: 10 }}>
-              <span style={{ font: "600 13px/1 'IBM Plex Mono', monospace", color: '#F0B75C' }}>R2 ●●○○</span>
+              <span style={{ font: "600 13px/1 'IBM Plex Mono', monospace", color: isDark ? '#F0B75C' : '#D97706' }}>R2 ●●○○</span>
               <div style={{ flex: 1 }} />
-              <span style={{ font: "400 12.5px/1 'IBM Plex Mono', monospace", color: '#A8B7CB' }}>{t('leaderboard.r2GamesRange')}</span>
+              <span style={{ font: "400 12.5px/1 'IBM Plex Mono', monospace", color: textSecondary }}>{t('leaderboard.r2GamesRange')}</span>
             </div>
-            <div style={{ font: "400 12.5px/1.5 'IBM Plex Sans', sans-serif", color: '#8494AA' }}>
+            <div style={{ font: "400 12.5px/1.5 'IBM Plex Sans', sans-serif", color: textMuted }}>
               {t('leaderboard.r2Desc')}
             </div>
           </div>
 
           {/* R3 */}
-          <div style={{ padding: '11px 12px', borderRadius: 6, background: '#101927', border: '1px solid #00786F', display: 'grid', gap: 4 }}>
+          <div style={{ padding: '11px 12px', borderRadius: 6, background: bgSunken, border: isDark ? '1px solid #00786F' : '1px solid rgba(13,148,136,.3)', display: 'grid', gap: 4 }}>
             <div style={{ display: 'flex', alignItems: 'center', gap: 10 }}>
-              <span style={{ font: "600 13px/1 'IBM Plex Mono', monospace", color: '#5FDBD3' }}>R3 ●●●○</span>
+              <span style={{ font: "600 13px/1 'IBM Plex Mono', monospace", color: isDark ? '#5FDBD3' : '#0D9488' }}>R3 ●●●○</span>
               <div style={{ flex: 1 }} />
-              <span style={{ font: "400 12.5px/1 'IBM Plex Mono', monospace", color: '#A8B7CB' }}>{t('leaderboard.r3GamesRange')}</span>
+              <span style={{ font: "400 12.5px/1 'IBM Plex Mono', monospace", color: textSecondary }}>{t('leaderboard.r3GamesRange')}</span>
             </div>
-            <div style={{ font: "400 12.5px/1.5 'IBM Plex Sans', sans-serif", color: '#8494AA' }}>
+            <div style={{ font: "400 12.5px/1.5 'IBM Plex Sans', sans-serif", color: textMuted }}>
               {t('leaderboard.r3Desc')}
             </div>
           </div>
 
           {/* R4 */}
-          <div style={{ padding: '11px 12px', borderRadius: 6, background: '#101927', border: '1px solid #00786F', display: 'grid', gap: 4 }}>
+          <div style={{ padding: '11px 12px', borderRadius: 6, background: bgSunken, border: isDark ? '1px solid #00786F' : '1px solid rgba(13,148,136,.3)', display: 'grid', gap: 4 }}>
             <div style={{ display: 'flex', alignItems: 'center', gap: 10 }}>
-              <span style={{ font: "600 13px/1 'IBM Plex Mono', monospace", color: '#5FDBD3' }}>R4 ●●●●</span>
+              <span style={{ font: "600 13px/1 'IBM Plex Mono', monospace", color: isDark ? '#5FDBD3' : '#0D9488' }}>R4 ●●●●</span>
               <div style={{ flex: 1 }} />
-              <span style={{ font: "400 12.5px/1 'IBM Plex Mono', monospace", color: '#A8B7CB' }}>{t('leaderboard.r4GamesRange')}</span>
+              <span style={{ font: "400 12.5px/1 'IBM Plex Mono', monospace", color: textSecondary }}>{t('leaderboard.r4GamesRange')}</span>
             </div>
-            <div style={{ font: "400 12.5px/1.5 'IBM Plex Sans', sans-serif", color: '#8494AA' }}>
+            <div style={{ font: "400 12.5px/1.5 'IBM Plex Sans', sans-serif", color: textMuted }}>
               {t('leaderboard.r4Desc')}
             </div>
           </div>
         </div>
 
         {/* Vì sao phải đọc kèm */}
-        <div style={{ padding: '11px 12px', borderRadius: 6, background: '#101927', border: '1px solid #22304A', display: 'grid', gap: 6 }}>
-          <div style={{ font: "600 11px/1.2 'IBM Plex Sans', sans-serif", letterSpacing: '.08em', textTransform: 'uppercase', color: '#8494AA' }}>
+        <div style={{ padding: '11px 12px', borderRadius: 6, background: bgSunken, border: `1px solid ${borderCard}`, display: 'grid', gap: 6 }}>
+          <div style={{ font: "600 11px/1.2 'IBM Plex Sans', sans-serif", letterSpacing: '.08em', textTransform: 'uppercase', color: textMuted }}>
             {t('leaderboard.whyReadTogetherTitle')}
           </div>
-          <div style={{ font: "400 12.5px/1.55 'IBM Plex Sans', sans-serif", color: '#A8B7CB' }}>
+          <div style={{ font: "400 12.5px/1.55 'IBM Plex Sans', sans-serif", color: textSecondary }}>
             {t('leaderboard.whyReadTogetherDesc')}
           </div>
         </div>
@@ -269,39 +277,39 @@ function getPairConfTier(pair) {
   return pair?.confidence?.tier || 'R1'
 }
 
-function getScoreVisuals(score, isTop) {
+function getScoreVisuals(score, isTop, isDark = true) {
   if (isTop || score >= 75) {
     return {
-      color: '#5FDBD3',
-      textShadow: '0 0 16px rgba(95, 219, 211, 0.55), 0 0 4px rgba(95, 219, 211, 0.8)',
-      bg: 'rgba(0, 178, 169, 0.14)',
-      border: '1px solid rgba(95, 219, 211, 0.35)',
-      boxShadow: '0 0 12px rgba(95, 219, 211, 0.18)',
+      color: isDark ? '#5FDBD3' : '#0D9488',
+      textShadow: isDark ? '0 0 16px rgba(95, 219, 211, 0.55), 0 0 4px rgba(95, 219, 211, 0.8)' : 'none',
+      bg: isDark ? 'rgba(0, 178, 169, 0.14)' : 'rgba(13, 148, 136, 0.10)',
+      border: isDark ? '1px solid rgba(95, 219, 211, 0.35)' : '1px solid rgba(13, 148, 136, 0.30)',
+      boxShadow: isDark ? '0 0 12px rgba(95, 219, 211, 0.18)' : 'none',
     }
   }
   if (score >= 65) {
     return {
-      color: '#5FD9A2',
-      textShadow: '0 0 14px rgba(95, 217, 162, 0.45)',
-      bg: 'rgba(18, 168, 103, 0.14)',
-      border: '1px solid rgba(95, 217, 162, 0.30)',
-      boxShadow: '0 0 10px rgba(95, 217, 162, 0.15)',
+      color: isDark ? '#5FD9A2' : '#059669',
+      textShadow: isDark ? '0 0 14px rgba(95, 217, 162, 0.45)' : 'none',
+      bg: isDark ? 'rgba(18, 168, 103, 0.14)' : 'rgba(16, 185, 129, 0.10)',
+      border: isDark ? '1px solid rgba(95, 217, 162, 0.30)' : '1px solid rgba(16, 185, 129, 0.25)',
+      boxShadow: isDark ? '0 0 10px rgba(95, 217, 162, 0.15)' : 'none',
     }
   }
   if (score >= 50) {
     return {
-      color: '#F0B75C',
-      textShadow: '0 0 10px rgba(240, 183, 92, 0.35)',
-      bg: 'rgba(240, 183, 92, 0.10)',
-      border: '1px solid rgba(240, 183, 92, 0.25)',
+      color: isDark ? '#F0B75C' : '#D97706',
+      textShadow: isDark ? '0 0 10px rgba(240, 183, 92, 0.35)' : 'none',
+      bg: isDark ? 'rgba(240, 183, 92, 0.10)' : 'rgba(245, 158, 11, 0.10)',
+      border: isDark ? '1px solid rgba(240, 183, 92, 0.25)' : '1px solid rgba(245, 158, 11, 0.25)',
       boxShadow: 'none',
     }
   }
   return {
-    color: '#FF9A8F',
-    textShadow: '0 0 10px rgba(255, 154, 143, 0.30)',
-    bg: 'rgba(225, 68, 52, 0.10)',
-    border: '1px solid rgba(255, 154, 143, 0.25)',
+    color: isDark ? '#FF9A8F' : '#DC2626',
+    textShadow: isDark ? '0 0 10px rgba(255, 154, 143, 0.30)' : 'none',
+    bg: isDark ? 'rgba(225, 68, 52, 0.10)' : 'rgba(239, 68, 68, 0.10)',
+    border: isDark ? '1px solid rgba(255, 154, 143, 0.25)' : '1px solid rgba(239, 68, 68, 0.25)',
     boxShadow: 'none',
   }
 }
@@ -355,7 +363,7 @@ function getScoreVisuals(score, isTop) {
               borderRadius: 6,
               background: bgCard,
               border: `1px solid ${borderSunken}`,
-              color: '#5FDBD3',
+              color: isDark ? '#5FDBD3' : 'var(--teal-700, #00786F)',
               cursor: 'pointer',
               display: 'inline-flex',
               alignItems: 'center',
@@ -365,7 +373,7 @@ function getScoreVisuals(score, isTop) {
               flexShrink: 0,
             }}
           >
-            <Icon name="calculator" size={14} style={{ color: '#5FDBD3' }} />
+            <Icon name="calculator" size={14} style={{ color: isDark ? '#5FDBD3' : 'var(--teal-700, #00786F)' }} />
             {!isMobile && <span>{t('leaderboard.howCalculated')}</span>}
           </button>
         </div>
@@ -429,8 +437,8 @@ function getScoreVisuals(score, isTop) {
               gap: 4,
               padding: 2,
               borderRadius: 8,
-              background: '#101927',
-              border: '1px solid #22304A',
+              background: bgSunken,
+              border: `1px solid ${borderCard}`,
             }}
           >
             {[
@@ -453,7 +461,7 @@ function getScoreVisuals(score, isTop) {
                     border: 'none',
                     cursor: 'pointer',
                     background: active ? '#1D50A0' : 'transparent',
-                    color: active ? '#fff' : '#A8B7CB',
+                    color: active ? '#fff' : textSecondary,
                     boxShadow: active ? '0 2px 6px rgba(29,80,160,0.35)' : 'none',
                     transition: 'all 0.15s ease',
                     textAlign: 'center',
@@ -526,7 +534,7 @@ function getScoreVisuals(score, isTop) {
                 display: 'flex',
                 gap: 16,
                 paddingTop: 8,
-                borderTop: '1px solid #22304A',
+                borderTop: isDark ? '1px solid #22304A' : '1px solid var(--border-subtle)',
                 marginTop: 2,
                 flexWrap: 'wrap',
                 alignItems: 'flex-end',
@@ -536,16 +544,16 @@ function getScoreVisuals(score, isTop) {
                 <div style={{ display: 'flex', alignItems: 'baseline', gap: 4 }}>
                   <span style={{
                     font: '800 24px/1 Barlow, sans-serif',
-                    color: '#5FDBD3',
-                    textShadow: '0 0 16px rgba(95, 219, 211, 0.6), 0 0 4px rgba(95, 219, 211, 0.9)',
+                    color: isDark ? '#5FDBD3' : 'var(--teal-700, #00786F)',
+                    textShadow: isDark ? '0 0 16px rgba(95, 219, 211, 0.6), 0 0 4px rgba(95, 219, 211, 0.9)' : 'none',
                   }}>
                     {topPair.synergyScore}
                   </span>
-                  <span style={{ font: "700 14px/1 'IBM Plex Mono', monospace", color: '#5FD9A2', textShadow: '0 0 8px rgba(95, 217, 162, 0.5)' }}>
+                  <span style={{ font: "700 14px/1 'IBM Plex Mono', monospace", color: isDark ? '#5FD9A2' : '#047857', textShadow: isDark ? '0 0 8px rgba(95, 217, 162, 0.5)' : 'none' }}>
                     ↑
                   </span>
                 </div>
-                <div style={{ font: "500 11px/1.3 'IBM Plex Sans', sans-serif", color: '#A8B7CB', marginTop: 2 }}>
+                <div style={{ font: "500 11px/1.3 'IBM Plex Sans', sans-serif", color: isDark ? '#A8B7CB' : 'var(--text-secondary)', marginTop: 2 }}>
                   {t('leaderboard.pairBestFrom', { from: Math.max(50, topPair.synergyScore - 7) })}
                 </div>
               </div>
@@ -553,21 +561,21 @@ function getScoreVisuals(score, isTop) {
               <div>
                 <div style={{
                   font: '800 20px/1 Barlow, sans-serif',
-                  color: topPair.pairImpact >= 0 ? '#5FD9A2' : '#FF9A8F',
-                  textShadow: topPair.pairImpact >= 0 ? '0 0 12px rgba(95, 217, 162, 0.4)' : 'none',
+                  color: topPair.pairImpact >= 0 ? (isDark ? '#5FD9A2' : '#047857') : (isDark ? '#FF9A8F' : '#DC2626'),
+                  textShadow: isDark && topPair.pairImpact >= 0 ? '0 0 12px rgba(95, 217, 162, 0.4)' : 'none',
                 }}>
                   {topPair.pairImpact >= 0 ? `+${topPair.pairImpact}pp` : `${topPair.pairImpact}pp`}
                 </div>
-                <div style={{ font: "500 11px/1.3 'IBM Plex Sans', sans-serif", color: '#A8B7CB', marginTop: 2 }}>
+                <div style={{ font: "500 11px/1.3 'IBM Plex Sans', sans-serif", color: isDark ? '#A8B7CB' : 'var(--text-secondary)', marginTop: 2 }}>
                   impact
                 </div>
               </div>
 
               <div>
-                <div style={{ font: '800 20px/1 Barlow, sans-serif', color: '#FFFFFF' }}>
+                <div style={{ font: '800 20px/1 Barlow, sans-serif', color: isDark ? '#FFFFFF' : 'var(--text-primary)' }}>
                   {topPair.gamesCount}
                 </div>
-                <div style={{ font: "500 11px/1.3 'IBM Plex Sans', sans-serif", color: '#A8B7CB', marginTop: 2 }}>
+                <div style={{ font: "500 11px/1.3 'IBM Plex Sans', sans-serif", color: isDark ? '#A8B7CB' : 'var(--text-secondary)', marginTop: 2 }}>
                   {t('leaderboard.games')}
                 </div>
               </div>
@@ -576,7 +584,7 @@ function getScoreVisuals(score, isTop) {
                 <div style={{ marginBottom: 2 }}>
                   <ConfidenceChip confidence={getPairConfTier(topPair)} />
                 </div>
-                <div style={{ font: "500 11px/1.3 'IBM Plex Sans', sans-serif", color: '#A8B7CB', marginTop: 2 }}>
+                <div style={{ font: "500 11px/1.3 'IBM Plex Sans', sans-serif", color: isDark ? '#A8B7CB' : 'var(--text-secondary)', marginTop: 2 }}>
                   {t('rating.confidence.label')}
                 </div>
               </div>
@@ -592,10 +600,14 @@ function getScoreVisuals(score, isTop) {
                         width: 20,
                         height: 20,
                         borderRadius: 4,
-                        background: res === 'W' ? 'rgba(18,168,103,.32)' : 'rgba(225,68,52,.28)',
-                        color: res === 'W' ? '#5FD9A2' : '#FF9A8F',
-                        border: res === 'W' ? '1px solid rgba(95,217,162,.4)' : '1px solid rgba(255,154,143,.4)',
-                        boxShadow: res === 'W' ? '0 0 8px rgba(95,217,162,.3)' : 'none',
+                        background: res === 'W'
+                          ? (isDark ? 'rgba(18,168,103,.32)' : 'rgba(16,185,129,.16)')
+                          : (isDark ? 'rgba(225,68,52,.28)' : 'rgba(239,68,68,.16)'),
+                        color: res === 'W' ? (isDark ? '#5FD9A2' : '#047857') : (isDark ? '#FF9A8F' : '#DC2626'),
+                        border: res === 'W'
+                          ? (isDark ? '1px solid rgba(95,217,162,.4)' : '1px solid rgba(16,185,129,.35)')
+                          : (isDark ? '1px solid rgba(255,154,143,.4)' : '1px solid rgba(239,68,68,.35)'),
+                        boxShadow: isDark && res === 'W' ? '0 0 8px rgba(95,217,162,.3)' : 'none',
                         font: "700 11px/19px 'IBM Plex Mono', monospace",
                         textAlign: 'center',
                       }}
@@ -604,7 +616,7 @@ function getScoreVisuals(score, isTop) {
                     </span>
                   ))}
                 </span>
-                <span style={{ font: "500 11px/1.3 'IBM Plex Sans', sans-serif", color: '#A8B7CB' }}>
+                <span style={{ font: "500 11px/1.3 'IBM Plex Sans', sans-serif", color: isDark ? '#A8B7CB' : 'var(--text-secondary)' }}>
                   form 5 · {t('leaderboard.formHot', {
                     w: (topPair.recentResults || []).filter(r => r === 'W').length || (topPair.wins != null ? topPair.wins : 1),
                     l: (topPair.recentResults || []).filter(r => r === 'L').length || (topPair.losses != null ? topPair.losses : 0)
@@ -632,14 +644,14 @@ function getScoreVisuals(score, isTop) {
                 const impactVal = pair.pairImpact || 0
                 const impactSign = impactVal > 0 ? `+${impactVal}pp` : `${impactVal}pp`
 
-                const scoreVis = getScoreVisuals(displayScore, isTop)
+                const scoreVis = getScoreVisuals(displayScore, isTop, isDark)
 
                 const tagLabel = isTop ? t('leaderboard.tagTop1') : (pair.formKey === 'hot' || trend === 'up' ? t('leaderboard.tagHot') : t('leaderboard.tagStable'))
                 const tagStyle = isTop
-                  ? { background: 'rgba(0, 178, 169, 0.20)', color: '#5FDBD3', border: '1px solid rgba(0, 178, 169, 0.4)' }
+                  ? { background: isDark ? 'rgba(0, 178, 169, 0.20)' : 'rgba(0, 178, 169, 0.12)', color: isDark ? '#5FDBD3' : 'var(--teal-700, #00786F)', border: isDark ? '1px solid rgba(0, 178, 169, 0.4)' : '1px solid rgba(0, 178, 169, 0.35)' }
                   : tagLabel === t('leaderboard.tagHot')
-                  ? { background: 'rgba(18, 168, 103, 0.20)', color: '#5FD9A2', border: '1px solid rgba(18, 168, 103, 0.35)' }
-                  : { background: 'rgba(148, 164, 186, 0.16)', color: '#A8B7CB' }
+                  ? { background: isDark ? 'rgba(18, 168, 103, 0.20)' : 'rgba(16, 185, 129, 0.12)', color: isDark ? '#5FD9A2' : '#047857', border: isDark ? '1px solid rgba(18, 168, 103, 0.35)' : '1px solid rgba(16, 185, 129, 0.35)' }
+                  : { background: isDark ? 'rgba(148, 164, 186, 0.16)' : 'rgba(60, 116, 196, 0.12)', color: isDark ? '#A8B7CB' : 'var(--navy-600, #143C7D)', border: isDark ? '1px solid rgba(148, 164, 186, 0.25)' : '1px solid rgba(60, 116, 196, 0.25)' }
 
                 const recentResults = pair.recentResults || []
                 const form5 = []
@@ -660,10 +672,10 @@ function getScoreVisuals(score, isTop) {
                       <div style={{
                         padding: '7px 12px',
                         borderRadius: 8,
-                        background: 'rgba(0,178,169,.1)',
-                        border: '1px solid rgba(0,178,169,.3)',
+                        background: isDark ? 'rgba(0,178,169,.1)' : 'rgba(0,178,169,.08)',
+                        border: isDark ? '1px solid rgba(0,178,169,.3)' : '1px solid rgba(0,178,169,.25)',
                         font: "600 11.5px/1.3 'IBM Plex Sans', sans-serif",
-                        color: '#5FDBD3',
+                        color: isDark ? '#5FDBD3' : 'var(--teal-700, #00786F)',
                         display: 'flex',
                         alignItems: 'center',
                         gap: 6,
@@ -676,10 +688,10 @@ function getScoreVisuals(score, isTop) {
                       <div style={{
                         padding: '7px 12px',
                         borderRadius: 8,
-                        background: 'rgba(240,183,92,.08)',
-                        border: '1px solid rgba(240,183,92,.25)',
+                        background: isDark ? 'rgba(240,183,92,.08)' : 'rgba(240,183,92,.08)',
+                        border: isDark ? '1px solid rgba(240,183,92,.25)' : '1px solid rgba(180,83,9,.25)',
                         font: "600 11.5px/1.3 'IBM Plex Sans', sans-serif",
-                        color: '#F0B75C',
+                        color: isDark ? '#F0B75C' : 'var(--amber-700, #B45309)',
                         display: 'flex',
                         alignItems: 'center',
                         gap: 6,
@@ -691,26 +703,36 @@ function getScoreVisuals(score, isTop) {
                     <div
                       onClick={() => setSelectedPair(pair)}
                       style={{
-                        background: isTop
-                          ? 'linear-gradient(135deg, rgba(0, 178, 169, 0.12) 0%, #141D2E 100%)'
-                          : displayScore >= 65
-                          ? 'linear-gradient(135deg, rgba(0, 178, 169, 0.05) 0%, #141D2E 100%)'
-                          : '#141D2E',
-                        border: isTop
-                          ? '1px solid #00B2A9'
-                          : displayScore >= 65
-                          ? '1px solid rgba(95, 219, 211, 0.3)'
-                          : '1px solid #22304A',
+                        background: isDark
+                          ? (isTop
+                            ? 'linear-gradient(135deg, rgba(0, 178, 169, 0.12) 0%, #141D2E 100%)'
+                            : displayScore >= 65
+                            ? 'linear-gradient(135deg, rgba(0, 178, 169, 0.05) 0%, #141D2E 100%)'
+                            : '#141D2E')
+                          : (isTop
+                            ? 'linear-gradient(135deg, rgba(0, 178, 169, 0.08) 0%, var(--surface-card) 100%)'
+                            : 'var(--surface-card)'),
+                        border: isDark
+                          ? (isTop
+                            ? '1px solid #00B2A9'
+                            : displayScore >= 65
+                            ? '1px solid rgba(95, 219, 211, 0.3)'
+                            : '1px solid #22304A')
+                          : (isTop
+                            ? '1px solid var(--teal-600, #00897B)'
+                            : '1px solid var(--border-subtle)'),
                         borderRadius: 10,
                         padding: 13,
                         display: 'grid',
                         gap: 10,
                         cursor: 'pointer',
-                        boxShadow: isTop
-                          ? '0 4px 20px rgba(0, 178, 169, 0.14)'
-                          : displayScore >= 65
-                          ? '0 2px 12px rgba(95, 219, 211, 0.08)'
-                          : 'none',
+                        boxShadow: isDark
+                          ? (isTop
+                            ? '0 4px 20px rgba(0, 178, 169, 0.14)'
+                            : displayScore >= 65
+                            ? '0 2px 12px rgba(95, 219, 211, 0.08)'
+                            : 'none')
+                          : 'var(--shadow-sm)',
                         transition: 'all 0.15s ease',
                       }}
                     >
@@ -721,16 +743,16 @@ function getScoreVisuals(score, isTop) {
                             name={mA.name}
                             src={mA.avatarUrl || mA.avatar}
                             size={24}
-                            style={{ border: '2px solid #141D2E', zIndex: 2 }}
+                            style={{ border: `2px solid ${bgCard}`, zIndex: 2 }}
                           />
                           <Avatar
                             name={mB.name}
                             src={mB.avatarUrl || mB.avatar}
                             size={24}
-                            style={{ border: '2px solid #141D2E', marginLeft: -8, zIndex: 1 }}
+                            style={{ border: `2px solid ${bgCard}`, marginLeft: -8, zIndex: 1 }}
                           />
                         </span>
-                        <span style={{ flex: 1, font: "600 16px/1.25 'IBM Plex Sans', sans-serif", color: '#E9EFF7' }}>
+                        <span style={{ flex: 1, font: "600 16px/1.25 'IBM Plex Sans', sans-serif", color: textWhite }}>
                           <span title={pairTitle(pair)}>{pairLabel(pair)}</span>
                         </span>
                         <span
@@ -775,7 +797,7 @@ function getScoreVisuals(score, isTop) {
                                 <span
                                   style={{
                                     font: "700 15px/1 'IBM Plex Mono', monospace",
-                                    color: '#F0B75C',
+                                    color: isDark ? '#F0B75C' : 'var(--amber-700, #B45309)',
                                     marginRight: 2,
                                   }}
                                 >
@@ -785,14 +807,14 @@ function getScoreVisuals(score, isTop) {
                               <span
                                 style={{
                                   font: "700 14px/1 'IBM Plex Mono', monospace",
-                                  color: trend === 'up' ? '#5FD9A2' : trend === 'down' ? '#FF9A8F' : '#8494AA',
+                                  color: trend === 'up' ? (isDark ? '#5FD9A2' : '#047857') : trend === 'down' ? (isDark ? '#FF9A8F' : '#DC2626') : (isDark ? '#8494AA' : 'var(--text-muted)'),
                                 }}
                               >
                                 {trend === 'up' ? '↑' : trend === 'down' ? '↓' : '→'}
                               </span>
                             </div>
                           </div>
-                          <div style={{ font: "400 11px/1.4 'IBM Plex Sans', sans-serif", color: '#8494AA', marginTop: 4 }}>
+                          <div style={{ font: "400 11px/1.4 'IBM Plex Sans', sans-serif", color: isDark ? '#8494AA' : 'var(--text-secondary)', marginTop: 4 }}>
                             {pair.previousScore ? t('leaderboard.synergyFromScore', { prev: pair.previousScore }) : t('leaderboard.synergyCol')}
                           </div>
                         </div>
@@ -800,7 +822,7 @@ function getScoreVisuals(score, isTop) {
                         <div style={{ flex: 1 }} />
 
                         <div style={{ textAlign: 'right' }}>
-                          <div style={{ font: "500 13px/1.3 'IBM Plex Mono', monospace", color: '#E9EFF7' }}>
+                          <div style={{ font: "500 13px/1.3 'IBM Plex Mono', monospace", color: textWhite }}>
                             {t('leaderboard.gamesCountShort', { n: pair.gamesCount })}
                           </div>
                           <button
@@ -824,21 +846,21 @@ function getScoreVisuals(score, isTop) {
 
                       {/* Kỳ vọng vs Thực tế bar */}
                       <div style={{ display: 'grid', gridTemplateColumns: 'auto minmax(0,1fr) auto', gap: 9, alignItems: 'center' }}>
-                        <span style={{ font: "400 12.5px/1 'IBM Plex Mono', monospace", color: '#9FC0EA' }}>
+                        <span style={{ font: "400 12.5px/1 'IBM Plex Mono', monospace", color: isDark ? '#9FC0EA' : 'var(--text-secondary)' }}>
                           {t('leaderboard.expectedCol')} {expPct}%
                         </span>
-                        <span style={{ height: 5, borderRadius: 999, background: '#22304A', overflow: 'hidden', display: 'flex', position: 'relative' }}>
-                          <span style={{ width: `${Math.min(100, Math.max(0, expPct))}%`, background: '#3C74C4' }} />
-                          <span style={{ position: 'absolute', left: `${Math.min(99, Math.max(1, actPct))}%`, top: -3, width: 2, height: 11, background: '#5FD9A2' }} />
+                        <span style={{ height: 5, borderRadius: 999, background: isDark ? '#22304A' : 'var(--surface-sunken)', overflow: 'hidden', display: 'flex', position: 'relative' }}>
+                          <span style={{ width: `${Math.min(100, Math.max(0, expPct))}%`, background: isDark ? '#3C74C4' : 'var(--navy-500, #1D50A0)' }} />
+                          <span style={{ position: 'absolute', left: `${Math.min(99, Math.max(1, actPct))}%`, top: -3, width: 2, height: 11, background: isDark ? '#5FD9A2' : '#047857' }} />
                         </span>
-                        <span style={{ font: "400 12.5px/1 'IBM Plex Mono', monospace", color: '#5FD9A2' }}>
+                        <span style={{ font: "600 12.5px/1 'IBM Plex Mono', monospace", color: isDark ? '#5FD9A2' : '#047857' }}>
                           {actPct}%
                         </span>
                       </div>
 
                       {/* Form 5 */}
                       <div style={{ display: 'flex', alignItems: 'center', gap: 9 }}>
-                        <span style={{ font: "400 12px/1 'IBM Plex Sans', sans-serif", color: '#8494AA' }}>
+                        <span style={{ font: "400 12px/1 'IBM Plex Sans', sans-serif", color: isDark ? '#8494AA' : 'var(--text-secondary)' }}>
                           {t('leaderboard.form5Matches')}
                         </span>
                         <span style={{ display: 'flex', gap: 3 }}>
@@ -849,8 +871,16 @@ function getScoreVisuals(score, isTop) {
                                 width: 18,
                                 height: 18,
                                 borderRadius: 3,
-                                background: res === 'W' ? 'rgba(18,168,103,.24)' : res === 'L' ? 'rgba(225,68,52,.22)' : 'rgba(255,255,255,.05)',
-                                color: res === 'W' ? '#5FD9A2' : res === 'L' ? '#FF9A8F' : '#55657E',
+                                background: res === 'W'
+                                  ? (isDark ? 'rgba(18,168,103,.24)' : 'rgba(16, 185, 129, 0.15)')
+                                  : res === 'L'
+                                  ? (isDark ? 'rgba(225,68,52,.22)' : 'rgba(239, 68, 68, 0.12)')
+                                  : (isDark ? 'rgba(255,255,255,.05)' : 'var(--surface-inset)'),
+                                color: res === 'W'
+                                  ? (isDark ? '#5FD9A2' : '#047857')
+                                  : res === 'L'
+                                  ? (isDark ? '#FF9A8F' : '#DC2626')
+                                  : (isDark ? '#55657E' : 'var(--text-muted)'),
                                 font: "600 10px/18px 'IBM Plex Mono', monospace",
                                 textAlign: 'center',
                               }}
@@ -860,7 +890,7 @@ function getScoreVisuals(score, isTop) {
                           ))}
                         </span>
                         <div style={{ flex: 1 }} />
-                        <span style={{ font: "600 13px/1 'IBM Plex Mono', monospace", color: impactVal > 0 ? '#5FD9A2' : impactVal < 0 ? '#FF9A8F' : '#A8B7CB' }}>
+                        <span style={{ font: "600 13px/1 'IBM Plex Mono', monospace", color: impactVal > 0 ? (isDark ? '#5FD9A2' : '#047857') : impactVal < 0 ? (isDark ? '#FF9A8F' : '#DC2626') : (isDark ? '#A8B7CB' : 'var(--text-secondary)') }}>
                           {impactSign}
                         </span>
                       </div>
@@ -961,11 +991,11 @@ function getScoreVisuals(score, isTop) {
               <span
                 style={{
                   font: "400 11px/1.3 'IBM Plex Mono', monospace",
-                  color: textMuted,
+                  color: isDark ? textMuted : 'var(--text-secondary)',
                   padding: '5px 9px',
                   borderRadius: 6,
                   background: bgSunken,
-                  border: `1px solid ${borderCard}`,
+                  border: isDark ? `1px solid ${borderCard}` : '1px solid var(--border-default)',
                 }}
               >
                 {t('leaderboard.expectedFormulaBadge')}
@@ -973,11 +1003,11 @@ function getScoreVisuals(score, isTop) {
               <span
                 style={{
                   font: "400 11px/1.3 'IBM Plex Mono', monospace",
-                  color: textMuted,
+                  color: isDark ? textMuted : 'var(--text-secondary)',
                   padding: '5px 9px',
                   borderRadius: 6,
                   background: bgSunken,
-                  border: `1px solid ${borderCard}`,
+                  border: isDark ? `1px solid ${borderCard}` : '1px solid var(--border-default)',
                 }}
               >
                 {t('leaderboard.synergyFormulaBadge')}
@@ -999,7 +1029,7 @@ function getScoreVisuals(score, isTop) {
                 font: "600 11px/1.2 'IBM Plex Sans', sans-serif",
                 letterSpacing: '0.06em',
                 textTransform: 'uppercase',
-                color: textMuted,
+                color: isDark ? textMuted : 'var(--text-secondary)',
                 position: 'sticky',
                 top: 0,
                 zIndex: 2,
@@ -1020,7 +1050,7 @@ function getScoreVisuals(score, isTop) {
                   const isTop = idx === 0
                   const isLow = pair.pairImpact <= -10 && pair.gamesCount >= 5
                   const isProvisional = (pair.gamesCount || 0) < 5
-                  const scoreVis = getScoreVisuals(pair.synergyScore || 50, isTop)
+                  const scoreVis = getScoreVisuals(pair.synergyScore || 50, isTop, isDark)
 
                   const impactVal = pair.pairImpact || 0
                   const confTier = getPairConfTier(pair)
@@ -1056,7 +1086,7 @@ function getScoreVisuals(score, isTop) {
                         <div
                           style={{
                             padding: '7px 15px',
-                            background: 'rgba(0, 178, 169, 0.08)',
+                            background: isDark ? 'rgba(0, 178, 169, 0.08)' : 'rgba(0, 178, 169, 0.06)',
                             borderBottom: `1px solid ${borderCard}`,
                             display: 'flex',
                             alignItems: 'center',
@@ -1074,7 +1104,7 @@ function getScoreVisuals(score, isTop) {
                         <div
                           style={{
                             padding: '7px 15px',
-                            background: 'rgba(240, 183, 92, 0.08)',
+                            background: isDark ? 'rgba(240, 183, 92, 0.08)' : 'rgba(240, 183, 92, 0.06)',
                             borderBottom: `1px solid ${borderCard}`,
                             display: 'flex',
                             alignItems: 'center',
@@ -1128,9 +1158,9 @@ function getScoreVisuals(score, isTop) {
                                 font: '700 9.5px/1 "IBM Plex Sans", sans-serif',
                                 padding: '2px 5px',
                                 borderRadius: 4,
-                                background: 'rgba(0, 178, 169, 0.18)',
-                                color: '#5FDBD3',
-                                border: '1px solid rgba(0, 178, 169, 0.35)',
+                                background: isDark ? 'rgba(0, 178, 169, 0.18)' : 'rgba(0, 178, 169, 0.12)',
+                                color: isDark ? '#5FDBD3' : 'var(--teal-700, #00786F)',
+                                border: isDark ? '1px solid rgba(0, 178, 169, 0.35)' : '1px solid rgba(0, 178, 169, 0.35)',
                                 letterSpacing: '0.04em',
                               }}>
                                 {t('leaderboard.tagTop1')}
@@ -1141,9 +1171,9 @@ function getScoreVisuals(score, isTop) {
                                 font: '700 9.5px/1 "IBM Plex Sans", sans-serif',
                                 padding: '2px 5px',
                                 borderRadius: 4,
-                                background: 'rgba(214, 59, 43, 0.18)',
-                                color: '#F09A8E',
-                                border: '1px solid rgba(214, 59, 43, 0.35)',
+                                background: isDark ? 'rgba(214, 59, 43, 0.18)' : 'rgba(214, 59, 43, 0.12)',
+                                color: isDark ? '#F09A8E' : 'var(--text-danger, #C42B1C)',
+                                border: isDark ? '1px solid rgba(214, 59, 43, 0.35)' : '1px solid rgba(214, 59, 43, 0.3)',
                                 letterSpacing: '0.04em',
                               }}>
                                 {t('leaderboard.tagHot')}
@@ -1154,16 +1184,16 @@ function getScoreVisuals(score, isTop) {
                                 font: '600 9.5px/1 "IBM Plex Sans", sans-serif',
                                 padding: '2px 5px',
                                 borderRadius: 4,
-                                background: 'rgba(60, 116, 196, 0.16)',
-                                color: '#7AA3DC',
-                                border: '1px solid rgba(60, 116, 196, 0.3)',
+                                background: isDark ? 'rgba(60, 116, 196, 0.16)' : 'rgba(60, 116, 196, 0.12)',
+                                color: isDark ? '#7AA3DC' : 'var(--navy-600, #143C7D)',
+                                border: isDark ? '1px solid rgba(60, 116, 196, 0.3)' : '1px solid rgba(60, 116, 196, 0.25)',
                                 letterSpacing: '0.04em',
                               }}>
                                 {t('leaderboard.tagStable')}
                               </span>
                             )}
                           </div>
-                          <div style={{ font: "400 11px/1.35 'IBM Plex Mono', monospace", color: '#8494AA' }}>
+                          <div style={{ font: "400 11px/1.35 'IBM Plex Mono', monospace", color: isDark ? '#8494AA' : 'var(--text-muted)' }}>
                             {typeof pair.combinedRating === 'number' && !isNaN(pair.combinedRating) ? `${t('leaderboard.pairCombinedElo', { n: pair.combinedRating })} · ` : ''}
                             {pair.gamesCount} {t('units.match')} · {dateStr}
                           </div>
@@ -1183,12 +1213,12 @@ function getScoreVisuals(score, isTop) {
                             {pair.synergyScore}
                           </span>
                           {isProvisional && (
-                            <span style={{ font: "600 12px/1 'IBM Plex Mono', monospace", color: '#F0B75C' }}>~</span>
+                            <span style={{ font: "600 12px/1 'IBM Plex Mono', monospace", color: isDark ? '#F0B75C' : 'var(--amber-700, #B45309)' }}>~</span>
                           )}
                         </div>
                         <div style={{
                           font: "600 10.5px/1.2 'IBM Plex Sans', sans-serif",
-                          color: trend === 'up' ? '#5FDBD3' : trend === 'down' ? '#F09A8E' : '#8494AA',
+                          color: trend === 'up' ? (isDark ? '#5FDBD3' : '#0D9488') : trend === 'down' ? (isDark ? '#F09A8E' : '#DC2626') : (isDark ? '#8494AA' : 'var(--text-muted)'),
                           display: 'flex',
                           alignItems: 'center',
                           gap: 2,
@@ -1220,9 +1250,9 @@ function getScoreVisuals(score, isTop) {
                                   alignItems: 'center',
                                   justifyContent: 'center',
                                   font: '700 10px/1 "IBM Plex Sans", sans-serif',
-                                  background: 'rgba(14, 122, 77, 0.16)',
-                                  color: '#5FDBD3',
-                                  border: '1px solid rgba(14, 122, 77, 0.35)',
+                                  background: isDark ? 'rgba(14, 122, 77, 0.16)' : 'rgba(16, 185, 129, 0.15)',
+                                  color: isDark ? '#5FDBD3' : '#047857',
+                                  border: isDark ? '1px solid rgba(14, 122, 77, 0.35)' : '1px solid rgba(16, 185, 129, 0.35)',
                                 }}
                               >
                                 T
@@ -1241,9 +1271,9 @@ function getScoreVisuals(score, isTop) {
                                   alignItems: 'center',
                                   justifyContent: 'center',
                                   font: '700 10px/1 "IBM Plex Sans", sans-serif',
-                                  background: 'rgba(214, 59, 43, 0.18)',
-                                  color: '#F09A8E',
-                                  border: '1px solid rgba(214, 59, 43, 0.35)',
+                                  background: isDark ? 'rgba(214, 59, 43, 0.18)' : 'rgba(239, 68, 68, 0.12)',
+                                  color: isDark ? '#F09A8E' : '#DC2626',
+                                  border: isDark ? '1px solid rgba(214, 59, 43, 0.35)' : '1px solid rgba(239, 68, 68, 0.3)',
                                 }}
                               >
                                 B
@@ -1261,9 +1291,9 @@ function getScoreVisuals(score, isTop) {
                                 alignItems: 'center',
                                 justifyContent: 'center',
                                 font: '400 10px/1 "IBM Plex Mono", monospace',
-                                background: 'rgba(255, 255, 255, 0.04)',
-                                color: '#50607A',
-                                border: '1px solid #22304A',
+                                background: isDark ? 'rgba(255, 255, 255, 0.04)' : 'var(--surface-inset)',
+                                color: isDark ? '#50607A' : 'var(--text-muted)',
+                                border: isDark ? '1px solid #22304A' : '1px solid var(--border-subtle)',
                               }}
                             >
                               —
@@ -1276,7 +1306,7 @@ function getScoreVisuals(score, isTop) {
                       {(() => {
                         const exp = pair.expectedWinPct ?? 50
                         const act = pair.actualWinPct ?? 50
-                        const barColor = impactVal >= 0 ? '#00B2A9' : (isLow ? '#D63B2B' : '#E08A00')
+                        const barColor = impactVal >= 0 ? (isDark ? '#00B2A9' : '#0D9488') : (isLow ? (isDark ? '#D63B2B' : '#DC2626') : (isDark ? '#E08A00' : '#D97706'))
                         const loFill = Math.min(exp, act)
                         const hiFill = Math.max(exp, act)
                         const isOver = act >= exp
@@ -1287,15 +1317,15 @@ function getScoreVisuals(score, isTop) {
                               position: 'relative',
                               height: 8,
                               borderRadius: 999,
-                              background: '#0B1220',
-                              border: '1px solid #22304A',
+                              background: isDark ? '#0B1220' : 'var(--surface-sunken)',
+                              border: isDark ? '1px solid #22304A' : '1px solid var(--border-subtle)',
                             }}>
                               {/* Segment "đến min(exp,act)" — luôn hiện */}
                               <div style={{
                                 position: 'absolute', left: 0, top: 0, bottom: 0,
                                 width: `${loFill}%`,
                                 borderRadius: '999px 0 0 999px',
-                                background: isOver ? '#1A3A55' : barColor,
+                                background: isOver ? (isDark ? '#1A3A55' : 'var(--border-subtle, #CBD5E1)') : barColor,
                               }} />
                               {/* Segment "khoảng lệch" — màu nổi bật */}
                               <div style={{
@@ -1304,24 +1334,24 @@ function getScoreVisuals(score, isTop) {
                                 borderRadius: loFill === 0 ? '999px 0 0 999px' : '0',
                                 background: barColor,
                               }} />
-                              {/* Needle kỳ vọng — vạch trắng thẳng đứng */}
+                              {/* Needle kỳ vọng — vạch thẳng đứng */}
                               <div style={{
                                 position: 'absolute',
                                 left: `${exp}%`,
                                 top: -1, bottom: -1,
                                 width: 2,
                                 marginLeft: -1,
-                                background: '#fff',
+                                background: isDark ? '#fff' : 'var(--text-primary)',
                                 borderRadius: 1,
-                                opacity: 0.7,
+                                opacity: 0.8,
                               }} />
                             </div>
                             {/* Labels */}
                             <div style={{ display: 'flex', alignItems: 'center', gap: 4 }}>
-                              <span style={{ font: "400 10.5px/1 'IBM Plex Mono', monospace", color: '#5B6B81' }}>
+                              <span style={{ font: "400 10.5px/1 'IBM Plex Mono', monospace", color: isDark ? '#8494AA' : 'var(--text-secondary)' }}>
                                 kv {exp}%
                               </span>
-                              <span style={{ font: "400 10.5px/1 'IBM Plex Mono', monospace", color: '#5B6B81' }}>·</span>
+                              <span style={{ font: "400 10.5px/1 'IBM Plex Mono', monospace", color: isDark ? '#8494AA' : 'var(--text-secondary)' }}>·</span>
                               <span style={{ font: "600 10.5px/1 'IBM Plex Mono', monospace", color: barColor }}>
                                 tt {act}%
                               </span>
@@ -1334,7 +1364,7 @@ function getScoreVisuals(score, isTop) {
                       <div style={{ textAlign: 'right' }}>
                         <span style={{
                           font: "700 13px/1 'IBM Plex Mono', monospace",
-                          color: impactVal >= 0 ? '#5FDBD3' : (isLow ? '#F09A8E' : '#F0B75C'),
+                          color: impactVal >= 0 ? (isDark ? '#5FDBD3' : '#0D9488') : (isLow ? (isDark ? '#F09A8E' : '#DC2626') : (isDark ? '#F0B75C' : '#D97706')),
                         }}>
                           {impactVal >= 0 ? `+${impactVal}` : `${impactVal}`}pp
                         </span>
@@ -1349,14 +1379,14 @@ function getScoreVisuals(score, isTop) {
                 )
                 })
               ) : (
-                <div style={{ padding: 24, textAlign: 'center', color: '#8494AA', font: "400 13px 'IBM Plex Sans', sans-serif" }}>
+                <div style={{ padding: 24, textAlign: 'center', color: textMuted, font: "400 13px 'IBM Plex Sans', sans-serif" }}>
                   {t('leaderboard.empty')}
                 </div>
               )}
             </div>
 
             {/* Chú thích đáy bảng DP1 */}
-            <div style={{ padding: '10px 15px', background: bgSunken, borderTop: `1px solid ${borderCard}`, font: '400 11.5px/1.4 "IBM Plex Sans", sans-serif', color: textMuted }}>
+            <div style={{ padding: '10px 15px', background: bgSunken, borderTop: `1px solid ${borderCard}`, font: '400 11.5px/1.4 "IBM Plex Sans", sans-serif', color: isDark ? textMuted : 'var(--text-secondary)' }}>
               {t('leaderboard.dp1FooterNote')}
             </div>
           </div>
@@ -1401,7 +1431,7 @@ function getScoreVisuals(score, isTop) {
                     }}
                   >
                     <span style={{ color: textSecondary }} title={pairTitle(p)}>{pairLabel(p)}</span>
-                    <span style={{ color: p.pairImpact <= -12 ? '#F09A8E' : (isDark ? '#F0B75C' : 'var(--amber-700, #B45309)') }}>
+                    <span style={{ color: p.pairImpact <= -12 ? (isDark ? '#FF9A8F' : '#DC2626') : (isDark ? '#F0B75C' : 'var(--amber-700, #B45309)') }}>
                       {p.pairImpact} {t('leaderboard.pointsPct')}
                     </span>
                   </div>
@@ -1411,7 +1441,7 @@ function getScoreVisuals(score, isTop) {
               <div
                 style={{
                   font: "400 12px/1.5 'IBM Plex Sans', sans-serif",
-                  color: textMuted,
+                  color: isDark ? textMuted : 'var(--text-secondary)',
                   borderTop: `1px solid ${borderCard}`,
                   paddingTop: 9,
                 }}
@@ -1435,7 +1465,7 @@ function getScoreVisuals(score, isTop) {
             <div style={{ font: "600 14px/1.2 'IBM Plex Sans', sans-serif", color: textWhite }}>
               {t('leaderboard.provisionalPairsTitle')}
             </div>
-            <div style={{ font: "400 12.5px/1.5 'IBM Plex Sans', sans-serif", color: textMuted }}>
+            <div style={{ font: "400 12.5px/1.5 'IBM Plex Sans', sans-serif", color: isDark ? textMuted : 'var(--text-secondary)' }}>
               {t('leaderboard.provisionalPairsDesc', { count: provisionalPairs.length })}
             </div>
             <div style={{ display: 'grid', gap: 6 }}>
@@ -1456,7 +1486,7 @@ function getScoreVisuals(score, isTop) {
                   <span style={{ font: "600 12.5px/1.3 'IBM Plex Sans', sans-serif", color: textWhite }}>
                     <span title={pairTitle(p)}>{pairLabel(p)}</span>
                   </span>
-                  <span style={{ font: "400 11px/1 'IBM Plex Mono', monospace", color: '#F0B75C' }}>
+                  <span style={{ font: "600 11px/1 'IBM Plex Mono', monospace", color: isDark ? '#F0B75C' : 'var(--amber-700, #B45309)' }}>
                     {p.gamesCount}/5 {t('leaderboard.matchesAbbr')}
                   </span>
                 </div>
@@ -1468,9 +1498,9 @@ function getScoreVisuals(score, isTop) {
                 font: "600 12px/1 'IBM Plex Sans', sans-serif",
                 padding: '9px 12px',
                 borderRadius: 6,
-                background: '#1A2437',
-                border: '1px solid #2E3E5C',
-                color: '#E9EFF7',
+                background: isDark ? '#1A2437' : 'var(--surface-sunken)',
+                border: isDark ? '1px solid #2E3E5C' : '1px solid var(--border-default)',
+                color: isDark ? '#E9EFF7' : 'var(--text-primary)',
                 textAlign: 'center',
                 cursor: 'pointer',
               }}

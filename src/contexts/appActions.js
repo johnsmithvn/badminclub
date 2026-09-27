@@ -8,7 +8,7 @@ import {
   presentCount, rowCost, sGuests, guestRev, sessionMembers, isPresent,
   sessionOf, timeTxt, unfrozenCost,
   adjustRows, adjustSessions, lockDues, regroupDues, dueState, intOf, memberRefs, groupRefs, sessionRefs, joinDues,
-  adhocCharges, chargeName, sGuestsOnly, normalizeText, myMember, playerName,
+  adhocCharges, chargeName, isVault, sGuestsOnly, normalizeText, myMember, playerName,
 } from '#lib/money.js'
 import { CATS, fundBalance, groupKey, ledger, undoTarget } from '#lib/ledger.js'
 import { modeToast, activeCourtIdxs, arrange, autoSplit, courtSlotIds, matchStats, place, removePlayer, sessionPlayers, slotCourtIdx } from '#lib/assign.js'
@@ -26,6 +26,7 @@ import { seasonMatchesOf, calculateSeasonLeaderboard } from '#lib/season.js'
 import { buildMatchBackup, validateMatchBackup } from '#lib/matchBackup.js'
 import cfgBadges from '#config/badges.json' with { type: 'json' }
 import { syncPatchMatchViews, syncPatchMatchVideo } from '#contexts/storage.js'
+import { makeTournamentActions } from '#contexts/tournamentActions.js'
 import { detectMatchNarrative, notifyRecipients, notifiableMemberIds, resolveNotificationPayload } from '#lib/activity.js'
 
 /** Id của mọi bản ghi mới. Trùng kiểu uuid của Postgres nên client ghi thẳng được, khỏi map id. */
@@ -79,7 +80,7 @@ const PUSH_EVENTS = new Set([
   //      Dồn vào cuối tháng, dễ bắn hàng loạt. Bật lại sau khi đã đo thực tế.
 ])
 
-export function makeActions({ setDb, setUi, dbRef, uiRef, navRef, toast, reload }) {
+export function makeActions({ setDb, setUi, dbRef, uiRef, navRef, toast, reload, setTour, tourRef }) {
   const db = () => dbRef.current
   /** Form đang nhập — đọc qua ref, KHÔNG đọc qua updater của setUi (updater không chạy đồng bộ). */
   const form = () => uiRef.current.form || {}
@@ -2106,7 +2107,7 @@ export function makeActions({ setDb, setUi, dbRef, uiRef, navRef, toast, reload 
     addGroup: () => {
       const f = form()
       const d0 = db()
-      const def = d0.groups[0] || {}
+      const def = (d0.groups || []).find((g) => g.hasCustomPricing === false) || (d0.groups || []).find((g) => !g.hasCustomPricing) || d0.groups[0] || {}
       const name = (f.grName || '').trim()
       if (!name) return toast(t('toast.needGroupName'))
       up((d) => ({
@@ -2118,6 +2119,8 @@ export function makeActions({ setDb, setUi, dbRef, uiRef, navRef, toast, reload 
           unitNu: def.unitNu || 0,
           from: f.grFrom || '18:00', to: f.grTo || '20:00',
           courtIds: [], active: true,
+          sortOrder: d.groups.length,
+          hasCustomPricing: false,
         }]),
       }))
       upUi(() => ({ dialog: null, form: {} }))
@@ -2177,10 +2180,19 @@ export function makeActions({ setDb, setUi, dbRef, uiRef, navRef, toast, reload 
     }) => {
       const parseUnit = (v) => (v === -1 || v === '-1' ? -1 : intOf(v))
       up((d) => {
-        const def = d.groups[0] || {}
-        const isCustom = (g) =>
-          g.id !== def.id &&
-          (g.feeNam !== def.feeNam || g.feeNu !== def.feeNu || g.unitNam !== def.unitNam || g.unitNu !== def.unitNu)
+        const def = (d.groups || []).find((g) => g.hasCustomPricing === false) || (d.groups || []).find((g) => !g.hasCustomPricing) || d.groups[0] || {}
+        const isCustom = (g) => {
+          if (g.hasCustomPricing === true) return true
+          if (g.hasCustomPricing === false) return false
+          if (!def.id || def.hasCustomPricing) return false
+          if (g.id === def.id) return false
+          return (
+            intOf(g.feeNam) !== intOf(def.feeNam) ||
+            intOf(g.feeNu) !== intOf(def.feeNu) ||
+            intOf(g.unitNam) !== intOf(def.unitNam) ||
+            intOf(g.unitNu) !== intOf(def.unitNu)
+          )
+        }
         return {
           club: {
             ...d.club,
@@ -2213,12 +2225,17 @@ export function makeActions({ setDb, setUi, dbRef, uiRef, navRef, toast, reload 
     },
     saveGroupsTab: (groupsList) => {
       up(() => ({
-        groups: groupsList.map((g) => ({
+        groups: groupsList.map((g, idx) => ({
           ...g,
           name: (g.name || '').trim(),
           short: (g.short || '').trim() || (g.name || '').slice(0, 3),
+          feeNam: intOf(g.feeNam),
+          feeNu: intOf(g.feeNu),
+          unitNam: g.unitNam === -1 || g.unitNam === '-1' ? -1 : intOf(g.unitNam),
+          unitNu: g.unitNu === -1 || g.unitNu === '-1' ? -1 : intOf(g.unitNu),
           from: g.from || '18:00',
           to: g.to || '20:00',
+          sortOrder: idx,
         })),
       }))
       toast(t('toast.groupsSaved'))
@@ -2240,10 +2257,10 @@ export function makeActions({ setDb, setUi, dbRef, uiRef, navRef, toast, reload 
           levels: d.levels || cfg.levelsDefault,
         },
         money: {
-          feeNam: d.groups[0]?.feeNam || 0,
-          feeNu: d.groups[0]?.feeNu || 0,
-          unitNam: d.groups[0]?.unitNam || 0,
-          unitNu: d.groups[0]?.unitNu || 0,
+          feeNam: ((d.groups || []).find((g) => g.hasCustomPricing === false) || d.groups[0])?.feeNam || 0,
+          feeNu: ((d.groups || []).find((g) => g.hasCustomPricing === false) || d.groups[0])?.feeNu || 0,
+          unitNam: ((d.groups || []).find((g) => g.hasCustomPricing === false) || d.groups[0])?.unitNam || 0,
+          unitNu: ((d.groups || []).find((g) => g.hasCustomPricing === false) || d.groups[0])?.unitNu || 0,
           hasMemberExtraDiscount: Boolean(d.club?.hasMemberExtraDiscount),
           memberExtraDiscount: d.club?.memberExtraDiscount != null ? intOf(d.club.memberExtraDiscount) : 5000,
           guestPrices: (d.guestPrices || []).map((p) => ({
@@ -3346,51 +3363,27 @@ export function makeActions({ setDb, setUi, dbRef, uiRef, navRef, toast, reload 
     linkChallengeToSession: (challengeId, sessionId) => {
       const d0 = db()
       const chal = (d0.challenges || []).find((c) => c.id === challengeId)
-      if (!chal) return
+      if (!chal) return false
       const s = sessionId ? sessionOf(d0, sessionId) : null
-      if (sessionId && !s) return
+      if (sessionId && !s) return false
       const myMem = myMember(d0)
       const isPlayer = myMem && ((chal.teamA || []).includes(myMem.id) || (chal.teamB || []).includes(myMem.id) || chal.createdBy === myMem.id)
-      if (!canAssign() && !isPlayer) return
+      if (!canAssign() && !isPlayer) {
+        toast(t('common.unauthorized'))
+        return false
+      }
 
-      // Validate: Nếu gắn vào buổi, kiểm tra xem có người chơi nào vắng mặt / không đi buổi đó không
+      // Validate: Nếu gắn vào buổi, kiểm tra xem có người chơi nào đã báo vắng mặt không
       if (sessionId && s) {
         const att = d0.attendance?.[s.id] || {}
         const allPlayers = [...(chal.teamA || []), ...(chal.teamB || [])]
 
-        // 1. Chặn nếu có người chơi đã báo vắng (hoặc nghỉ không báo)
+        // Chặn nếu có người chơi đã báo vắng (hoặc nghỉ không báo)
         const absentKeys = allPlayers.filter((id) => att[id] === false || att[id] === 'noshow')
         if (absentKeys.length > 0) {
           const absentNames = absentKeys.map((id) => playerName(d0, id) || id)
           toast(t('planner.chalAbsentCantSchedule', { names: absentNames.join(', ') }))
-          return
-        }
-
-        // 2. Chặn nếu có người chơi không thuộc nhóm thành viên hoặc khách của buổi đó
-        const mems = sessionMembers(d0, s) || []
-        const guests = sGuests(d0, s.id) || []
-        const eligibleKeys = new Set([
-          ...mems.map((m) => m.id),
-          ...guests.map((g) => g.guestId || g.memberId || g.id),
-        ])
-        const notInSessionKeys = allPlayers.filter((id) => !eligibleKeys.has(id))
-        if (notInSessionKeys.length > 0) {
-          const notInSessionNames = notInSessionKeys.map((id) => playerName(d0, id) || id)
-          toast(t('planner.chalAbsentCantSchedule', { names: notInSessionNames.join(', ') }))
-          return
-        }
-
-        // 3. Nếu buổi chơi đã bắt đầu điểm danh có mặt: đòi hỏi người chơi phải có mặt
-        const hasStartedAttendance = Object.values(att).some((v) => isPresent(v))
-        if (hasStartedAttendance) {
-          const sessPlayers = sessionPlayers(d0, s)
-          const presentKeys = new Set(sessPlayers.map((p) => p.key))
-          const notPresentKeys = allPlayers.filter((id) => !presentKeys.has(id))
-          if (notPresentKeys.length > 0) {
-            const notPresentNames = notPresentKeys.map((id) => playerName(d0, id) || id)
-            toast(t('planner.chalAbsentCantSchedule', { names: notPresentNames.join(', ') }))
-            return
-          }
+          return false
         }
       }
 
@@ -3402,6 +3395,7 @@ export function makeActions({ setDb, setUi, dbRef, uiRef, navRef, toast, reload 
       } else {
         toast(t('challenge.toastUnlinkedFromSession', { code: chal.code }))
       }
+      return true
     },
 
     saveMatchScore: ({ sid, sessionId, ci, courtIdx, courtIndex, sets, challengeCode, challengeId, teamA: propTeamA, teamB: propTeamB, ratingEnabled: propRatingEnabled, minutes }) => {
@@ -4730,6 +4724,90 @@ export function makeActions({ setDb, setUi, dbRef, uiRef, navRef, toast, reload 
 
     toast(t('toast.selfCheckinSuccess'))
   }
+
+  A.setSeasonConfig = (seasonData) => {
+    const d0 = db()
+    const existingSeasons = Array.isArray(d0.seasons) && d0.seasons.length > 0
+      ? d0.seasons
+      : (d0.club?.seasons || [cfg.season])
+
+    const targetId = seasonData.id || seasonData.code
+    let updated = false
+    const newSeasons = existingSeasons.map((s) => {
+      if ((targetId && (s.id === targetId || s.code === targetId)) || (!targetId && s.active)) {
+        updated = true
+        return { ...s, ...seasonData }
+      }
+      return s
+    })
+
+    if (!updated) {
+      newSeasons.push({ ...seasonData, active: true })
+    }
+
+    up((d) => ({
+      seasons: newSeasons,
+      club: {
+        ...(d.club || {}),
+        seasons: newSeasons,
+      },
+    }))
+
+    toast(t('season.saveSeasonSuccess'))
+  }
+
+  A.endSeasonAndStartNew = ({ oldSeasonId, newSeasonData, podiumSnapshot = [] }) => {
+    const d0 = db()
+    const nowIso = new Date().toISOString()
+    const existingSeasons = Array.isArray(d0.seasons) && d0.seasons.length > 0
+      ? d0.seasons
+      : (d0.club?.seasons || [cfg.season])
+
+    const updatedSeasons = existingSeasons.map((s) => {
+      const isTarget = oldSeasonId ? (s.id === oldSeasonId || s.code === oldSeasonId) : s.active
+      if (isTarget) {
+        return {
+          ...s,
+          active: false,
+          closedAt: nowIso,
+          podiumSnapshot: podiumSnapshot.length > 0 ? podiumSnapshot : (s.podiumSnapshot || []),
+        }
+      }
+      return { ...s, active: false }
+    })
+
+    const newSeason = {
+      id: newSeasonData.id || newSeasonData.code || uid(),
+      code: newSeasonData.code || 'SEASON',
+      name: newSeasonData.name || '',
+      fullName: newSeasonData.fullName || newSeasonData.name || '',
+      startDate: newSeasonData.startDate,
+      endDate: newSeasonData.endDate,
+      cycle: newSeasonData.cycle || 'quarter',
+      totalSessionsExpected: Number(newSeasonData.totalSessionsExpected) || 14,
+      minMatchesOfficial: Number(newSeasonData.minMatchesOfficial) || 8,
+      inactiveDays: Number(newSeasonData.inactiveDays) || 21,
+      active: true,
+      closedAt: null,
+      bonusConfig: newSeasonData.bonusConfig || cfg?.season?.bonusConfig || { streak3: 5, streak5: 10, upset150: 5 },
+      deltaScale: newSeasonData.deltaScale || cfg?.season?.deltaScale,
+    }
+
+    const finalSeasons = [newSeason, ...updatedSeasons]
+
+    up((d) => ({
+      seasons: finalSeasons,
+      club: {
+        ...(d.club || {}),
+        seasons: finalSeasons,
+      },
+    }))
+
+    toast(t('season.seasonEndedSuccess'))
+  }
+
+  // Giải đấu: state riêng `tour`, ghi riêng — xem tournamentActions.js.
+  Object.assign(A, makeTournamentActions({ dbRef, tourRef, setTour, toast, uid }))
 
   return A
 }

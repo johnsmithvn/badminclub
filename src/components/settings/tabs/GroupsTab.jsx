@@ -1,11 +1,11 @@
 import React, { useState } from 'react'
-import { Button, Input } from '#ds'
+import { Button, Icon, Input } from '#ds'
 import {
   SettingsCard,
   EmptyState,
 } from '#components/settings/SettingsComponents.jsx'
 import { groupForm } from '#lib/forms.js'
-import { fmtK } from '#lib/money.js'
+import { fmtK, intOf } from '#lib/money.js'
 import { t } from '#i18n'
 
 export default function GroupsTab({
@@ -13,16 +13,18 @@ export default function GroupsTab({
   courts = [],
   db,
   defGroup = {},
+  clubFeeSettings,
   onGroupFieldChange,
+  onReorderGroups,
   onOpenDialog,
   onDeleteGroup,
   canEdit = true,
 }) {
   const noCourt = courts.length === 0
-  const defaultFeeNam = defGroup.feeNam !== undefined ? defGroup.feeNam : (db.groups?.[0]?.feeNam || 0)
-  const defaultFeeNu = defGroup.feeNu !== undefined ? defGroup.feeNu : (db.groups?.[0]?.feeNu || 0)
-  const defaultUnitNam = defGroup.unitNam !== undefined ? defGroup.unitNam : (db.groups?.[0]?.unitNam || 0)
-  const defaultUnitNu = defGroup.unitNu !== undefined ? defGroup.unitNu : (db.groups?.[0]?.unitNu || 0)
+  const defaultFeeNam = clubFeeSettings?.feeNam !== undefined ? clubFeeSettings.feeNam : (defGroup.feeNam !== undefined ? defGroup.feeNam : (db.groups?.[0]?.feeNam || 0))
+  const defaultFeeNu = clubFeeSettings?.feeNu !== undefined ? clubFeeSettings.feeNu : (defGroup.feeNu !== undefined ? defGroup.feeNu : (db.groups?.[0]?.feeNu || 0))
+  const defaultUnitNam = clubFeeSettings?.unitNam !== undefined ? clubFeeSettings.unitNam : (defGroup.unitNam !== undefined ? defGroup.unitNam : (db.groups?.[0]?.unitNam || 0))
+  const defaultUnitNu = clubFeeSettings?.unitNu !== undefined ? clubFeeSettings.unitNu : (defGroup.unitNu !== undefined ? defGroup.unitNu : (db.groups?.[0]?.unitNu || 0))
 
   // Track which group IDs are currently in "custom pricing" edit mode
   const [customPricing, setCustomPricing] = useState({})
@@ -35,11 +37,33 @@ export default function GroupsTab({
       [groupId]: willBeCustom,
     }))
     if (willBeCustom) {
-      if (g.feeNam === undefined) onGroupFieldChange(groupId, 'feeNam', defaultFeeNam)
-      if (g.feeNu === undefined) onGroupFieldChange(groupId, 'feeNu', defaultFeeNu)
-      if (g.unitNam === undefined) onGroupFieldChange(groupId, 'unitNam', defaultUnitNam)
-      if (g.unitNu === undefined) onGroupFieldChange(groupId, 'unitNu', defaultUnitNu)
+      onGroupFieldChange(groupId, {
+        hasCustomPricing: true,
+        feeNam: g.feeNam !== undefined ? g.feeNam : defaultFeeNam,
+        feeNu: g.feeNu !== undefined ? g.feeNu : defaultFeeNu,
+        unitNam: g.unitNam !== undefined ? g.unitNam : defaultUnitNam,
+        unitNu: g.unitNu !== undefined ? g.unitNu : defaultUnitNu,
+      })
+    } else {
+      onGroupFieldChange(groupId, {
+        hasCustomPricing: false,
+        feeNam: defaultFeeNam,
+        feeNu: defaultFeeNu,
+        unitNam: defaultUnitNam,
+        unitNu: defaultUnitNu,
+      })
     }
+  }
+
+  const moveGroup = (idx, dir) => {
+    if (!canEdit || !onReorderGroups) return
+    const targetIdx = idx + dir
+    if (targetIdx < 0 || targetIdx >= groups.length) return
+    const next = [...groups]
+    const temp = next[idx]
+    next[idx] = next[targetIdx]
+    next[targetIdx] = temp
+    onReorderGroups(next)
   }
 
   return (
@@ -75,15 +99,19 @@ export default function GroupsTab({
             const hasCustom = Boolean(
               customPricing[g.id] !== undefined
                 ? customPricing[g.id]
-                : (g.feeNam !== undefined && g.feeNam !== defaultFeeNam) ||
-                  (g.feeNu !== undefined && g.feeNu !== defaultFeeNu) ||
-                  (g.unitNam !== undefined && g.unitNam !== defaultUnitNam) ||
-                  (g.unitNu !== undefined && g.unitNu !== defaultUnitNu)
+                : g.hasCustomPricing === true
+                  ? true
+                  : g.hasCustomPricing === false
+                    ? false
+                    : (intOf(g.feeNam) !== intOf(defaultFeeNam)) ||
+                      (intOf(g.feeNu) !== intOf(defaultFeeNu)) ||
+                      (intOf(g.unitNam) !== intOf(defaultUnitNam)) ||
+                      (intOf(g.unitNu) !== intOf(defaultUnitNu))
             )
-            const feeNamVal = g.feeNam !== undefined ? g.feeNam : defaultFeeNam
-            const feeNuVal = g.feeNu !== undefined ? g.feeNu : defaultFeeNu
-            const unitNamVal = g.unitNam !== undefined ? g.unitNam : defaultUnitNam
-            const unitNuVal = g.unitNu !== undefined ? g.unitNu : defaultUnitNu
+            const feeNamVal = hasCustom ? (g.feeNam !== undefined ? g.feeNam : defaultFeeNam) : defaultFeeNam
+            const feeNuVal = hasCustom ? (g.feeNu !== undefined ? g.feeNu : defaultFeeNu) : defaultFeeNu
+            const unitNamVal = hasCustom ? (g.unitNam !== undefined ? g.unitNam : defaultUnitNam) : defaultUnitNam
+            const unitNuVal = hasCustom ? (g.unitNu !== undefined ? g.unitNu : defaultUnitNu) : defaultUnitNu
 
             const isTimeInvalid = Boolean(g.from && g.to && g.from >= g.to)
             const isNameDup = Boolean(
@@ -132,23 +160,75 @@ export default function GroupsTab({
                     )}
                   </div>
 
-                  {canEdit && (
-                    <button
-                      type="button"
-                      onClick={() => onDeleteGroup && onDeleteGroup(g.id, g.name)}
-                      style={{
-                        border: 'none',
-                        background: 'transparent',
-                        color: 'var(--text-danger)',
-                        fontSize: 12.5,
-                        fontWeight: 600,
-                        cursor: 'pointer',
-                        padding: 0,
-                      }}
-                    >
-                      {t('settings.groupDel')}
-                    </button>
-                  )}
+                  <div style={{ display: 'flex', alignItems: 'center', gap: 6 }}>
+                    {canEdit && groups.length > 1 && (
+                      <div style={{ display: 'inline-flex', alignItems: 'center', gap: 3, marginRight: 6 }}>
+                        <button
+                          type="button"
+                          disabled={idx === 0}
+                          title={t('common.moveUp')}
+                          aria-label={t('common.moveUp')}
+                          onClick={() => moveGroup(idx, -1)}
+                          style={{
+                            border: '1px solid var(--border-subtle)',
+                            background: 'var(--surface-card)',
+                            color: idx === 0 ? 'var(--text-muted)' : 'var(--text-primary)',
+                            borderRadius: 4,
+                            width: 24,
+                            height: 24,
+                            display: 'flex',
+                            alignItems: 'center',
+                            justifyContent: 'center',
+                            cursor: idx === 0 ? 'default' : 'pointer',
+                            opacity: idx === 0 ? 0.35 : 1,
+                            padding: 0,
+                          }}
+                        >
+                          <Icon name="chevron-up" size={13} />
+                        </button>
+                        <button
+                          type="button"
+                          disabled={idx === groups.length - 1}
+                          title={t('common.moveDown')}
+                          aria-label={t('common.moveDown')}
+                          onClick={() => moveGroup(idx, 1)}
+                          style={{
+                            border: '1px solid var(--border-subtle)',
+                            background: 'var(--surface-card)',
+                            color: idx === groups.length - 1 ? 'var(--text-muted)' : 'var(--text-primary)',
+                            borderRadius: 4,
+                            width: 24,
+                            height: 24,
+                            display: 'flex',
+                            alignItems: 'center',
+                            justifyContent: 'center',
+                            cursor: idx === groups.length - 1 ? 'default' : 'pointer',
+                            opacity: idx === groups.length - 1 ? 0.35 : 1,
+                            padding: 0,
+                          }}
+                        >
+                          <Icon name="chevron-down" size={13} />
+                        </button>
+                      </div>
+                    )}
+                    {canEdit && (
+                      <button
+                        type="button"
+                        onClick={() => onDeleteGroup && onDeleteGroup(g.id, g.name)}
+                        style={{
+                          border: 'none',
+                          background: 'transparent',
+                          color: 'var(--text-danger)',
+                          fontSize: 12.5,
+                          fontWeight: 600,
+                          cursor: 'pointer',
+                          padding: 0,
+                        }}
+                      >
+                        {t('settings.groupDel')}
+                      </button>
+                    )}
+                  </div>
                 </div>
 
                 {/* Form fields */}
@@ -263,10 +343,13 @@ export default function GroupsTab({
                       <button
                         type="button"
                         onClick={() => {
-                          onGroupFieldChange(g.id, 'feeNam', defaultFeeNam)
-                          onGroupFieldChange(g.id, 'feeNu', defaultFeeNu)
-                          onGroupFieldChange(g.id, 'unitNam', defaultUnitNam)
-                          onGroupFieldChange(g.id, 'unitNu', defaultUnitNu)
+                          onGroupFieldChange(g.id, {
+                            hasCustomPricing: false,
+                            feeNam: defaultFeeNam,
+                            feeNu: defaultFeeNu,
+                            unitNam: defaultUnitNam,
+                            unitNu: defaultUnitNu,
+                          })
                           setCustomPricing((prev) => ({ ...prev, [g.id]: false }))
                         }}
                         style={{

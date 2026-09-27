@@ -380,24 +380,66 @@ export default function CreateChallengeModal({ session, onClose, onCreated, init
 
           {/* Độ cân & Đánh giá cân kèo */}
           <div style={S.analysisRow}>
-            <div style={S.analysisCard}>
-              <div style={S.sectionLabel}>{t('challenge.balanceTitle')}</div>
-              <div style={S.pctRow}>
-                <span style={{ ...S.pctNum, color: 'var(--status-transit-fg)' }}>{pctA}%</span>
-                <span style={S.gapMono}>{t('rating.gap', { gap })}</span>
-                <span style={{ ...S.pctNum, color: 'var(--text-secondary)' }}>{pctB}%</span>
+            {/* Cột trái: Phân tích độ cân & Biến động điểm Elo */}
+            <div style={{ ...S.analysisCard, display: 'flex', flexDirection: 'column', justifyContent: 'space-between' }}>
+              <div style={{ display: 'grid', gap: 8 }}>
+                <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', gap: 6 }}>
+                  <div style={S.sectionLabel}>{t('challenge.balanceTitle')}</div>
+                  <span
+                    style={{
+                      font: '600 11.5px/1.2 var(--font-sans)',
+                      color: isImbalanced
+                        ? 'var(--status-delayed-fg)'
+                        : gap <= BALANCE_THRESHOLD
+                          ? 'var(--status-delivered-fg)'
+                          : 'var(--status-transit-fg)',
+                    }}
+                  >
+                    {isImbalanced
+                      ? `⚠️ ${t('challenge.imbalancedWarn', { gap })}`
+                      : gap <= BALANCE_THRESHOLD
+                        ? t('challenge.veryBalanced')
+                        : t('challenge.quiteBalanced')}
+                  </span>
+                </div>
+
+                <div style={S.pctRow}>
+                  <span style={{ ...S.pctNum, color: 'var(--status-transit-fg)' }}>{pctA}%</span>
+                  <span style={S.gapMono}>{t('rating.gap', { gap })}</span>
+                  <span style={{ ...S.pctNum, color: 'var(--text-secondary)' }}>{pctB}%</span>
+                </div>
+
+                <div style={S.barTrack}>
+                  <div style={{ width: `${pctA}%`, background: 'var(--teal-500)', height: '100%' }} />
+                  <div style={{ width: `${pctB}%`, background: 'var(--border-default)', height: '100%' }} />
+                </div>
               </div>
-              <div style={S.barTrack}>
-                <div style={{ width: `${pctA}%`, background: 'var(--teal-500)', height: '100%' }} />
-                <div style={{ width: `${pctB}%`, background: 'var(--border-default)', height: '100%' }} />
-              </div>
-              <div style={{
-                fontSize: 12,
-                fontWeight: 600,
-                color: isImbalanced ? 'var(--status-delayed-fg)' : gap <= BALANCE_THRESHOLD ? 'var(--status-delivered-fg)' : 'var(--status-transit-fg)',
-                marginTop: 2,
-              }}>
-                {isImbalanced ? t('challenge.imbalancedWarn', { gap: IMBALANCE_THRESHOLD }) : gap <= BALANCE_THRESHOLD ? t('challenge.veryBalanced') : t('challenge.quiteBalanced')}
+
+              {/* Chi tiết kịch bản biến động Elo 2 đội */}
+              <div style={{ display: 'grid', gap: 6, marginTop: 10 }}>
+                <div style={{ font: '600 11px/1.2 var(--font-sans)', letterSpacing: '0.08em', textTransform: 'uppercase', color: 'var(--text-muted)' }}>
+                  {t('challenge.scenarioTitle')}
+                </div>
+                <div style={{ display: 'grid', gridTemplateColumns: 'repeat(2, minmax(0, 1fr))', gap: 8 }}>
+                  <div style={S.scenarioBox}>
+                    <div style={{ color: 'var(--text-muted)', fontSize: 11, fontWeight: 600 }}>{t('challenge.ifWinA')}</div>
+                    <div style={{ fontFamily: 'var(--font-mono)', fontSize: 13, color: 'var(--status-delivered-fg)', fontWeight: 700 }}>
+                      +{deltaA_win} / -{deltaA_win}
+                    </div>
+                  </div>
+                  <div style={S.scenarioBox}>
+                    <div style={{ color: 'var(--text-muted)', fontSize: 11, fontWeight: 600 }}>{t('challenge.ifWinB')}</div>
+                    <div style={{ fontFamily: 'var(--font-mono)', fontSize: 13, color: isImbalanced ? 'var(--status-delayed-fg)' : 'var(--status-delivered-fg)', fontWeight: 700 }}>
+                      +{deltaB_win} / -{deltaB_win}
+                    </div>
+                  </div>
+                </div>
+
+                {isImbalanced && (
+                  <div style={{ fontSize: 11, color: 'var(--status-delayed-fg)', fontStyle: 'italic', marginTop: 2 }}>
+                    {t('challenge.imbalanceNotice')}
+                  </div>
+                )}
               </div>
             </div>
 
@@ -541,31 +583,7 @@ export default function CreateChallengeModal({ session, onClose, onCreated, init
             </div>
           )}
 
-          {/* Cảnh báo K3: Kèo lệch trình độ & Chi tiết delta 2 kịch bản */}
-          {isImbalanced && (
-            <div style={S.imbalanceDetailedCard}>
-              <div style={{ display: 'flex', alignItems: 'center', gap: 6, color: 'var(--status-delayed-fg)', fontWeight: 600, fontSize: 13 }}>
-                <span>⚠️</span> {t('challenge.imbalancedWarn', { gap })}
-              </div>
-              <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(180px, 1fr))', gap: 8, marginTop: 4 }}>
-                <div style={S.scenarioBox}>
-                  <div style={{ color: 'var(--text-muted)', fontSize: 11, fontWeight: 600 }}>{t('challenge.ifWinA')}</div>
-                  <div style={{ fontFamily: 'var(--font-mono)', fontSize: 12.5, color: 'var(--status-delivered-fg)', fontWeight: 600 }}>
-                    +{deltaA_win} / -{deltaA_win}
-                  </div>
-                </div>
-                <div style={S.scenarioBox}>
-                  <div style={{ color: 'var(--text-muted)', fontSize: 11, fontWeight: 600 }}>{t('challenge.ifWinB')}</div>
-                  <div style={{ fontFamily: 'var(--font-mono)', fontSize: 12.5, color: 'var(--status-delayed-fg)', fontWeight: 600 }}>
-                    +{deltaB_win} / -{deltaB_win}
-                  </div>
-                </div>
-              </div>
-              <div style={{ fontSize: 11.5, color: 'var(--text-muted)', fontStyle: 'italic', marginTop: 2 }}>
-                {t('challenge.imbalanceNotice')}
-              </div>
-            </div>
-          )}
+
 
           {/* Action footer */}
           <div style={S.actionRow}>
@@ -735,7 +753,7 @@ const S = {
     display: 'grid',
     gridTemplateColumns: 'repeat(auto-fit, minmax(280px, 1fr))',
     gap: 12,
-    alignItems: 'start',
+    alignItems: 'stretch',
   },
   analysisCard: {
     display: 'grid',

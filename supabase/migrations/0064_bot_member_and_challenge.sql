@@ -1,4 +1,4 @@
--- 0055_bot_member_and_challenge.sql
+-- 0064_bot_member_and_challenge.sql
 -- BOT CLB — một thành viên được đánh dấu `is_bot` tự dựng kèo cho HAI NGƯỜI THẬT.
 --
 -- ============================ VÌ SAO PHẢI LÀ RPC ============================

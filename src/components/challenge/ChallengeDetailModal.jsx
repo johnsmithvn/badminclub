@@ -4,12 +4,12 @@ import { useApp } from '#contexts/AppContext.jsx'
 import { useMobile } from '#hooks/useMobile.js'
 import { courtOf, myMember, playerName, playerOf, shortName } from '#lib/money.js'
 import { expectedScore, getPlayerRating, matchCodeOf } from '#lib/rating.js'
-import { searchMatches } from '#lib/matchSearch.js'
 import { getChallengeAcceptanceProgress, canMemberAcceptChallenge, canAdminForceAcceptChallenge, challengeCloserOf, validateStakePoints, getPredictionStats, getMemberPrediction, canMemberPredict, availableSeasonPoints, isChallengeExpired, challengeExpiryAt, isChallengeAccepted } from '#lib/challenge.js'
 import { botLineKey, getBotMatchReaction, getBotBetLine } from '#lib/bot.js'
 import { calculateSeasonLeaderboard, calcSeasonMatchDeltaFinal, challengeMultiplierOf } from '#lib/season.js'
 import cfg from '#config/app.json'
 import { t } from '#i18n'
+import ArenaPlayerTag from './ArenaPlayerTag.jsx'
 
 export default function ChallengeDetailModal({ challenge, session, onClose, onScoreInput, onOpenMatch }) {
   const { db, a } = useApp()
@@ -37,7 +37,6 @@ export default function ChallengeDetailModal({ challenge, session, onClose, onSc
 
   const isCreator = Boolean(myId && c.createdBy === myId)
   const isTeamA = Boolean(myId && teamA.includes(myId))
-  const isTeamB = Boolean(myId && teamB.includes(myId))
   const isParticipant = Boolean(myId && [...teamA, ...teamB].includes(myId))
   const isPending = c.status === 'pending'
   // Dùng chung `isChallengeExpired`: bản viết tay cũ ở đây bỏ qua `status`, nên kèo đã NHẬN mà
@@ -413,18 +412,40 @@ export default function ChallengeDetailModal({ challenge, session, onClose, onSc
     ? new Date(matchObj.createdAt).toLocaleTimeString('vi-VN', { hour: '2-digit', minute: '2-digit' })
     : ''
 
-  const headerSubText = effectiveSession?.date
-    ? t('challenge.headerMeta', {
-        creator: creatorName || t('challenge.teamA'),
-        time: createdTimeStr,
-        date: effectiveSession.date,
-        court: courtName ? ` · ${courtName}` : '',
-      })
-    : t('challenge.headerMetaCasual', {
-        creator: creatorName || t('challenge.teamA'),
-        time: createdTimeStr,
-        court: courtName ? ` · ${courtName}` : '',
-      })
+  const headerSubText = (
+    <span style={{ display: 'inline-flex', alignItems: 'center', gap: 6, flexWrap: 'wrap', lineHeight: 1.4 }}>
+      <strong
+        title={creatorName || t('challenge.teamA')}
+        style={{
+          color: 'var(--text-primary)',
+          background: 'rgba(255, 255, 255, 0.08)',
+          padding: '1px 6px',
+          borderRadius: 4,
+          border: '1px solid var(--border-subtle)',
+          maxWidth: isMobile ? 140 : 200,
+          overflow: 'hidden',
+          textOverflow: 'ellipsis',
+          whiteSpace: 'nowrap',
+          display: 'inline-block',
+          verticalAlign: 'bottom',
+        }}
+      >
+        {creatorName || t('challenge.teamA')}
+      </strong>
+      <span>
+        {effectiveSession?.date
+          ? t('challenge.sentAtMeta', {
+              time: createdTimeStr,
+              date: effectiveSession.date,
+              court: courtName ? ` · ${courtName}` : '',
+            })
+          : t('challenge.sentAtMetaCasual', {
+              time: createdTimeStr,
+              court: courtName ? ` · ${courtName}` : '',
+            })}
+      </span>
+    </span>
+  )
 
   if (!challenge) return null
 
@@ -433,10 +454,64 @@ export default function ChallengeDetailModal({ challenge, session, onClose, onSc
       open
       sheet={isMobile}
       width={480}
-      title={`${t('challenge.challenge')} ${c.code}`}
+      className="challenge-detail-dialog"
+      title={
+        <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', width: '100%', gap: 10 }}>
+          <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
+            <span>{`${t('challenge.challenge')} ${c.code}`}</span>
+            {isAdmin && (
+              <button
+                type="button"
+                disabled={submitting}
+                onClick={handleDelete}
+                title={t('challenge.btnDelete')}
+                aria-label={t('challenge.btnDelete')}
+                style={{
+                  display: 'inline-flex',
+                  alignItems: 'center',
+                  justifyContent: 'center',
+                  width: 28,
+                  height: 28,
+                  borderRadius: 'var(--radius-sm)',
+                  background: 'rgba(255, 107, 107, 0.12)',
+                  border: '1px solid rgba(255, 107, 107, 0.3)',
+                  color: '#FF8585',
+                  cursor: submitting ? 'not-allowed' : 'pointer',
+                  padding: 0,
+                  transition: 'background 0.15s ease',
+                }}
+              >
+                <Icon name="trash-2" size={14} />
+              </button>
+            )}
+          </div>
+          {isMobile && (
+            <button
+              type="button"
+              onClick={onClose}
+              aria-label="Close"
+              style={{
+                border: 0,
+                background: 'transparent',
+                color: 'var(--text-muted)',
+                cursor: 'pointer',
+                padding: 2,
+                display: 'flex',
+                alignItems: 'center',
+              }}
+            >
+              <Icon name="x" size={18} />
+            </button>
+          )}
+        </div>
+      }
       description={headerSubText}
       onClose={onClose}
       style={{
+        display: 'flex',
+        flexDirection: 'column',
+        maxHeight: isMobile ? '90vh' : '86vh',
+        overflow: 'hidden',
         paddingBottom: isMobile ? 'calc(16px + env(safe-area-inset-bottom, 0px))' : undefined,
       }}
       footer={
@@ -446,9 +521,9 @@ export default function ChallengeDetailModal({ challenge, session, onClose, onSc
               width: '100%',
               padding: '10px 14px',
               borderRadius: 'var(--radius-md)',
-              background: 'rgba(239, 68, 68, 0.1)',
-              border: '1px solid var(--red-500, #ef4444)',
-              color: 'var(--red-500, #ef4444)',
+              background: 'rgba(255, 107, 107, 0.12)',
+              border: '1px solid rgba(255, 107, 107, 0.35)',
+              color: '#FF8585',
               fontSize: 13,
               fontWeight: 600,
               textAlign: 'center',
@@ -521,10 +596,10 @@ export default function ChallengeDetailModal({ challenge, session, onClose, onSc
                 alignItems: 'center',
                 padding: '0 16px',
                 borderRadius: 'var(--radius-md)',
-                background: 'rgba(239, 68, 68, 0.1)',
-                border: '1px solid rgba(239, 68, 68, 0.25)',
+                background: 'rgba(255, 107, 107, 0.12)',
+                border: '1px solid rgba(255, 107, 107, 0.3)',
                 font: '600 14px/1 "IBM Plex Sans", sans-serif',
-                color: 'var(--red-500, #ef4444)',
+                color: '#FF8585',
                 cursor: submitting ? 'not-allowed' : 'pointer',
               }}
             >
@@ -624,10 +699,10 @@ export default function ChallengeDetailModal({ challenge, session, onClose, onSc
                 alignItems: 'center',
                 padding: '0 14px',
                 borderRadius: 'var(--radius-md)',
-                background: 'rgba(239, 68, 68, 0.1)',
-                border: '1px solid rgba(239, 68, 68, 0.25)',
+                background: 'rgba(255, 107, 107, 0.12)',
+                border: '1px solid rgba(255, 107, 107, 0.3)',
                 font: '600 13px/1 "IBM Plex Sans", sans-serif',
-                color: 'var(--red-500, #ef4444)',
+                color: '#FF8585',
                 cursor: submitting ? 'not-allowed' : 'pointer',
               }}
             >
@@ -660,51 +735,32 @@ export default function ChallengeDetailModal({ challenge, session, onClose, onSc
             </button>
           )}
 
-          {/* Nút xoá vĩnh viễn kèo cho Admin */}
-          {isAdmin && (
-            <button
-              type="button"
-              disabled={submitting}
-              onClick={handleDelete}
-              style={{
-                height: isMobile ? 56 : 44,
-                display: 'flex',
-                alignItems: 'center',
-                padding: '0 14px',
-                borderRadius: 'var(--radius-md)',
-                background: 'rgba(239, 68, 68, 0.1)',
-                border: '1px solid rgba(239, 68, 68, 0.25)',
-                font: '600 13px/1 "IBM Plex Sans", sans-serif',
-                color: 'var(--red-500, #ef4444)',
-                cursor: submitting ? 'not-allowed' : 'pointer',
-              }}
-            >
-              <Icon name="trash-2" size={14} style={{ marginRight: 6 }} />
-              <span>{t('challenge.btnDelete')}</span>
-            </button>
-          )}
-
-          <button
-            type="button"
-            onClick={onClose}
-            style={{
-              height: isMobile ? 56 : 44,
-              display: 'flex',
-              alignItems: 'center',
-              padding: '0 18px',
-              borderRadius: 'var(--radius-md)',
-              background: 'var(--surface-card)',
-              border: '1px solid var(--border-default)',
-              font: '600 14px/1 "IBM Plex Sans", sans-serif',
-              color: 'var(--text-secondary)',
-              cursor: 'pointer',
-            }}
-          >
-            {t('common.close')}
-          </button>
         </div>
       }
     >
+      <style>{`
+        .challenge-detail-dialog {
+          display: flex !important;
+          flex-direction: column !important;
+          max-height: ${isMobile ? '90vh' : '86vh'} !important;
+          overflow: hidden !important;
+        }
+        .challenge-detail-dialog > header {
+          flex-shrink: 0 !important;
+          padding: 16px 20px 12px !important;
+          border-bottom: 1px solid var(--border-subtle) !important;
+        }
+        .challenge-detail-dialog > footer {
+          flex-shrink: 0 !important;
+          border-top: 1px solid var(--border-subtle) !important;
+        }
+        .challenge-detail-dialog > div:not([style*="margin"]):not(header):not(footer) {
+          flex: 1 1 auto !important;
+          min-height: 0 !important;
+          overflow-y: auto !important;
+          overscroll-behavior: contain !important;
+        }
+      `}</style>
       <div style={{ display: 'grid', gap: 14 }}>
         {/* Đổi thể thức BO1 / BO3 khi chưa ghi tỷ số */}
         {canEditFormat && (
@@ -972,40 +1028,50 @@ export default function ChallengeDetailModal({ challenge, session, onClose, onSc
           )}
 
           <div style={{ display: 'flex', alignItems: 'center', gap: 10 }}>
-            <div style={{ flex: 1, minWidth: 0, display: 'flex', flexDirection: 'column', gap: 2 }}>
-              <div style={{ font: '600 14.5px/1.3 "IBM Plex Sans", sans-serif', color: 'var(--text-primary)', display: 'flex', flexWrap: 'wrap', gap: 6 }}>
-                {teamA.map((id) => {
-                  const isAcc = (c.acceptedPlayers || []).includes(id)
-                  return (
-                    <span key={id} style={{ display: 'inline-flex', alignItems: 'center', gap: 4 }}>
-                      <span>{playerName(db, id)}</span>
-                      {isPending && isAcc && (
-                        <Icon name="check" size={13} style={{ color: 'var(--status-delivered-fg)' }} title={t('challenge.statusAccepted')} />
-                      )}
-                    </span>
-                  )
-                })}
+            {/* ĐỘI A */}
+            <div style={{ flex: 1, minWidth: 0, display: 'flex', flexDirection: 'column', gap: 4 }}>
+              <div style={{ display: 'flex', flexDirection: 'column', gap: 5, maxWidth: '100%' }}>
+                {teamA.map((id) => (
+                  <ArenaPlayerTag
+                    key={id}
+                    name={playerName(db, id)}
+                    team="A"
+                    isAccepted={isPending && (c.acceptedPlayers || []).includes(id)}
+                    isWinner={isPlayed && c.winner === 'A'}
+                    isMobile={isMobile}
+                    maxLines={3}
+                    align="left"
+                  />
+                ))}
               </div>
-              <span style={{ font: '500 12px/1.2 "IBM Plex Mono", monospace', color: 'var(--text-muted)' }}>
+              <span style={{ font: '500 12px/1.2 "IBM Plex Mono", monospace', color: 'var(--text-muted)', marginTop: 2 }}>
                 {ratA > 0 ? t('challenge.avgRating', { r: ratA.toLocaleString('vi-VN') }) : '—'}
               </span>
             </div>
-            <span style={{ font: '700 13px/1 Barlow, sans-serif', color: 'var(--text-disabled)' }}>VS</span>
-            <div style={{ flex: 1, minWidth: 0, textAlign: 'right', display: 'flex', flexDirection: 'column', gap: 2 }}>
-              <div style={{ font: '600 14.5px/1.3 "IBM Plex Sans", sans-serif', color: resolvedTeamB.length ? 'var(--text-primary)' : 'var(--text-muted)', display: 'flex', flexWrap: 'wrap', justifyContent: 'flex-end', gap: 6 }}>
-                {resolvedTeamB.length ? resolvedTeamB.map((id) => {
-                  const isAcc = (c.acceptedPlayers || []).includes(id)
-                  return (
-                    <span key={id} style={{ display: 'inline-flex', alignItems: 'center', gap: 4 }}>
-                      <span>{playerName(db, id)}</span>
-                      {isPending && isAcc && (
-                        <Icon name="check" size={13} style={{ color: 'var(--status-delivered-fg)' }} title={t('challenge.statusAccepted')} />
-                      )}
-                    </span>
-                  )
-                }) : (isOpen ? t('challenge.teamEmptyHint') : t('challenge.teamB'))}
+
+            <span style={{ font: '700 13px/1 Barlow, sans-serif', color: 'var(--text-disabled)', padding: '0 4px', flexShrink: 0 }}>VS</span>
+
+            {/* ĐỘI B */}
+            <div style={{ flex: 1, minWidth: 0, textAlign: 'right', display: 'flex', flexDirection: 'column', alignItems: 'flex-end', gap: 4 }}>
+              <div style={{ display: 'flex', flexDirection: 'column', alignItems: 'flex-end', gap: 5, maxWidth: '100%' }}>
+                {resolvedTeamB.length ? resolvedTeamB.map((id) => (
+                  <ArenaPlayerTag
+                    key={id}
+                    name={playerName(db, id)}
+                    team="B"
+                    isAccepted={isPending && (c.acceptedPlayers || []).includes(id)}
+                    isWinner={isPlayed && c.winner === 'B'}
+                    isMobile={isMobile}
+                    maxLines={3}
+                    align="right"
+                  />
+                )) : (
+                  <span style={{ fontSize: 13, color: 'var(--text-muted)', fontStyle: 'italic' }}>
+                    {isOpen ? t('challenge.teamEmptyHint') : t('challenge.teamB')}
+                  </span>
+                )}
               </div>
-              <span style={{ font: '500 12px/1.2 "IBM Plex Mono", monospace', color: 'var(--text-muted)' }}>
+              <span style={{ font: '500 12px/1.2 "IBM Plex Mono", monospace', color: 'var(--text-muted)', marginTop: 2 }}>
                 {ratB > 0 ? t('challenge.avgRating', { r: ratB.toLocaleString('vi-VN') }) : '—'}
               </span>
             </div>
@@ -1059,7 +1125,7 @@ export default function ChallengeDetailModal({ challenge, session, onClose, onSc
               <span style={{ font: '700 12.5px/1.2 var(--font-mono)' }}>
                 <span style={{ color: 'var(--status-delivered-fg)' }}>+{seasonPreview.aWin}</span>
                 <span style={{ color: 'var(--text-disabled)' }}> / </span>
-                <span style={{ color: 'var(--red-500, #ef4444)' }}>{seasonPreview.aLose}</span>
+                <span style={{ color: '#FF8585' }}>{seasonPreview.aLose}</span>
               </span>
             </div>
           )}
@@ -1099,13 +1165,13 @@ export default function ChallengeDetailModal({ challenge, session, onClose, onSc
                 <span style={{ color: 'var(--action-accent-bg, var(--teal-500))', fontWeight: 600 }}>
                   {t('challenge.teamA')}: {predStats.pctA}% ({predStats.pointsA} SP)
                 </span>
-                <span style={{ color: 'var(--status-incident, var(--red-500))', fontWeight: 600 }}>
+                <span style={{ color: '#FF7A59', fontWeight: 600 }}>
                   {t('challenge.teamB')}: {predStats.pctB}% ({predStats.pointsB} SP)
                 </span>
               </div>
               <div style={{ display: 'flex', height: 8, borderRadius: 999, overflow: 'hidden', background: 'var(--surface-sunken)' }}>
                 <div style={{ width: `${predStats.pctA}%`, background: 'var(--action-accent-bg, var(--teal-500))', height: '100%', transition: 'width 0.3s' }} />
-                <div style={{ width: `${predStats.pctB}%`, background: 'var(--status-incident, var(--red-500))', height: '100%', transition: 'width 0.3s' }} />
+                <div style={{ width: `${predStats.pctB}%`, background: '#FF7A59', height: '100%', transition: 'width 0.3s' }} />
               </div>
             </div>
 
@@ -1140,7 +1206,7 @@ export default function ChallengeDetailModal({ challenge, session, onClose, onSc
                       points: myPred.stakePoints,
                     })}
                   </span>
-                  <span style={{ font: '500 11.5px/1.2 "IBM Plex Sans", sans-serif', color: myPred.status === 'won' ? 'var(--status-delivered-fg)' : myPred.status === 'lost' ? 'var(--red-500, #ef4444)' : 'var(--text-muted)' }}>
+                  <span style={{ font: '500 11.5px/1.2 "IBM Plex Sans", sans-serif', color: myPred.status === 'won' ? 'var(--status-delivered-fg)' : myPred.status === 'lost' ? '#FF8585' : 'var(--text-muted)' }}>
                     {myPred.status === 'won'
                       ? t('challenge.predictionStatusWon', { net: myPred.stakePoints })
                       : myPred.status === 'lost'
@@ -1158,9 +1224,9 @@ export default function ChallengeDetailModal({ challenge, session, onClose, onSc
                     style={{
                       padding: '6px 12px',
                       borderRadius: 'var(--radius-sm)',
-                      background: 'rgba(239, 68, 68, 0.1)',
-                      border: '1px solid rgba(239, 68, 68, 0.25)',
-                      color: 'var(--red-500, #ef4444)',
+                      background: 'rgba(255, 107, 107, 0.12)',
+                      border: '1px solid rgba(255, 107, 107, 0.35)',
+                      color: '#FF8585',
                       font: '600 12px/1 "IBM Plex Sans", sans-serif',
                       cursor: submitting ? 'not-allowed' : 'pointer',
                     }}
@@ -1202,22 +1268,18 @@ export default function ChallengeDetailModal({ challenge, session, onClose, onSc
                     type="button"
                     onClick={() => setPredTeam('A')}
                     style={{
-                      padding: '8px 10px',
+                      padding: '10px 12px',
                       borderRadius: 'var(--radius-md)',
                       background: predTeam === 'A' ? 'rgba(0,178,169,0.14)' : 'var(--surface-sunken)',
                       border: predTeam === 'A' ? '1.5px solid var(--action-accent-bg, var(--teal-500))' : '1px solid var(--border-subtle)',
                       cursor: 'pointer',
                       display: 'flex',
-                      flexDirection: 'column',
                       alignItems: 'center',
-                      gap: 2,
+                      justifyContent: 'center',
                     }}
                   >
-                    <span style={{ font: '700 13px/1.2 "IBM Plex Sans", sans-serif', color: predTeam === 'A' ? 'var(--status-transit-fg)' : 'var(--text-primary)' }}>
+                    <span style={{ font: '700 13.5px/1.2 "IBM Plex Sans", sans-serif', color: predTeam === 'A' ? 'var(--status-transit-fg)' : 'var(--text-primary)' }}>
                       {t('challenge.teamA')}
-                    </span>
-                    <span style={{ font: '400 11px/1 "IBM Plex Sans", sans-serif', color: 'var(--text-muted)' }}>
-                      {teamA.map((id) => playerName(db, id)).join(' · ')}
                     </span>
                   </button>
 
@@ -1225,22 +1287,18 @@ export default function ChallengeDetailModal({ challenge, session, onClose, onSc
                     type="button"
                     onClick={() => setPredTeam('B')}
                     style={{
-                      padding: '8px 10px',
+                      padding: '10px 12px',
                       borderRadius: 'var(--radius-md)',
-                      background: predTeam === 'B' ? 'rgba(239,68,68,0.12)' : 'var(--surface-sunken)',
-                      border: predTeam === 'B' ? '1.5px solid var(--status-incident, var(--red-500))' : '1px solid var(--border-subtle)',
+                      background: predTeam === 'B' ? 'rgba(255,122,89,0.16)' : 'var(--surface-sunken)',
+                      border: predTeam === 'B' ? '1.5px solid #FF7A59' : '1px solid var(--border-subtle)',
                       cursor: 'pointer',
                       display: 'flex',
-                      flexDirection: 'column',
                       alignItems: 'center',
-                      gap: 2,
+                      justifyContent: 'center',
                     }}
                   >
-                    <span style={{ font: '700 13px/1.2 "IBM Plex Sans", sans-serif', color: predTeam === 'B' ? 'var(--red-500, #ef4444)' : 'var(--text-primary)' }}>
+                    <span style={{ font: '700 13.5px/1.2 "IBM Plex Sans", sans-serif', color: predTeam === 'B' ? '#FF7A59' : 'var(--text-primary)' }}>
                       {t('challenge.teamB')}
-                    </span>
-                    <span style={{ font: '400 11px/1 "IBM Plex Sans", sans-serif', color: 'var(--text-muted)' }}>
-                      {resolvedTeamB.length ? resolvedTeamB.map((id) => playerName(db, id)).join(' · ') : t('challenge.teamB')}
                     </span>
                   </button>
                 </div>
@@ -1293,7 +1351,7 @@ export default function ChallengeDetailModal({ challenge, session, onClose, onSc
                   fontFamily: 'var(--font-sans)',
                 }}>
                   <span>{t('challenge.predictionAvailableSp', { points: availableSp })}</span>
-                  <span style={{ color: overStake ? 'var(--red-500, #ef4444)' : 'var(--status-delivered-fg)' }}>
+                  <span style={{ color: overStake ? '#FF8585' : 'var(--status-delivered-fg)' }}>
                     {t('challenge.predictionWinReward', { payout: stakeNum * 2, stake: stakeNum })}
                   </span>
                 </div>
@@ -1382,9 +1440,52 @@ export default function ChallengeDetailModal({ challenge, session, onClose, onSc
           <div style={S.boxCard}>
             <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', flexWrap: 'wrap', gap: 4 }}>
               <div style={{ display: 'flex', flexDirection: 'column' }}>
-                <span style={{ font: '600 13.5px/1.2 "IBM Plex Sans", sans-serif', color: 'var(--text-primary)' }}>
-                  {isExactPairH2H ? t('challenge.h2hExactTitle') : t('challenge.h2hLeaderTitle', { nameA, nameB })}
-                </span>
+                {isExactPairH2H ? (
+                  <span style={{ font: '600 13.5px/1.2 "IBM Plex Sans", sans-serif', color: 'var(--text-primary)' }}>
+                    {t('challenge.h2hExactTitle')}
+                  </span>
+                ) : (
+                  <div style={{ display: 'flex', alignItems: 'center', gap: 6, flexWrap: 'wrap', font: '600 13px/1.3 "IBM Plex Sans", sans-serif' }}>
+                    <span style={{ color: 'var(--text-secondary)' }}>{t('challenge.h2hLeaderPrefix')}:</span>
+                    <span
+                      title={nameA}
+                      style={{
+                        color: 'var(--status-transit-fg)',
+                        background: 'rgba(0,178,169,0.1)',
+                        border: '1px solid rgba(0,178,169,0.25)',
+                        padding: '1px 6px',
+                        borderRadius: 4,
+                        maxWidth: 130,
+                        overflow: 'hidden',
+                        textOverflow: 'ellipsis',
+                        whiteSpace: 'nowrap',
+                        display: 'inline-block',
+                        verticalAlign: 'bottom',
+                      }}
+                    >
+                      {nameA}
+                    </span>
+                    <span style={{ color: 'var(--text-disabled)', fontSize: 11, fontStyle: 'italic' }}>vs</span>
+                    <span
+                      title={nameB}
+                      style={{
+                        color: '#FF7A59',
+                        background: 'rgba(255, 122, 89, 0.14)',
+                        border: '1px solid rgba(255, 122, 89, 0.35)',
+                        padding: '1px 6px',
+                        borderRadius: 4,
+                        maxWidth: 130,
+                        overflow: 'hidden',
+                        textOverflow: 'ellipsis',
+                        whiteSpace: 'nowrap',
+                        display: 'inline-block',
+                        verticalAlign: 'bottom',
+                      }}
+                    >
+                      {nameB}
+                    </span>
+                  </div>
+                )}
                 <span style={{ font: '400 11px/1.3 "IBM Plex Sans", sans-serif', color: 'var(--text-muted)', marginTop: 2 }}>
                   {isExactPairH2H ? t('challenge.h2hExactSub') : t('challenge.h2hLeaderSub')}
                 </span>
@@ -1411,8 +1512,9 @@ export default function ChallengeDetailModal({ challenge, session, onClose, onSc
                         width: 20, height: 20, borderRadius: 4,
                         display: 'inline-flex', alignItems: 'center', justifyContent: 'center',
                         font: '700 11px/1 Barlow, sans-serif',
-                        background: r === 'W' ? 'rgba(18,168,103,0.18)' : 'rgba(239,68,68,0.18)',
-                        color: r === 'W' ? 'var(--status-delivered-fg)' : 'var(--red-500, #ef4444)',
+                        background: r === 'W' ? 'rgba(46,196,182,0.18)' : 'rgba(255,107,107,0.16)',
+                        border: r === 'W' ? '1px solid rgba(46,196,182,0.3)' : '1px solid rgba(255,107,107,0.3)',
+                        color: r === 'W' ? '#5FD9A2' : '#FF8585',
                       }}
                     >
                       {r}
@@ -1522,39 +1624,6 @@ export default function ChallengeDetailModal({ challenge, session, onClose, onSc
           </div>
         </div>
 
-        {/* DT3: Bảng thông số kỹ thuật metadata */}
-        <div style={{ display: 'grid', gap: 6 }}>
-          <div style={{
-            display: 'grid',
-            borderRadius: 'var(--radius-card)',
-            border: '1px solid var(--border-subtle)',
-            background: 'var(--surface-sunken)',
-            overflow: 'hidden',
-            fontSize: 12,
-          }}>
-            <div style={{ display: 'flex', justifyContent: 'space-between', padding: '8px 12px', borderBottom: '1px solid var(--border-subtle)' }}>
-              <span style={{ fontFamily: 'var(--font-mono)', color: 'var(--text-muted)' }}>{t('challenge.techMetaStatus')}</span>
-              <span style={{ fontFamily: 'var(--font-mono)', fontWeight: 600, color: 'var(--text-primary)' }}>{(c.status || 'pending').toUpperCase()}</span>
-            </div>
-            <div style={{ display: 'flex', justifyContent: 'space-between', padding: '8px 12px', borderBottom: '1px solid var(--border-subtle)' }}>
-              <span style={{ fontFamily: 'var(--font-mono)', color: 'var(--text-muted)' }}>{t('challenge.techMetaMatch')}</span>
-              <span style={{ fontFamily: 'var(--font-mono)', fontWeight: 600, color: matchCode ? 'var(--status-delivered-fg)' : 'var(--text-disabled)' }}>
-                {matchCode ? t('challenge.techMetaMatchCreated', { code: matchCode }) : t('challenge.techMetaMatchPending')}
-              </span>
-            </div>
-            <div style={{ display: 'flex', justifyContent: 'space-between', padding: '8px 12px', borderBottom: '1px solid var(--border-subtle)' }}>
-              <span style={{ fontFamily: 'var(--font-mono)', color: 'var(--text-muted)' }}>{t('challenge.techMetaRatingEnabled')}</span>
-              <span style={{ fontFamily: 'var(--font-mono)', fontWeight: 600, color: 'var(--text-primary)' }}>{c.ratingEnabled !== false ? 'true' : 'false'}</span>
-            </div>
-            <div style={{ display: 'flex', justifyContent: 'space-between', padding: '8px 12px' }}>
-              <span style={{ fontFamily: 'var(--font-mono)', color: 'var(--text-muted)' }}>{t('challenge.techMetaRatingAlgorithm')}</span>
-              <span style={{ fontFamily: 'var(--font-mono)', fontWeight: 600, color: 'var(--text-primary)' }}>{t('challenge.techMetaAlgoValue')}</span>
-            </div>
-          </div>
-          <div style={{ font: '400 11.5px/1.4 "IBM Plex Sans", sans-serif', color: 'var(--text-muted)' }}>
-            {t('challenge.techMetaDeclinedNote')}
-          </div>
-        </div>
 
         {/* Notice về Elo */}
         <div style={{

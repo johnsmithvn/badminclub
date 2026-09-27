@@ -595,7 +595,7 @@ function NewGroupDialog() {
         font: 'var(--type-caption)', color: 'var(--text-secondary)',
       }}>
         <span>
-          {t('settings.groupFeeApplied')}: <strong style={{ color: 'var(--text-primary)' }}>{fmtK(db.groups[0]?.feeNam || 0)}{t('units.dong')}</strong> ({t('gender.nam')}) · <strong style={{ color: 'var(--text-primary)' }}>{fmtK(db.groups[0]?.feeNu || 0)}{t('units.dong')}</strong> ({t('gender.nu')})
+          {t('settings.groupFeeApplied')}: <strong style={{ color: 'var(--text-primary)' }}>{fmtK(((db.groups || []).find((g) => g.hasCustomPricing === false) || (db.groups || []).find((g) => !g.hasCustomPricing) || db.groups?.[0])?.feeNam || 0)}{t('units.dong')}</strong> ({t('gender.nam')}) · <strong style={{ color: 'var(--text-primary)' }}>{fmtK(((db.groups || []).find((g) => g.hasCustomPricing === false) || (db.groups || []).find((g) => !g.hasCustomPricing) || db.groups?.[0])?.feeNu || 0)}{t('units.dong')}</strong> ({t('gender.nu')})
         </span>
       </div>
       <Note tone="warn">

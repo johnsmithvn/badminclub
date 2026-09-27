@@ -49,7 +49,9 @@ export function toDb(raw, ctx) {
     // Đơn giá một buổi CLB tự đặt; 0 = để app tự chia.
     unitNam: num(g.unit_male), unitNu: num(g.unit_female),
     from: hm(g.start_time), to: hm(g.end_time), active: g.active,
+    sortOrder: num(g.sort_order),
     courtIds: (g.group_courts || []).map((x) => x.court_id),
+    hasCustomPricing: Boolean(g.has_custom_pricing),
   }))
 
   // KHÔNG bịa nhóm mặc định khi CLB chưa có nhóm nào. Trước đây chỗ này sinh một nhóm "Cố định"
@@ -224,6 +226,10 @@ export function toDb(raw, ctx) {
     level: lv, nam: priceOf[lv + '|nam'] || 0, nu: priceOf[lv + '|nu'] || 0,
   }))
 
+  const seasons = (Array.isArray(club.seasons) && club.seasons.length > 0)
+    ? club.seasons
+    : (cfg.season ? [{ ...cfg.season, active: true }] : [])
+
   return {
     club: {
       id: club.id, name: club.name, code: club.code,
@@ -241,8 +247,10 @@ export function toDb(raw, ctx) {
       debtBanner: club.debt_banner || 'slim',
       linkModes: { code: club.allow_code_join, invite: club.allow_invite, phone: club.allow_phone_suggest },
       levels,
+      seasons,
     },
     levels,
+    seasons,
     courts, groups, members, guests, schedules, sessions,
     attendance, sessionGuests, lineups, courtGroups, groupMode, courtMin, matches,
     roster, locked, adjustments, guestPrices,
@@ -374,7 +382,7 @@ export function toRows(db, ctx) {
     price_per_hour: c.price, active: c.active !== false,
   }))
 
-  db.groups.forEach((g) => {
+  db.groups.forEach((g, idx) => {
     put('member_groups', {
       // `member_groups.weekday` là cột NOT NULL không có DEFAULT nên vẫn phải ghi, nhưng client
       // đã bỏ hẳn khái niệm này: thứ trong tuần nằm ở `schedules.weekdays[]`. Ghi 0 và quên nó đi.
@@ -382,7 +390,9 @@ export function toRows(db, ctx) {
       fee_male: g.feeNam, fee_female: g.feeNu, start_time: g.from, end_time: g.to,
       // Đơn giá một buổi CLB tự đặt. 0 và null đều nghĩa là "để app tự chia" → ghi null cho gọn.
       unit_male: g.unitNam || null, unit_female: g.unitNu || null,
+      sort_order: g.sortOrder != null ? g.sortOrder : idx,
       active: g.active !== false,
+      has_custom_pricing: Boolean(g.hasCustomPricing),
     })
     ;(g.courtIds || []).forEach((court) => put('group_courts', { group_id: g.id, court_id: court }))
   })
@@ -645,6 +655,7 @@ export function toRows(db, ctx) {
 /** Riêng bảng `clubs` — một dòng, cập nhật chứ không insert (RPC create_club đã tạo). */
 export function clubRow(db) {
   const c = db.club
+  const seasons = Array.isArray(c?.seasons) ? c.seasons : (Array.isArray(db?.seasons) ? db.seasons : [])
   return {
     name: c.name, opening_balance: c.opening, opening_date: c.openingDate,
     opening_by: c.openingBy || null,
@@ -661,6 +672,7 @@ export function clubRow(db) {
     allow_code_join: !!c.linkModes.code, allow_invite: !!c.linkModes.invite,
     allow_phone_suggest: !!c.linkModes.phone,
     levels: c.levels && c.levels.length ? c.levels : cfg.levelsDefault,
+    seasons: seasons.length ? seasons : null,
   }
 }
 
@@ -802,4 +814,382 @@ export function diff(prev, next) {
     })
   })
   return ops.concat(gone.reverse())
+}
+
+/* =========================================================================
+   GIẢI ĐẤU (TOURNAMENT) MAPPERS
+   CỐ Ý KHÔNG thêm vào TABLES và diff() — Dữ liệu giải đấu nạp & ghi riêng!
+   ========================================================================= */
+
+export const toTourMatch = (m) => ({
+  id: m.id,
+  clubId: m.club_id,
+  tournamentId: m.tournament_id,
+  eventId: m.event_id,
+  stageId: m.stage_id,
+  groupId: m.group_id || null,
+  round: num(m.round),
+  slot: num(m.slot),
+  roundKind: m.round_kind,
+  teamAId: m.team_a_id || null,
+  teamBId: m.team_b_id || null,
+  sourceA: m.source_a || null,
+  sourceB: m.source_b || null,
+  nextMatchId: m.next_match_id || null,
+  nextSide: m.next_side || null,
+  loserNextMatchId: m.loser_next_match_id || null,
+  loserNextSide: m.loser_next_side || null,
+  rule: m.rule || {},
+  status: m.status || 'pending',
+  sets: Array.isArray(m.sets) ? m.sets : [],
+  winner: m.winner || null,
+  resultNote: m.result_note || null,   // null như advance.js — '' làm hai phía lệch nhau
+  seqNo: numN(m.seq_no),
+  courtLabel: m.court_label || '',
+  startedAt: m.started_at || null,
+  finishedAt: m.finished_at || null,
+  updatedAt: m.updated_at || null,
+  updatedBy: m.updated_by || null,
+})
+
+export const toTourMatchEdit = (e) => ({
+  id: e.id,
+  clubId: e.club_id,
+  tournamentId: e.tournament_id,
+  matchId: e.match_id,
+  action: e.action,
+  oldSets: e.old_sets || [],
+  newSets: e.new_sets || [],
+  oldWinner: e.old_winner || null,
+  newWinner: e.new_winner || null,
+  reason: e.reason || '',
+  editedBy: e.edited_by || null,
+  editedAt: e.edited_at || null,
+})
+
+/**
+ * Chuyển dữ liệu giải đấu thô từ Postgres sang đối tượng camelCase ở client.
+ */
+export function toTour(raw) {
+  if (!raw || !raw.tournament) return null
+  const t = raw.tournament
+  return {
+    id: t.id,
+    clubId: t.club_id,
+    name: t.name || '',
+    startsOn: dOf(t.starts_on),
+    startTime: hm(t.start_time),
+    endTime: hm(t.end_time),
+    venue: t.venue || '',
+    courtLabels: Array.isArray(t.court_labels) ? t.court_labels : [],
+    scope: t.scope || 'club_only',
+    status: t.status || 'draft',
+    feeMale: num(t.fee_male),
+    feeFemale: num(t.fee_female),
+    rules: Array.isArray(t.rules) ? t.rules : [],
+    createdBy: t.created_by || null,
+    createdAt: t.created_at || null,
+    updatedAt: t.updated_at || null,
+    deletedAt: t.deleted_at || null,
+
+    events: (raw.events || []).map((ev) => ({
+      id: ev.id,
+      clubId: ev.club_id,
+      tournamentId: ev.tournament_id,
+      kind: ev.kind,
+      teamSize: num(ev.team_size),
+      genderRule: ev.gender_rule,
+      status: ev.status || 'draft',
+      templateKey: ev.template_key || null,
+      note: ev.note || '',
+      sortOrder: num(ev.sort_order),
+    })),
+
+    stages: (raw.stages || []).map((s) => ({
+      id: s.id,
+      clubId: s.club_id,
+      tournamentId: s.tournament_id,
+      eventId: s.event_id,
+      seq: num(s.seq),
+      type: s.type,
+      title: s.title || '',
+      status: s.status || 'pending',
+      config: s.config || {},
+      matchRule: s.match_rule || {},
+      ruleOverrides: s.rule_overrides || {},
+      canvasX: numN(s.canvas_x),
+      canvasY: numN(s.canvas_y),
+    })),
+
+    // Mẫu thể thức của CLB (0060) — "Lưu làm mẫu CLB".
+    templates: (raw.templates || []).map((x) => ({ id: x.id, clubId: x.club_id, name: x.name || '', graph: x.graph || { stages: [], links: [] } })),
+
+    // Khách ngoài CLB (0059): registration.playerType 'guest' → playerId là id ở đây.
+    guests: (raw.guests || []).map((g) => ({
+      id: g.id,
+      clubId: g.club_id,
+      name: g.name || '',
+      gender: g.gender,
+      level: g.level || '',
+      phone: g.phone || '',
+    })),
+
+    stageLinks: (raw.stageLinks || []).map((l) => ({
+      id: l.id,
+      clubId: l.club_id,
+      tournamentId: l.tournament_id,
+      fromStageId: l.from_stage_id,
+      toStageId: l.to_stage_id,
+      ranks: Array.isArray(l.ranks) ? l.ranks : [],
+    })),
+
+    registrations: (raw.registrations || []).map((r) => ({
+      id: r.id,
+      clubId: r.club_id,
+      tournamentId: r.tournament_id,
+      playerType: r.player_type || 'member',
+      playerId: r.player_id,
+      gender: r.gender,
+      level: r.level || '',
+      ratingSnapshot: numN(r.rating_snapshot),
+      fee: num(r.fee),
+      paid: Boolean(r.paid),
+      paidAt: r.paid_at || null,
+      status: r.status || 'registered',
+    })),
+
+    entries: (raw.entries || []).map((e) => ({
+      clubId: e.club_id,
+      tournamentId: e.tournament_id,
+      eventId: e.event_id,
+      registrationId: e.registration_id,
+    })),
+
+    teams: (raw.teams || []).map((tm) => ({
+      id: tm.id,
+      clubId: tm.club_id,
+      tournamentId: tm.tournament_id,
+      eventId: tm.event_id,
+      seed: numN(tm.seed),
+      drawNo: numN(tm.draw_no),
+      pinned: Boolean(tm.pinned),
+      name: tm.name || '',
+      status: tm.status || 'active',
+    })),
+
+    teamPlayers: (raw.teamPlayers || []).map((tp) => ({
+      clubId: tp.club_id,
+      tournamentId: tp.tournament_id,
+      teamId: tp.team_id,
+      eventId: tp.event_id,
+      registrationId: tp.registration_id,
+    })),
+
+    groups: (raw.groups || []).map((g) => ({
+      id: g.id,
+      clubId: g.club_id,
+      tournamentId: g.tournament_id,
+      stageId: g.stage_id,
+      label: g.label || '',
+      seq: num(g.seq),
+    })),
+
+    groupTeams: (raw.groupTeams || []).map((gt) => ({
+      clubId: gt.club_id,
+      tournamentId: gt.tournament_id,
+      groupId: gt.group_id,
+      teamId: gt.team_id,
+      seedInGroup: numN(gt.seed_in_group),
+      finalRank: numN(gt.final_rank),
+    })),
+
+    matches: (raw.matches || []).map(toTourMatch),
+    matchEdits: (raw.matchEdits || []).map(toTourMatchEdit),
+
+    prizes: (raw.prizes || []).map((p) => ({
+      id: p.id,
+      clubId: p.club_id,
+      tournamentId: p.tournament_id,
+      eventId: p.event_id || null,
+      rank: num(p.rank),
+      label: p.label || '',
+      description: p.description || '',
+      cash: num(p.cash),
+    })),
+
+    budgetLines: (raw.budgetLines || []).map((b) => ({
+      id: b.id,
+      clubId: b.club_id,
+      tournamentId: b.tournament_id,
+      label: b.label || '',
+      amount: num(b.amount),
+      sortOrder: num(b.sort_order),
+    })),
+  }
+}
+
+/**
+ * Đổi danh sách client camelCase sang dòng snake_case để ghi xuống Postgres.
+ */
+export function tourRows(table, list) {
+  if (!Array.isArray(list)) return []
+  return list.map((item) => {
+    switch (table) {
+      case 'tournaments':
+        return {
+          id: item.id,
+          club_id: item.clubId,
+          name: item.name,
+          starts_on: item.startsOn,
+          start_time: uu(item.startTime),
+          end_time: uu(item.endTime),
+          venue: item.venue || '',
+          court_labels: item.courtLabels || [],
+          scope: item.scope || 'club_only',
+          status: item.status || 'draft',
+          fee_male: num(item.feeMale),
+          fee_female: num(item.feeFemale),
+          rules: item.rules || [],
+          created_by: uu(item.createdBy),
+          deleted_at: uu(item.deletedAt),
+        }
+      case 'tournament_events':
+        return {
+          id: item.id,
+          club_id: item.clubId,
+          tournament_id: item.tournamentId,
+          kind: item.kind,
+          team_size: num(item.teamSize),
+          gender_rule: item.genderRule,
+          status: item.status || 'draft',
+          template_key: uu(item.templateKey),
+          note: item.note || '',
+          sort_order: num(item.sortOrder),
+        }
+      case 'tournament_stages':
+        return {
+          id: item.id,
+          club_id: item.clubId,
+          tournament_id: item.tournamentId,
+          event_id: item.eventId,
+          seq: num(item.seq),
+          type: item.type,
+          title: item.title,
+          status: item.status || 'pending',
+          config: item.config || {},
+          match_rule: item.matchRule,
+          rule_overrides: item.ruleOverrides || {},
+          canvas_x: numN(item.canvasX),
+          canvas_y: numN(item.canvasY),
+        }
+      case 'tournament_templates':
+        return {
+          id: item.id,
+          club_id: item.clubId,
+          name: item.name,
+          graph: item.graph,
+          created_by: uu(item.createdBy),
+        }
+      case 'tournament_guests':
+        return {
+          id: item.id,
+          club_id: item.clubId,
+          name: item.name,
+          gender: item.gender,
+          level: item.level || null,
+          phone: item.phone || null,
+        }
+      case 'tournament_stage_links':
+        return {
+          id: item.id,
+          club_id: item.clubId,
+          tournament_id: item.tournamentId,
+          from_stage_id: item.fromStageId,
+          to_stage_id: item.toStageId,
+          ranks: item.ranks || [],
+        }
+      case 'tournament_registrations':
+        return {
+          id: item.id,
+          club_id: item.clubId,
+          tournament_id: item.tournamentId,
+          player_type: item.playerType || 'member',
+          player_id: item.playerId,
+          gender: item.gender,
+          level: item.level || null,
+          rating_snapshot: numN(item.ratingSnapshot),
+          fee: num(item.fee),
+          paid: Boolean(item.paid),
+          paid_at: uu(item.paidAt),
+          status: item.status || 'registered',
+        }
+      case 'tournament_event_entries':
+        return {
+          club_id: item.clubId,
+          tournament_id: item.tournamentId,
+          event_id: item.eventId,
+          registration_id: item.registrationId,
+        }
+      case 'tournament_teams':
+        return {
+          id: item.id,
+          club_id: item.clubId,
+          tournament_id: item.tournamentId,
+          event_id: item.eventId,
+          seed: numN(item.seed),
+          draw_no: numN(item.drawNo),
+          pinned: Boolean(item.pinned),
+          name: item.name || '',
+          status: item.status || 'active',
+        }
+      case 'tournament_team_players':
+        return {
+          club_id: item.clubId,
+          tournament_id: item.tournamentId,
+          team_id: item.teamId,
+          event_id: item.eventId,
+          registration_id: item.registrationId,
+        }
+      case 'tournament_groups':
+        return {
+          id: item.id,
+          club_id: item.clubId,
+          tournament_id: item.tournamentId,
+          stage_id: item.stageId,
+          label: item.label,
+          seq: num(item.seq),
+        }
+      case 'tournament_group_teams':
+        return {
+          club_id: item.clubId,
+          tournament_id: item.tournamentId,
+          group_id: item.groupId,
+          team_id: item.teamId,
+          seed_in_group: numN(item.seedInGroup),
+          final_rank: numN(item.finalRank),
+        }
+      case 'tournament_prizes':
+        return {
+          id: item.id,
+          club_id: item.clubId,
+          tournament_id: item.tournamentId,
+          event_id: uu(item.eventId),
+          rank: num(item.rank),
+          label: item.label,
+          description: item.description || '',
+          cash: num(item.cash),
+        }
+      case 'tournament_budget_lines':
+        return {
+          id: item.id,
+          club_id: item.clubId,
+          tournament_id: item.tournamentId,
+          label: item.label,
+          amount: num(item.amount),
+          sort_order: num(item.sortOrder),
+        }
+      default:
+        return item
+    }
+  })
 }

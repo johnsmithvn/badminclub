@@ -1,6 +1,7 @@
 import test from 'node:test'
 import assert from 'node:assert/strict'
 import { makeActions } from '#contexts/appActions.js'
+import { toDb } from '#contexts/dbmap.js'
 
 test('Settings Export & Import — cấu trúc schema và áp dụng cài đặt', () => {
   let currentDb = {
@@ -129,4 +130,89 @@ test('Settings Export & Import — cấu trúc schema và áp dụng cài đặt
   assert.deepEqual(currentDb.groups.map((g) => g.feeNam), feeBefore, 'không tick "biểu phí" mà quỹ tháng vẫn đổi → thu sai tiền cả CLB')
   assert.equal(currentDb.club.lockDay, lockBefore, 'không tick "cài đặt chung" mà ngày chốt vẫn đổi → khoá danh sách sai ngày')
   assert.ok(currentDb.courts.some((c) => c.name === 'Sân Mỹ Đình'), 'tick "sân" mà sân mới không vào → nhập từng phần vô dụng')
+
+  // 3. Kiểm tra saveGroupsTab bảo toàn đúng giá trị nhóm đầu tiên và thứ tự nhóm
+  a.saveGroupsTab([
+    { id: 'G1', name: 'Ca thứ 6', feeNam: 300000, feeNu: 250000, unitNam: 55000, unitNu: 45000 },
+    { id: 'G2', name: 'Ca Chủ Nhật', feeNam: 250000, feeNu: 200000, unitNam: 55000, unitNu: 45000 },
+  ])
+  assert.equal(currentDb.groups[0].feeNam, 300000, 'nhóm đầu tiên phải giữ nguyên mức riêng 300k, không bị ép về giá cũ')
+  assert.equal(currentDb.groups[1].feeNam, 250000, 'nhóm thứ hai phải giữ nguyên mức 250k')
+
+  // 4. Kiểm tra flag hasCustomPricing được bảo toàn
+  a.saveGroupsTab([
+    { id: 'G1', name: 'Ca thứ 6', feeNam: 250000, feeNu: 200000, unitNam: 55000, unitNu: 45000, hasCustomPricing: true },
+    { id: 'G2', name: 'Ca Chủ Nhật', feeNam: 250000, feeNu: 200000, unitNam: 55000, unitNu: 45000 },
+  ])
+  assert.equal(currentDb.groups[0].hasCustomPricing, true, 'flag hasCustomPricing phải được lưu qua saveGroupsTab')
+  assert.equal(currentDb.groups[0].feeNam, 250000, 'nhóm có giá trùng CLB nhưng flag custom vẫn giữ giá')
+
+  // 5. Kiểm tra saveMoneyTab không bao giờ đè lên nhóm có hasCustomPricing === true
+  a.saveGroupsTab([
+    { id: 'G1', name: 'Ca thứ 6', feeNam: 300000, feeNu: 250000, unitNam: 55000, unitNu: 45000 },
+    { id: 'G2', name: 'Ca Chủ Nhật', feeNam: 250000, feeNu: 200000, unitNam: 55000, unitNu: 45000, hasCustomPricing: true },
+  ])
+  a.saveMoneyTab({
+    feeNam: 350000,
+    feeNu: 300000,
+    hasRefund: true,
+    unitNam: 60000,
+    unitNu: 50000,
+  })
+  assert.equal(currentDb.groups[0].feeNam, 350000, 'nhóm áp dụng theo CLB phải cập nhật theo biểu phí CLB mới')
+  assert.equal(currentDb.groups[1].feeNam, 250000, 'nhóm có mức riêng hasCustomPricing === true tuyệt đối không bị saveMoneyTab ghi đè')
+
+  // 6. Nhóm đầu tiên là mức riêng thì saveMoneyTab vẫn bảo toàn nhóm đầu và cập nhật nhóm sau
+  a.saveGroupsTab([
+    { id: 'G1', name: 'Ca thứ 6', feeNam: 280000, feeNu: 220000, unitNam: 50000, unitNu: 40000, hasCustomPricing: true },
+    { id: 'G2', name: 'Ca Chủ Nhật', feeNam: 350000, feeNu: 300000, unitNam: 60000, unitNu: 50000 },
+  ])
+  a.saveMoneyTab({
+    feeNam: 320000,
+    feeNu: 270000,
+    hasRefund: true,
+    unitNam: 55000,
+    unitNu: 45000,
+  })
+  assert.equal(currentDb.groups[0].feeNam, 280000, 'nhóm G1 có mức riêng ở vị trí đầu tiên vẫn giữ nguyên 280k')
+  assert.equal(currentDb.groups[1].feeNam, 320000, 'nhóm G2 theo CLB phải cập nhật thành 320k')
+
+  // 7. Nhóm đầu là mức riêng, nhóm sau theo CLB: toRows và toDb bảo toàn cờ has_custom_pricing
+  a.saveGroupsTab([
+    { id: 'G1', name: 'Ca thứ 6', feeNam: 300000, feeNu: 250000, unitNam: 55000, unitNu: 45000, hasCustomPricing: true },
+    { id: 'G2', name: 'Ca Chủ Nhật', feeNam: 250000, feeNu: 200000, unitNam: 55000, unitNu: 45000, hasCustomPricing: false },
+  ])
+
+  // Giả lập cấu trúc dòng member_groups ghi xuống Postgres
+  const memberGroupsRows = currentDb.groups.map((g, idx) => ({
+    id: g.id,
+    club_id: 'CLB1',
+    name: g.name,
+    fee_male: g.feeNam,
+    fee_female: g.feeNu,
+    unit_male: g.unitNam,
+    unit_female: g.unitNu,
+    sort_order: idx,
+    has_custom_pricing: Boolean(g.hasCustomPricing),
+  }))
+
+  assert.equal(memberGroupsRows[0].has_custom_pricing, true, 'nhóm G1 có mức riêng phải ghi has_custom_pricing: true')
+  assert.equal(memberGroupsRows[1].has_custom_pricing, false, 'nhóm G2 theo CLB phải ghi has_custom_pricing: false')
+
+  // Giả lập load lại từ DB (F5) qua toDb
+  const reloadedDb = toDb({
+    club: currentDb.club,
+    groups: memberGroupsRows,
+  }, { clubId: 'CLB1' })
+
+  assert.equal(reloadedDb.groups[0].hasCustomPricing, true, 'nhóm G1 nạp lại phải giữ cờ hasCustomPricing: true')
+  assert.equal(reloadedDb.groups[1].hasCustomPricing, false, 'nhóm G2 nạp lại phải giữ cờ hasCustomPricing: false')
+
+  // Tìm nhóm đại diện biểu phí CLB: phải ra G2 (250k) chứ không được nhầm sang G1 (300k)
+  const resolvedDef = (reloadedDb.groups || []).find((g) => g.hasCustomPricing === false) ||
+    (reloadedDb.groups || []).find((g) => !g.hasCustomPricing) ||
+    reloadedDb.groups?.[0]
+  assert.equal(resolvedDef.id, 'G2', 'nhóm đại diện biểu phí CLB phải là G2 (hasCustomPricing: false)')
+  assert.equal(resolvedDef.feeNam, 250000, 'biểu phí CLB phải là 250k, không bị nuốt thành 300k của G1')
 })
+

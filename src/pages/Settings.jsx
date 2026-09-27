@@ -30,7 +30,14 @@ export default function Settings() {
   const pending = db.joinRequests || []
 
   // ----------------- Baseline & Draft State Management -----------------
-  const defGroup = useMemo(() => db.groups?.[0] || {}, [db.groups])
+  const defGroup = useMemo(
+    () =>
+      (db.groups || []).find((g) => g.hasCustomPricing === false) ||
+      (db.groups || []).find((g) => !g.hasCustomPricing) ||
+      db.groups?.[0] ||
+      {},
+    [db.groups]
+  )
 
   const [generalDraft, setGeneralDraft] = useState({
     name: db.club?.name || '',
@@ -64,6 +71,24 @@ export default function Settings() {
 
   const [courtsDraft, setCourtsDraft] = useState(db.courts || [])
   const [groupsDraft, setGroupsDraft] = useState(db.groups || [])
+
+  const clubFeeSettings = useMemo(
+    () => ({
+      feeNam: moneyDraft.hasMonthlyFee ? intOf(moneyDraft.feeNam) : 0,
+      feeNu: moneyDraft.hasMonthlyFee ? intOf(moneyDraft.feeNu) : 0,
+      unitNam: moneyDraft.hasRefund ? (moneyDraft.customRefundUnit ? intOf(moneyDraft.unitNam) : 0) : -1,
+      unitNu: moneyDraft.hasRefund ? (moneyDraft.customRefundUnit ? intOf(moneyDraft.unitNu) : 0) : -1,
+    }),
+    [
+      moneyDraft.hasMonthlyFee,
+      moneyDraft.feeNam,
+      moneyDraft.feeNu,
+      moneyDraft.hasRefund,
+      moneyDraft.customRefundUnit,
+      moneyDraft.unitNam,
+      moneyDraft.unitNu,
+    ]
+  )
 
   const [isSaving, setIsSaving] = useState(false)
   const [isSaved, setIsSaved] = useState(false)
@@ -133,6 +158,7 @@ export default function Settings() {
 
   // Tránh xoá trắng draft khi db đổi reference (Item 2)
   const prevClubIdRef = useRef(db.club?.id)
+  const justSavedRef = useRef(false)
 
   const syncCleanDrafts = useCallback(() => {
     // Chỉ reset draft nếu tab đó KHÔNG dirty
@@ -156,7 +182,11 @@ export default function Settings() {
     }
 
     if (dirtyMoney.length === 0) {
-      const dg = db.groups[0] || {}
+      const dg =
+        (db.groups || []).find((g) => g.hasCustomPricing === false) ||
+        (db.groups || []).find((g) => !g.hasCustomPricing) ||
+        db.groups?.[0] ||
+        {}
       setMoneyDraft({
         hasMonthlyFee: Boolean(intOf(dg.feeNam) > 0 || intOf(dg.feeNu) > 0),
         feeNam: String(dg.feeNam || ''),
@@ -194,7 +224,11 @@ export default function Settings() {
       levels: db.levels || cfg.levelsDefault,
     })
 
-    const dg = db.groups?.[0] || {}
+    const dg =
+      (db.groups || []).find((g) => g.hasCustomPricing === false) ||
+      (db.groups || []).find((g) => !g.hasCustomPricing) ||
+      db.groups?.[0] ||
+      {}
     setMoneyDraft({
       hasMonthlyFee: Boolean(intOf(dg.feeNam) > 0 || intOf(dg.feeNu) > 0),
       feeNam: String(dg.feeNam || ''),
@@ -217,6 +251,11 @@ export default function Settings() {
     if (db.club?.id !== prevClubIdRef.current) {
       prevClubIdRef.current = db.club?.id
       // Đổi hẳn CLB: reset toàn bộ draft
+      handleRevert()
+      return
+    }
+    if (justSavedRef.current) {
+      justSavedRef.current = false
       handleRevert()
       return
     }
@@ -321,28 +360,38 @@ export default function Settings() {
         })
       }
 
-      // 4. Lưu Groups (Đồng bộ mức phí CLB cho các nhóm không có mức riêng để tránh bị nuốt)
+      // 4. Lưu Groups
+      let finalGroups = groupsDraft
       if (dirtyGroups.length > 0 || isFeeChanged || isRefundChanged) {
-        const syncedGroups = groupsDraft.map((g, idx) => {
-          const isCustom =
-            idx !== 0 &&
-            (intOf(g.feeNam) !== intOf(defGroup.feeNam) ||
-              intOf(g.feeNu) !== intOf(defGroup.feeNu) ||
-              intOf(g.unitNam) !== intOf(defGroup.unitNam) ||
-              intOf(g.unitNu) !== intOf(defGroup.unitNu))
-
-          if (isCustom) return g
+        finalGroups = groupsDraft.map((g, idx) => {
+          const base = (!g.hasCustomPricing && (isFeeChanged || isRefundChanged))
+            ? {
+                ...g,
+                feeNam: newClubFeeNam,
+                feeNu: newClubFeeNu,
+                unitNam: newClubUnitNam,
+                unitNu: newClubUnitNu,
+              }
+            : g
           return {
-            ...g,
-            feeNam: newClubFeeNam,
-            feeNu: newClubFeeNu,
-            unitNam: newClubUnitNam,
-            unitNu: newClubUnitNu,
+            ...base,
+            name: (base.name || '').trim(),
+            short: (base.short || '').trim() || (base.name || '').slice(0, 3),
+            feeNam: intOf(base.feeNam),
+            feeNu: intOf(base.feeNu),
+            unitNam: base.unitNam === -1 || base.unitNam === '-1' ? -1 : intOf(base.unitNam),
+            unitNu: base.unitNu === -1 || base.unitNu === '-1' ? -1 : intOf(base.unitNu),
+            from: base.from || '18:00',
+            to: base.to || '20:00',
+            sortOrder: idx,
+            hasCustomPricing: Boolean(base.hasCustomPricing),
           }
         })
-        a.saveGroupsTab(syncedGroups)
+        a.saveGroupsTab(finalGroups)
+        setGroupsDraft(finalGroups)
       }
 
+      justSavedRef.current = true
       setIsSaved(true)
       setTimeout(() => {
         setIsSaved(false)
@@ -386,6 +435,10 @@ export default function Settings() {
     } else {
       setGroupsDraft((prev) => prev.map((g) => (g.id === groupId ? { ...g, [field]: val } : g)))
     }
+  }
+
+  const handleReorderGroups = (newGroups) => {
+    setGroupsDraft(newGroups)
   }
 
   // Ngưỡng cảnh báo "tiền hoàn 1 buổi > quỹ tháng / số buổi": đếm buổi THẬT của tháng đang xem,
@@ -711,7 +764,9 @@ export default function Settings() {
             db={db}
             canEdit={canEdit}
             defGroup={defGroup}
+            clubFeeSettings={clubFeeSettings}
             onGroupFieldChange={handleGroupFieldChange}
+            onReorderGroups={handleReorderGroups}
             onOpenDialog={(name, param) => a.openDialog(name, param)}
             onDeleteGroup={(id, name) => {
               a.confirm({

@@ -577,17 +577,18 @@ export function MatchVideoInlineExpander({
     <div
       style={{
         background: 'var(--surface-sunken)',
-        border: '1px solid var(--teal-500)',
+        border: '1px solid var(--border-default)',
         borderRadius: 10,
         padding: '13px 14px',
         display: 'flex',
         flexDirection: 'column',
         gap: 12,
         margin: '6px 12px 12px',
+        boxShadow: 'var(--shadow-xs)',
       }}
     >
       <div style={{ display: 'flex', alignItems: 'center', gap: 12, flexWrap: 'wrap' }}>
-        <div style={{ font: '600 12px/1 "IBM Plex Mono", monospace', color: 'var(--teal-500)' }}>
+        <div style={{ font: '600 12px/1 "IBM Plex Mono", monospace', color: 'var(--text-accent)' }}>
           {matchCode || match?.id?.slice(0, 6)}
         </div>
         <div style={{ font: '600 13px/1 "IBM Plex Mono", monospace', color: 'var(--text-primary)' }}>

@@ -278,6 +278,18 @@ export const fundBalance = (db) => ledger(db).reduce((t2, r) => t2 + (r.dir === 
  * KHÔNG trừ khách nợ hay quỹ tháng chưa đóng: đó là phải THU, tiền chưa vào chứ không sắp ra.
  * KHÔNG trừ khoản back `offset_next_dues`: nó trừ thẳng vào quỹ tháng sau, không đồng nào rời két.
  */
+/**
+ * Kiểm tra xem một dòng sổ quỹ có thể đổi ngày giao dịch hay không.
+ */
+export function canEditTxDate(db, row) {
+  if (!row || !row.id) return false
+  if (row.id.startsWith('du')) return true
+  if ((db?.manual || []).some((m) => m.id === row.id)) return true
+  if (row.id.startsWith('cb') || row.id.startsWith('cb_adv_')) return true
+  if (row.id.startsWith('aj')) return true
+  return false
+}
+
 export function availableBalance(db) {
   const balance = fundBalance(db)
   const advance = advanceRows(db).filter((r) => !r.repaidAt).reduce((s, r) => s + r.amount, 0)

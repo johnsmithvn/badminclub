@@ -58,6 +58,13 @@ Code chạm Supabase/React không có mặt trong bộ này — kiểm tay trên
 | Buổi tập hợp nhất 3 tabs: Xếp sân · Gán kèo lên sân trống · Điểm danh vắng mặt | `components/session_tabs.test.js` |
 | XP và Bảng xếp hạng mùa: `titleOfLevel` · `calculateMemberXp` · `getMemberXpLedger` · `getMemberAchievements` · `getSeasonBountyPlayer` | `lib/xp.test.js` |
 | **Edge cases XP & Season**: streak bonus · biên tháng mùa giải · inactive member · tie-breaking · baseBonus · level progression qua ngưỡng 600 XP | `lib/xp_season_edge.test.js` |
+| **Giải đấu · luật điểm**: điểm dừng (21-19 ✓, 24-21 ✗, 30-30 ✗) · cờ set/match point · luật theo vòng | `tournament/scoring.test.js` |
+| **Giải đấu · nhánh**: bye, bốc thăm, tranh 3-4, mọi nhánh 2..32 đội đánh được tới hết | `tournament/bracket.test.js` |
+| **Giải đấu · chốt / hoàn tác / sửa điểm** — đặc tả chạy được của RPC SQL | `tournament/advance.test.js` |
+| Giải đấu · tiền (chỉ để xem, không vào sổ quỹ) · nghiệm thu giải mùa 1 | `tournament/finance.test.js` · `tournament/masters_pk_2026.test.js` |
+| Giải đấu · Hub: nội dung, vòng đời giải, đăng ký, checklist · ghép cặp, thể thức, xem trước | `tournament/hub.test.js` · `tournament/pairing.test.js` |
+| **Giải đấu · giao diện** (render component thật bằng `_render.js`, dữ liệu `fixture.js`) | `tournament/*_render.test.js` |
+| Giải đấu · map client ↔ Postgres; bảng giải KHÔNG được lọt vào `TABLES`/`diff()` | `sync/tournament_map.test.js` |
 | 4 Theme Xếp hạng & Kho Biệt danh: Deterministic badge hash · 8 bậc rank · Quips | `lib/rank_themes.test.js` |
 | Dark Mode: ThemeContext, CSS token dark.css, icon sun/moon, anti-FOUC | `smoke/theme.test.js` |
 | **Động cơ cày rank Mùa giải 3-tier**: 5 dải delta Elo · Floor 0 · streak bonus · upset bonus · qualified 20 trận · ledger | `lib/season_3tier.test.js` |

@@ -100,41 +100,26 @@ test('Season Badges: C2 - Chuỗi thắng đang chạy hiển thị đúng tiế
   }
 
   const { inProgress, unlocked } = calculateMemberBadges('m1', mockDb)
-  const batBaiX = inProgress.find((b) => b.id === 'bat_bai_x')
-  assert.ok(batBaiX, 'Bất bại X phải ở trạng thái inProgress khi đang có chuỗi 8')
-  assert.equal(batBaiX.currentVal, 8, 'Tiến độ Bất bại X phải là chuỗi 8 đang chạy')
-  assert.equal(batBaiX.pct, 80, 'Tiến độ phải là 80% (8/10)')
+  const batBai10 = inProgress.find((b) => b.id === 'bat_bai_10')
+  assert.ok(batBai10, 'Bất bại III (mốc 10) phải ở trạng thái inProgress khi đang có chuỗi 8')
+  assert.equal(batBai10.currentVal, 8, 'Tiến độ Bất bại 10 phải là chuỗi 8 đang chạy')
+  assert.equal(batBai10.pct, 80, 'Tiến độ phải là 80% (8/10)')
 
-  const batBaiV = unlocked.find((b) => b.id === 'bat_bai_v')
-  assert.ok(batBaiV, 'Bất bại V (mốc 5) phải mở khóa khi chuỗi đạt 8')
+  const batBai5 = unlocked.find((b) => b.id === 'bat_bai_5')
+  assert.ok(batBai5, 'Bất bại I (mốc 5) phải mở khóa khi chuỗi đạt 8')
+
+  const batBai8 = unlocked.find((b) => b.id === 'bat_bai_8')
+  assert.ok(batBai8, 'Bất bại II (mốc 8) phải mở khóa khi chuỗi đạt 8')
 })
 
-test('Season Badges: A1 - so_sach không cấp cho người đang nợ công nợ', () => {
-  const prevDate = new Date()
-  prevDate.setMonth(prevDate.getMonth() - 1)
-  const prevMonthKey = `${prevDate.getFullYear()}-${String(prevDate.getMonth() + 1).padStart(2, '0')}`
-
-  const mockDbWithDebt = {
-    month: prevMonthKey,
-    members: [{ id: 'm1', name: 'Minh', joinedAt: '2024-01-01', active: true }],
-    dues: [{ id: 'd1', memberId: 'm1', month: prevMonthKey, amount: 300000, paid: 0 }], // Nợ quỹ 300k tháng trước
-    sessionGuests: [],
-    groups: [],
-  }
-
-  const resDebt = calculateMemberBadges('m1', mockDbWithDebt)
-  const soSachDebt = resDebt.unlocked.find((b) => b.id === 'so_sach')
-  assert.equal(soSachDebt, undefined, 'Người đang nợ quỹ không được mở khóa huy hiệu Sổ sách sạch')
-
+test('Season Badges: A1 - so_sach đã được loại bỏ hoàn toàn khỏi hệ thống danh hiệu', () => {
   const mockDbClean = {
-    month: prevMonthKey,
-    members: [{ id: 'm1', name: 'Minh', joinedAt: '2024-01-01', active: true }], // thâm niên > 12 tháng
-    dues: [{ id: 'd1', memberId: 'm1', month: prevMonthKey, amount: 300000, paid: true, paidAmount: 300000 }], // Đã đóng đủ
+    members: [{ id: 'm1', name: 'Minh', joinedAt: '2024-01-01', active: true }],
     sessionGuests: [],
     groups: [],
   }
 
   const resClean = calculateMemberBadges('m1', mockDbClean)
-  const soSachClean = resClean.unlocked.find((b) => b.id === 'so_sach')
-  assert.ok(soSachClean, 'Người đủ thâm niên và sổ sách sạch phải mở khóa huy hiệu so_sach')
+  const soSach = resClean.all.find((b) => b.id === 'so_sach')
+  assert.equal(soSach, undefined, 'Huy hiệu Sổ sạch liên quan tiền quỹ đã được gỡ bỏ khỏi hệ thống')
 })

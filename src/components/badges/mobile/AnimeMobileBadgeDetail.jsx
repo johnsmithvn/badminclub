@@ -116,9 +116,13 @@ export default function AnimeMobileBadgeDetail({
     return cells
   }, [streakTimeline, activeTierBadge.currentVal])
 
-  // 3. Danh sách 4 điều kiện
+  const isFun = activeTierBadge.tier === 'fun'
+  const isStreakBadge = activeTierBadge.checkType === 'win_streak' || activeTierBadge.checkType === 'pair_streak'
+
+  // 3. Danh sách điều kiện thực chất
   const conditions = useMemo(() => {
-    return [
+    if (isFun) return []
+    const list = [
       {
         ok: !!activeTierBadge.unlocked,
         text: badgeCond || t('badges.detail.conditionsTitle'),
@@ -126,12 +130,9 @@ export default function AnimeMobileBadgeDetail({
           ? t('badges.detail.statusAchieved')
           : (activeTierBadge.progressStr || `${activeTierBadge.pct || 0}%`),
       },
-      {
-        ok: true,
-        text: t('badges.detail.condScoreLogged'),
-        val: t('badges.detail.statusOk'),
-      },
-      {
+    ]
+    if (isStreakBadge) {
+      list.push({
         ok: !!activeTierBadge.unlocked || isHolding,
         text: t('badges.detail.condNoLoss'),
         val: activeTierBadge.unlocked
@@ -139,14 +140,10 @@ export default function AnimeMobileBadgeDetail({
           : isHolding
             ? t('badges.detail.statusHolding')
             : t('badges.detail.statusBroken'),
-      },
-      {
-        ok: true,
-        text: t('badges.detail.condSeason'),
-        val: currentSeason?.code || 'S3',
-      },
-    ]
-  }, [activeTierBadge, badgeCond, isHolding, currentSeason])
+      })
+    }
+    return list
+  }, [isFun, isStreakBadge, activeTierBadge.unlocked, badgeCond, activeTierBadge.progressStr, activeTierBadge.pct, isHolding])
 
   if (!badge) return null
 
@@ -432,96 +429,187 @@ export default function AnimeMobileBadgeDetail({
           </div>
         </div>
 
-        {/* ═══ KHỐI ĐIỀU KIỆN ═══ */}
-        <div
-          style={{
-            flex: '0 0 auto',
-            padding: '13px 14px',
-            clipPath: NOTCH_CLIP,
-            background: 'rgba(255,255,255,.04)',
-            display: 'flex',
-            flexDirection: 'column',
-            gap: 10,
-          }}
-        >
-          <span style={{ font: "700 12px/1 'Oswald', sans-serif", letterSpacing: '.12em', color: '#FFFFFF' }}>
-            {t('badges.detail.conditionsTitle')}
-          </span>
-
-          {conditions.map((c, i) => (
-            <div key={i} style={{ display: 'flex', alignItems: 'center', gap: 10 }}>
-              <div
-                style={{
-                  width: 24,
-                  height: 24,
-                  flex: '0 0 auto',
-                  clipPath: HEX_CLIP,
-                  display: 'grid',
-                  placeItems: 'center',
-                  font: "700 12px/1 'Oswald', sans-serif",
-                  background: c.ok ? 'linear-gradient(135deg, #00776B, #2EE9FF)' : '#241640',
-                  color: c.ok ? '#01130F' : '#9C8ABE',
-                }}
-              >
-                {c.ok ? '✓' : '·'}
-              </div>
-              <span style={{ flex: 1, minWidth: 0, font: "400 11.5px/1.35 'Be Vietnam Pro', sans-serif", color: '#C9B8E6' }}>
-                {c.text}
-              </span>
-              <span
-                style={{
-                  flex: '0 0 auto',
-                  font: "600 11.5px/1 'IBM Plex Mono', monospace",
-                  color: c.ok ? '#5FEBD0' : '#C9B8E6',
-                }}
-              >
-                {c.val}
+        {/* ═══ NẾU LÀ FUN (TỰ PHONG): KHỐI TROLL ĐẶC BIỆT ═══ */}
+        {isFun ? (
+          <div
+            style={{
+              flex: '0 0 auto',
+              padding: '16px 14px',
+              clipPath: NOTCH_CLIP,
+              background: 'linear-gradient(135deg, rgba(255, 226, 75, 0.08), rgba(255, 46, 126, 0.06))',
+              border: '1px solid rgba(255, 226, 75, 0.3)',
+              display: 'flex',
+              flexDirection: 'column',
+              gap: 12,
+            }}
+          >
+            <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
+              <span style={{ fontSize: 20 }}>🎭</span>
+              <span style={{ font: "700 13px/1 'Oswald', sans-serif", letterSpacing: '.12em', color: '#FFE24B' }}>
+                {t('badges.groups.fun')}
               </span>
             </div>
-          ))}
-        </div>
 
-        {/* ═══ KHỐI CHUỖI HIỆN TẠI (10 Ô Ngang) ═══ */}
-        <div
-          style={{
-            flex: '0 0 auto',
-            padding: '13px 14px',
-            clipPath: NOTCH_CLIP,
-            background: 'rgba(255,255,255,.04)',
-            display: 'flex',
-            flexDirection: 'column',
-            gap: 10,
-          }}
-        >
-          <span style={{ font: "700 12px/1 'Oswald', sans-serif", letterSpacing: '.12em', color: '#FFFFFF' }}>
-            {t('badges.detail.currentStreakTitle')}
-          </span>
+            <div
+              style={{
+                font: "400 12.5px/1.55 'Be Vietnam Pro', sans-serif",
+                color: '#FFFBEA',
+                background: 'rgba(0,0,0,.35)',
+                padding: '10px 12px',
+                borderRadius: 8,
+                borderLeft: '3px solid #FFE24B',
+              }}
+            >
+              "{badgeCond}"
+            </div>
 
-          <div style={{ display: 'flex', gap: 4 }}>
-            {streakCells.map((s, idx) => (
+            <div style={{ font: "600 11.5px/1.5 'Be Vietnam Pro', sans-serif", color: '#FFC46B' }}>
+              ✨ {t('badges.detail.funPunchline')}
+            </div>
+
+            <div style={{ font: "400 11px/1.4 'IBM Plex Mono', monospace", color: '#9C8ABE' }}>
+              {t('badges.detail.funBadgeNote')}
+            </div>
+          </div>
+        ) : (
+          <>
+            {/* ═══ KHỐI ĐIỀU KIỆN THỰC CHẤT ═══ */}
+            <div
+              style={{
+                flex: '0 0 auto',
+                padding: '13px 14px',
+                clipPath: NOTCH_CLIP,
+                background: 'rgba(255,255,255,.04)',
+                display: 'flex',
+                flexDirection: 'column',
+                gap: 10,
+              }}
+            >
+              <span style={{ font: "700 12px/1 'Oswald', sans-serif", letterSpacing: '.12em', color: '#FFFFFF' }}>
+                {t('badges.detail.conditionsTitle')}
+              </span>
+
+              {conditions.map((c, i) => (
+                <div key={i} style={{ display: 'flex', alignItems: 'center', gap: 10 }}>
+                  <div
+                    style={{
+                      width: 24,
+                      height: 24,
+                      flex: '0 0 auto',
+                      clipPath: HEX_CLIP,
+                      display: 'grid',
+                      placeItems: 'center',
+                      font: "700 12px/1 'Oswald', sans-serif",
+                      background: c.ok ? 'linear-gradient(135deg, #00776B, #2EE9FF)' : '#241640',
+                      color: c.ok ? '#01130F' : '#9C8ABE',
+                    }}
+                  >
+                    {c.ok ? '✓' : '·'}
+                  </div>
+                  <span style={{ flex: 1, minWidth: 0, font: "400 11.5px/1.35 'Be Vietnam Pro', sans-serif", color: '#C9B8E6' }}>
+                    {c.text}
+                  </span>
+                  <span
+                    style={{
+                      flex: '0 0 auto',
+                      font: "600 11.5px/1 'IBM Plex Mono', monospace",
+                      color: c.ok ? '#5FEBD0' : '#C9B8E6',
+                    }}
+                  >
+                    {c.val}
+                  </span>
+                </div>
+              ))}
+            </div>
+
+            {/* ═══ KHỐI CHUỖI HIỆN TẠI (CHỈ HIỆN KHI LÀ CHUỖI THẮNG) ═══ */}
+            {isStreakBadge ? (
               <div
-                key={idx}
                 style={{
-                  flex: 1,
-                  height: 42,
-                  clipPath: NOTCH_S_CLIP,
-                  display: 'grid',
-                  placeItems: 'center',
-                  font: "700 14px/1 'Oswald', sans-serif",
-                  background: s.isWin
-                    ? 'linear-gradient(165deg, #FF2E7E, #7A0A2E)'
-                    : s.isFuture
-                      ? 'rgba(255,255,255,.05)'
-                      : 'rgba(126,111,160,.18)',
-                  color: s.isWin ? '#FFFBEA' : '#6B5C8C',
-                  borderTop: s.isWin ? '1px solid #FF7A18' : 'none',
+                  flex: '0 0 auto',
+                  padding: '13px 14px',
+                  clipPath: NOTCH_CLIP,
+                  background: 'rgba(255,255,255,.04)',
+                  display: 'flex',
+                  flexDirection: 'column',
+                  gap: 10,
                 }}
               >
-                {s.label}
+                <span style={{ font: "700 12px/1 'Oswald', sans-serif", letterSpacing: '.12em', color: '#FFFFFF' }}>
+                  {t('badges.detail.currentStreakTitle')}
+                </span>
+
+                <div style={{ display: 'flex', gap: 4 }}>
+                  {streakCells.map((s, idx) => (
+                    <div
+                      key={idx}
+                      style={{
+                        flex: 1,
+                        height: 42,
+                        clipPath: NOTCH_S_CLIP,
+                        display: 'grid',
+                        placeItems: 'center',
+                        font: "700 14px/1 'Oswald', sans-serif",
+                        background: s.isWin
+                          ? 'linear-gradient(165deg, #FF2E7E, #7A0A2E)'
+                          : s.isFuture
+                            ? 'rgba(255,255,255,.05)'
+                            : 'rgba(126,111,160,.18)',
+                        color: s.isWin ? '#FFFBEA' : '#6B5C8C',
+                        borderTop: s.isWin ? '1px solid #FF7A18' : 'none',
+                      }}
+                    >
+                      {s.label}
+                    </div>
+                  ))}
+                </div>
               </div>
-            ))}
-          </div>
-        </div>
+            ) : (
+              /* KHỐI TIẾN TRÌNH THỬ THÁCH CHO NHIỆM VỤ / THÀNH TÍCH KHÁC */
+              <div
+                style={{
+                  flex: '0 0 auto',
+                  padding: '13px 14px',
+                  clipPath: NOTCH_CLIP,
+                  background: 'rgba(255,255,255,.04)',
+                  display: 'flex',
+                  flexDirection: 'column',
+                  gap: 10,
+                }}
+              >
+                <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between' }}>
+                  <span style={{ font: "700 12px/1 'Oswald', sans-serif", letterSpacing: '.12em', color: '#FFFFFF' }}>
+                    {t('badges.detail.missionProgressTitle')}
+                  </span>
+                  <span style={{ font: "700 15px/1 'Oswald', sans-serif", color: activeTierBadge.unlocked ? '#5FEBD0' : '#FFE24B' }}>
+                    {activeTierBadge.unlocked ? t('badges.detail.statusAchieved') : (activeTierBadge.progressStr || `${activeTierBadge.pct || 0}%`)}
+                  </span>
+                </div>
+
+                <div style={{ height: 10, background: 'rgba(255,255,255,.08)', overflow: 'hidden' }}>
+                  <div
+                    style={{
+                      height: '100%',
+                      width: `${activeTierBadge.unlocked ? 100 : (activeTierBadge.pct || 0)}%`,
+                      background: meta.edge || 'linear-gradient(90deg, #FF2E7E, #FFE24B)',
+                      transition: 'width 0.3s ease',
+                    }}
+                  />
+                </div>
+
+                <span style={{ font: "400 11.5px/1.4 'Be Vietnam Pro', sans-serif", color: '#C9B8E6' }}>
+                  {activeTierBadge.unlocked
+                    ? t('badges.detail.missionCompleted')
+                    : t('badges.detail.missionRemaining', {
+                        current: activeTierBadge.currentVal || 0,
+                        target: activeTierBadge.threshold || 1,
+                        remain: Math.max(0, (activeTierBadge.threshold || 1) - (activeTierBadge.currentVal || 0)),
+                      })}
+                </span>
+              </div>
+            )}
+          </>
+        )}
 
         {/* ═══ KHỐI AI ĐÃ CÓ (Badge Owners) ═══ */}
         <div

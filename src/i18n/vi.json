@@ -45,7 +45,9 @@
     "exportCsv": "Xuất CSV",
     "saveChanges": "Lưu thay đổi",
     "history": "Lịch sử",
-    "swap": "Đổi vị trí"
+    "swap": "Đổi vị trí",
+    "moveUp": "Di chuyển lên",
+    "moveDown": "Di chuyển xuống"
   },
   "units": {
     "dong": "đ",
@@ -192,6 +194,25 @@
     "cycleQuarterly": "Theo Quý (3 tháng)",
     "editSeason": "Chỉnh sửa mùa giải",
     "endSeasonEarly": "Chốt mùa sớm & Trao thưởng",
+    "saveSeasonSuccess": "Đã lưu cấu hình mùa giải thành công",
+    "seasonEndedSuccess": "Đã chốt mùa giải cũ và khởi tranh mùa mới!",
+    "endSeasonModalTitle": "Xác nhận chốt mùa giải & Khởi tranh mùa mới",
+    "endSeasonConfirmDesc": "Thao tác này sẽ chốt thứ hạng hiện tại của mùa này, lưu bảng vinh danh và đặt lại Điểm Mùa (Season Points) về 0 cho tất cả thành viên để bắt đầu mùa giải mới. Career Elo và XP trọn đời không bị ảnh hưởng.",
+    "podiumPreviewTitle": "Bảng vinh danh Top 3 Podium sẽ được lưu",
+    "newSeasonSectionTitle": "Thiết lập mùa giải mới tiếp theo",
+    "newSeasonCode": "Mã mùa mới",
+    "newSeasonName": "Tên mùa mới",
+    "newSeasonStart": "Ngày bắt đầu",
+    "newSeasonEnd": "Ngày kết thúc",
+    "confirmEndAndStartBtn": "Xác nhận chốt mùa & Khởi tranh",
+    "selectorTitle": "Chọn mùa giải",
+    "activeSeasonBadge": "Đang diễn ra",
+    "archivedSeasonBadge": "Đã kết thúc",
+    "closedAtDate": "Đã chốt: {{date}}",
+    "podiumTop1": "Quán quân (Top 1)",
+    "podiumTop2": "Á quân (Top 2)",
+    "podiumTop3": "Quý quân (Top 3)",
+    "archivedSeasonNotice": "Mùa giải này đã kết thúc và được lưu trữ vĩnh viễn. Điểm số và thứ hạng không thay đổi.",
     "whenEnding": "Quy trình chốt mùa giải",
     "step1": "1. Chốt thứ hạng điểm mùa giải và lưu bảng vinh danh.",
     "step2": "2. Reset toàn bộ Season Points về 0 cho tất cả thành viên.",
@@ -314,7 +335,9 @@
     "actionTopLeftDescHandoff": "{{names}} đi đủ buổi, Elo đang lên nhanh. Ghép họ với nhóm {{median}}+ một trận mỗi buổi để tăng cọ xát.",
     "mapTitleWithSeason": "Bản đồ CLB {{season}}",
     "emptyGenderList": "Chưa có thành viên nào trong danh mục này.",
-    "filterGenderTitle": "Lọc giới tính"
+    "filterGenderTitle": "Lọc giới tính",
+    "filterSeason": "Mùa giải:",
+    "activeCurrent": "Hiện tại"
   },
   "gender": {
     "all": "Tất cả",
@@ -409,7 +432,8 @@
       "ops": "Vận hành",
       "money": "Tài chính",
       "account": "Tài khoản"
-    }
+    },
+    "tournaments": "Giải đấu"
   },
   "pages": {
     "home": {
@@ -492,6 +516,14 @@
     "schema": {
       "title": "Sơ đồ dữ liệu",
       "desc": "Thiết kế database để dựng app thật"
+    },
+    "tournaments": {
+      "title": "Giải đấu",
+      "desc": "Tổ chức giải nội bộ: đăng ký, lệ phí, nội dung thi đấu"
+    },
+    "tournament": {
+      "title": "Giải đấu",
+      "desc": "Điều hành một giải: thông tin, lệ phí, thí sinh"
     }
   },
   "roles": {
@@ -766,7 +798,7 @@
     "tapNameHint": "Chạm tên →",
     "slotEmptyLabel": "Trống",
     "slotTeamLabel": "Đội {{team}} · ô {{n}}",
-    "waitingCount": "Đang chờ · {{n}} người",
+    "waitingCount": "{{n}} người",
     "searchPlayerPlaceholder": "Tìm theo tên hoặc trình độ...",
     "sortFewest": "Ít trận nhất",
     "sortWaiting": "Chờ lâu",
@@ -994,6 +1026,7 @@
       "upcomingSession": "BUỔI TỚI · {{time}}",
       "upcomingTimeDefault": "BUỔI TỚI · TỐI NAY {{time}}",
       "upcomingSessionToday": "BUỔI TỚI · TỐI NAY {{time}}",
+      "upcomingSessionLive": "BUỔI TẬP · ĐANG DIỄN RA {{time}}",
       "upcomingSessionDate": "BUỔI TỚI · {{date}} {{time}}",
       "myChallengeTag": "Kèo của bạn",
       "seekingOpponentTag": "Đang tuyển",
@@ -1354,7 +1387,7 @@
     "scheduleOff": "Đã tắt lịch {{name}} — không sinh buổi mới",
     "needWeekday": "Chọn thứ trong tuần và ngày bắt đầu",
     "scheduleCreated": "Đã tạo {{n}} buổi từ {{from}} đến {{to}}",
-    "needDate": "Chọn ngày",
+    "needDate": "Vui lòng chọn ngày hợp lệ.",
     "adhocCreated": "Đã tạo buổi đột xuất {{date}}",
     "needVenueAmount": "Nhập sân và số tiền đã trả",
     "billAdded": "Đã ghi tiền sân {{amount}} đ",
@@ -1411,7 +1444,8 @@
     "debtDeleted": "Đã xoá khoản nợ thành công",
     "matchesExported": "Đã tải file {{file}} — {{n}} trận. File này chỉ chứa lịch sử thi đấu, KHÔNG có tiền quỹ hay công nợ.",
     "matchesImported": "Đã nhập {{n}} trận. Bấm Đồng bộ lại Elo để dựng lại bảng xếp hạng từ lịch sử vừa nạp.",
-    "matchesImportBlocked": "Chưa nhập gì cả. Xem lý do trong hộp thoại."
+    "matchesImportBlocked": "Chưa nhập gì cả. Xem lý do trong hộp thoại.",
+    "txDateUpdated": "Đã đổi ngày giao dịch thành {{date}}."
   },
   "group": {
     "allClub": "Cả CLB",
@@ -2200,6 +2234,13 @@
     "filterDirOut": "Chỉ khoản chi (-)",
     "filterCats": "Hạng mục",
     "resetFilter": "Đặt lại bộ lọc",
+    "filteredTotal": "TỔNG TIỀN ĐÃ LỌC",
+    "filteredCountInDays": "{{n}} khoản trong {{days}} ngày",
+    "filteredResult": "Kết quả lọc",
+    "filteredTx": "{{count}} giao dịch",
+    "filteredIn": "Thu",
+    "filteredOut": "Chi",
+    "filteredNet": "Ròng",
     "dirInLabel": "Thu vào quỹ (+)",
     "dirOutLabel": "Chi từ quỹ (-)",
     "fieldDate": "Ngày",
@@ -2228,7 +2269,9 @@
     "csvHeaderBy": "Người trả/Hình thức",
     "csvHeaderIn": "Thu (+)",
     "csvHeaderOut": "Chi (-)",
-    "csvHeaderAmount": "Số tiền"
+    "csvHeaderAmount": "Số tiền",
+    "editDueDate": "Sửa ngày thu",
+    "editTxDate": "Đổi ngày giao dịch"
   },
   "profile": {
     "meTitle": "Hồ sơ của tôi trong CLB",
@@ -3041,6 +3084,36 @@
     "loser": "Thua"
   },
   "challenge": {
+    "arenaHeroTitle": "Bạn Sợ à?",
+    "arenaSubtitle": "Sàn kèo · {{tab}} {{count}}",
+    "featuredBadgeTitle": "Kèo tâm điểm",
+    "winChance": "Khả năng thắng",
+    "pointGapAvg": "chênh {{gap}} điểm TB",
+    "pointGapAvgShort": "chênh {{gap}}đ",
+    "avgPoint": "TB {{score}}",
+    "tagBalanced": "Một chín một mười",
+    "tagUnderdog": "Châu chấu đá xe",
+    "tagFirstTime": "Lần đầu so vợt",
+    "tagRevenge": "Phục thù",
+    "tagRivalry": "Duyên nợ",
+    "betBelieversA": "{{count}} người tin phe xanh",
+    "betBelieversB": "{{count}} người tin phe cam",
+    "betBelieversShortA": "{{count}} tin xanh",
+    "betBelieversShortB": "{{count}} tin cam",
+    "betCheerA": "Cổ vũ phe xanh",
+    "betCheerB": "Cổ vũ phe cam",
+    "noBettorsYet": "Chưa có ai cược",
+    "bettingNow": "đang cược",
+    "betLocked": "đã khóa cược",
+    "potDistributed": "đã chia hũ",
+    "betPotPoints": "{{points}}",
+    "btnRevenge": "Phục thù",
+    "setScoreLabel": "tỉ số set",
+    "matchScoreLabel": "điểm số",
+    "youAcceptedWaitingShort": "Đã nhận · Chờ đối thủ",
+    "wonBadgeShort": "Thắng",
+    "createChallengeBtn": "Tạo kèo mới",
+    "stakeLabelPrefix": "Cược: {{stake}}",
     "focusedNotice": "Đang làm nổi bật kèo {{code}}",
     "focusedBadge": "Đang chọn",
     "viewAll": "Xem tất cả kèo",
@@ -3096,7 +3169,7 @@
     "seasonPreviewNote": "Chưa gồm thưởng chuỗi thắng và lật kèo. Elo tính riêng.",
     "seasonPreviewNoteMult": "Trận thường chỉ +{{base}} — đánh trong kèo được nhân {{mult}}. Elo vẫn tính như trận thường.",
     "stakeLabel": "Giao kèo",
-    "stakeHint": "Thoả thuận ngoài sân — app chỉ ghi lại, không thu hộ",
+    "stakeHint": "Giao kèo vui giữa hai bên, không trừ tiền quỹ",
     "stakePlaceholder": "Thua thì làm gì? VD: mua 2 chai nước",
     "stakeTplTitle": "Mẫu nhanh",
     "stakeTpl1": "Thua mua nước cả sân",
@@ -3166,18 +3239,19 @@
     "fromCourt": "Chia sân",
     "challenge": "Kèo",
     "imbalanceNotice": "Hệ thống chỉ cảnh báo, không chặn bạn gửi kèo.",
+    "scenarioTitle": "Kịch bản biến động Elo",
     "ifWinA": "Nếu Đội A thắng",
     "ifWinB": "Nếu Đội B thắng",
     "gamesCountMeta": "{{n}} trận",
-    "tabMy": "Của tôi",
-    "tabPending": "Chờ nhận",
-    "tabAccepted": "Đã nhận",
-    "tabOpen": "Đang mở",
-    "tabPlayed": "Đã đấu",
-    "winnerBadge": "Thắng",
+    "tabMy": "My",
+    "tabPending": "Pending",
+    "tabAccepted": "READY",
+    "tabOpen": "OPEN",
+    "tabPlayed": "PLAYED",
+    "winnerBadge": "WIN",
     "searchPlaceholder": "Tìm theo tên hoặc mã kèo...",
-    "sectionActive": "Đang diễn ra",
-    "sectionEnded": "Đã kết thúc",
+    "sectionActive": "LIVE",
+    "sectionEnded": "END",
     "expiresIn": "hết hạn {{time}}",
     "gapWarningNotBlocked": "Lệch {{gap}} điểm — cảnh báo, không chặn",
     "railChallengeNote": "Nhận kèo xong, cặp thành thẻ chờ sân ở tab Chia sân. Match chỉ sinh khi nhập tỷ số.",
@@ -3209,6 +3283,7 @@
     "h2hExactTitle": "Lịch sử đối đầu giữa 2 cặp đội",
     "h2hExactSub": "Các trận trong quá khứ mà 2 đội giữ nguyên cặp",
     "h2hLeaderTitle": "Lịch sử đối đầu: {{nameA}} vs {{nameB}}",
+    "h2hLeaderPrefix": "Lịch sử đối đầu",
     "h2hLeaderSub": "Các trận quá khứ khi 2 người ở 2 bên đối nghịch",
     "recentH2HForm": "{{n}} trận gần nhất:",
     "btnEnterScore": "Nhập kết quả",
@@ -3220,6 +3295,8 @@
     "formatHasBets": "Kèo này đã có người đặt cược — đổi thể thức là đổi cả kèo họ đã đặt",
     "headerMeta": "{{creator}} gửi {{time}} · buổi {{date}}{{court}}",
     "headerMetaCasual": "{{creator}} gửi {{time}} · Kèo tự do CLB{{court}}",
+    "sentAtMeta": "gửi {{time}} · buổi {{date}}{{court}}",
+    "sentAtMetaCasual": "gửi {{time}} · Kèo tự do CLB{{court}}",
     "searchMemberPlaceholder": "Tìm thành viên...",
     "noMatchingMembers": "Không tìm thấy thành viên phù hợp",
     "toastSetSaved": "Đã lưu kết quả Hiệp {{set}} cho kèo {{code}}! Tỉ số chuỗi: {{score}}",
@@ -3992,6 +4069,25 @@
     "myShelfNote": "tối đa 3 ô · kéo để đổi thứ tự",
     "shelfEmptySlot": "Ô trống",
     "shelfEmptySlotHint": "chọn từ bộ sưu tập để gắn",
+    "unlockedVaultTitle": "KHO HUY HIỆU ĐÃ MỞ",
+    "unlockedVaultSub": "{{count}} huy hiệu đã thắp sáng · {{points}} điểm sưu tập",
+    "unlockedVaultEmpty": "Chưa có danh hiệu chính thức nào được mở. Hãy thi đấu để thắp sáng kho báu!",
+    "filterKindAll": "TẤT CẢ LOẠI",
+    "filterKindFamily": "🧬 CÓ CẤP ĐỘ",
+    "filterKindSolo": "🏆 ĐƠN BẬC",
+    "filterStatusAll": "TẤT CẢ TRẠNG THÁI",
+    "filterStatusUnlocked": "ĐÃ MỞ KHÓA",
+    "filterStatusInProgress": "ĐANG TIẾN HÀNH",
+    "filterStatusLocked": "CHƯA MỞ",
+    "searchPlaceholder": "Tìm kiếm danh hiệu...",
+    "noBadgesMatch": "Không tìm thấy danh hiệu nào phù hợp với bộ lọc hiện tại.",
+    "sectionFamilyTitle": "HỌ TIẾN HÓA (NHIỀU CẤP ĐỘ)",
+    "sectionFamilySub": "Huy hiệu cày cuốc đường dài, tăng dần theo mốc I → IV",
+    "sectionSoloTitle": "CHIẾN TÍCH ĐỘC BẬC (THỬ THÁCH ĐẶC BIỆT)",
+    "sectionSoloSub": "Các danh hiệu đơn lẻ, thử thách huyền thoại mở một lần vĩnh viễn",
+    "tagFamily": "TIẾN HÓA",
+    "tagSolo": "ĐỘC BẬC",
+    "clearFilter": "Xóa bộ lọc",
     "groups": {
       "combat": "CHIẾN THẦN SÂN CẦU",
       "combatNote": "mở bằng kết quả thi đấu",
@@ -4043,6 +4139,11 @@
       "statusBroken": "đã bị ngắt",
       "statusAchieved": "ĐÃ ĐẠT ✓",
       "statusSeason": "Mùa 3",
+      "missionProgressTitle": "TIẾN ĐỘ THỬ THÁCH",
+      "missionCompleted": "Đã hoàn thành toàn bộ mục tiêu thử thách!",
+      "missionRemaining": "Hiện tại đạt {{current}} / {{target}} · Còn thiếu {{remain}} để đạt mốc",
+      "funPunchline": "Danh hiệu tự phong · Thích thì flex, không cần ai duyệt! (0 điểm sưu tập nhưng 100 điểm thần thái)",
+      "funBadgeNote": "Huy hiệu phong cách cá nhân của CLB · Tự do ghim lên kệ bất kỳ lúc nào!",
       "completedDesc": "Bạn đã hoàn thành chiến tích này!",
       "currentStreakTitle": "CHUỖI HIỆN TẠI",
       "streakHint": "10 ô · W = thắng",
@@ -4097,7 +4198,11 @@
       },
       "ke_di_san": {
         "name": "Kẻ Đi Săn",
-        "desc": "Đánh bại các đối thủ có xếp hạng Elo cao hơn"
+        "desc": "Đánh bại các đối thủ có xếp hạng Elo cao hơn từ 120 điểm trở lên"
+      },
+      "thanh_guom_diet_quy": {
+        "name": "Thanh Gươm Diệt Quỷ",
+        "desc": "Chấm dứt chuỗi bất bại từ 5 trận trở lên của đối thủ"
       },
       "trang_buoi": {
         "name": "Trắng Buổi",
@@ -4149,21 +4254,49 @@
       "emptyRarest": "Chưa có dữ liệu danh hiệu hiếm."
     },
     "items": {
+      "bat_bai_5": {
+        "name": "Bất bại I",
+        "cond": "Thắng 5 trận liên tiếp trong cùng một mùa"
+      },
+      "bat_bai_8": {
+        "name": "Bất bại II",
+        "cond": "Thắng 8 trận liên tiếp trong cùng một mùa"
+      },
+      "bat_bai_10": {
+        "name": "Bất bại III",
+        "cond": "Thắng 10 trận liên tiếp trong cùng một mùa"
+      },
+      "bat_bai_18": {
+        "name": "Quỷ Vương bất tử",
+        "cond": "Thắng 18 trận liên tiếp trong cùng một mùa"
+      },
       "bat_bai_v": {
-        "name": "Bất bại V",
+        "name": "Bất bại I",
         "cond": "Thắng 5 trận liên tiếp trong cùng một mùa"
       },
       "bat_bai_x": {
-        "name": "Bất bại X",
+        "name": "Bất bại III",
         "cond": "Thắng 10 trận liên tiếp trong cùng một mùa"
       },
       "ke_ngat_chuoi": {
-        "name": "Kẻ ngắt chuỗi",
-        "cond": "Hạ người đang có chuỗi ≥ 5 trận"
+        "name": "Thanh gươm diệt quỷ",
+        "cond": "Chấm dứt chuỗi thắng ≥ 5 trận của đối thủ"
+      },
+      "thanh_guom_diet_quy_3": {
+        "name": "Thanh gươm diệt quỷ I",
+        "cond": "Ngắt chuỗi thắng ≥ 5 trận của đối thủ 3 lần"
+      },
+      "thanh_guom_diet_quy_5": {
+        "name": "Thanh gươm diệt quỷ II",
+        "cond": "Ngắt chuỗi thắng ≥ 5 trận của đối thủ 5 lần"
+      },
+      "thanh_guom_diet_quy_10": {
+        "name": "Thanh gươm diệt quỷ III",
+        "cond": "Ngắt chuỗi thắng ≥ 5 trận của đối thủ 10 lần"
       },
       "sat_than_doi": {
         "name": "Sát thần đôi",
-        "cond": "Đánh bại cặp đôi Top 1 CLB (cân bằng Elo, đấu cùng nhau ≥ 5 trận) ít nhất 2 lần"
+        "cond": "Thắng 5 trận đánh đôi trước các cặp đối thủ có tổng Elo hơn mình từ 150 điểm trở lên"
       },
       "trum_giai": {
         "name": "Trùm giải",
@@ -4199,43 +4332,47 @@
       },
       "vo_hut": {
         "name": "Chuyên gia vồ hụt",
-        "cond": "Chắc là do vợt thủng"
+        "cond": "Vung vợt xé gió như sấm sét nhưng cầu vẫn rơi xuống đất trước. Chắc chắn là do vợt bị thủng lỗ to!"
       },
       "lau_san": {
         "name": "Thánh lau sàn",
-        "cond": "Bơi được trên sân"
+        "cond": "Cứu cầu theo phong cách trượt băng nghệ thuật, mặt sân sáng bóng không tì vết sau mỗi pha tiếp đất!"
       },
       "he_chua": {
         "name": "Hề chúa sân cầu",
-        "cond": ":v"
+        "cond": "Đánh cầu là phụ, tấu hài là chính. Mỗi đường cầu đi vào lòng người bằng một tràng cười nghiêng ngả!"
       },
       "chich_choe": {
         "name": "Mỏ hỗn",
-        "cond": "Đố dám cãi"
+        "cond": "Miệng hoạt động hết công suất hơn cả tay chân. Đánh hỏng nhưng lý lẽ và đối đáp thì không bao giờ hỏng!"
       },
       "doi_vot": {
         "name": "Đại gia đổi vợt",
-        "cond": "Đố biết vợt bao nhiêu xèng"
+        "cond": "Cầu đánh chưa trúng nhưng bảo kiếm xịn thì phải đổi liên tục. Trình độ có hạn, đam mê thiết bị là vô hạn!"
       },
       "ganh_ta": {
         "name": "Gánh tạ gãy lưng",
-        "cond": "Hội người cao tuổi gọi tên"
+        "cond": "Đứng trên sân mà ngỡ đang thi cử tạ Olympic. Đánh xong trận là đồng đội phải đi bấm huyệt lưng gấp!"
       },
       "ngam_cau": {
         "name": "Không phải dạng vừa đâu",
-        "cond": "Tự phong"
+        "cond": "Đứng hình 3 giây chiêm ngưỡng quỹ đạo cầu bay đẹp như tranh vẽ... và ngoan ngoãn đáp ngay trong sân mình!"
       },
       "huy_diet_luoi": {
         "name": "Vua phá lưới",
-        "cond": "Không phải bàn"
+        "cond": "Mục tiêu duy nhất trong tầm mắt là dải băng trắng. Đập quả nào là lưới run rẩy, đối thủ thở phào quả đó!"
+      },
+      "nguoi_co_suc_hut": {
+        "name": "Người có sức hút",
+        "cond": "Nam châm sống của sân cầu. Đứng đâu cầu cũng tự động bay thẳng vào người, né mỏi cả cổ!"
       },
       "hoa_hau_nhat_cau": {
         "name": "Người có sức hút",
-        "cond": "Tay ai mà nhặt nhanh thế"
+        "cond": "Nam châm sống của sân cầu. Đứng đâu cầu cũng tự động bay thẳng vào người, né mỏi cả cổ!"
       },
       "tho_san_goc_chet": {
         "name": "Thợ săn newbie",
-        "cond": "Khó Lói"
+        "cond": "Chiến thuật gia tài ba, chuyên điều cầu vào những góc hiểm hóc mà chính đồng đội cũng không đỡ nổi!"
       },
       "hidden_comeback": {
         "name": "Nghịch thiên đảo chiều",
@@ -4305,13 +4442,25 @@
         "name": "Thợ săn kèo IV",
         "cond": "Hạ đối thủ có Elo cao hơn mình từ 200 điểm"
       },
+      "de_bep_10": {
+        "name": "Đè bẹp I",
+        "cond": "Thắng set đối thủ ghi ≤ 10 điểm"
+      },
+      "de_bep_7": {
+        "name": "Đè bẹp II",
+        "cond": "Thắng set đối thủ ghi ≤ 7 điểm"
+      },
+      "de_bep_4": {
+        "name": "Đè bẹp III",
+        "cond": "Thắng set đối thủ ghi ≤ 4 điểm"
+      },
+      "de_bep_2": {
+        "name": "Đè bẹp IV",
+        "cond": "Thắng set đối thủ ghi ≤ 2 điểm"
+      },
       "de_bep_15": {
         "name": "Đè bẹp I",
         "cond": "Thắng set với cách biệt lớn (đối thủ ≤ 15 điểm)"
-      },
-      "de_bep_10": {
-        "name": "Đè bẹp II",
-        "cond": "Thắng set áp đảo (đối thủ ≤ 10 điểm)"
       },
       "de_bep_5": {
         "name": "Đè bẹp III",
@@ -4353,21 +4502,33 @@
         "name": "Bền sức IV",
         "cond": "Thắng 50 trận phải phân định ở set 3"
       },
+      "ke_di_san_10": {
+        "name": "Kẻ đi săn I",
+        "cond": "Hạ 10 người có Elo cao hơn mình từ 120 điểm trở lên"
+      },
+      "ke_di_san_20": {
+        "name": "Kẻ đi săn II",
+        "cond": "Hạ 20 người có Elo cao hơn mình từ 120 điểm trở lên"
+      },
+      "ke_di_san_30": {
+        "name": "Kẻ đi săn III",
+        "cond": "Hạ 30 người có Elo cao hơn mình từ 120 điểm trở lên"
+      },
       "ke_di_san_3": {
         "name": "Kẻ đi săn I",
-        "cond": "Hạ 3 người đang xếp trên mình ở bảng Elo"
+        "cond": "Hạ 10 người có Elo cao hơn mình từ 120 điểm trở lên"
       },
       "ke_di_san_8": {
-        "name": "Kẻ đi săn II",
-        "cond": "Hạ 8 người đang xếp trên mình ở bảng Elo"
+        "name": "Kẻ đi săn I",
+        "cond": "Hạ 10 người có Elo cao hơn mình từ 120 điểm trở lên"
       },
       "ke_di_san_15": {
-        "name": "Kẻ đi săn III",
-        "cond": "Hạ 15 người đang xếp trên mình ở bảng Elo"
+        "name": "Kẻ đi săn II",
+        "cond": "Hạ 20 người có Elo cao hơn mình từ 120 điểm trở lên"
       },
       "ke_di_san_25": {
-        "name": "Kẻ đi săn IV",
-        "cond": "Hạ 25 người đang xếp trên mình ở bảng Elo"
+        "name": "Kẻ đi săn III",
+        "cond": "Hạ 30 người có Elo cao hơn mình từ 120 điểm trở lên"
       },
       "trang_buoi_1": {
         "name": "Trắng buổi I",
@@ -4413,9 +4574,13 @@
         "name": "Đòi nợ",
         "cond": "Thắng lại đối thủ đã hạ mình liên tiếp"
       },
+      "can_quet_clb": {
+        "name": "Càn quét CLB",
+        "cond": "Đánh bại ít nhất 85% tổng số thành viên đang hoạt động trong CLB"
+      },
       "tay_doi": {
-        "name": "Tay đôi",
-        "cond": "Thắng 10 đối thủ khác nhau trong cùng một mùa"
+        "name": "Càn quét CLB",
+        "cond": "Đánh bại ít nhất 85% tổng số thành viên đang hoạt động trong CLB"
       },
       "tron_buoi": {
         "name": "Trọn buổi",
@@ -4429,9 +4594,13 @@
         "name": "Thợ săn hoàn hảo",
         "cond": "Hạ một bounty ngay lần thử đầu tiên"
       },
+      "dai_nao_thien_cung": {
+        "name": "Đại náo thiên cung",
+        "cond": "Đánh bại toàn bộ Top 5 Elo CLB trong mùa (mỗi người ≥ 2 lần)"
+      },
       "can_ca_top": {
-        "name": "Cân cả top",
-        "cond": "Thắng cả 5 người trong top 5 Elo cùng một mùa"
+        "name": "Đại náo thiên cung",
+        "cond": "Đánh bại toàn bộ Top 5 Elo CLB trong mùa (mỗi người ≥ 2 lần)"
       },
       "trang_set": {
         "name": "Trắng set",
@@ -4443,7 +4612,7 @@
       },
       "ha_nha_vo_dich": {
         "name": "Hạ nhà vô địch",
-        "cond": "Hạ người đang giữ danh hiệu Trùm giải CLB"
+        "cond": "Đánh bại người đang giữ vị trí Top 1 Elo ít nhất 5 lần"
       },
       "khong_ti_vet": {
         "name": "Không tì vết",
@@ -4456,6 +4625,30 @@
       "nguoc_dong_the_ky": {
         "name": "Ngược dòng thế kỷ",
         "cond": "Thắng trận sau khi bị dẫn 0–1 và bị dẫn sâu ở set 2"
+      },
+      "ke_huy_diet_giac_mo": {
+        "name": "Kẻ hủy diệt giấc mơ",
+        "cond": "Đấu ≥ 15 trận trước đối thủ kém mình ≥ 50 Elo với tỷ lệ thắng ≥ 90%"
+      },
+      "sao_ma_do_duoc": {
+        "name": "Sao mà đỡ được",
+        "cond": "Chễm chệ ngôi vị Top 1 Elo trên Bảng Xếp Hạng Nam"
+      },
+      "nu_hoang_san_cau": {
+        "name": "Nữ hoàng sân cầu",
+        "cond": "Vương miện tối cao Top 1 Elo trên Bảng Xếp Hạng Nữ"
+      },
+      "tam_dau_y_hop": {
+        "name": "Tâm đầu ý hợp",
+        "cond": "Cặp đôi Nam Nữ thi đấu cùng nhau ≥ 10 trận với tỷ lệ thắng ≥ 80%"
+      },
+      "ganh_ta_gay_lung": {
+        "name": "Gánh tạ gãy lưng",
+        "cond": "Thắng 8 trận đánh đôi khi đồng đội kém mình từ 150 Elo trở lên"
+      },
+      "robin_hood": {
+        "name": "Robin Hood",
+        "cond": "Từng thắng tay vợt trong Top 3 Elo nhưng lại để thua người kém mình ≥ 120 Elo"
       }
     },
     "shelfSaved": "Đã cập nhật kệ huy hiệu!",
@@ -4999,6 +5192,8 @@
     "attendance_reported": "📋 {{name}} đã cập nhật điểm danh buổi {{date}}.",
     "session_rsvp_invite": "🏸 Buổi tập {{date}} đã mở điểm danh! Bạn có tham gia không?",
     "session_cancelled": "🚫 Buổi tập {{date}} đã bị huỷ. Anh em đừng ra sân nhé!",
+    "tournament_match_ready": "🏸 Trận {{event}} của bạn đã đủ 2 đội — chuẩn bị ra sân!",
+    "tournament_match_court": "📍 Trận {{event}} của bạn được xếp ra {{court}} — tới sân nhé!",
     "rsvpPresent": "Đi",
     "rsvpAbsent": "Báo vắng",
     "rsvpExtra": "Đi thêm",
@@ -5019,5 +5214,954 @@
     "arch_rival": "{{rivalName}} là kỳ phùng địch thủ của bạn (đối đầu {{games}} trận, tỷ số {{myWins}}-{{oppWins}} vô cùng căng thẳng)!",
     "nemesis_beaten": "Rửa hận thành công! Bạn vừa chấm dứt chuỗi thua và đánh bại đối thủ truyền kiếp {{rivalName}}!",
     "hot_streak": "Bạn đang có phong độ đỉnh cao với chuỗi {{streak}} trận thắng liên tiếp!"
+  },
+  "tournament": {
+    "status": {
+      "draft": "Nháp",
+      "registration": "Đang mở đăng ký",
+      "running": "Đang diễn ra",
+      "finished": "Đã kết thúc",
+      "cancelled": "Đã huỷ"
+    },
+    "statusTo": {
+      "draft": "Về nháp",
+      "registration": "Mở đăng ký",
+      "running": "Bắt đầu giải",
+      "finished": "Kết thúc giải",
+      "cancelled": "Huỷ giải"
+    },
+    "kind": {
+      "md": "Đôi nam",
+      "wd": "Đôi nữ",
+      "xd": "Đôi nam nữ",
+      "ms": "Đơn nam",
+      "ws": "Đơn nữ",
+      "open_doubles": "Đôi hỗn hợp",
+      "open_singles": "Đơn hỗn hợp"
+    },
+    "kindShort": {
+      "md": "ĐN",
+      "wd": "ĐNữ",
+      "xd": "ĐNN",
+      "ms": "ĐơN",
+      "ws": "ĐơNữ",
+      "open_doubles": "ĐHH",
+      "open_singles": "ĐơHH"
+    },
+    "eventStatus": {
+      "draft": "Nhận đăng ký",
+      "pairing": "Đang ghép cặp",
+      "drawn": "Đã chốt đội hình",
+      "running": "Đang đánh",
+      "finished": "Đã xong"
+    },
+    "scope": {
+      "club_only": "Nội bộ CLB",
+      "open": "Mở rộng"
+    },
+    "tab": {
+      "overview": "Tổng quan",
+      "info": "Thông tin & giải thưởng",
+      "players": "Thí sinh",
+      "pairing": "Ghép cặp"
+    },
+    "tabNo": {
+      "overview": "TQ",
+      "info": "i",
+      "players": "1",
+      "pairing": "2"
+    },
+    "sub": {
+      "overview": "{{done}}/{{total}} việc chuẩn bị",
+      "info": "Lệ phí · chi · quy định",
+      "players": "{{n}} VĐV · {{unpaid}} chưa đóng",
+      "playersFree": "{{n}} VĐV · miễn phí",
+      "pairing": "{{full}}/{{total}} cặp đủ người",
+      "pairingSingles": "{{n}} VĐV · đơn",
+      "pairingLocked": "Đã chốt · {{n}} đội"
+    },
+    "hero": {
+      "players": "VĐV",
+      "events": "Nội dung",
+      "collected": "Đã thu",
+      "back": "Giải đấu",
+      "courts": "{{n}} sân",
+      "playersUpper": "VẬN ĐỘNG VIÊN",
+      "eventsUpper": "NỘI DUNG",
+      "matchesUpper": "TRẬN ĐÃ ĐẤU",
+      "courtsUpper": "SÂN",
+      "copyLink": "Link đăng ký",
+      "copied": "Đã chép link"
+    },
+    "list": {
+      "emptyTitle": "Chưa có giải nào",
+      "emptyHint": "Tạo giải để bắt đầu nhận đăng ký thí sinh. Giải mới ở trạng thái nháp.",
+      "emptyHintView": "Khi ban tổ chức tạo giải, giải sẽ hiện ở đây."
+    },
+    "create": "Tạo giải",
+    "edit": "Sửa thông tin",
+    "delete": "Xoá giải",
+    "deleteTitle": "Xoá giải {{name}}",
+    "deleteBody": "Giải biến khỏi danh sách của CLB. Đăng ký và lệ phí đã ghi vẫn còn trong dữ liệu, chỉ không hiện ra nữa.",
+    "notFound": "Không tìm thấy giải này — có thể đã bị xoá",
+    "form": {
+      "scope": "Ai được thi (Mở rộng = thêm được người ngoài CLB)",
+      "createTitle": "Tạo giải đấu",
+      "editTitle": "Sửa thông tin giải",
+      "name": "Tên giải",
+      "startsOn": "Ngày thi đấu",
+      "startTime": "Bắt đầu",
+      "endTime": "Kết thúc",
+      "venue": "Địa điểm",
+      "courts": "Sân",
+      "courtsHint": "Cách nhau bằng dấu phẩy, ví dụ: Sân 20, Sân 21",
+      "feeMale": "Lệ phí nam",
+      "feeFemale": "Lệ phí nữ",
+      "feeHint": "Đổi lệ phí không đổi khoản của người đã đăng ký — phí chốt lúc đăng ký",
+      "needName": "Nhập tên giải và ngày thi đấu"
+    },
+    "event": {
+      "guestsN": " · {{n}} khách",
+      "fullPairs": "{{full}}/{{slots}} cặp đủ",
+      "add": "Nội dung",
+      "addTitle": "Thêm nội dung thi đấu",
+      "addHint": "Số người mỗi đội và luật giới đi theo loại nội dung.",
+      "openHint": "Không giới hạn nam/nữ, ghép tự do — hợp khi thừa nam hoặc thừa nữ đăng ký",
+      "noneLeft": "Giải đã có đủ mọi loại nội dung",
+      "delete": "Xoá nội dung",
+      "counts": "{{total}} VĐV · {{male}} nam · {{female}} nữ",
+      "noFormat": "Chưa chọn thể thức",
+      "emptyTitle": "Giải chưa có nội dung thi đấu",
+      "emptyHint": "Thêm nội dung (Đôi nam, Đôi nữ, Đôi nam nữ…) để thí sinh chọn khi đăng ký."
+    },
+    "check": {
+      "title": "Trước khi bắt đầu",
+      "events": "Có nội dung thi đấu",
+      "players": "Có thí sinh đăng ký",
+      "entries": "Thí sinh nào cũng đã chọn nội dung",
+      "entriesLeft": "{{n}} thí sinh chưa chọn nội dung",
+      "fees": "Thu đủ lệ phí",
+      "feesLeft": "{{n}} thí sinh chưa đóng lệ phí",
+      "prizes": "Có cơ cấu giải thưởng",
+      "go": "Mở",
+      "lineups": "Mọi nội dung đã chốt đội hình",
+      "schedules": "Mọi nội dung đã có lịch thi đấu"
+    },
+    "info": {
+      "timePlace": "Thời gian & địa điểm",
+      "fees": "Lệ phí tham gia",
+      "feeNote": "tính theo VĐV đã đăng ký",
+      "feeRow": "{{gender}} · {{n}} người",
+      "revenue": "Tổng thu",
+      "collected": "Đã thu {{paid}} / {{total}}",
+      "budget": "Dự trù chi",
+      "addBudget": "Thêm khoản chi",
+      "prizeLine": "Tiền thưởng (tự tính từ cơ cấu giải)",
+      "out": "Tổng chi",
+      "surplus": "Trích quỹ CLB",
+      "deficit": "Thiếu, cần bù",
+      "balanceNote": "Thu dự kiến trừ chi dự kiến. Chỉ để xem, không ghi vào Sổ quỹ.",
+      "prizes": "Cơ cấu giải thưởng",
+      "perTeam": "/đội",
+      "prizeTimes": "Mỗi giải nhân {{n}} nội dung",
+      "addPrize": "Thêm giải",
+      "rules": "Quy định chung",
+      "addRule": "Thêm",
+      "rulePlaceholder": "Ví dụ: Có mặt trước giờ thi đấu 10 phút",
+      "emptyRules": "Chưa có quy định chung",
+      "emptyPrizes": "Chưa có cơ cấu giải thưởng",
+      "emptyBudget": "Chưa có khoản chi dự trù",
+      "feeNow": "Lệ phí hiện tại: nam {{male}} · nữ {{female}}",
+      "generalRules": "Quy định chung",
+      "perEventRules": "Theo nội dung",
+      "eventRulePlaceholder": "Ví dụ: Đánh 1 set 21 điểm chạm 30...",
+      "noEventRule": "Chưa có quy định riêng cho nội dung này"
+    },
+    "line": {
+      "budgetTitle": "Khoản chi dự trù",
+      "prizeTitle": "Giải thưởng",
+      "label": "Tên khoản",
+      "prizeLabel": "Tên giải",
+      "amount": "Số tiền",
+      "cash": "Tiền thưởng mỗi đội",
+      "rank": "Hạng",
+      "desc": "Kèm theo",
+      "descHint": "Ví dụ: Huy chương vàng, bằng khen",
+      "delete": "Xoá dòng"
+    },
+    "players": {
+      "filterAll": "Tất cả {{n}}",
+      "filterGuests": "Khách {{n}}",
+      "colSource": "Nguồn",
+      "sourceMember": "Thành viên",
+      "sourceGuest": "Khách",
+      "ratingSelf": "tự khai",
+      "ratingClub": "CLB",
+      "searchPlaceholder": "Tìm tên thí sinh…",
+      "guestPhone": "SĐT (tuỳ chọn)",
+      "hiddenGuests": "Giải đang để \"Nội bộ CLB\": {{n}} khách đã đăng ký trước vẫn giữ nguyên, nhưng không thêm được khách mới.",
+      "openPairing": "Mở ghép cặp {{name}}",
+      "title": "Thí sinh",
+      "add": "Thêm VĐV",
+      "addTitle": "Thêm thí sinh",
+      "addHint": "Chọn thành viên CLB. Giới, trình độ, rating và lệ phí được chụp tại lúc đăng ký.",
+      "search": "Tìm theo tên",
+      "addSubmit": "Đăng ký {{n}} người",
+      "noneLeft": "Mọi thành viên đang hoạt động đã đăng ký",
+      "colName": "Tên",
+      "colGender": "Giới",
+      "colRating": "Rating",
+      "colEvents": "Nội dung đăng ký",
+      "colFee": "Lệ phí",
+      "colPaid": "Đã đóng",
+      "withdraw": "Rút",
+      "restore": "Khôi phục",
+      "withdrawn": "Đã rút",
+      "lockedHint": "Nội dung đã chốt đội hình — không thêm, bớt người",
+      "wrongGender": "Không đúng giới của nội dung",
+      "emptyTitle": "Chưa có thí sinh",
+      "emptyHint": "Thêm thành viên CLB vào giải, rồi chọn nội dung họ đánh.",
+      "noEvents": "Thêm nội dung thi đấu trước để thí sinh chọn",
+      "addEvents": "Đưa vào nội dung",
+      "addHintOpen": "Chọn thành viên CLB, hoặc thêm người ngoài chỉ bằng tên + giới. Giới, trình độ, rating và lệ phí được chụp tại lúc đăng ký.",
+      "guestTag": "KHÁCH",
+      "guestAdd": "Người ngoài CLB",
+      "guestName": "Tên người ngoài",
+      "guestLevel": "Trình độ",
+      "guestAddBtn": "Thêm",
+      "allPaid": "Tất cả đã đóng ({{n}})",
+      "selectAll": "Chọn tất cả ({{n}})",
+      "addEventsHint": "Người không đúng giới của nội dung sẽ tự được bỏ qua. Sửa từng người sau ở cột Nội dung đăng ký."
+    },
+    "toast": {
+      "created": "Đã tạo giải {{name}} — đang ở trạng thái nháp",
+      "saved": "Đã lưu",
+      "status": "Giải chuyển sang: {{status}}",
+      "deleted": "Đã xoá giải {{name}}",
+      "eventAdded": "Đã thêm nội dung {{name}}",
+      "eventDeleted": "Đã xoá nội dung",
+      "registered": "Đã đăng ký {{n}} thí sinh",
+      "withdrawn": "Đã chuyển sang rút lui — khoản đã đóng vẫn giữ nguyên",
+      "restored": "Đã khôi phục thí sinh",
+      "locked": "Đã chốt đội hình {{name}}",
+      "unlocked": "Đã mở lại đội hình",
+      "drawn": "Đã bốc thăm",
+      "generated": "Đã tạo lịch thi đấu: {{n}} trận",
+      "resetDone": "Đã xoá lịch để làm lại",
+      "committed": "Đã chốt kết quả — đội thắng lên vòng sau",
+      "edited": "Đã sửa điểm",
+      "undone": "Đã hoàn tác kết quả",
+      "stageClosed": "Đã chốt thứ hạng giai đoạn",
+      "formatSaved": "Đã lưu thể thức thi đấu",
+      "entered": "Đã đưa {{n}} thí sinh vào nội dung",
+      "allPaid": "Đã ghi {{n}} người đóng phí",
+      "finished": "🏆 Mọi nội dung đã có kết quả — giải đã kết thúc",
+      "recommendApplied": "Đã áp dụng thể thức cho {{n}} nội dung",
+      "swapped": "Đã đổi người giữa 2 cặp",
+      "swissRound": "Đã tạo vòng {{n}}",
+      "swissRematch": "Đã tạo vòng {{n}} — hết cặp chưa gặp nên có đội gặp lại"
+    },
+    "err": {
+      "tiedSet": "Có set đang hoà điểm — mỗi set phải có một bên cao điểm hơn",
+      "notFound": "Không tìm thấy giải đấu",
+      "permissionDenied": "Bạn không có quyền quản lý giải đấu",
+      "eventLocked": "Nội dung đã chốt đội hình — không thêm, bớt người được nữa",
+      "badTransition": "Không chuyển giải sang trạng thái này được",
+      "eventInUse": "Chỉ xoá được nội dung còn nháp và chưa có ai đăng ký",
+      "matchNotFound": "Không tìm thấy trận — có thể nhánh vừa được sinh lại",
+      "stageNotFound": "Không tìm thấy giai đoạn thi đấu",
+      "stageNotPending": "Giai đoạn này đã có lịch thi đấu",
+      "eventNotDrawn": "Chốt đội hình trước rồi mới tạo lịch thi đấu",
+      "invalidPayload": "Dữ liệu nhánh đấu không hợp lệ — tải lại trang rồi thử lại",
+      "stageHasResults": "Giai đoạn đã có trận xong — không xoá lịch để làm lại được",
+      "downstreamStageRunning": "Giai đoạn sau đã có lịch thi đấu — không làm lại giai đoạn này được",
+      "stageDone": "Giai đoạn đã chốt — không sửa kết quả được",
+      "matchNotReady": "Trận chưa đủ hai đội",
+      "alreadyCommitted": "Trận đã có kết quả — dùng Sửa điểm hoặc Hoàn tác",
+      "invalidWinner": "Chưa chọn đội thắng",
+      "invalidStatus": "Trạng thái kết quả không hợp lệ",
+      "missingReason": "Cần ghi lý do",
+      "walkoverHasSets": "Xử thua là chưa đánh — bỏ điểm đi hoặc chọn Bỏ cuộc",
+      "invalidSetScore": "Điểm không đúng luật của trận",
+      "winnerMismatch": "Đội thắng không khớp với điểm",
+      "incompleteSet": "Có set chưa đánh xong",
+      "matchNotFinished": "Chưa đủ số set để có đội thắng",
+      "extraSets": "Thừa set — trận đã có đội thắng trước đó",
+      "emptySets": "Chưa nhập điểm",
+      "invalidFormat": "Điểm nhập không đúng dạng",
+      "invalidSetFormat": "Mỗi set cần đủ điểm hai bên",
+      "missingRule": "Trận chưa có luật điểm",
+      "cannotEditNotDone": "Chỉ sửa điểm được trận đã đánh xong",
+      "cannotChangeWinnerInEdit": "Điểm mới đổi đội thắng — Hoàn tác rồi chốt lại",
+      "cannotUndoBye": "Trận miễn đấu không hoàn tác được",
+      "matchNotDone": "Trận chưa có kết quả để hoàn tác",
+      "downstreamHasResult": "Trận sau đã hoặc đang đánh — hoàn tác trận sau trước",
+      "cannotScheduleFinished": "Trận đã có kết quả — không xếp lịch lại được",
+      "scheduleExists": "Nội dung đã có lịch thi đấu — làm lại lịch trước",
+      "invalidLink": "Liên kết giai đoạn không hợp lệ",
+      "noGroups": "Chưa có bảng đấu nào ở giai đoạn trước",
+      "rankNotAssigned": "Chưa xếp hạng đủ các đội đi tiếp từ giai đoạn trước",
+      "priorStageNotDone": "Giai đoạn trước chưa kết thúc — chốt giai đoạn trước rồi mới tạo nhánh",
+      "stageNotRunning": "Giai đoạn chưa bắt đầu thi đấu",
+      "stageMatchesNotFinished": "Còn trận đấu chưa kết thúc — hoàn thành tất cả các trận trước khi chốt",
+      "stageNotRoundRobin": "Chỉ chốt thứ hạng được ở vòng bảng",
+      "playerNotFound": "Không tìm thấy người này trong CLB — tải lại trang rồi thử lại",
+      "invalidRanks": "Thứ hạng gửi lên thiếu đội hoặc trùng hạng — tải lại trang rồi chốt lại",
+      "stageNotSwiss": "Giai đoạn này không phải vòng Thụy Sĩ",
+      "swissRoundNotFinished": "Vòng hiện tại còn trận chưa xong — đánh xong rồi mới tạo vòng sau",
+      "swissLaterRound": "Đã có vòng sau ghép theo kết quả này — không hoàn tác được"
+    },
+    "round": {
+      "r32": "Vòng 1/32",
+      "r16": "Vòng 1/16",
+      "qf": "Tứ kết",
+      "sf": "Bán kết",
+      "final": "Chung kết",
+      "third": "Tranh hạng 3",
+      "group": "Vòng bảng",
+      "swiss": "Vòng Thụy Sĩ",
+      "wf": "CK nhánh thắng",
+      "lb": "Nhánh thua",
+      "gf": "Chung kết tổng",
+      "gf2": "Chung kết tổng · trận 2"
+    },
+    "pairing": {
+      "insMixed": "Sai luật: cần 1 nam 1 nữ.",
+      "insGap": "Chênh trình trong cặp {{n}} điểm; người yếu hơn sẽ bị nhắm.",
+      "insNoHistory": "Chưa có dữ liệu đánh cùng, phân tích chỉ dựa trên rating.",
+      "insChemGood": "Cặp ăn ý, rating tổng có thể đang đánh giá thấp.",
+      "insChemBad": "Thành tích chung thấp hơn trình từng người.",
+      "insChemMid": "Thành tích chung bình thường.",
+      "insGuest": "Có khách: rating tự khai, độ tin cậy thấp.",
+      "vsAvg": "So với TB",
+      "avgHint": "vàng = lệch trung bình quá {{n}}",
+      "slotMan": "Kéo 1 nam vào",
+      "slotWoman": "Kéo 1 nữ vào",
+      "slotAny": "Kéo người vào đây",
+      "chem": "Đánh chung {{n}} trận · thắng {{pct}}%",
+      "chemNone": "Chưa từng đánh chung",
+      "swapHint": "Đổi {{a}} ↔ {{b}}: độ lệch {{from}} → {{to}}",
+      "swapApply": "Đổi ngay",
+      "modeLabel": "Cách ghép",
+      "mode": {
+        "balanced": "Cân bằng",
+        "seeded": "Hạt giống",
+        "chemistry": "Ăn ý",
+        "random": "Ngẫu nhiên"
+      },
+      "modeHint": {
+        "balanced": "Mạnh nhất ghép yếu nhất để tổng rating các cặp gần nhau.",
+        "seeded": "Mạnh ghép mạnh — có cặp hạt giống rõ ràng.",
+        "chemistry": "Ưu tiên những cặp từng đánh chung và thắng nhiều ở CLB; ai chưa có lịch sử thì ghép cân bằng.",
+        "random": "Bốc thăm, vẫn giữ luật nam nữ và các cặp đã ghim."
+      },
+      "clear": "Xoá ghép",
+      "auto": "Tự ghép",
+      "pool": "Chưa có cặp",
+      "poolHint": "Bấm chọn một người rồi bấm ô trống của cặp, hoặc kéo thả. Thả lại đây để gỡ khỏi cặp.",
+      "poolEmpty": "Mọi người đã có cặp.",
+      "team": "Cặp {{n}}",
+      "newTeam": "Cặp mới",
+      "slotEmpty": "Ô trống",
+      "slotPick": "Đặt {{name}} vào đây",
+      "pin": "Ghim",
+      "unpin": "Bỏ ghim",
+      "remove": "Gỡ khỏi cặp",
+      "balance": "Độ cân bằng giữa các cặp",
+      "spread": "Lệch {{n}}",
+      "avg": "Trung bình {{n}} / cặp",
+      "tone": {
+        "ok": "Cân",
+        "warn": "Hơi lệch",
+        "bad": "Lệch nhiều",
+        "idle": "Cần ít nhất 2 cặp đủ người"
+      },
+      "lock": "Chốt đội hình",
+      "lockSingles": "Chốt danh sách",
+      "lockGenerate": "Chốt & tạo lịch",
+      "lockGenerateKo": "Chốt & tạo lịch · loại trực tiếp",
+      "generateKo": "Tạo lịch · loại trực tiếp",
+      "unlock": "Mở lại để sửa",
+      "locked": "{{name}} đã chốt đội hình. Chỉ xem, không sửa.",
+      "singles": "{{name}} là nội dung đơn, không cần ghép cặp. Chốt danh sách để mỗi người thành một đội.",
+      "issueTooFew": "Cần ít nhất 2 đội đủ người",
+      "issueIncomplete": "Còn cặp thiếu người — ghép đủ hoặc gỡ ra",
+      "issueMixed": "Đôi nam nữ phải đúng 1 nam + 1 nữ mỗi cặp",
+      "noPlayers": "Chưa có thí sinh nào chọn nội dung này",
+      "noPlayersHint": "Có {{n}} thí sinh hợp lệ đã vào giải nhưng chưa được đưa vào nội dung này (tab Thí sinh → cột Nội dung đăng ký).",
+      "enterAll": "Đưa {{n}} thí sinh vào nội dung này",
+      "noEvent": "Chọn một nội dung ở hàng thẻ phía trên"
+    },
+    "format": {
+      "editOnCanvas": "Sửa trên sơ đồ tự do",
+      "continueOnCanvas": "Chọn mẫu xong thì tiếp tục ở Sơ đồ thi đấu: sửa số bảng, luật, bốc thăm, chia đội và tạo lịch đều ở đó.",
+      "saveTemplate": "Lưu làm mẫu CLB",
+      "templateName": "Tên mẫu",
+      "templateNamePh": "vd. Masters 3 nhánh",
+      "templateSaveBtn": "Lưu mẫu",
+      "clubTemplate": "Mẫu CLB · {{n}} khối",
+      "deleteTemplate": "Xoá mẫu",
+      "minPerTeam": "Mỗi đội đá ít nhất",
+      "minPerTeamVal": "{{n}} trận",
+      "customized": "Đang tuỳ chỉnh · khác mẫu gốc",
+      "customNotice": "Đang tuỳ chỉnh · khác mẫu gốc",
+      "openRecommender": "Mở trình gợi ý →",
+      "groupSub": "{{groups}} bảng · {{teams}} đội",
+      "koSub": "{{teams}} đội tham gia",
+      "advanceSub": "{{n}} đội vào nhánh",
+      "plateSub": "{{n}} đội nhánh phụ",
+      "ruleDesc": "{{sets}} sec {{points}}",
+      "ruleBy2": " · cách 2, trần {{cap}}",
+      "ruleTouch": " · chạm",
+      "title": "Thể thức · {{name}}",
+      "templates": "Mẫu có sẵn",
+      "tpl": {
+        "ko": "Loại trực tiếp",
+        "rr": "Vòng tròn tính điểm",
+        "rr_ko": "Vòng bảng + Loại trực tiếp",
+        "rr_ko_plate": "Vòng bảng + Nhánh chính & phụ",
+        "swiss": "Thụy Sĩ",
+        "swiss_ko": "Thụy Sĩ → Top 4",
+        "de": "Nhánh thắng & nhánh thua",
+        "custom": "Tự dựng"
+      },
+      "tplSub": {
+        "ko": "Thua là về · có tranh hạng 3",
+        "rr": "Đấu vòng tròn xếp hạng BWF",
+        "rr_ko": "Chia bảng lấy nhất nhì vào knock-out",
+        "rr_ko_plate": "Nhất nhì vào nhánh chính · hạng sau vào nhánh phụ",
+        "swiss": "Vài vòng, mỗi vòng gặp đội cùng điểm · không gặp lại",
+        "swiss_ko": "Nhiều trận, không loại sớm · 4 đội đầu vào bán kết",
+        "de": "Thua 2 trận mới bị loại · có chung kết tổng"
+      },
+      "qualify": "Vòng loại",
+      "ranking": "Chung kết & tranh hạng 3",
+      "thirdPlace": "Tranh hạng 3",
+      "on": "Có",
+      "off": "Không",
+      "seeding": "Xếp vào nhánh",
+      "seed": {
+        "seed": "Theo rating",
+        "slot": "Bốc thăm",
+        "free": "Tự do",
+        "rank": "Từ vòng bảng"
+      },
+      "preset": {
+        "r1x15": "1 sec 15",
+        "r1x21": "1 sec 21 · cách 2",
+        "r1x30": "1 sec 30 · chạm",
+        "r3x11": "3 sec 11",
+        "r3x15": "3 sec 15",
+        "r3x21": "3 sec 21 · cách 2"
+      },
+      "custom": "Tuỳ chỉnh",
+      "preview": "Xem trước với {{n}} đội",
+      "previewNone": "Cần ít nhất 2 đội đủ người để xem trước",
+      "previewRow": "{{n}} trận",
+      "byes": "{{n}} đội được miễn vòng đầu (hạt giống cao nhất)",
+      "total": "Tổng số trận",
+      "draw": "Bốc thăm",
+      "redraw": "Bốc thăm lại",
+      "drawNo": "Đ{{n}}",
+      "drawHint": "Số bốc thăm quyết định vị trí trong nhánh: Đ1 gặp Đ2, Đ3 gặp Đ4…",
+      "needDraw": "Bốc thăm trước khi tạo lịch",
+      "needFormat": "Chọn thể thức trước khi tạo lịch",
+      "autoKo": "Chưa chọn thể thức — dùng Loại trực tiếp",
+      "needLineup": "Chốt đội hình ở bước 3 trước khi tạo lịch",
+      "schedule": "Lịch thi đấu",
+      "generate": "Tạo lịch thi đấu",
+      "generated": "Đã có lịch thi đấu — {{n}} trận",
+      "reset": "Làm lại lịch",
+      "resetTitle": "Làm lại lịch thi đấu",
+      "resetBody": "Xoá toàn bộ trận của nội dung để tạo lại. Chỉ được khi chưa có trận nào đánh xong.",
+      "resetReason": "Lý do",
+      "lockedRules": "Đã có lịch thi đấu — luật đã chép vào từng trận, không đổi được nữa.",
+      "openBracket": "Mở nhánh đấu",
+      "swapHint": "Bấm một đội rồi bấm đội khác để đổi chỗ trong nhánh.",
+      "groups": "Số bảng",
+      "advancePerGroup": "Đội đi tiếp mỗi bảng",
+      "legs": "Số lượt",
+      "oneLeg": "1 lượt",
+      "twoLegs": "2 lượt (lượt đi & về)",
+      "groupBalance": "Độ lệch rating các bảng",
+      "balanced": "Cân (lệch ≤ 15)",
+      "unbalanced": "Lệch (lệch > 15)",
+      "groupStage": "Vòng bảng",
+      "koStage": "Vòng loại trực tiếp",
+      "groupCount": "{{n}} bảng",
+      "koQualify": "Nhánh loại trực tiếp",
+      "plateTakes": "Nhánh phụ lấy",
+      "plateOpt": {
+        "1": "Hạng {{from}}",
+        "2": "Hạng {{from}}–{{to}}",
+        "all": "Mọi đội còn lại"
+      },
+      "tooFewForGroups": "Cần ít nhất {{n}} đội đủ người để chia bảng (mỗi bảng ≥ 2 đội)",
+      "tooFewForGroupsHint": "Chưa đủ đội để chia số bảng đã chọn (mỗi bảng ≥ 2 đội) — giảm số bảng hoặc ghép thêm đội"
+    },
+    "code": {
+      "r32": "V32-",
+      "r16": "V16-",
+      "qf": "TK",
+      "sf": "BK",
+      "final": "CK",
+      "third": "3-4",
+      "group": "B",
+      "wf": "CKNT",
+      "lb": "NT",
+      "gf": "CKT",
+      "gf2": "CKT2"
+    },
+    "matchStatus": {
+      "pending": "Chờ đội",
+      "ready": "Sẵn sàng",
+      "live": "Đang đánh",
+      "done": "Xong",
+      "walkover": "Xử thua",
+      "retired": "Bỏ cuộc",
+      "bye": "Miễn đấu"
+    },
+    "module": {
+      "hub": "Tổng quan & đăng ký",
+      "flow": "Sơ đồ thi đấu",
+      "bracket": "Nhánh đấu",
+      "badge": "GĐ",
+      "eventsN": "{{n}} nội dung",
+      "enterScore": "Nhập tỷ số",
+      "liveCount": "{{n}} trận đang đánh"
+    },
+    "overview": {
+      "rankName": {
+        "1": "Nhất",
+        "2": "Nhì",
+        "3": "Ba",
+        "4": "Tư"
+      },
+      "miniBracket": "Nhánh loại trực tiếp",
+      "miniWait": "Điền tự động khi vòng bảng xong",
+      "openBracketBtn": "Mở nhánh đấu",
+      "rankSlot": "{{rank}} {{g}}",
+      "live": "Đang đánh & kế tiếp",
+      "noneOpen": "Không còn trận nào chờ đánh",
+      "open": "Mở nhánh",
+      "pairs": "CẶP",
+      "matchesDone": "TRẬN XONG",
+      "liveMatches": "ĐANG ĐÁNH",
+      "estRemaining": "CÒN LẠI ƯỚC TÍNH",
+      "upcoming": "Trận kế tiếp",
+      "stageRunning": "ĐANG ĐÁNH",
+      "stagePending": "CHỜ",
+      "stageDone": "ĐÃ XONG",
+      "remainingTake": "{{n}} trận còn lại · lấy {{k}}",
+      "remaining": "{{n}} trận còn lại",
+      "minutes": "{{n}}p",
+      "won": "THẮNG",
+      "lost": "THUA",
+      "diff": "HS",
+      "matchesCount": "{{done}}/{{total}} trận",
+      "rrStageDesc": "{{total}} trận · {{groups}} bảng",
+      "koStageDesc": "{{total}} trận · Loại trực tiếp"
+    },
+    "bracket": {
+      "restage": "Xong · tạo lại nhánh",
+      "restageBlocked": "Nhánh đã có trận đánh — không tạo lại được. Hoàn tác các trận trước.",
+      "restageReason": "Thiết lập lại nhánh trước khi thi đấu",
+      "seedingLabel": "Xếp hạt giống",
+      "dragHint": "Kéo tên đội ở vòng đầu thả vào đội khác để đổi chỗ — chỉ khi chưa đấu trận nào.",
+      "champThird": "Hạng 3: {{name}}",
+      "ended": "Kết thúc · {{name}} thắng {{w}}–{{l}} sec ({{sets}})",
+      "subline": "{{event}} · Loại trực tiếp · {{n}} đội",
+      "progress": "Tiến độ",
+      "progressVal": "{{done}}/{{total}} trận",
+      "roundSub": "{{n}} trận",
+      "champ": "Vô địch",
+      "champWait": "Chờ chung kết",
+      "champKicker": "Nhà vô địch",
+      "champSubtitle": "Đội thắng chung kết sẽ bay vào đây",
+      "groupRound": "Lượt {{n}}",
+      "tbd": "Chờ đội",
+      "bye": "Miễn đấu",
+      "live": "ĐANG ĐÁNH",
+      "score": "GHI ĐIỂM",
+      "undo": "Hoàn tác",
+      "edit": "Sửa điểm",
+      "inlineHint": "Nhập điểm rồi Enter",
+      "quickWinHint": "Bấm tên để thắng nhanh với tỷ số sát nút — sửa lại ở \"Sửa điểm\" nếu cần.",
+      "noSchedule": "{{name}} chưa có lịch thi đấu",
+      "noScheduleHint": "Tạo lịch ở Sơ đồ thi đấu.",
+      "noEvents": "Giải chưa có nội dung nào có lịch thi đấu",
+      "openHub": "Về Hub giải",
+      "next": "Trận kế tiếp",
+      "court": "Sân",
+      "pickEvent": "Nội dung",
+      "setupTitle": "Thiết lập nhánh",
+      "setupSource": "Nguồn đội",
+      "setupTeams": "Đội tham gia",
+      "setupRule": "Luật",
+      "setupHint": "Đổi thể thức, bốc thăm, đổi chỗ: Sơ đồ thi đấu (trước khi có lịch).",
+      "seedOrder": "Thứ tự hạt giống",
+      "seedOrderHint": "Đầu danh sách = an toàn nhất, dễ được miễn nếu số đội không tròn luỹ thừa 2.",
+      "seedUp": "Đưa lên an toàn hơn",
+      "seedDown": "Đưa xuống kém an toàn hơn",
+      "slotsN": "{{n}} đội"
+    },
+    "sb": {
+      "endSet": "Kết thúc set",
+      "offRule": "{{n}} set không khớp luật {{rule}} — vẫn ghi được (đánh ngắn / dừng theo giờ).",
+      "title": "{{code}} · {{event}}",
+      "previousSets": "Các séc trước:",
+      "tab": {
+        "live": "Ghi từng quả",
+        "manual": "Nhập tỷ số",
+        "walkover": "Xử thua / Bỏ cuộc"
+      },
+      "set": "Set {{n}}",
+      "plusHint": "Chạm để +1",
+      "minus": "−1",
+      "undo": "Hoàn tác điểm (Z)",
+      "keys": "Phím A / L cộng điểm bên trái / phải",
+      "confirm": "Xác nhận · đưa đội thắng lên",
+      "confirmNext": "Chốt & trận kế ({{code}})",
+      "playing": "Set {{n}} đang đánh",
+      "switched": "Hết set {{n}} — đổi sân",
+      "won": "{{name}} thắng — xác nhận để đưa lên vòng sau",
+      "setPoint": "SET POINT",
+      "matchPoint": "MATCH POINT",
+      "deuce": "DEUCE",
+      "manualHint": "Nhập điểm từng set — điểm tự do. Trận {{n}} set: thắng {{need}} set là thắng trận.",
+      "wo": {
+        "walkover": "Xử thua (chưa đánh)",
+        "retired": "Bỏ cuộc giữa trận",
+        "winner": "Đội thắng",
+        "note": "Lý do",
+        "notePh": "Ví dụ: vắng mặt, chấn thương",
+        "retiredSets": "Điểm các set đã đánh (nếu có)"
+      }
+    },
+    "reason": {
+      "absent": "Vắng mặt",
+      "withdrew": "Rút lui",
+      "late": "Đến muộn",
+      "injury": "Chấn thương",
+      "tired": "Kiệt sức",
+      "typo": "Nhập nhầm",
+      "referee": "Trọng tài sửa",
+      "wrongWinner": "Nhầm đội thắng",
+      "replay": "Đấu lại"
+    },
+    "editDlg": {
+      "title": "Sửa điểm {{code}}",
+      "hint": "Chỉ sửa điểm, đội thắng giữ nguyên. Muốn đổi đội thắng: Hoàn tác rồi chốt lại.",
+      "reason": "Lý do sửa"
+    },
+    "undoDlg": {
+      "title": "Hoàn tác {{code}}",
+      "body": "Gỡ kết quả trận này và rút đội đi tiếp khỏi trận sau. Chỉ được khi trận sau chưa đánh.",
+      "reason": "Lý do"
+    },
+    "canvas": {
+      "panHint": "Kéo nền để di chuyển · cuộn chuột để phóng",
+      "hintPalette": "Kéo khối từ trái vào",
+      "clearGroups": "Đưa hết về khay",
+      "clearGroupsSub": "Giữ số bảng, xoá đội",
+      "perGroup": "Cặp mỗi bảng",
+      "perGroupOpt": "{{k}} cặp · {{g}} bảng",
+      "groupSizes": "Số cặp mỗi bảng: {{list}}",
+      "balance": "Độ cân các bảng",
+      "balanceHint": "Rating trung bình mỗi bảng. Lệch dưới {{n}} là cân.",
+      "balanceSpread": "lệch {{n}}",
+      "koIn": "Nhận {{n}} đội từ các đường nối. Nhánh {{size}} suất.",
+      "koSource": "Nhận mọi cặp đủ người ({{n}}). Nhánh {{size}} suất.",
+      "swapHint": "Kéo một cặp thả lên cặp khác trong nhánh để đổi chỗ (kể cả cặp được miễn vòng đầu).",
+      "koUnlinked": "Chưa nối vào. Kéo chấm tròn của vòng bảng sang khối này.",
+      "byes": "{{n}} lượt miễn",
+      "link": "Đường nối",
+      "linkHint": "Chọn hạng nào của mỗi bảng đi theo đường này.",
+      "linkDelete": "Xoá đường nối",
+      "deleteHint": "Các đường nối tới khối này cũng bị xoá.",
+      "quickDialog": "Tạo nhanh sơ đồ",
+      "fill": "Chia đội vào bảng",
+      "fillSnake": "Rắn theo rating",
+      "fillDraw": "Bốc thăm",
+      "fillEmpty": "Để trống, tự kéo",
+      "quickSummary": "{{b}} khối · {{l}} đường nối · ~{{m}} trận",
+      "quickBuild": "Dựng sơ đồ",
+      "saved": "vừa lưu",
+      "saving": "đang lưu…",
+      "runBranch": "Chạy nhánh",
+      "edit": "Sửa sơ đồ",
+      "done": "Xong",
+      "hint": "Kéo khối để sắp chỗ · bấm một khối để sửa · nhánh nhận đội theo hạng của vòng bảng.",
+      "desktopOnly": "Sửa sơ đồ trên màn rộng (máy tính / máy tính bảng ngang).",
+      "addRr": "Vòng bảng",
+      "addKo": "Nhánh loại trực tiếp",
+      "custom": "Thể thức tự dựng trên Sơ đồ — sửa ở màn Sơ đồ thi đấu.",
+      "name": "Tên hiển thị",
+      "namePh": "vd. Nhánh Bạc",
+      "ranksIn": "Nhận các hạng",
+      "delete": "Xoá khối",
+      "groupsEdit": "Chia bảng",
+      "groupsHint": "Bấm một đội rồi bấm bảng muốn chuyển tới.",
+      "snake": "Chia rắn theo rating",
+      "snakeSub": "Hạt giống 1 mỗi bảng, rồi đảo chiều, bảng cân nhất",
+      "draw": "Bốc thăm",
+      "drawSub": "Dùng cả cặp đang ở khay",
+      "groupsInvalid": "Mỗi bảng cần ít nhất 2 đội — khi tạo lịch sẽ tự chia rắn theo rating.",
+      "groupsNoTeams": "Chưa có đội đủ người — ghép cặp trước rồi mới chia bảng.",
+      "ok": "Sơ đồ hợp lệ — tạo lịch ở tab Thể thức hoặc bấm Tạo lịch trên khối.",
+      "errEmpty": "Chưa có khối nào — thêm vòng bảng hoặc nhánh loại trực tiếp.",
+      "errNoSource": "Thiếu khối xuất phát (khối nhận mọi đội).",
+      "errIntoSource": "Không nối vào khối xuất phát được.",
+      "errChain": "Chỉ vòng bảng mới đẩy đội sang nhánh khác (nhánh loại không có thứ hạng để đẩy tiếp).",
+      "errKoSource": "Khối xuất phát là loại trực tiếp thì không có nhánh sau — đổi khối xuất phát thành vòng bảng.",
+      "errTargetType": "Sau vòng bảng chỉ nối được nhánh loại trực tiếp.",
+      "errUnlinked": "Có nhánh chưa chọn hạng nhận vào.",
+      "errRankTwice": "Một hạng chỉ đi vào một nhánh.",
+      "errDeleteSource": "Xoá các nhánh trước rồi mới xoá khối xuất phát.",
+      "errGroupsManual": "Còn cặp chưa vào bảng (hoặc có bảng dưới 2 cặp) — xếp nốt, hoặc chọn khối bảng → Chia rắn.",
+      "title": "Sơ đồ thi đấu",
+      "sub": "{{event}} · {{n}} cặp",
+      "statBlocks": "khối",
+      "statMatches": "trận",
+      "statCourts": "với {{n}} sân",
+      "quick": "Tạo nhanh",
+      "publish": "Công bố & chạy nhánh",
+      "palette": "Khối · kéo vào sơ đồ",
+      "palRr": "Vòng bảng",
+      "palRound": "Vòng tròn",
+      "palKo": "Loại trực tiếp",
+      "palFinal": "Chung kết",
+      "palSwiss": "Thụy Sĩ",
+      "palDe": "2 nhánh",
+      "palSourceTaken": "Đã có khối xuất phát — chỉ thêm được nhánh (loại trực tiếp, chung kết, 2 nhánh) sau vòng bảng / Thụy Sĩ.",
+      "tray": "Cặp chưa xếp",
+      "trayEmpty": "Mọi cặp đã vào bảng.",
+      "trayHint": "Kéo cặp vào một bảng trên khối vòng bảng, hoặc kéo ra khỏi bảng để trả về đây.",
+      "dropHere": "thả cặp vào",
+      "whole": "Toàn giải",
+      "wholeHint": "Chọn một khối để chỉnh. Kéo khối bên trái vào giữa màn; kéo chấm tròn bên phải vòng bảng sang một nhánh để nối.",
+      "quickTitle": "Tạo nhanh từ mẫu",
+      "quickSub": "Dựng lại toàn bộ sơ đồ trong 1 bước",
+      "fit": "Căn lại khung nhìn",
+      "focus": "Phóng to",
+      "unfocus": "Thu nhỏ",
+      "focusHint": "Bấm vào khối để hiện bảng chỉnh · Esc để thoát",
+      "relayout": "Xếp lại các khối",
+      "zoomIn": "Phóng to",
+      "zoomOut": "Thu nhỏ",
+      "checks": "Kiểm tra sơ đồ",
+      "chkUnplaced": "{{n}} cặp chưa vào bảng nào — kéo từ khay trái, hoặc chọn khối bảng → Chia rắn.",
+      "chkSmallGroup": "{{n}} bảng có dưới 2 cặp — bảng đó không có trận nào.",
+      "chkNoTeams": "Chưa có cặp đủ người — ghép cặp trước khi chạy.",
+      "chkFits": "{{n}} trận trên {{courts}} sân, ước tính xong {{finish}} — trong khung giờ đến {{end}}.",
+      "chkOver": "{{n}} trận trên {{courts}} sân, ước tính xong {{finish}} — vượt khung giờ đến {{end}}.",
+      "chkNoWindow": "{{n}} trận — giải chưa khai báo giờ hoặc sân nên chưa ước tính được giờ xong.",
+      "footer": "{{n}} trận · {{rule}} · ~{{time}}",
+      "fromPrev": "{{n}} đội từ vòng trước",
+      "third": "có tranh 3",
+      "linkTeams": "{{ranks}} · {{n}} đội",
+      "won": "Thắng trận {{n}}",
+      "lost": "Thua trận {{n}}",
+      "seed": "Hạt giống {{n}}",
+      "bye": "Miễn",
+      "dur": "{{h}}g{{m}}",
+      "back": "Toàn bộ sơ đồ",
+      "viewBracket": "Xem nhánh",
+      "tagRr": "BẢNG",
+      "tagKo": "KO",
+      "tagSwiss": "THỤY SĨ",
+      "tagDe": "2 NHÁNH",
+      "portHint": "Kéo từ chấm này sang một nhánh để nối"
+    },
+    "flow": {
+      "noFormat": "Chưa chọn thể thức — chọn ở tab Thể thức của Hub.",
+      "teams": "Đội tham gia",
+      "teamsExpected": "~{{n}} đội (dự kiến)",
+      "rank": "Hạng {{n}}",
+      "ranksRange": "Hạng {{a}}–{{b}}",
+      "ranksFrom": "Hạng {{n}} trở xuống",
+      "groupWinner": "Nhất bảng",
+      "plateWinner": "Nhất nhánh phụ",
+      "waiting": "Chờ kết quả",
+      "perGroup": "Xếp hạng theo từng bảng"
+    },
+    "recommend": {
+      "courtUsage": "Dùng sân ({{used}} / {{capacity}} phút)",
+      "capacityPct": "{{pct}}% công suất {{status}}",
+      "statusOver": "(Vượt giờ)",
+      "statusFit": "(Vừa vặn)",
+      "startTime": "Bắt đầu: {{time}}",
+      "finishTime": "Dự kiến xong: {{finish}} (Đóng sân: {{end}})",
+      "optionLine": "{{n}} trận · ≥{{g}} trận/đội · {{m}} phút sân",
+      "resetPick": "Bỏ chỉnh, về phương án gốc",
+      "rulesTitle": "Luật trận gợi ý",
+      "rulesText": "Vòng loại {{q}} · chung kết {{f}}",
+      "useRules": "Áp dụng cả luật gợi ý",
+      "otherOptions": "Phương án khác",
+      "badge": {
+        "recommended": "KHUYÊN DÙNG",
+        "fastest": "NHANH NHẤT",
+        "mostGames": "NHIỀU TRẬN",
+        "over": "VƯỢT GIỜ",
+        "edited": "ĐÃ CHỈNH"
+      },
+      "open": "Gợi ý thể thức",
+      "title": "Gợi ý thể thức",
+      "hint": "Chọn một phương án cho mỗi nội dung, xem trước bên phải, chỉnh nếu cần rồi áp dụng.",
+      "people": "Vận động viên",
+      "male": "Nam",
+      "female": "Nữ",
+      "content": "Nội dung",
+      "contentHint": "Một VĐV có thể đánh nhiều nội dung. Số đội tính từ số VĐV theo giới.",
+      "timeCourt": "Thời gian & sân",
+      "timeStart": "Bắt đầu",
+      "timeEnd": "Kết thúc",
+      "timeCourts": "Số sân",
+      "timeDq": "Phút/trận vòng loại",
+      "timeDf": "Phút/trận tranh hạng",
+      "timeRest": "Nghỉ giữa trận",
+      "autoPick": "Chọn lại tự động theo ưu tiên",
+      "noContent": "Bật ít nhất một nội dung ở cột trái.",
+      "preview": "Xem trước",
+      "adjustPlan": "Chỉnh phương án",
+      "numGroups": "Số bảng",
+      "advance": "Số đội đi tiếp/bảng",
+      "champion": "Xác định vô địch",
+      "toNext": "{{n}} đội đi tiếp",
+      "priority": {
+        "balanced": "Cân bằng",
+        "games": "Nhiều trận",
+        "fast": "Nhanh"
+      },
+      "priorityHint": {
+        "balanced": "Mỗi đội được đánh vài trận, có vòng bảng nếu kịp giờ.",
+        "games": "Mỗi đội đánh nhiều trận nhất có thể trong khung giờ.",
+        "fast": "Xong sớm nhất."
+      },
+      "teams": "{{n}} đội",
+      "teamsEst": "~{{n}} đội (chưa ghép)",
+      "cost": "{{n}} trận · {{m}} phút sân",
+      "take": "lấy {{n}}/bảng",
+      "none": "Chưa đủ 2 đội",
+      "locked": "Đã có lịch — giữ nguyên",
+      "noWindow": "Giải chưa khai báo giờ hoặc sân (tab Thông tin) — vẫn gợi ý được, nhưng không ước tính giờ xong.",
+      "fits": "Xong khoảng {{finish}} (ước tính) — trong khung giờ đến {{end}}.",
+      "over": "Xong khoảng {{finish}} (ước tính) — vượt khung giờ đến {{end}}, dù đã chọn phương án gọn nhất.",
+      "apply": "Áp dụng cho {{n}} nội dung"
+    },
+    "stage": {
+      "groups": "Vòng bảng",
+      "main": "Nhánh chính",
+      "plate": "Nhánh phụ",
+      "swiss": "Vòng Thụy Sĩ",
+      "double": "Nhánh thắng & nhánh thua"
+    },
+    "swiss": {
+      "table": "Bảng xếp hạng",
+      "round": "Vòng {{n}}",
+      "progress": "Vòng {{n}}/{{total}}",
+      "next": "Tạo vòng {{n}}",
+      "waitRound": "Đánh xong vòng {{n}} rồi tạo vòng sau",
+      "lastRound": "Đã đủ {{n}} vòng — chốt để có thứ hạng cuối",
+      "points": "ĐIỂM",
+      "buchholz": "BH",
+      "buchholzHint": "Buchholz: tổng điểm các đối thủ đã gặp — xét khi bằng điểm",
+      "rounds": "Số vòng",
+      "roundsAuto": "Tự động · {{n}}",
+      "roundsN": "{{n}} vòng",
+      "roundsHint": "Mỗi vòng ghép các đội cùng điểm, không gặp lại đội đã gặp; số đội lẻ thì một đội được miễn (tính 1 thắng). Tự động = ⌈log₂ số đội⌉ vòng, tối thiểu 3.",
+      "block": "{{rounds}} vòng · {{n}} đội",
+      "chip": "V{{n}}",
+      "chipSub": "{{n}} trận",
+      "blockHint": "Mỗi vòng ghép các đội cùng số trận thắng, không gặp lại đối cũ.",
+      "sub": "{{rounds}} vòng · ghép đội cùng điểm"
+    },
+    "spin": {
+      "spin": "Quay",
+      "spinAll": "Quay hết",
+      "reset": "Quay lại từ đầu",
+      "save": "Lưu kết quả",
+      "ready": "Bấm Quay để bốc",
+      "now": "Đang bốc · {{slot}}",
+      "allDone": "Đã bốc xong — kiểm tra rồi Lưu kết quả",
+      "noneLeft": "{{slot}} · không còn ai hợp lệ — bỏ lọc hoặc chọn ô khác",
+      "left": "Còn {{n}}/{{total}} để quay",
+      "filterHint": "Chỉ quay trong nhóm đã chọn",
+      "pot": "Nhóm rating {{n}}",
+      "here": "Quay vào ô này",
+      "clear": "Bỏ ra, trả về danh sách",
+      "openPairs": "Quay ghép cặp",
+      "titlePairs": "Quay ghép cặp",
+      "hintPairs": "Bấm một ô trống rồi Quay (không chọn thì quay ô trống đầu tiên). X để trả người về danh sách. Cặp đã ghim giữ nguyên; chưa lưu thì chưa đổi gì.",
+      "titleDraw": "Quay bốc thăm",
+      "hintDraw": "Bấm một ô trống rồi Quay. Ô cùng hàng gặp nhau ở vòng đầu; ô \"Miễn vòng đầu\" đi thẳng vòng sau. X để trả về danh sách. Chưa lưu thì chưa đổi gì.",
+      "hintSeed": "Bấm một ô trống rồi Quay — số bốc được dùng làm hạt giống vòng 1. X để trả về danh sách. Chưa lưu thì chưa đổi gì.",
+      "slotMatch": "Trận {{n}}",
+      "slotBye": "Miễn vòng đầu",
+      "titleGroups": "Quay chia bảng",
+      "hintGroups": "Bấm một ô trống rồi Quay (không chọn thì lần lượt Bảng A, B, … rồi quay vòng). X để trả về danh sách. Chưa lưu thì chưa đổi gì.",
+      "slotGroup": "Bảng {{g}} · {{n}}",
+      "slotPair": "Cặp {{n}} · {{i}}",
+      "slotPairMan": "Cặp {{n}} · Nam",
+      "slotPairWoman": "Cặp {{n}} · Nữ"
+    },
+    "rule": {
+      "qualify": "Vòng loại",
+      "ranking": "Vòng tranh hạng",
+      "applies": "Áp dụng: {{list}}",
+      "none": "—",
+      "own": "Luật riêng · {{name}}",
+      "ownHint": "Chỉ áp cho vòng này — các vòng khác giữ luật chung",
+      "reset": "Về luật chung",
+      "back": "← Luật chung các vòng",
+      "pickHint": "Bấm tên một vòng trên nhánh để đặt luật riêng cho vòng đó.",
+      "custom": "Vòng có luật riêng",
+      "sets": "Số sec",
+      "points": "Điểm chạm",
+      "by2": "Cách 2",
+      "cap": "trần",
+      "less": "Giảm",
+      "more": "Tăng",
+      "summaryBy2": "{{sets}} sec {{points}} điểm · cách 2, {{deuce}}–{{deuce}} bên chạm {{cap}} thắng",
+      "summaryTouch": "{{sets}} sec {{points}} điểm · chạm {{points}} thắng"
+    },
+    "double": {
+      "wbTab": "Nhánh thắng",
+      "lbTab": "Nhánh thua & Chung kết",
+      "lbRound": "Nhánh thua · Vòng {{n}}",
+      "lbFinal": "Chung kết nhánh thua",
+      "gfHint": "Đội nhánh thua thắng → đá thêm trận 2",
+      "champSubtitle": "Đội thắng chung kết tổng sẽ bay vào đây",
+      "champWait": "Chờ chung kết tổng",
+      "wbLabel": "Nhánh thắng",
+      "lbLabel": "Nhánh thua",
+      "gfLabel": "Chung kết tổng",
+      "rule": "Chung kết tổng",
+      "note": "Thua 2 trận mới bị loại. Không có tranh hạng 3 — đội thua chung kết nhánh thua xếp hạng 3.",
+      "empty": "Nhánh thua có trận khi nhánh thắng có đội thua đầu tiên"
+    },
+    "standings": {
+      "title": "Bảng xếp hạng vòng bảng",
+      "groupTitle": "Bảng {{label}}",
+      "rank": "#",
+      "team": "Đội",
+      "played": "Trận",
+      "won": "T",
+      "lost": "B",
+      "setDiff": "+/- S",
+      "pointDiff": "+/- Đ",
+      "diff": "+/-",
+      "points": "Điểm",
+      "remaining": "còn {{n}} trận · lấy {{k}} đội",
+      "finished": "Đã xong tất cả các trận",
+      "closeStage": "Chốt giai đoạn",
+      "closeStageHint": "Chốt thứ hạng vòng bảng để chuyển tiếp sang giai đoạn sau",
+      "closed": "Giai đoạn đã chốt",
+      "generateStage": "Tạo lịch {{name}}",
+      "tieNotice": "Có đội bằng điểm cần BTC phân xử",
+      "tieReorder": "Có đội bằng điểm không tách được — BTC bấm ↑ để xếp lại (bốc thăm / quyết định) rồi chốt",
+      "moveUp": "Đưa lên trên đội liền trước",
+      "openBracket": "Mở nhánh đấu"
+    }
   }
 }
