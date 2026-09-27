@@ -124,7 +124,8 @@ export default function PairingTab({ tour, event, db, a, canEdit, isMobile }) {
   const spinSlots = Array.from({ length: pairsN }, (_, k) => (mixed
     ? [{ label: t('tournament.spin.slotPairMan', { n: k + 1 }), pool: 'nam' }, { label: t('tournament.spin.slotPairWoman', { n: k + 1 }), pool: 'nu' }]
     : [{ label: t('tournament.spin.slotPair', { n: k + 1, i: 1 }) }, { label: t('tournament.spin.slotPair', { n: k + 1, i: 2 }) }])).flat()
-  const spinItems = spinPool.map((p) => ({ id: p.id, label: name(p), sub: String(Math.round(p.ratingSnapshot || 0)), pool: p.gender }))
+  const spinItems = spinPool.map((p) => ({ id: p.id, label: name(p), sub: String(Math.round(p.ratingSnapshot || 0)), pool: p.gender,
+    tags: { gender: p.gender ? t('gender.' + p.gender) : null, guest: p.playerType === 'guest' ? t('tournament.players.guestTag') : null } }))
   const spinDone = (order) => a.tourAutoPair(event.id, 'random', Array.from({ length: pairsN }, (_, k) => [order[2 * k], order[2 * k + 1]]))
 
   const bal = balanceOf(teams)

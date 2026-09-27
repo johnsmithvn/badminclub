@@ -186,8 +186,19 @@ test('Quay bốc thăm: màn quay + các ô trống theo thứ tự, chưa bốc
   const h = html(SpinDraw, { title: 'Quay bốc thăm', items, slots: [{ label: 'Đ1' }, { label: 'Đ2' }], onDone: noop, onClose: noop })
   const s = h.replace(/<style[\s\S]*?<\/style>/g, ' ').replace(/<[^>]+>/g, ' ').replace(/\s+/g, ' ')
   assert.match(s, /Đang bốc · Đ1 Bấm Quay để bốc Quay Quay hết/)
-  assert.match(s, /Đ1 — Đ2 —/)
+  assert.match(s, /Đ1 Quay vào ô này Đ2 —/, 'ô đang chọn (mặc định ô trống đầu) ghi rõ sẽ quay vào đây')
   assert.match(h, /<button[^>]*disabled[^>]*>(?:(?!<\/button>)[\s\S])*Lưu kết quả/, 'chưa bốc đủ thì nút Lưu khoá')
+})
+
+test('Quay: chip lọc chỉ hiện loại nhãn chia được danh sách; đếm còn lại', () => {
+  const items = [
+    { id: 'a', label: 'An', tags: { gender: 'Nam', guest: null, club: 'X' } },
+    { id: 'b', label: 'Bình', tags: { gender: 'Nữ', guest: 'KHÁCH', club: 'X' } },
+  ]
+  const s = text(SpinDraw, { title: 'Quay', items, slots: [{ label: '1' }, { label: '2' }], onDone: noop, onClose: noop })
+  assert.match(s, /Còn 2\/2 để quay/)
+  assert.match(s, /Nam Nữ KHÁCH/)
+  assert.doesNotMatch(s, / X /, 'ai cũng cùng "X" thì không có chip lọc')
 })
 
 test('Ghép cặp: có nút "Quay ghép cặp" cạnh "Tự ghép"', () => {

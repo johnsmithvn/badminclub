@@ -5,7 +5,7 @@ import {
   CANVAS, RANK_CHOICES, byesOf, canvasChecks, dePreviewOf, estimateOf, groupBalanceOf, koPreviewOf, layoutOf, moveTeam, nextFreeRanks,
   quickPlan, shownGroups, unplacedTeams,
 } from '#lib/tournament/canvas.js'
-import { TEMPLATES, entrantsOf, koPreview } from '#lib/tournament/format.js'
+import { TEMPLATES, entrantsOf, groupSizes, koPreview } from '#lib/tournament/format.js'
 import { nextPowerOf2, seedingOf, slotsOf } from '#lib/tournament/bracket.js'
 import { linkShape } from '#lib/tournament/bracketView.js'
 import { isDouble } from '#lib/tournament/doubleElim.js'
@@ -1033,14 +1033,22 @@ function StagePanel({ stage, stages, source, links, full, est, act, a, tour, db,
   // Quay bốc thăm từng lượt (hộp `SpinDraw`): 'groups' = chia bảng (lượt i vào bảng i % số bảng, nên cột = bảng),
   // 'draw' = số bốc thăm nhánh (Đ1, Đ2…). Chỉ ghi khi bấm "Lưu kết quả".
   const [spin, setSpin] = useState(null)
-  const spinItems = full.map((x) => ({ id: x.id, label: teamName(tour, db, x.id), sub: String(Math.round(x.sum || 0)) }))
+  // Nhãn lọc khi quay: nhóm rating (chia 3 theo tổng rating — "tệp" mạnh / giữa / yếu), thành phần giới, có khách.
+  const potOf = new Map([...full].sort((x, y) => (y.sum || 0) - (x.sum || 0)).map((x, i) => [x.id, Math.floor((i * 3) / full.length) + 1]))
+  const spinItems = full.map((x) => ({
+    id: x.id, label: teamName(tour, db, x.id), sub: String(Math.round(x.sum || 0)),
+    tags: {
+      pot: full.length >= 6 ? t('tournament.spin.pot', { n: potOf.get(x.id) }) : null,
+      gender: (x.players || []).map((p) => p.gender && t('gender.' + p.gender)).filter(Boolean).sort().join(' – ') || null,
+      guest: x.players?.some((p) => p.playerType === 'guest') ? t('tournament.players.guestTag') : null,
+    },
+  }))
   const spinSlots = spin === 'groups'
     ? full.map((_, i) => ({ label: t('tournament.spin.slotGroup', { g: String.fromCharCode(65 + (i % numGroups)), n: Math.floor(i / numGroups) + 1 }) }))
     : ko ? drawSlots(full.length) : full.map((_, i) => ({ label: t('tournament.format.drawNo', { n: i + 1 }) }))
   const spinDone = (order) => (spin === 'groups'
     ? onSaveGroups(Array.from({ length: numGroups }, (_, g) => order.filter((_, i) => i % numGroups === g)))
     : act(a.tourDraw(stage.eventId, order)))
-  const perNow = numGroups > 0 ? Math.ceil(full.length / numGroups) : 0
   const bal = rr && numGroups > 1 && full.length ? groupBalanceOf(stage, full) : null
 
   return (
@@ -1061,10 +1069,11 @@ function StagePanel({ stage, stages, source, links, full, est, act, a, tour, db,
         <Seg options={[1, 2, 3, 4].map((k) => ({ key: k, label: String(k) }))} value={numGroups}
           onChange={(k) => saveConfig({ numGroups: Number(k), manualGroups: null })} />
       ))}
-      {rr && full.length >= 4 && panelRow(t('tournament.canvas.perGroup'), (
-        <Seg options={[3, 4, 5, 6].map((k) => ({ key: k, label: t('tournament.canvas.perGroupOpt', { k, g: Math.max(1, Math.min(4, Math.ceil(full.length / k))) }) }))} value={perNow}
-          onChange={(k) => saveConfig({ numGroups: Math.max(1, Math.min(4, Math.ceil(full.length / k))), manualGroups: null })} />
-      ))}
+      {rr && full.length > 0 && (
+        <span style={{ font: 'var(--type-caption)', color: 'var(--text-muted)' }}>
+          {t('tournament.canvas.groupSizes', { list: groupSizes(full.length, numGroups).join(' · ') })}
+        </span>
+      )}
       {rr && panelRow(t('tournament.format.legs'), (
         <Seg options={[{ key: 1, label: t('tournament.format.oneLeg') }, { key: 2, label: t('tournament.format.twoLegs') }]}
           value={stage.config?.legs || 1} onChange={(k) => saveConfig({ legs: Number(k) })} />
