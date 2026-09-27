@@ -200,21 +200,26 @@ export function estimateOf(tour, event) {
  * @returns {null | Array<{ roundKind, matches: Array<{ no, a, b }> }>}
  *   a/b: { kind: 'slot', label: 'A1' } · { kind: 'seed', n } · { kind: 'winner', no } · { kind: 'loser', no } · { kind: 'bye' }
  */
-export function koPreviewOf(stage, source, link, nSource) {
-  const entrants = previewEntrants(source, link, nSource)
+export function koPreviewOf(stage, source, link, nSource, real = null) {
+  const entrants = previewEntrants(source, link, nSource, real)
   if (!entrants) return null
   let k = 0
-  const ms = buildKnockout({ stage: { ...stage, config: { ...stage.config, seeding: 'seed' } }, entrants, newId: () => 'm' + k++ })
+  const ms = buildKnockout({ stage: previewStage(stage, real), entrants, newId: () => 'm' + k++ })
   const played = ms.filter((m) => m.status !== 'bye').sort((a, b) => a.round - b.round || (a.roundKind === 'third') - (b.roundKind === 'third') || a.slot - b.slot)
   const noOf = new Map(played.map((m, i) => [m.id, i + 1]))
-  return previewRounds(played, previewSide(noOf, source), noOf, (m) => (m.roundKind === 'third' ? 'third' : m.round))
+  return previewRounds(played, previewSide(noOf, source, real), noOf, (m) => (m.roundKind === 'third' ? 'third' : m.round))
 }
 
+/** Đội thật (khối nguồn) thì xếp đúng cách xếp của khối (rating / bốc thăm); đội giả luôn theo hạt giống. */
+const previewStage = (stage, real) => (real ? stage : { ...stage, config: { ...stage.config, seeding: 'seed' } })
+
 /**
- * Đội giả để dựng nhánh xem trước: nhánh nối từ nguồn xếp hạng → nhãn ô bảng "A1", "B2" (qua CHÍNH
+ * Đội để dựng nhánh xem trước: `real` = đội THẬT của khối nguồn (`entrantsOf`, kèm `label` tên) → nhánh hiện
+ * đúng tên, đúng chỗ sẽ sinh; nhánh nối từ nguồn xếp hạng → nhãn ô bảng "A1", "B2" (qua CHÍNH
  * `entrantsFromLinks`); còn lại → hạt giống "#1".."#n". null = không đủ đội.
  */
-function previewEntrants(source, link, nSource) {
+function previewEntrants(source, link, nSource, real) {
+  if (real?.length >= 2 && !link) return real
   if (link && ranked(source)) {
     const G = source.config?.numGroups || 1
     const sizes = groupSizes(nSource, G)
@@ -229,9 +234,14 @@ function previewEntrants(source, link, nSource) {
 }
 
 /** Nhãn một bên của trận xem trước. Thụy Sĩ chỉ một bảng → "Hạng 3" thay vì "A3". */
-function previewSide(noOf, source) {
+function previewSide(noOf, source, real) {
+  const byId = new Map((real || []).map((e) => [e.id, e]))
   return (m, s) => {
     const team = s === 'A' ? m.teamAId : m.teamBId
+    if (team && byId.has(team)) {
+      const e = byId.get(team)
+      return { kind: 'team', id: team, label: e.label, n: e.seed ?? e.drawNo }
+    }
     if (team) {
       if (team.startsWith('#')) return { kind: 'seed', n: Number(team.slice(1)) }
       return source?.type === 'swiss' ? { kind: 'rank', n: Number(team.slice(1)) } : { kind: 'slot', label: team }
@@ -260,14 +270,14 @@ function previewRounds(played, side, noOf, keyOf) {
  * từ vòng bảng / Thụy Sĩ: ô "Nhất A" / "Hạng 1" như `koPreviewOf`.
  * @returns {null | { wb: Round[], lb: Round[], gf: Round[] }}  Round cùng dạng `koPreviewOf`
  */
-export function dePreviewOf(stage, source, link, nSource) {
-  const entrants = previewEntrants(source, link, nSource)
+export function dePreviewOf(stage, source, link, nSource, real = null) {
+  const entrants = previewEntrants(source, link, nSource, real)
   if (!entrants) return null
   let k = 0
-  const ms = buildDoubleElim({ stage: { ...stage, config: { ...stage.config, seeding: 'seed' } }, entrants, newId: () => 'm' + k++ })
+  const ms = buildDoubleElim({ stage: previewStage(stage, real), entrants, newId: () => 'm' + k++ })
   const played = ms.filter((m) => m.status !== 'bye').sort((a, b) => a.round - b.round || a.slot - b.slot)
   const noOf = new Map(played.map((m, i) => [m.id, i + 1]))
-  const part = (list) => previewRounds(list, previewSide(noOf, source), noOf, (m) => m.round)
+  const part = (list) => previewRounds(list, previewSide(noOf, source, real), noOf, (m) => m.round)
   return {
     wb: part(played.filter((m) => !['lb', 'gf'].includes(m.roundKind))),
     lb: part(played.filter((m) => m.roundKind === 'lb')),

@@ -54,6 +54,14 @@ function firstRoundTeams(entrants, size, seeding) {
   return order.map((seed) => bySeed[seed - 1] || null)
 }
 
+/**
+ * Id đội theo vị trí vòng đầu (bỏ ô bye). Ghi làm số bốc thăm 1..n rồi chạy `slot` → nhánh GIỐNG HỆT
+ * (slot rải tuần tự đúng vào các ô không bye) — dùng để đổi chỗ tay từ nhánh xếp theo rating.
+ */
+export function drawOrderOf(entrants, seeding) {
+  return firstRoundTeams(entrants, nextPowerOf2(entrants.length), seeding).filter(Boolean).map((e) => e.id)
+}
+
 function checkEntrants(entrants, seeding) {
   if (!Array.isArray(entrants) || entrants.length < 2) {
     throw new Error('buildKnockout: cần ít nhất 2 đội')

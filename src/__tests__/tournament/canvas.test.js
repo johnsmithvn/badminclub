@@ -1,6 +1,8 @@
 import test from 'node:test'
 import assert from 'node:assert/strict'
 import { canvasChecks, estimateOf, graphIssue, groupsForStage, koPreviewOf, layoutOf, manualGroupsOk, moveTeam, nextFreeRanks, nextSeq, teamsViaLink, unplacedTeams } from '#lib/tournament/canvas.js'
+import { drawOrderOf } from '#lib/tournament/bracket.js'
+import { entrantsOf } from '#lib/tournament/format.js'
 
 const st = (id, seq, type, p = {}) => ({ id, seq, type, status: 'pending', config: {}, ...p })
 const link = (from, to, ranks) => ({ fromStageId: from, toStageId: to, ranks })
@@ -125,6 +127,28 @@ test('nhánh thu nhỏ: đúng cặp A1–B2 như lịch sẽ sinh, vòng sau l�
   const solo = koPreviewOf(sg('k', 1, 'knockout', { thirdPlace: true }), null, null, 3)
   assert.deepEqual(solo.map((r) => r.matches.length), [1, 1])
   assert.deepEqual(solo[1].matches[0].a, { kind: 'seed', n: 1 })
+})
+
+test('nhánh nguồn với cặp thật: hiện tên; đổi rating → số bốc thăm theo vị trí giữ nguyên nhánh, đổi 2 cặp chỉ đổi 2 chỗ', () => {
+  const ko = sg('k', 1, 'knockout', {})
+  const teams = ['a', 'b', 'c', 'd', 'e'].map((id, i) => ({ id, full: true, sum: 900 - i }))
+  const bySeed = entrantsOf(teams, 'seed').entrants.map((e) => ({ ...e, label: e.id.toUpperCase() }))
+  const names = (rs) => rs.flatMap((r) => r.matches.flatMap((m) => [m.a, m.b])).map((x) => (x.kind === 'team' ? x.label : x.kind))
+  const seedView = names(koPreviewOf(ko, null, null, 5, bySeed))
+  // 5 đội, nhánh 8: hạt 1–3 miễn vòng đầu; vòng đầu duy nhất 4–5.
+  assert.deepEqual(seedView.slice(0, 2), ['D', 'E'])
+  assert.ok(seedView.includes('A') && seedView.includes('B') && seedView.includes('C'))
+
+  const order = drawOrderOf(bySeed, 'seed')
+  const drawn = order.map((id, i) => ({ id, drawNo: i + 1, label: id.toUpperCase() }))
+  const slot = sg('k', 1, 'knockout', { seeding: 'slot' })
+  assert.deepEqual(names(koPreviewOf(slot, null, null, 5, drawn)), seedView, 'chuyển sang số bốc thăm: nhánh y nguyên')
+
+  const i = order.indexOf('a')
+  const j = order.indexOf('e')
+  ;[order[i], order[j]] = [order[j], order[i]]
+  const swapped = names(koPreviewOf(slot, null, null, 5, order.map((id, k) => ({ id, drawNo: k + 1, label: id.toUpperCase() }))))
+  assert.deepEqual(swapped, seedView.map((x) => (x === 'A' ? 'E' : x === 'E' ? 'A' : x)))
 })
 
 test('khay cặp chưa xếp: chia tay dở dang giữ nguyên; kéo về khay / vào bảng', () => {

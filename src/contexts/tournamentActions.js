@@ -339,13 +339,20 @@ export function makeTournamentActions({ dbRef, tourRef, setTour, toast, uid }) {
     },
 
     /** Bốc thăm: số 1..n ngẫu nhiên cho các đội đủ người. Làm lại được tới khi tạo lịch. */
-    /** `order` (từ hộp quay bốc thăm): id đội theo thứ tự trúng → Đ1, Đ2…; không có thì bốc ngẫu nhiên một lần. */
-    tourDraw: (eventId, order = null) => {
+    /**
+     * `order` (hộp quay bốc thăm / kéo đổi chỗ trên sơ đồ): id đội theo thứ tự → Đ1, Đ2…; không có thì bốc
+     * ngẫu nhiên một lần. `toastKey` null = không báo (kéo đổi chỗ — nhánh đổi ngay trước mắt là đủ).
+     */
+    tourDraw: (eventId, order = null, toastKey = 'tournament.toast.drawn') => {
       const cur = tour()
+      if (cur.stages.some((s) => s.eventId === eventId && s.status !== 'pending')) return toast(t('tournament.err.scheduleExists'))
       const teams = eventTeams(cur, eventId)
       const drawn = order ? order.map((teamId, i) => ({ teamId, drawNo: i + 1 })) : drawNumbers(teams)
       const rows = drawn.map(({ teamId, drawNo }) => ({ ...cur.teams.find((x) => x.id === teamId), drawNo })).filter((x) => x.id)
-      return run(() => write('tournament_teams', 'upsert', rows), 'tournament.toast.drawn')
+      if (toastKey) return run(() => write('tournament_teams', 'upsert', rows), toastKey)
+      const no = new Map(rows.map((x) => [x.id, x.drawNo]))
+      return runOptimistic((c) => ({ ...c, teams: c.teams.map((x) => (no.has(x.id) ? { ...x, drawNo: no.get(x.id) } : x)) }),
+        () => write('tournament_teams', 'upsert', rows))
     },
 
     /**
