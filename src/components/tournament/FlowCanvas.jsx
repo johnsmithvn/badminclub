@@ -5,7 +5,7 @@ import {
   CANVAS, RANK_CHOICES, byesOf, canvasChecks, dePreviewOf, estimateOf, groupBalanceOf, koPreviewOf, layoutOf, moveTeam, nextFreeRanks,
   quickPlan, shownGroups, unplacedTeams,
 } from '#lib/tournament/canvas.js'
-import { TEMPLATES, entrantsOf, koPreview } from '#lib/tournament/format.js'
+import { TEMPLATES, koPreview } from '#lib/tournament/format.js'
 import { nextPowerOf2 } from '#lib/tournament/bracket.js'
 import { linkShape } from '#lib/tournament/bracketView.js'
 import { isDouble } from '#lib/tournament/doubleElim.js'
@@ -25,20 +25,52 @@ const ZOOM_MAX = 1.6
 // Khay trái (handoff): kiểu khối kéo vào sơ đồ. Nguồn (khối đầu, nhận mọi đội): vòng bảng / vòng tròn / Thụy Sĩ /
 // loại trực tiếp / 2 nhánh. Nhánh sau (nối từ vòng bảng hoặc Thụy Sĩ): loại trực tiếp / chung kết / 2 nhánh.
 // `source: true` = chỉ làm nguồn được (Thụy Sĩ không nhận đội theo hạng từ khối khác).
+// `art`: hình nhỏ trên thẻ khối (handoff) — [rộng, cao, màu, mờ?], xếp đáy bằng nhau: bảng = ô teal, vòng tròn = khối
+// teal rộng, Thụy Sĩ = vạch tím, loại trực tiếp = cột cam thấp dần (vòng sau ít trận hơn), chung kết = vạch vàng,
+// 2 nhánh = cột cam nhánh thắng + cột mờ nhánh thua.
 const PALETTE = [
-  { key: 'rr', type: 'round_robin', config: { numGroups: 2 }, bars: [3, 'teal'] },
-  { key: 'round', type: 'round_robin', config: { numGroups: 1 }, bars: [1, 'teal'] },
-  { key: 'swiss', type: 'swiss', config: { rounds: null }, bars: [2, 'teal'], source: true },
-  { key: 'ko', type: 'knockout', config: { thirdPlace: true }, bars: [3, 'amber'] },
-  { key: 'final', type: 'knockout', config: { thirdPlace: false }, bars: [1, 'gold'] },
-  { key: 'de', type: 'knockout', config: { bracket: 'double', thirdPlace: false }, bars: [2, 'amber'] },
+  { key: 'rr', type: 'round_robin', config: { numGroups: 2 }, art: [[13, 13, 'teal'], [13, 13, 'teal'], [13, 13, 'teal']] },
+  { key: 'round', type: 'round_robin', config: { numGroups: 1 }, art: [[30, 13, 'teal']] },
+  { key: 'ko', type: 'knockout', config: { thirdPlace: true }, art: [[8, 15, 'amber'], [8, 9, 'amber'], [8, 5, 'amber']] },
+  { key: 'swiss', type: 'swiss', config: { rounds: null }, source: true, art: [[6, 14, 'violet'], [6, 14, 'violet'], [6, 14, 'violet'], [6, 14, 'violet']] },
+  { key: 'final', type: 'knockout', config: { thirdPlace: false }, art: [[22, 5, 'gold']] },
+  { key: 'de', type: 'knockout', config: { bracket: 'double', thirdPlace: false }, art: [[8, 15, 'amber'], [8, 9, 'amber'], [8, 15, 'amber', true], [8, 9, 'amber', true]] },
 ]
 const PAL_KEY = { rr: 'palRr', round: 'palRound', swiss: 'palSwiss', ko: 'palKo', final: 'palFinal', de: 'palDe' }
-const BAR = { teal: 'var(--teal-500)', amber: 'var(--status-delayed-fg)', gold: 'var(--podium-gold)' }
+const BAR = { teal: 'var(--teal-500)', amber: 'var(--status-delayed-fg)', gold: 'var(--podium-gold)', violet: 'var(--violet-400)' }
 // Hình thu nhỏ cho thẻ mẫu trong hộp "Tạo nhanh" (handoff): mỗi thanh = một khối.
-const TPL_BARS = { ko: ['amber'], rr: ['teal'], rr_ko: ['teal', 'amber'], rr_ko_plate: ['teal', 'amber', 'amber'], swiss: ['teal', 'teal'], de: ['amber', 'gold'] }
-// Khối Thụy Sĩ: danh sách cặp theo hạt giống, mỗi cột tối đa ngần này cặp (khối không cao lê thê).
-const SWISS_PER_COL = 8
+// Hình minh hoạ thẻ mẫu (hộp "Tạo nhanh"): nhóm hình nối bằng gạch ngang — bảng = 2 khối cao, nhánh = ô vuông,
+// Thụy Sĩ = 4 vạch mảnh, loại trực tiếp = cây 4-2-1, 2 nhánh = hàng thắng + hàng thua (mờ). [w, h] = một ô.
+const G = { dir: 'row', items: [[12, 26], [12, 26]] }
+const SW = { dir: 'row', items: [[6, 26], [6, 26], [6, 26], [6, 26]] }
+const TREE = [{ dir: 'col', items: [[12, 6], [12, 6], [12, 6], [12, 6]] }, { dir: 'col', items: [[12, 6], [12, 6]] }, { dir: 'col', items: [[12, 6]] }]
+const TPL_ART = {
+  ko: TREE,
+  rr: [{ dir: 'row', items: [[40, 24]] }],
+  rr_ko: [G, { dir: 'row', items: [[16, 14]] }],
+  rr_ko_plate: [G, { dir: 'row', items: [[16, 10], [16, 10]] }],
+  swiss: [SW],
+  swiss_ko: [SW, { dir: 'row', items: [[16, 14]] }],
+  de: [{ dir: 'col', items: [{ dir: 'row', items: [[10, 8], [10, 8], [10, 8]] }, { dir: 'row', dim: true, items: [[10, 8], [10, 8], [10, 8]] }] }, { dir: 'row', items: [[16, 14]] }],
+}
+const STAGE_ART = { round_robin: G, swiss: SW, knockout: { dir: 'row', items: [[16, 14]] } }
+
+function TplArt({ spec, on }) {
+  const shape = (x, i, dim) => (Array.isArray(x)
+    ? <span key={i} style={{ width: x[0], height: x[1], borderRadius: 3, opacity: dim ? 0.5 : 1, boxSizing: 'border-box',
+      background: on ? 'var(--surface-accent-soft)' : 'var(--surface-raised)', border: `1.5px solid ${on ? 'var(--teal-500)' : 'var(--border-default)'}` }} />
+    : <span key={i} style={{ display: 'flex', flexDirection: x.dir === 'col' ? 'column' : 'row', gap: 3 }}>{x.items.map((y, j) => shape(y, j, dim || x.dim))}</span>)
+  return (
+    <span aria-hidden style={{ display: 'flex', alignItems: 'center', gap: 6, height: 32 }}>
+      {spec.map((g, i) => (
+        <span key={i} style={{ display: 'contents' }}>
+          {i > 0 && <span style={{ width: 8, borderTop: `1.5px solid ${on ? 'var(--teal-500)' : 'var(--border-default)'}` }} />}
+          {shape(g, i, false)}
+        </span>
+      ))}
+    </span>
+  )
+}
 
 /** Thời lượng kiểu handoff: 143 phút → "2g23". */
 const dur = (min) => t('tournament.canvas.dur', { h: Math.floor(min / 60), m: String(min % 60).padStart(2, '0') })
@@ -125,10 +157,9 @@ export default function FlowCanvas({ tour, event, db, a, canEdit, onBack, onOpen
       return { w: Math.max(280, 24 + cols * nameColW + (cols - 1) * 8), h: 160 + rows * 48 }
     }
     if (s.type === 'swiss') {
-      // Như khối vòng bảng nhưng không có tiêu đề bảng / ô "thả cặp vào": 110 = tiêu đề khối + đệm + chân khối.
-      const cols = Math.max(1, Math.ceil(full.length / SWISS_PER_COL))
-      const rows = Math.max(3, Math.min(SWISS_PER_COL, full.length))
-      return { w: Math.max(280, 24 + cols * nameColW + (cols - 1) * 8), h: 110 + rows * 48 }
+      // Một hàng ô vòng (58/ô) + một dòng giải thích — cặp đấu vòng sau tuỳ kết quả nên không vẽ đội trước.
+      const rounds = roundsOf(s, est.stages[s.id]?.teams ?? full.length)
+      return { w: Math.max(280, 24 + rounds * 58), h: 210 }
     }
     if (isDouble(s)) {
       // Hai hàng (nhánh thắng + chung kết tổng · nhánh thua), mỗi hàng: nhãn + tên cột + ô trận 64/trận.
@@ -344,9 +375,9 @@ export default function FlowCanvas({ tour, event, db, a, canEdit, onBack, onOpen
                     cursor: ok ? 'grab' : 'not-allowed', opacity: ok ? 1 : 0.4,
                     background: 'var(--surface-raised)', border: '1px solid var(--border-default)',
                   }}>
-                  <span style={{ display: 'flex', gap: 3 }}>
-                    {Array.from({ length: item.bars[0] }, (_, i) => (
-                      <span key={i} style={{ width: item.bars[0] === 1 ? 30 : 12, height: 12, borderRadius: 3, background: BAR[item.bars[1]] }} />
+                  <span style={{ display: 'flex', alignItems: 'flex-end', gap: 3, height: 15 }}>
+                    {item.art.map(([w, h, c, dim], i) => (
+                      <span key={i} style={{ width: w, height: h, borderRadius: 2, background: BAR[c], opacity: dim ? 0.4 : 1 }} />
                     ))}
                   </span>
                   <span style={{ font: '600 12.5px/1.2 var(--font-sans)', color: 'var(--text-primary)' }}>{t('tournament.canvas.' + PAL_KEY[item.key])}</span>
@@ -572,14 +603,14 @@ function QuickDialog({ tour, event, n, a, act, onClose }) {
     setBusy(false)
     if (ok) onClose()
   }
-  const card = (key, title, sub, bars) => (
+  const card = (key, title, sub, art) => (
     <button key={key} type="button" aria-pressed={tpl === key} onClick={() => setTpl(key)}
       style={{
-        display: 'grid', gap: 6, textAlign: 'left', padding: 10, borderRadius: 10, cursor: 'pointer', color: 'inherit',
+        display: 'grid', gap: 8, alignContent: 'start', textAlign: 'left', padding: 12, borderRadius: 10, cursor: 'pointer', color: 'inherit',
         background: tpl === key ? 'var(--surface-accent-soft)' : 'var(--surface-raised)',
         border: `1px solid ${tpl === key ? 'var(--teal-500)' : 'var(--border-default)'}`,
       }}>
-      <span style={{ display: 'flex', gap: 3 }}>{bars.map((b, i) => <span key={i} style={{ width: 22, height: 10, borderRadius: 3, background: BAR[b] }} />)}</span>
+      <TplArt spec={art} on={tpl === key} />
       <span style={{ font: '700 12.5px/1.2 var(--font-sans)', color: 'var(--text-primary)' }}>{title}</span>
       <span style={{ font: 'var(--type-caption)', color: 'var(--text-muted)' }}>{sub}</span>
     </button>
@@ -594,9 +625,9 @@ function QuickDialog({ tour, event, n, a, act, onClose }) {
       )}>
       <div style={{ display: 'grid', gap: 14 }}>
         <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fill,minmax(160px,1fr))', gap: 8 }}>
-          {TEMPLATES.map((k) => card(k, t('tournament.format.tpl.' + k), t('tournament.format.tplSub.' + k), TPL_BARS[k] || ['teal']))}
+          {TEMPLATES.map((k) => card(k, t('tournament.format.tpl.' + k), t('tournament.format.tplSub.' + k), TPL_ART[k]))}
           {(tour.templates || []).map((x) => card('club:' + x.id, x.name, t('tournament.format.clubTemplate', { n: x.graph?.stages?.length || 0 }),
-            (x.graph?.stages || []).map((s) => (s.type === 'round_robin' ? 'teal' : 'amber'))))}
+            (x.graph?.stages || []).map((s) => STAGE_ART[s.type] || STAGE_ART.knockout)))}
         </div>
         {!club && (grouped || tpl === 'rr') && (
           <div style={{ display: 'grid', gap: 6 }}>
@@ -648,8 +679,7 @@ function Block({ s, at, size, on, dragging, isSource, linked, est, stages, full,
   const byId = new Map(full.map((x) => [x.id, x]))
   const teams = est?.teams ?? 0
   const byes = rr || swiss ? 0 : byesOf(teams)
-  const swissOrder = swiss ? entrantsOf(full, 'seed').entrants.map((e) => byId.get(e.id)).filter(Boolean) : []
-  const swissCols = Array.from({ length: Math.ceil(swissOrder.length / SWISS_PER_COL) }, (_, i) => swissOrder.slice(i * SWISS_PER_COL, (i + 1) * SWISS_PER_COL))
+  const swissRoundsN = swiss ? roundsOf(s, teams) : 0
   const sub = rr
     ? `${t('tournament.format.groupCount', { n: s.config?.numGroups || 1 })} × ${Math.max(0, ...groups.map((g) => g.length))} · ${t('tournament.bracket.slotsN', { n: teams })}`
     : swiss ? t('tournament.swiss.block', { rounds: roundsOf(s, teams), n: teams })
@@ -659,12 +689,16 @@ function Block({ s, at, size, on, dragging, isSource, linked, est, stages, full,
         s.config?.thirdPlace && !double && teams >= 4 ? t('tournament.canvas.third') : null,
         byes ? t('tournament.canvas.byes', { n: byes }) : null].filter(Boolean).join(' · ')
   const tag = rr ? 'tagRr' : swiss ? 'tagSwiss' : double ? 'tagDe' : 'tagKo'
-  const teal = rr || swiss
+  // Màu nhãn khối khớp hình ở khay: bảng teal, Thụy Sĩ tím, nhánh cam.
+  const tone = rr ? { fg: 'var(--status-transit-fg)', bg: 'var(--surface-accent-soft)' }
+    : swiss ? { fg: 'var(--violet-400)', bg: 'color-mix(in srgb, var(--violet-400) 16%, transparent)' }
+      : { fg: 'var(--status-delayed-fg)', bg: 'var(--status-delayed-bg)' }
   return (
     <div onPointerDown={(e) => e.stopPropagation()} style={{
       position: 'absolute', left: at.x, top: at.y, width: size.w, height: size.h, boxSizing: 'border-box', display: 'grid',
       gridTemplateRows: 'auto 1fr auto', borderRadius: 12, background: 'var(--surface-card)', zIndex: dragging ? 3 : 1,
-      border: `1px solid ${on ? 'var(--teal-500)' : 'var(--border-default)'}`, boxShadow: on || dragging ? 'var(--shadow-sm)' : 'var(--shadow-xs)',
+      border: `1px solid ${on ? 'var(--teal-500)' : swiss ? 'color-mix(in srgb, var(--violet-400) 55%, transparent)' : 'var(--border-default)'}`,
+      boxShadow: on || dragging ? 'var(--shadow-sm)' : 'var(--shadow-xs)',
     }}>
       {/* chấm nối: trái = nhận đội (nhánh), phải = đẩy đội (vòng bảng nguồn — kéo để nối) */}
       {!isSource && (
@@ -678,8 +712,7 @@ function Block({ s, at, size, on, dragging, isSource, linked, est, stages, full,
       )}
 
       <div onPointerDown={onMoveStart} style={{ display: 'flex', alignItems: 'center', gap: 8, padding: '10px 12px 8px', cursor: dragging ? 'grabbing' : 'grab', userSelect: 'none', borderBottom: '1px solid var(--border-subtle)' }}>
-        <Mono size={9.5} weight={700} color={teal ? 'var(--status-transit-fg)' : 'var(--status-delayed-fg)'}
-          style={{ padding: '2px 5px', borderRadius: 4, background: teal ? 'var(--surface-accent-soft)' : 'var(--status-delayed-bg)' }}>
+        <Mono size={9.5} weight={700} color={tone.fg} style={{ padding: '2px 5px', borderRadius: 4, background: tone.bg }}>
           {t('tournament.canvas.' + tag)}
         </Mono>
         <span style={{ display: 'grid', gap: 2, minWidth: 0 }}>
@@ -710,13 +743,18 @@ function Block({ s, at, size, on, dragging, isSource, linked, est, stages, full,
             })}
           </div>
         ) : swiss ? (
-          // Thụy Sĩ: một danh sách theo hạt giống (rating), 8 cặp mỗi cột — cặp đấu các vòng sau chưa biết trước.
-          <div style={{ display: 'grid', gridTemplateColumns: `repeat(${swissCols.length}, minmax(0,1fr))`, gap: 8 }}>
-            {swissCols.map((list, ci) => (
-              <div key={ci} style={{ display: 'grid', alignContent: 'start', gap: 4 }}>
-                {list.map((m, k) => <TeamChip key={m.id} team={m} tour={tour} db={db} seed={ci * SWISS_PER_COL + k + 1} />)}
-              </div>
-            ))}
+          // Thụy Sĩ: ô từng vòng (số trận mỗi vòng) + một câu luật ghép — cặp vòng sau tuỳ kết quả, không vẽ trước.
+          <div style={{ display: 'grid', gap: 10, alignContent: 'start' }}>
+            <div style={{ display: 'flex', gap: 6 }}>
+              {Array.from({ length: swissRoundsN }, (_, i) => (
+                <span key={i} style={{ display: 'grid', gap: 2, justifyItems: 'center', width: 52, padding: '6px 0', borderRadius: 8,
+                  background: 'var(--surface-inset)', border: '1px solid var(--border-subtle)' }}>
+                  <span style={{ font: '700 12px/1 var(--font-sans)', color: 'var(--text-primary)' }}>{t('tournament.swiss.chip', { n: i + 1 })}</span>
+                  <Mono size={9.5} color="var(--text-muted)">{t('tournament.swiss.chipSub', { n: Math.floor(teams / 2) })}</Mono>
+                </span>
+              ))}
+            </div>
+            <span style={{ font: '400 11.5px/1.4 var(--font-sans)', color: 'var(--text-secondary)' }}>{t('tournament.swiss.blockHint')}</span>
           </div>
         ) : double && preview ? (
           <div style={{ display: 'grid', gap: 10 }}>

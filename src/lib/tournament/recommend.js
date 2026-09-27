@@ -9,7 +9,7 @@
  */
 
 import cfg from '#config/app.json' with { type: 'json' }
-import { RULE_PRESETS, advanceCounts, groupSizes, presetKeyOf } from '#lib/tournament/format.js'
+import { RULE_PRESETS, SWISS_TOP, advanceCounts, groupSizes, presetKeyOf } from '#lib/tournament/format.js'
 import { eventPlayers, eventTeams } from '#lib/tournament/pairing.js'
 import { swissRounds } from '#lib/tournament/swiss.js'
 
@@ -72,11 +72,16 @@ export function costOf(c, n, { dq, df, rest = REC.restMin }) {
   let minG = 1
   if (c.tpl === 'ko') {
     ;({ q, f } = koCost(n))
-  } else if (c.tpl === 'swiss') {
-    // Mỗi vòng ⌊n/2⌋ trận; số đội lẻ thì mỗi đội được miễn tối đa 1 vòng.
+  } else if (c.tpl === 'swiss' || c.tpl === 'swiss_ko') {
+    // Mỗi vòng ⌊n/2⌋ trận; số đội lẻ thì mỗi đội được miễn tối đa 1 vòng. `swiss_ko`: + nhánh 4 đội đầu.
     const rounds = swissRounds(n)
     q = rounds * Math.floor(n / 2)
     minG = n % 2 ? rounds - 1 : rounds
+    if (c.tpl === 'swiss_ko') {
+      const k = koCost(Math.min(n, SWISS_TOP))
+      q += k.q
+      f += k.f
+    }
   } else if (c.tpl === 'de') {
     // Nhánh thắng n−1 + nhánh thua n−2 + chung kết tổng (chưa tính trận 2 — chỉ khi đội nhánh thua thắng).
     q = n >= 2 ? 2 * n - 3 : 0
@@ -95,7 +100,7 @@ export function costOf(c, n, { dq, df, rest = REC.restMin }) {
       }
     }
   }
-  return { ...c, matches: q + f, minutes: q * (dq + rest) + f * (df + rest), minG, multi: c.tpl === 'rr_ko' || c.tpl === 'rr_ko_plate' }
+  return { ...c, matches: q + f, minutes: q * (dq + rest) + f * (df + rest), minG, multi: ['rr_ko', 'rr_ko_plate', 'swiss_ko'].includes(c.tpl) }
 }
 
 /** Sắp phương án theo ưu tiên — phương án đầu là lựa chọn. */

@@ -10,7 +10,9 @@ import { ruleFor } from '#lib/tournament/scoring.js'
 import { snakeIndex } from '#lib/tournament/roundRobin.js'
 
 export const RULE_PRESETS = cfg.tournament.rulePresets
-export const TEMPLATES = ['ko', 'rr', 'rr_ko', 'rr_ko_plate', 'swiss', 'de']
+export const TEMPLATES = ['ko', 'rr', 'rr_ko', 'rr_ko_plate', 'swiss', 'swiss_ko', 'de']
+/** Thụy Sĩ → nhánh loại: số đội đầu bảng vào nhánh. */
+export const SWISS_TOP = 4
 
 /** Key preset trùng hệt luật, null = luật tự chỉnh. */
 export function presetKeyOf(rule) {
@@ -151,6 +153,17 @@ export function buildTemplateStages(templateKey, event, custom = {}) {
     }
   }
 
+  // Thụy Sĩ → Top 4: đá vài vòng xếp hạng (không ai bị loại sớm), 4 đội đầu vào bán kết / chung kết.
+  if (templateKey === 'swiss_ko') {
+    return {
+      stages: [
+        { seq: 1, type: 'swiss', title: null, status: 'pending', config: { rounds: custom.rounds || null, seeding: 'seed' }, matchRule: qualifyRule, ruleOverrides: {} },
+        { seq: 2, type: 'knockout', title: null, status: 'pending', config: { thirdPlace: true, seeding: 'rank' }, matchRule: qualifyRule, ruleOverrides },
+      ],
+      links: [{ fromStageSeq: 1, toStageSeq: 2, ranks: Array.from({ length: SWISS_TOP }, (_, i) => i + 1) }],
+    }
+  }
+
   // Nhánh thắng/nhánh thua: luật "chung kết" áp cho chung kết tổng (không có tranh hạng 3 — nhánh thua xếp hạng 3).
   if (templateKey === 'de') {
     return {
@@ -267,7 +280,7 @@ export function templateOf(tour, event) {
   if (event.templateKey) return event.templateKey
   const stages = tour.stages.filter((s) => s.eventId === event.id)
   if (!stages.length) return null
-  if (stages.some((s) => s.type === 'swiss')) return 'swiss'
+  if (stages.some((s) => s.type === 'swiss')) return stages.length > 1 ? 'swiss_ko' : 'swiss'
   if (stages.some((s) => s.config?.bracket === 'double')) return 'de'
   if (!stages.some((s) => s.type === 'round_robin')) return 'ko'
   return stages.length >= 3 ? 'rr_ko_plate' : stages.some((s) => s.type === 'knockout') ? 'rr_ko' : 'rr'

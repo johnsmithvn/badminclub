@@ -71,7 +71,7 @@ test('canvas render: khối + mũi tên có nhãn hạng + tên riêng; sơ đ�
   const out = text(FlowCanvas, props(tr))
   assert.match(out, /Sơ đồ thi đấu Đôi nam/)
   assert.match(out, /3 khối/)
-  assert.match(out, /Vòng bảng Vòng tròn Thụy Sĩ Loại trực tiếp Chung kết 2 nhánh/, 'khay khối kéo vào')
+  assert.match(out, /Vòng bảng Vòng tròn Loại trực tiếp Thụy Sĩ Chung kết 2 nhánh/, 'khay khối kéo vào')
   assert.match(out, /Hạng 1–2 · \d+ đội/)
   assert.match(out, /Hạng 3 · \d+ đội/)
   assert.match(out, /Vòng bảng .*Nhánh chính .*Nhánh Bạc/, 'tên riêng thay tên theo vai')

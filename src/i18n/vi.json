@@ -5285,6 +5285,7 @@
         "rr_ko": "Vòng bảng + Loại trực tiếp",
         "rr_ko_plate": "Vòng bảng + Nhánh chính & phụ",
         "swiss": "Thụy Sĩ",
+        "swiss_ko": "Thụy Sĩ → Top 4",
         "de": "Nhánh thắng & nhánh thua",
         "custom": "Tự dựng"
       },
@@ -5294,6 +5295,7 @@
         "rr_ko": "Chia bảng lấy nhất nhì vào knock-out",
         "rr_ko_plate": "Nhất nhì vào nhánh chính · hạng sau vào nhánh phụ",
         "swiss": "Vài vòng, mỗi vòng gặp đội cùng điểm · không gặp lại",
+        "swiss_ko": "Nhiều trận, không loại sớm · 4 đội đầu vào bán kết",
         "de": "Thua 2 trận mới bị loại · có chung kết tổng"
       },
       "qualify": "Vòng loại",
@@ -5712,6 +5714,9 @@
       "roundsN": "{{n}} vòng",
       "roundsHint": "Mỗi vòng ghép các đội cùng điểm, không gặp lại đội đã gặp; số đội lẻ thì một đội được miễn (tính 1 thắng). Tự động = ⌈log₂ số đội⌉ vòng, tối thiểu 3.",
       "block": "{{rounds}} vòng · {{n}} đội",
+      "chip": "V{{n}}",
+      "chipSub": "{{n}} trận",
+      "blockHint": "Mỗi vòng ghép các đội cùng số trận thắng, không gặp lại đối cũ.",
       "sub": "{{rounds}} vòng · ghép đội cùng điểm"
     },
     "rule": {

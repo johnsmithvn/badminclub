@@ -117,13 +117,14 @@ test('Tổng quan: nhánh thắng/thua chưa có lịch hiện xem trước 2 ph
   assert.match(s2, /Vòng 1\/3/)
 })
 
-test('Sơ đồ thi đấu: khối Thụy Sĩ (danh sách theo hạt giống, chỉnh số vòng) và khối 2 nhánh không vỡ', () => {
+test('Sơ đồ thi đấu: khối Thụy Sĩ (ô từng vòng + luật ghép) và khối 2 nhánh không vỡ', () => {
   const st = (p) => ({ id: 's1', eventId: 'e-md', seq: 1, status: 'pending', title: '', matchRule: R21, ruleOverrides: { final: R21 }, ...p })
   const sw = base({ status: 'registration', stages: [st({ type: 'swiss', config: { rounds: null, seeding: 'seed' } })] })
   const s = text(FlowCanvas, { tour: sw, event: sw.events[0], db, a: fakeActions(), canEdit: true, onBack: noop, onOpenBracket: noop })
   assert.match(s, /THỤY SĨ/)
   assert.match(s, /3 vòng · 4 đội/)
-  assert.match(s, /Nguyễn Văn An/)
+  assert.match(s, /V1 2 trận V2 2 trận V3 2 trận/, '4 đội → mỗi vòng 2 trận')
+  assert.match(s, /không gặp lại đối cũ/)
 
   const de = base({ status: 'registration', stages: [st({ type: 'knockout', config: { bracket: 'double', thirdPlace: false, seeding: 'seed' } })] })
   const s2 = text(FlowCanvas, { tour: de, event: de.events[0], db, a: fakeActions(), canEdit: true, onBack: noop, onOpenBracket: noop })
