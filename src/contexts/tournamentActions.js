@@ -267,7 +267,7 @@ export function makeTournamentActions({ dbRef, tourRef, setTour, toast, uid }) {
 
     tourPin: (teamId, pinned) => {
       const t0 = tour().teams.find((x) => x.id === teamId)
-      return run(() => write('tournament_teams', 'upsert', [{ ...t0, pinned }]))
+      return run(() => write('tournament_teams', 'update', [{ ...t0, pinned }]))
     },
 
     /** Xoá mọi cặp CHƯA ghim (người về danh sách chờ). Cặp ghim giữ nguyên. */
@@ -349,10 +349,10 @@ export function makeTournamentActions({ dbRef, tourRef, setTour, toast, uid }) {
       const teams = eventTeams(cur, eventId)
       const drawn = order ? order.map((teamId, i) => ({ teamId, drawNo: i + 1 })) : drawNumbers(teams)
       const rows = drawn.map(({ teamId, drawNo }) => ({ ...cur.teams.find((x) => x.id === teamId), drawNo })).filter((x) => x.id)
-      if (toastKey) return run(() => write('tournament_teams', 'upsert', rows), toastKey)
+      if (toastKey) return run(() => write('tournament_teams', 'update', rows), toastKey)
       const no = new Map(rows.map((x) => [x.id, x.drawNo]))
       return runOptimistic((c) => ({ ...c, teams: c.teams.map((x) => (no.has(x.id) ? { ...x, drawNo: no.get(x.id) } : x)) }),
-        () => write('tournament_teams', 'upsert', rows))
+        () => write('tournament_teams', 'update', rows))
     },
 
     /**
@@ -365,7 +365,7 @@ export function makeTournamentActions({ dbRef, tourRef, setTour, toast, uid }) {
       const a = cur.teams.find((x) => x.id === teamIdA)
       const b = cur.teams.find((x) => x.id === teamIdB)
       if (!a || !b || a.id === b.id) return false
-      return run(() => write('tournament_teams', 'upsert', [{ ...a, drawNo: b.drawNo }, { ...b, drawNo: a.drawNo }]))
+      return run(() => write('tournament_teams', 'update', [{ ...a, drawNo: b.drawNo }, { ...b, drawNo: a.drawNo }]))
     },
 
     /** Tạo lịch: round-robin hoặc knockout dựng ở client, RPC chỉ kiểm + ghi nguyên tử (plan §2.3). */
@@ -645,7 +645,7 @@ export function makeTournamentActions({ dbRef, tourRef, setTour, toast, uid }) {
         await write('tournament_stages', 'upsert', [{ ...base(), ...stage, ...patch, config, status: 'pending' }])
         if (order) {
           const rows = order.map((id, i) => ({ ...cur.teams.find((x) => x.id === id), drawNo: i + 1 })).filter((x) => x.id)
-          await write('tournament_teams', 'upsert', rows.map((x) => ({ ...base(), ...x })))
+          await write('tournament_teams', 'update', rows.map((x) => ({ ...base(), ...x })))
         }
         await reloadTour()
       } catch (e) {

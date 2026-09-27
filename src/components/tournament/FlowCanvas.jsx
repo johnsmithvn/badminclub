@@ -162,19 +162,16 @@ export default function FlowCanvas({ tour, event, db, a, canEdit, onBack, onOpen
     return r.error ? null : r.entrants.map((e) => ({ ...e, label: teamName(tour, db, e.id) }))
   }
   const previewOf = (s) => (isDouble(s) ? dePreviewOf : koPreviewOf)(s, source, links.find((l) => l.toStageId === s.id), sourceTeams, realOf(s))
-  // Kéo một cặp thả lên cặp khác trong nhánh nguồn = đổi chỗ. Đang xếp theo rating thì chuyển sang số bốc thăm
-  // đúng vị trí đang thấy (`drawOrderOf`) rồi mới đổi — nhánh chỉ đổi đúng 2 cặp đó.
+  // Kéo một cặp thả lên cặp khác trong nhánh nguồn = đổi chỗ → chế độ "Tự do" (số bốc thăm theo đúng vị trí đang
+  // thấy, `slotOrder`) — nhánh chỉ đổi đúng 2 cặp đó.
   const swapTeams = (s) => (idA, idB) => {
-    const seeding = s.config?.seeding === 'slot' ? 'slot' : 'seed'
-    const r = entrantsOf(full, seeding)
-    if (r.error) return
-    const order = drawOrderOf(r.entrants, seeding)
+    const order = slotOrder(full, s.config)
     const i = order.indexOf(idA)
     const j = order.indexOf(idB)
     if (i < 0 || j < 0 || i === j) return
     ;[order[i], order[j]] = [order[j], order[i]]
     act(a.tourDraw(s.eventId, order, null))
-    if (seeding !== 'slot') act(a.tourCanvasSave(s.id, { config: { ...s.config, seeding: 'slot' } }))
+    if (!s.config?.free) act(a.tourCanvasSave(s.id, { config: { ...s.config, seeding: 'slot', free: true } }))
   }
   // Bề rộng 1 cột bảng theo tên đội DÀI NHẤT đang có (không phải số cố định) — tên dài (VD "A / B") không bị cắt "...".
   const nameColW = full.length
@@ -715,6 +712,15 @@ function TeamChip({ team, tour, db, seed }) {
   )
 }
 
+/**
+ * Id cặp theo vị trí nhánh ĐANG THẤY: theo số bốc thăm nếu đang bốc thăm và đã bốc đủ, không thì theo rating.
+ * Ghi làm số bốc thăm (`seeding:'slot'`) → nhánh y nguyên (`drawOrderOf`).
+ */
+function slotOrder(full, config) {
+  const drawn = config?.seeding === 'slot' && entrantsOf(full, 'slot')
+  return drawn && !drawn.error ? drawOrderOf(drawn.entrants, 'slot') : drawOrderOf(entrantsOf(full, 'seed').entrants, 'seed')
+}
+
 const sideText = (x) => (x.kind === 'slot' || x.kind === 'team' ? x.label : x.kind === 'rank' ? t('tournament.flow.rank', { n: x.n })
   : x.kind === 'seed' ? t('tournament.canvas.seed', { n: x.n })
   : x.kind === 'winner' ? t('tournament.canvas.won', { n: x.no }) : x.kind === 'loser' ? t('tournament.canvas.lost', { n: x.no }) : t('tournament.canvas.bye'))
@@ -985,6 +991,7 @@ function StagePanel({ stage, stages, source, links, full, est, act, a, tour, db,
   const ko = stage.type === 'knockout'
   const double = isDouble(stage)
   const teams = est.stages[stage.id]?.teams ?? 0
+  const arrange = stage.config?.seeding !== 'slot' ? 'seed' : stage.config?.free && ko ? 'free' : 'slot'
   // Thụy Sĩ: không quá số vòng còn ghép được mà không gặp lại (n lẻ: n vòng, n chẵn: n − 1).
   const maxRounds = full.length % 2 ? full.length : full.length - 1
   // Thẻ luật (cùng kiểu thanh Thiết lập nhánh): "Vòng loại" / "Vòng tranh hạng" + áp dụng cho vòng nào.
@@ -1075,10 +1082,14 @@ function StagePanel({ stage, stages, source, links, full, est, act, a, tour, db,
       {ko && isSource && teams >= 2 && <span style={{ font: 'var(--type-caption)', color: 'var(--text-muted)' }}>{t('tournament.canvas.swapHint')}</span>}
       {ko && link && <Button size="sm" variant="secondary" onClick={() => onPickLink(link.id)}>{t('tournament.canvas.link')} · {rankLabel(link.ranks)}</Button>}
       {(ko || swiss) && isSource && panelRow(t('tournament.format.seeding'), (
-        <Seg options={['seed', 'slot'].map((k) => ({ key: k, label: t('tournament.format.seed.' + k) }))}
-          value={stage.config?.seeding || 'seed'} onChange={(k) => saveConfig({ seeding: k })} />
+        // "Tự do" = số bốc thăm do BTC kéo thả tay (`free`); chọn nó thì giữ nguyên nhánh đang thấy làm điểm bắt đầu.
+        <Seg options={(ko ? ['seed', 'slot', 'free'] : ['seed', 'slot']).map((k) => ({ key: k, label: t('tournament.format.seed.' + k) }))}
+          value={arrange} onChange={(k) => {
+            if (k === 'free') act(a.tourDraw(stage.eventId, slotOrder(full, stage.config), null))
+            saveConfig({ seeding: k === 'seed' ? 'seed' : 'slot', free: k === 'free' })
+          }} />
       ))}
-      {(ko || swiss) && isSource && stage.config?.seeding === 'slot' && full.length > 1 && (
+      {(ko || swiss) && isSource && arrange === 'slot' && full.length > 1 && (
         <Button size="sm" variant="secondary" icon="sparkles" onClick={() => setSpin('draw')}>
           {t(full.some((x) => x.drawNo) ? 'tournament.format.redraw' : 'tournament.format.draw')}
         </Button>

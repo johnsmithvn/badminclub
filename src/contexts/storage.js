@@ -463,6 +463,12 @@ export async function tournamentWrite(table, op, rows) {
   const keys = TOUR_KEYS[table] || ['id']
   if (op === 'upsert') return unwrap(await supabase.from(table).upsert(rows, { onConflict: keys.join(',') }))
   if (op === 'insert') return unwrap(await supabase.from(table).insert(rows))
+  // Sửa hàng CÓ SẴN. Không dùng upsert: INSERT … ON CONFLICT vẫn chạy trigger BEFORE INSERT — với
+  // tournament_teams đó là khoá đội hình (0057), nên đội đã chốt không ghi được số bốc thăm / ghim.
+  if (op === 'update') {
+    for (const { id, ...patch } of rows) unwrap(await supabase.from(table).update(patch).eq('id', id))
+    return null
+  }
   if (op === 'delete') {
     if (keys[0] === 'id') {
       const ids = rows.map((r) => (r && typeof r === 'object' ? r.id : r))
