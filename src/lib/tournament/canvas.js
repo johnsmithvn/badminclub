@@ -29,13 +29,21 @@ export function layoutOf(stages, sizeOf = () => ({ w: CANVAS.w, h: CANVAS.h })) 
   const sorted = [...stages].sort((a, b) => a.seq - b.seq)
   const colX = CANVAS.pad + (sorted[0] ? sizeOf(sorted[0]).w : CANVAS.w) + CANVAS.gapX
   let y = CANVAS.pad
+  // Không bao giờ để khối chồng lên nhau: khối (theo seq) đè lên khối đã xếp thì đẩy sang phải khối đó. Thả khối
+  // nhánh lớn đè lên vòng bảng = vòng bảng bị che mất, không còn chỗ kéo cặp vào — đó là lỗi thật đã gặp.
+  const placed = []
+  const hit = (p, z) => placed.find((q) => p.x < q.x + q.w && q.x < p.x + z.w && p.y < q.y + q.h && q.y < p.y + z.h)
   return Object.fromEntries(sorted.map((s, i) => {
     let auto = { x: CANVAS.pad, y: CANVAS.pad }
     if (i > 0) {
       auto = { x: colX, y }
       y += sizeOf(s).h + CANVAS.gapY
     }
-    return [s.id, { x: s.canvasX ?? auto.x, y: s.canvasY ?? auto.y }]
+    const z = sizeOf(s)
+    let p = { x: s.canvasX ?? auto.x, y: s.canvasY ?? auto.y }
+    for (let q = hit(p, z); q; q = hit(p, z)) p = { x: q.x + q.w + CANVAS.gapX, y: p.y }
+    placed.push({ ...p, ...z })
+    return [s.id, p]
   }))
 }
 

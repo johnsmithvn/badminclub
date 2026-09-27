@@ -33,6 +33,10 @@ test('toạ độ: đã kéo thì giữ, chưa kéo thì nguồn trái, nhánh x
   assert.deepEqual(pos.a, { x: 500, y: 9 })
   assert.ok(pos.rr.x < pos.b.x)
   assert.equal(nextSeq([st('rr', 1, 'round_robin'), st('b', 3, 'knockout')]), 4)
+  // Khối nhánh thả đè lên vòng bảng → bị đẩy sang phải, vòng bảng không bị che.
+  const over = layoutOf([st('rr', 1, 'round_robin', { canvasX: 100, canvasY: 50 }), st('de', 2, 'knockout', { canvasX: 60, canvasY: 20 })])
+  assert.deepEqual(over.rr, { x: 100, y: 50 })
+  assert.ok(over.de.x >= 100 + 190, 'khối sau nằm hẳn bên phải khối nguồn')
 })
 
 const teams = ['t1', 't2', 't3', 't4', 't5'].map((id, i) => ({ id, sum: 1000 - i * 10 }))
