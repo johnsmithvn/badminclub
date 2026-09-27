@@ -10,11 +10,24 @@ import React, { useState } from 'react'
 import { Button, Icon } from '#ds'
 import { t } from '#i18n'
 import { getArcadeResultLine } from '#lib/bot.js'
+import { todayISO } from '#utils/dates.js'
+
+// "Bỏ qua" nhớ tới hết ngày trên máy này — bản đầu chỉ giữ trong state, mở lại app là thẻ gạ cược
+// hiện lại. localStorage bọc try: chế độ riêng tư ném lỗi, khi đó "Bỏ qua" chỉ có tác dụng tới lúc rời trang.
+const SKIP_KEY = 'badmin_arcade_skip'
+const skippedToday = () => {
+  try { return localStorage.getItem(SKIP_KEY) === todayISO() } catch { return false }
+}
 
 export default function BotArcadeCard({ bot, offer, balance, onPlay }) {
   const [busy, setBusy] = useState(false)
   const [result, setResult] = useState(null)
-  const [declined, setDeclined] = useState(false)
+  const [declined, setDeclined] = useState(skippedToday)
+
+  const handleSkip = () => {
+    setDeclined(true)
+    try { localStorage.setItem(SKIP_KEY, todayISO()) } catch { /* xem ghi chú ở SKIP_KEY */ }
+  }
 
   if (!bot || !offer || declined) return null
 
@@ -34,7 +47,8 @@ export default function BotArcadeCard({ bot, offer, balance, onPlay }) {
   const resultLine = result ? getArcadeResultLine(result) : null
 
   return (
-    <div style={S.card}>
+    // `id` để modal của bot cuộn tới đây khi bấm "Vào Arcade phục thù" — không có trang Arcade riêng.
+    <div id="bot-arcade-card" style={S.card}>
       <div style={S.headerRow}>
         {bot.avatarUrl ? (
           <img src={bot.avatarUrl} alt="" style={S.avatar} />
@@ -84,7 +98,7 @@ export default function BotArcadeCard({ bot, offer, balance, onPlay }) {
             <Button
               variant="ghost"
               disabled={busy}
-              onClick={() => setDeclined(true)}
+              onClick={handleSkip}
             >
               {t('arcade.skip')}
             </Button>

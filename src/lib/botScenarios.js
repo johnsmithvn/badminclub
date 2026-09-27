@@ -12,6 +12,7 @@ import { calculateSeasonLeaderboard } from '#lib/season.js'
 import { BotMemoryStore } from '#lib/botMemory.js'
 import { getClubEloLeaderboard } from '#lib/homePersonal.js'
 import { getPlayerRating, DEFAULT_RATING } from '#lib/rating.js'
+import { isoOf } from '#utils/dates.js'
  
 /** Số trận tối đa kể từ trận thua gần nhất để còn tính là đòi nợ (khoảng 1-2 buổi tập) */
 export const MAX_REVENGE_MATCH_GAP = 6
@@ -48,8 +49,10 @@ export function isMatchSessionFresh(db, memberId, lastMatch, now = Date.now(), m
   }
 
   // 3. Kiểm tra xem có buổi tập nào MỚI HƠN đã diễn ra hay chưa (nếu có db.sessions):
-  const matchDate = new Date(matchAt).toISOString().slice(0, 10)
-  const nowDate = new Date(now).toISOString().slice(0, 10)
+  // Ngày theo giờ MÁY, cùng hệ với `session.date`. Bản đầu dùng `toISOString` (UTC): trận 6 giờ sáng
+  // bị tính sang hôm trước, chính buổi đó thành "buổi kế tiếp đã chốt" và bot im cả buổi sáng.
+  const matchDate = isoOf(new Date(matchAt))
+  const nowDate = isoOf(new Date(now))
 
   if (db && Array.isArray(db.sessions) && db.sessions.length > 0) {
     const nextSessions = db.sessions
@@ -281,8 +284,16 @@ export function detectRecentEvents(db, memberId, state, now = Date.now()) {
 
     // 1. Overtake Toán Học với đối thủ vừa đấu (hoặc Rival)
     const opponents = state.lastOpponentIds || []
+    const matchTs = (m) => new Date(m?.at || m?.playedAt || 0).getTime()
     for (const oppId of opponents) {
       if (oppId === state.bot?.id) continue
+      // Elo "sau trận" của đối thủ lấy bằng Elo HIỆN TẠI của họ — chỉ đúng khi họ chưa đánh trận
+      // nào sau trận này. Một buổi mỗi người đánh nhiều trận; đã đánh tiếp thì bỏ qua, thà im còn
+      // hơn nói "vừa vượt X" sai.
+      const oppPlayedLater = (db.matches || []).some((m) => m && m.id !== state.lastMatch.id
+        && matchTs(m) > matchAt
+        && [...(m.teamA || []), ...(m.teamB || [])].includes(oppId))
+      if (oppPlayedLater) continue
       const oppMember = (db.members || []).find((m) => m && m.id === oppId)
       // `getPlayerRating` đọc được cả map (state thật) lẫn mảng — cùng số với `getClubEloLeaderboard`.
       const oppPostElo = getPlayerRating(db.playerRatings, oppId, oppMember, db.levels).displayRating
@@ -485,7 +496,7 @@ export function detectScenarios(events, state) {
           occurredAt: evt.occurredAt,
           baseScore: 86,
           tone: 'competitive',
-          lineKey: 'bot.encounter.competitive.chasing_bot',
+          lineKey: 'bot.encounter.competitive.bot_overtakes',
           params: { name: memberName, bot: botName },
           action: { type: 'rank', labelKey: 'bot.encounter.actionViewRank' },
         })
@@ -570,7 +581,7 @@ export function detectScenarios(events, state) {
           baseScore: 78,
           tone: 'supportive',
           lineKey: 'bot.encounter.supportive.streak_lose',
-          params: { name: memberName, bot: botName },
+          params: { name: memberName, bot: botName, n: evt.data?.n || 3 },
           action: { type: 'dismiss', labelKey: 'bot.encounter.actionUnderstand' },
         })
         break
@@ -583,8 +594,8 @@ export function detectScenarios(events, state) {
           occurredAt: evt.occurredAt,
           baseScore: 80,
           tone: 'competitive',
-          lineKey: 'bot.encounter.competitive.near_streak',
-          params: { name: memberName, bot: botName },
+          lineKey: 'bot.encounter.competitive.top3_entered',
+          params: { name: memberName, bot: botName, rank: evt.data?.rank },
           action: { type: 'rank', labelKey: 'bot.encounter.actionViewRank' },
         })
         break
@@ -597,7 +608,7 @@ export function detectScenarios(events, state) {
           occurredAt: evt.occurredAt,
           baseScore: 76,
           tone: 'teasing',
-          lineKey: 'bot.encounter.teasing.streak_win',
+          lineKey: 'bot.encounter.teasing.arcade_loss',
           params: { name: memberName, bot: botName, stake: evt.data?.stake },
           action: { type: 'arcade', labelKey: 'bot.encounter.actionArcade' },
         })
@@ -611,7 +622,7 @@ export function detectScenarios(events, state) {
           occurredAt: evt.occurredAt,
           baseScore: 76,
           tone: 'competitive',
-          lineKey: 'bot.encounter.competitive.overtake_bot',
+          lineKey: 'bot.encounter.competitive.arcade_win',
           params: { name: memberName, bot: botName, stake: evt.data?.stake },
           action: { type: 'arcade', labelKey: 'bot.encounter.actionArcade' },
         })
@@ -689,10 +700,12 @@ export function applySynergy(candidates, state) {
   const out = []
   const memberName = state?.member?.name || ''
   const botName = state?.bot?.name || ''
-  const rivalName = state?.rival?.name || ''
 
   byEvent.forEach((group, eventKey) => {
     const keys = group.map((c) => c.scenarioKey)
+    // Tên người VỪA bị vượt trong chính trận này — không phải `state.rival` (người đối đầu nhiều
+    // nhất mọi thời), bản đầu lấy nhầm và bot khen vượt một người không hề có mặt trong trận.
+    const rivalName = group.find((c) => c.scenarioKey === 'overtake_rival')?.params?.rival || ''
     const hasStreak = keys.some((k) => k.startsWith('streak_win'))
     const hasOvertakeRival = keys.includes('overtake_rival')
     const hasOvertakeBot = keys.includes('overtake_bot')
@@ -722,7 +735,7 @@ export function applySynergy(candidates, state) {
         occurredAt: group[0].occurredAt,
         baseScore: 95,
         tone: 'teasing',
-        lineKey: 'bot.encounter.synergy.streak_overtake_both',
+        lineKey: 'bot.encounter.synergy.streak_overtake_rival',
         params: { name: memberName, rival: rivalName, bot: botName },
         action: { type: 'rank', labelKey: 'bot.encounter.actionViewRank' },
       })

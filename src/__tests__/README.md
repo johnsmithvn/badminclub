@@ -65,6 +65,7 @@ Code chạm Supabase/React không có mặt trong bộ này — kiểm tay trên
 | Giải đấu · Hub: nội dung, vòng đời giải, đăng ký, checklist · ghép cặp, thể thức, xem trước | `tournament/hub.test.js` · `tournament/pairing.test.js` |
 | **Giải đấu · giao diện** (render component thật bằng `_render.js`, dữ liệu `fixture.js`) | `tournament/*_render.test.js` |
 | Giải đấu · map client ↔ Postgres; bảng giải KHÔNG được lọt vào `TABLES`/`diff()` | `sync/tournament_map.test.js` |
+| RPC của bot (0064): kèo đôi, whitelist khớp `BOT_LINE_VARIANTS`, phe cược do server chọn, Arcade đúng CLB, số dư theo mùa, số migration không trùng | `sync/bot_rpc_guards.test.js` |
 | 4 Theme Xếp hạng & Kho Biệt danh: Deterministic badge hash · 8 bậc rank · Quips | `lib/rank_themes.test.js` |
 | Dark Mode: ThemeContext, CSS token dark.css, icon sun/moon, anti-FOUC | `smoke/theme.test.js` |
 | **Động cơ cày rank Mùa giải 3-tier**: 5 dải delta Elo · Floor 0 · streak bonus · upset bonus · qualified 20 trận · ledger | `lib/season_3tier.test.js` |

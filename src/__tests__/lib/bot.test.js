@@ -78,8 +78,25 @@ assert.equal(botGateOpen({ ...baseDb(), members: [mem('m1')] }, NOW), false, 'Kh
 const picked = pickBotChallenge(baseDb(), NOW)
 assert.ok(picked, 'CLB đủ người thì chọn được cặp')
 assert.ok(BOT_REASONS.includes(picked.reason), 'Lý do nằm trong bộ mã đã khai báo')
-assert.notEqual(picked.aId, picked.bId, 'Hai đấu thủ phải khác nhau')
-assert.ok(picked.aId !== 'bot' && picked.bId !== 'bot', 'Bot KHÔNG bao giờ tự làm đấu thủ')
+// Bot LUÔN dựng kèo đôi: CLB hiếm khi đánh đơn. RPC từ chối mọi phe không đúng 2 người.
+assert.equal(picked.teamA.length, 2, 'Kèo đôi: phe A đúng 2 người')
+assert.equal(picked.teamB.length, 2, 'Kèo đôi: phe B đúng 2 người')
+const pickedIds = [...picked.teamA, ...picked.teamB]
+assert.equal(new Set(pickedIds).size, 4, 'Bốn đấu thủ phải khác nhau')
+assert.ok(!pickedIds.includes('bot'), 'Bot KHÔNG bao giờ tự làm đấu thủ')
+// Nhóm 4 người liền nhau xếp theo Elo: mạnh nhất + yếu nhất đấu hai người giữa, để hai phe sát
+// nhau nhất. baseDb: m1 1600 · m2 1580 · m3 1550 · m4 1520 · m5 1490 → nhóm (m1..m4) hoặc (m2..m5).
+const eloOf = { m1: 1600, m2: 1580, m3: 1550, m4: 1520, m5: 1490 }
+const sumOf = (ids) => ids.reduce((s, id) => s + eloOf[id], 0)
+const groupSorted = [...pickedIds].sort((x, y) => eloOf[y] - eloOf[x])
+assert.deepEqual(
+  [...picked.teamA].sort(), [groupSorted[0], groupSorted[3]].sort(),
+  'Phe A = người mạnh nhất + yếu nhất của nhóm — cách chia 2-2 cho hai phe chênh nhau ít nhất',
+)
+assert.ok(
+  Math.abs(sumOf(picked.teamA) - sumOf(picked.teamB)) <= 30,
+  'Hai phe phải sát Elo nhau (chia sai thì chênh cả trăm điểm)',
+)
 assert.equal(picked.reason, 'rank_neighbor', 'Không ai có chuỗi thắng thì lý do là sát BXH')
 
 // Cùng dữ liệu + cùng ngày -> cùng cặp. Không thì mỗi lần re-render lại ra một kèo khác.

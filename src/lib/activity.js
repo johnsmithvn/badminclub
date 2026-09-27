@@ -426,11 +426,13 @@ export function resolveActivityPayload(item, db) {
   }
 
   if (item?.type === 'arcade_played') {
+    // Dòng tổng của cả ngày (RPC `play_arcade_round` cộng dồn tại chỗ), không phải một ván.
     res.userName = getEntityName(db, item.actor_id || item.actorId)
     res.oppName = getEntityName(db, p.opponentId)
-    res.stake = p.stake
-    res.game = t(p.game === 'rps' ? 'bot.gameRps' : 'bot.gameCoin')
-    res.outcome = p.outcome
+    res.rounds = Number(p.rounds) || 0
+    res.won = Number(p.won) || 0
+    res.lost = Number(p.lost) || 0
+    res.draw = Number(p.draw) || 0
   }
 
   if (item?.type === 'session_opened' || item?.type === 'session_closed' || item?.type === 'session_cancelled') {

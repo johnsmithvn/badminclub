@@ -14,7 +14,7 @@ import {
   availableSeasonPoints,
   getMemberPrediction,
 } from '#lib/challenge.js'
-import { detectMatchNarrative, formatTeamNames, getEntityName } from '#lib/activity.js'
+import { detectMatchNarrative, formatTeamNames } from '#lib/activity.js'
 import { getPlayerRating, expectedScore, DEFAULT_RATING } from '#lib/rating.js'
 import { calculateSeasonLeaderboard } from '#lib/season.js'
 import {
@@ -37,11 +37,11 @@ export const BOT_REASONS = ['rank_neighbor', 'streak_hunt']
 export const BOT_LINE_VARIANTS = {
   reason:      { rank_neighbor: 4, streak_hunt: 4 },
   taunt:       { top1: 3, chaser: 3, win_streak: 3, lose_streak: 3, rank_up: 3, rank_down: 3, rookie: 3, idle: 3, plain: 3 },
-  reaction:    { blowout: 3, clutch: 3, normal: 3, declined_bot: 3, declined_user: 3, cancelled: 3, expired: 3 },
-  remark:      { rank_climb: 3, rank_drop: 3, streak: 3, rivalry_h2h: 3, best_duo: 3, dominance_boss: 3, top_race: 3, bot_overtook: 3 },
+  // Chỉ nhận xét SAU TRẬN: kèo bị từ chối / huỷ / hết hạn thì bot im (RPC `post_bot_reaction`).
+  reaction:    { blowout: 3, clutch: 3, normal: 3 },
+  remark:      { rank_climb: 3, streak: 3, rivalry_h2h: 3, best_duo: 3, dominance_boss: 3, top_race: 3, bot_overtook: 3 },
   bet:         { favourite: 3, underdog: 3, tilt: 3, won: 3, lost: 3 },
   arcade:      { offer: 4, won: 3, lost: 3, draw: 3, capped: 2, broke: 2 },
-  interaction: { above_me: 3, chasing_me: 3, revenge_arcade: 3, user_streak: 3, declined_arcade: 3 },
 }
 
 /**
@@ -90,6 +90,9 @@ const BOT_CHALLENGE_COOLDOWN_MS = 24 * 60 * 60 * 1000
  * Kiểm tra 2 cổng độc lập (khớp 1:1 với RPC `create_bot_challenge` trong migration 0064):
  *   · Cổng 1: Không có kèo bot nào đang mở nhận (status = 'pending' và chưa hết hạn nhận).
  *   · Cổng 2: Không có kèo bot nào được tạo trong vòng 24h qua (cooldown nhịp tạo kèo).
+ *
+ * RPC còn cổng 3 (có buổi tập draft/open trong 2 ngày tới) mà ở đây KHÔNG chép: client không
+ * chắc có đủ danh sách buổi, và gọi thừa chỉ tốn một lời gọi trả NULL.
  *
  * @param {Object} db
  * @param {number} [now]
@@ -146,18 +149,19 @@ function streakOf(db, memberId) {
 }
 
 /**
- * Chọn cặp đấu cho kèo kế tiếp của bot.
+ * Chọn bốn người cho kèo ĐÔI kế tiếp của bot. Bot luôn dựng kèo đôi: CLB hiếm khi đánh đơn.
  *
- * Ứng viên là các cặp KỀ NHAU trên BXH Elo: kề nhau nghĩa là Elo sát nhau, mà Elo sát nhau thì
- * trận hay — đó là tiêu chí duy nhất đáng tin khi bot chưa có tính cách. Cộng điểm cho cặp có
- * người đang ôm chuỗi thắng, vì đó mới là chuyện CLB muốn xem.
+ * Ứng viên là mọi nhóm 4 người ĐỨNG LIỀN NHAU trên BXH Elo: liền nhau nghĩa là Elo sát nhau, mà
+ * Elo sát nhau thì trận hay. Trong nhóm (đã xếp Elo giảm dần) chia mạnh nhất + yếu nhất đấu hai
+ * người giữa — trong ba cách chia 2-2, cách này luôn cho hai phe chênh nhau ít nhất. Cộng điểm
+ * cho nhóm có người đang ôm chuỗi thắng, vì đó mới là chuyện CLB muốn xem.
  *
  * Chọn bằng `getDeterministicRoll` với hạt giống theo NGÀY: mọi người mở app đều thấy CÙNG một
  * kèo, và màn hình re-render bao nhiêu lần cũng không đổi cặp.
  *
  * @param {Object} db
  * @param {number} [now]
- * @returns {{ aId: string, bId: string, reason: string }|null}
+ * @returns {{ teamA: string[], teamB: string[], reason: string }|null}
  */
 export function pickBotChallenge(db, now = Date.now()) {
   if (!db || !db.clubId) return null
@@ -170,36 +174,36 @@ export function pickBotChallenge(db, now = Date.now()) {
   ))
   if (board.length < MIN_CANDIDATES) return null
 
-  // Mỗi người nằm trong hai cặp kề nhau, mà `streakOf` phải quét lại toàn bộ trận mỗi lần gọi.
-  // Không có cache thì mọi người đều được tính chuỗi thắng đúng hai lần.
+  // Mỗi người nằm trong tới bốn nhóm liền nhau, mà `streakOf` phải quét lại toàn bộ trận mỗi lần
+  // gọi. Không có cache thì mọi người đều được tính chuỗi thắng tới bốn lần.
   const streakCache = new Map()
   const streakMemo = (id) => {
     if (!streakCache.has(id)) streakCache.set(id, streakOf(db, id))
     return streakCache.get(id)
   }
 
-  const pairs = []
-  for (let i = 0; i < board.length - 1; i++) {
-    const a = board[i]
-    const b = board[i + 1]
-    const streak = Math.max(streakMemo(a.id), streakMemo(b.id))
+  const groups = []
+  for (let i = 0; i + 3 < board.length; i++) {
+    const [p1, p2, p3, p4] = board.slice(i, i + 4)
+    const streak = Math.max(...[p1, p2, p3, p4].map((p) => streakMemo(p.id)))
     const hot = streak >= HOT_STREAK
-    pairs.push({
-      aId: a.id,
-      bId: b.id,
+    groups.push({
+      teamA: [p1.id, p4.id],
+      teamB: [p2.id, p3.id],
       reason: hot ? 'streak_hunt' : 'rank_neighbor',
-      // Cặp có streak luôn đứng trên mọi cặp không có; trong cùng nhóm thì Elo càng sát càng cao.
-      score: (hot ? 1e6 : 0) + streak * 1000 - Math.abs(a.elo - b.elo),
+      // Nhóm có streak luôn đứng trên mọi nhóm không có; trong cùng loại thì bốn người càng sát
+      // Elo nhau (khoảng cách người đầu - người cuối) càng cao.
+      score: (hot ? 1e6 : 0) + streak * 1000 - Math.abs(p1.elo - p4.elo),
     })
   }
-  if (!pairs.length) return null
+  if (!groups.length) return null
 
-  pairs.sort((x, y) => y.score - x.score)
-  const top = pairs.slice(0, TOP_CANDIDATES)
+  groups.sort((x, y) => y.score - x.score)
+  const top = groups.slice(0, TOP_CANDIDATES)
   const seed = `bot-challenge:${db.clubId}:${new Date(now).toDateString()}`
   const picked = top[getDeterministicRoll(seed, top.length)]
 
-  return { aId: picked.aId, bId: picked.bId, reason: picked.reason }
+  return { teamA: picked.teamA, teamB: picked.teamB, reason: picked.reason }
 }
 
 /* ===========================================================================
@@ -304,64 +308,6 @@ export function getBotMatchReaction(db, challenge) {
 }
 
 /**
- * Phản ứng của Bot theo toàn bộ vòng đời kèo: từ chối, huỷ, hết hạn hoặc đánh xong.
- *
- * @param {Object} db
- * @param {Object} challenge
- * @returns {{ lineKey: string, params: Object }|null}
- */
-export function getBotChallengeReaction(db, challenge) {
-  if (!db || !challenge) return null
-  const bot = findBotMember(db)
-  const botName = bot?.name || ''
-
-  // 1. Kèo bị TỪ CHỐI (declined)
-  if (challenge.status === 'declined') {
-    const isBotCreated = Boolean(bot && challenge.createdBy === bot.id)
-    const declinerId = challenge.declinedBy || challenge.teamB?.[0] || challenge.teamA?.[1]
-    const declinerName = getEntityName(db, declinerId) || declinerId || ''
-
-    if (isBotCreated) {
-      return {
-        lineKey: botLineKey('reaction', 'declined_bot', `bot-react-declined:${challenge.id}`),
-        params: { decliner: declinerName, bot: botName },
-      }
-    }
-
-    const challengerId = challenge.createdBy || challenge.teamA?.[0]
-    const challengerName = getEntityName(db, challengerId) || challengerId || ''
-
-    return {
-      lineKey: botLineKey('reaction', 'declined_user', `bot-react-declined-user:${challenge.id}`),
-      params: { challenger: challengerName, decliner: declinerName, bot: botName },
-    }
-  }
-
-  // 2. Kèo bị HUỶ (cancelled)
-  if (challenge.status === 'cancelled') {
-    return {
-      lineKey: botLineKey('reaction', 'cancelled', `bot-react-cancel:${challenge.id}`),
-      params: { bot: botName },
-    }
-  }
-
-  // 3. Kèo HẾT HẠN (expired)
-  if (challenge.status === 'expired') {
-    return {
-      lineKey: botLineKey('reaction', 'expired', `bot-react-expired:${challenge.id}`),
-      params: { bot: botName },
-    }
-  }
-
-  // 4. Kèo ĐÃ ĐÁNH XONG (completed / played hoặc có trận thắng)
-  if (challenge.status === 'completed' || challenge.status === 'played' || (db?.matches || []).some((m) => m && m.challengeId === challenge.id && m.winnerTeam)) {
-    return getBotMatchReaction(db, challenge)
-  }
-
-  return null
-}
-
-/**
  * Chuyện đáng để bot bình luận trước cả CLB, hoặc null nếu hôm nay chẳng có gì.
  *
  * CHỈ CHỌN, không ghi. RPC `post_bot_remark` mới là chỗ quyết định có đăng hay không (nhịp 12h
@@ -379,17 +325,16 @@ export function pickBotRemark(db, now = Date.now()) {
   getClubEloLeaderboard(db).forEach((row) => {
     if (row.id === bot.id || row.gamesCount < MIN_GAMES) return
     const delta = getRecentEloDelta(db, row.id, 7) || 0
+    // KHÔNG có nhánh tụt Elo: kênh công khai không bêu ai đang đi xuống (M7). RPC cũng từ chối mã đó.
     if (delta >= REMARK_ELO_SWING) {
       candidates.push({ kind: 'rank_climb', subjectId: row.id })
-    } else if (delta <= -REMARK_ELO_SWING) {
-      candidates.push({ kind: 'rank_drop', subjectId: row.id })
     } else if (getPlayerForm5(db, row.id).streak >= REMARK_STREAK) {
       candidates.push({ kind: 'streak', subjectId: row.id })
     }
   })
 
   // Bổ sung các kịch bản quan hệ và sự kiện nổi bật trong CLB
-  const botState = getBotState(db, now)
+  const botState = getBotState(db)
   if (botState) {
     // 1. Cặp đối thủ truyền kiếp (Rivalry)
     if (botState.clubRivalries && botState.clubRivalries.length > 0) {
@@ -519,7 +464,13 @@ function tiltMultiplier(streak) {
  *
  * @returns {Array<{ challengeId: string, team: 'A'|'B', stake: number }>}
  */
-/** Tính phe cược và mức cược của bot cho một kèo cụ thể dựa trên tỷ lệ chấp và mức tilt. */
+/**
+ * Tính phe cược và mức cược của bot cho một kèo cụ thể dựa trên tỷ lệ chấp và mức tilt.
+ *
+ * Chỉ `stake` được gửi lên. PHE do RPC `place_bot_prediction` tự chọn theo Elo trong DB (không
+ * thì ai biết gõ lệnh là bắt bot đặt cửa thua) — `team` ở đây là phe bot DỰ ĐỊNH, dùng để chọn
+ * mức cược, và thường trùng với phe server chọn. Phiếu thật luôn đọc lại từ `challenge_predictions`.
+ */
 function calculateBotBet(db, challenge, budget, tilt) {
   const ra = teamRating(db, challenge.teamA)
   const rb = teamRating(db, challenge.teamB)
@@ -844,7 +795,7 @@ export function getPlayerRelationships(db, memberA, memberB) {
  * @param {number} [now]
  * @returns {Object|null}
  */
-export function getBotState(db, now = Date.now()) {
+export function getBotState(db) {
   const bot = findBotMember(db)
   if (!bot) return null
 
@@ -859,21 +810,7 @@ export function getBotState(db, now = Date.now()) {
   const botElo = botEloRow?.elo || DEFAULT_RATING
 
   const aboveMe = botIdx > 0 ? seasonBoard[botIdx - 1] : null
-  const chasingMe = botIdx >= 0 && botIdx < seasonBoard.length - 1 ? seasonBoard[botIdx + 1] : null
   const gapAbove = aboveMe ? Math.max(0, (aboveMe.totalSeasonPoints || 0) - botSp) : 0
-  const gapBelow = chasingMe ? Math.max(0, botSp - (chasingMe.totalSeasonPoints || 0)) : 0
-
-  // Tìm các mục tiêu đòi nợ Arcade (user đã thắng bot trong 48h qua)
-  const cutoff48h = now - 48 * 3600 * 1000
-  const revengeRounds = (db.arcadeRounds || [])
-    .filter((r) => r && r.opponentId === bot.id && r.outcome === 'won' && Date.parse(r.createdAt || '') >= cutoff48h)
-    .sort((a, b) => Date.parse(b.createdAt || '') - Date.parse(a.createdAt || ''))
-  const revengeTargets = revengeRounds.map((r) => ({
-    memberId: r.memberId,
-    stake: r.stake,
-    game: r.game,
-    at: Date.parse(r.createdAt || ''),
-  }))
 
   // Quét các cặp trong CLB (chỉ quét khi đã có lịch sử trận)
   const activeMembers = (db.matches && db.matches.length > 0)
@@ -919,17 +856,6 @@ export function getBotState(db, now = Date.now()) {
     }
   }
 
-  // Xác định mục tiêu của bot (Daily Goal)
-  let goal = { type: 'gain_sp', targetId: null, targetName: '', targetValue: 50 }
-  if (revengeTargets.length > 0) {
-    const rev = revengeTargets[0]
-    goal = { type: 'revenge', targetId: rev.memberId, targetName: getEntityName(db, rev.memberId), targetValue: rev.stake }
-  } else if (chasingMe && gapBelow <= 15) {
-    goal = { type: 'defend_rank', targetId: chasingMe.id, targetName: chasingMe.name, targetValue: gapBelow }
-  } else if (aboveMe && gapAbove <= 20) {
-    goal = { type: 'climb_rank', targetId: aboveMe.id, targetName: aboveMe.name, targetValue: gapAbove }
-  }
-
   return {
     bot: {
       id: bot.id,
@@ -940,205 +866,10 @@ export function getBotState(db, now = Date.now()) {
     seasonPoints: botSp,
     elo: botElo,
     aboveMe: aboveMe ? { id: aboveMe.id, name: aboveMe.name, rank: aboveMe.rank, sp: aboveMe.totalSeasonPoints } : null,
-    chasingMe: chasingMe ? { id: chasingMe.id, name: chasingMe.name, rank: chasingMe.rank, sp: chasingMe.totalSeasonPoints } : null,
     gapAbove,
-    gapBelow,
-    goal,
-    revengeTargets,
     clubRivalries,
     clubDuos,
     clubDominance,
     topRaces,
   }
-}
-
-/**
- * Kiểm tra xem người này hôm nay có thể nhận Popup chủ động (Tier 1) không (tối đa 3 người/ngày)
- */
-export function canTriggerPopupToday(memberId, now = Date.now()) {
-  if (typeof window === 'undefined' || !window?.localStorage) return true
-  try {
-    const todayStr = new Date(now).toISOString().slice(0, 10)
-    const key = `badmin_bot_popup_users_${todayStr}`
-    const raw = localStorage.getItem(key)
-    const users = raw ? JSON.parse(raw) : []
-    if (users.includes(memberId)) return true
-    return users.length < 3
-  } catch (e) {
-    return true
-  }
-}
-
-/**
- * Ghi nhận member đã nhận popup tương tác chủ động hôm nay
- */
-export function recordPopupInteraction(memberId, now = Date.now()) {
-  if (typeof window === 'undefined' || !window?.localStorage) return
-  try {
-    const todayStr = new Date(now).toISOString().slice(0, 10)
-    const key = `badmin_bot_popup_users_${todayStr}`
-    const raw = localStorage.getItem(key)
-    const users = raw ? JSON.parse(raw) : []
-    if (!users.includes(memberId)) {
-      users.push(memberId)
-      localStorage.setItem(key, JSON.stringify(users))
-    }
-  } catch (e) {}
-}
-
-/**
- * 3-Tier Interaction Orchestrator:
- * Quyết định Bot tương tác với người dùng theo 3 tầng biểu hiện:
- * - Tier 1: Popup trực tiếp (Score >= 60, cần budget tối đa 3 người/ngày)
- * - Tier 2: Ambient / Activity feed (Score 20 - 59, không tốn budget)
- * - Tier 3: Silent (Score < 20, giữ im lặng)
- *
- * @param {Object} db
- * @param {string} memberId
- * @param {number} [now]
- * @returns {{ mode: 'popup'|'ambient'|'silent', score?: number, type?: string, lineKey?: string, params?: Object, bot?: Object, action?: Object }}
- */
-export function getBotInteraction(db, memberId, now = Date.now()) {
-  const bot = findBotMember(db)
-  if (!bot || !memberId || bot.id === memberId) {
-    return { mode: 'silent' }
-  }
-
-  const member = (db.members || []).find((m) => m.id === memberId)
-  if (!member) return { mode: 'silent' }
-
-  const botState = getBotState(db, now)
-  if (!botState) return { mode: 'silent' }
-
-  const seed = `bot-interaction:${memberId}:${new Date(now).toDateString()}`
-  const candidates = []
-
-  // 1. [Score 85] User đứng ngay trên Bot (aboveMe, cách <= 15 SP)
-  if (botState.aboveMe && botState.aboveMe.id === memberId && botState.gapAbove <= 15) {
-    candidates.push({
-      score: 85,
-      type: 'above_me',
-      lineKey: botLineKey('interaction', 'above_me', `${seed}:above`),
-      params: { name: member.name, bot: bot.name, diff: botState.gapAbove },
-    })
-  }
-
-  // 2. [Score 80] Đòi nợ Revenge Arcade (User vừa thắng bot trong 48h)
-  const revenge = (botState.revengeTargets || []).find((r) => r.memberId === memberId)
-  if (revenge) {
-    candidates.push({
-      score: 80,
-      type: 'revenge_arcade',
-      lineKey: botLineKey('interaction', 'revenge_arcade', `${seed}:rev`),
-      params: { name: member.name, bot: bot.name, stake: revenge.stake },
-    })
-  }
-
-  // 3. [Score 70] User đang có chuỗi thắng badminton >= 3
-  const form = getPlayerForm5(db, memberId)
-  if (form && form.streak >= 3) {
-    candidates.push({
-      score: 70,
-      type: 'user_streak',
-      lineKey: botLineKey('interaction', 'user_streak', `${seed}:strk`),
-      params: { name: member.name, bot: bot.name, streak: form.streak },
-    })
-  }
-
-  // 4. [Score 65] Bot bị dí sát rank (chasingMe, cách <= 15 SP)
-  if (botState.chasingMe && botState.chasingMe.id === memberId && botState.gapBelow <= 15) {
-    candidates.push({
-      score: 65,
-      type: 'chasing_me',
-      lineKey: botLineKey('interaction', 'chasing_me', `${seed}:chase`),
-      params: { name: member.name, bot: bot.name, diff: botState.gapBelow },
-    })
-  }
-
-  // 5. Tier 2 Candidates (Score 20 - 55)
-  // Quan hệ đối đầu của người này với các thành viên khác
-  const myBoss = (botState.clubDominance || []).find((d) => d.victimId === memberId)
-  if (myBoss) {
-    candidates.push({
-      score: 55,
-      type: 'dominance_boss',
-      lineKey: botLineKey('remark', 'dominance_boss', `${seed}:boss`),
-      params: { name: member.name, bot: bot.name, leader: getEntityName(db, myBoss.leaderId), gap: myBoss.gap },
-    })
-  }
-
-  const myRivalry = (botState.clubRivalries || []).find((r) => r.memberA === memberId || r.memberB === memberId)
-  if (myRivalry) {
-    const oppId = myRivalry.memberA === memberId ? myRivalry.memberB : myRivalry.memberA
-    candidates.push({
-      score: 50,
-      type: 'rivalry_h2h',
-      lineKey: botLineKey('remark', 'rivalry_h2h', `${seed}:riv`),
-      params: { name: member.name, bot: bot.name, rival: getEntityName(db, oppId), n: myRivalry.h2h.matches },
-    })
-  }
-
-  const myDuo = (botState.clubDuos || []).find((d) => d.memberA === memberId || d.memberB === memberId)
-  if (myDuo) {
-    const partnerId = myDuo.memberA === memberId ? myDuo.memberB : myDuo.memberA
-    candidates.push({
-      score: 48,
-      type: 'best_duo',
-      lineKey: botLineKey('remark', 'best_duo', `${seed}:duo`),
-      params: { name: member.name, bot: bot.name, partner: getEntityName(db, partnerId), pct: Math.round(myDuo.synergy.winRate * 100) },
-    })
-  }
-
-  // Fallback: Taunt phong độ thông thường (Score 20)
-  const defaultTaunt = getBotTaunt(db, memberId, now)
-  if (defaultTaunt) {
-    candidates.push({
-      score: 20,
-      type: 'taunt_ambient',
-      lineKey: defaultTaunt.lineKey,
-      params: { ...defaultTaunt.params, bot: bot.name },
-    })
-  }
-
-  if (candidates.length === 0) return { mode: 'silent' }
-
-  // Sắp xếp lấy candidate có điểm số cao nhất
-  candidates.sort((a, b) => b.score - a.score)
-  const topCandidate = candidates[0]
-
-  // Phân tầng theo điểm và ngân sách 3 người/ngày
-  if (topCandidate.score >= 60) {
-    if (canTriggerPopupToday(memberId, now)) {
-      return {
-        mode: 'popup',
-        score: topCandidate.score,
-        type: topCandidate.type,
-        lineKey: topCandidate.lineKey,
-        params: topCandidate.params,
-        bot: botState.bot,
-      }
-    }
-    // Hết budget popup: chuyển xuống Tier 2 ambient
-    return {
-      mode: 'ambient',
-      score: topCandidate.score,
-      type: topCandidate.type,
-      lineKey: topCandidate.lineKey,
-      params: topCandidate.params,
-      bot: botState.bot,
-    }
-  }
-
-  if (topCandidate.score >= 20) {
-    return {
-      mode: 'ambient',
-      score: topCandidate.score,
-      type: topCandidate.type,
-      lineKey: topCandidate.lineKey,
-      params: topCandidate.params,
-      bot: botState.bot,
-    }
-  }
-
-  return { mode: 'silent' }
 }

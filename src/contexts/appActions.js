@@ -16,7 +16,7 @@ import { can, membersWithPerm, roleDesc, roleName, viewAsOptions } from '#lib/ro
 import { applyScheduleEdit, planScheduleDelete, planScheduleEdit } from '#lib/schedules.js'
 import { teamRating, replayRatingCascade, DEFAULT_RATING, MIN_RATING, applyRatingDelta, calcPlayerDeltas, rankTierOf, initialRatingOf, computeClubCalibration, confidenceOf } from '#lib/rating.js'
 import { nextChallengeCode, isChallengeFullyAccepted, getChallengeSeriesProgress, canMemberPredict, availableSeasonPoints, settlePredictionsLocal, expiredChallenges, orphanedChallenges, abandonedChallenges, isChallengeAccepted, validateStakePoints } from '#lib/challenge.js'
-import { pickBotChallenge, findBotMember, pickBotRemark, pickBotPredictions, pickBotPredictionForChallenge, getBotArcadeOffer } from '#lib/bot.js'
+import { pickBotChallenge, findBotMember, pickBotRemark, pickBotPredictions, pickBotPredictionForChallenge, getBotArcadeOffer, ARCADE_DAILY_CAP } from '#lib/bot.js'
 import { resolveVenue } from '#lib/forms.js'
 import { supabase, unwrap } from '#supabase'
 import { pathOf, buildPushUrl } from '#routes'
@@ -3012,9 +3012,6 @@ export function makeActions({ setDb, setUi, dbRef, uiRef, navRef, toast, reload,
         // Kèo chết thì phiếu phải được hoàn, không thì SP của người đặt bị giam vĩnh viễn —
         // không có tiến trình nào quét kèo quá hạn, đây là lần DUY NHẤT ta biết nó đã hết hạn.
         settlePredictions(challengeId, null)
-        if (typeof A.triggerBotReaction === 'function') {
-          A.triggerBotReaction('expired', chal.id)
-        }
         toast(t('challenge.toastExpired'))
         return
       }
@@ -3032,12 +3029,6 @@ export function makeActions({ setDb, setUi, dbRef, uiRef, navRef, toast, reload,
           refId: chal.id,
           actorId: myMem?.id || null,
         })
-        if (typeof A.triggerBotReaction === 'function') {
-          const bot = findBotMember(d0)
-          const isBotCreated = Boolean(bot && chal.createdBy === bot.id)
-          const kind = isBotCreated ? 'declined_bot' : 'declined_user'
-          A.triggerBotReaction(kind, chal.id)
-        }
         toast(t('challenge.toastDeclined', { code: chal.code }))
         return
       }
@@ -3212,9 +3203,6 @@ export function makeActions({ setDb, setUi, dbRef, uiRef, navRef, toast, reload,
         refType: 'challenge',
         refId: challengeId,
       })
-      if (typeof A.triggerBotReaction === 'function') {
-        A.triggerBotReaction('cancelled', chal.id)
-      }
       toast(t('challenge.toastCancelled', { code: chal.code }))
     },
 
@@ -4277,16 +4265,6 @@ export function makeActions({ setDb, setUi, dbRef, uiRef, navRef, toast, reload,
             if (error) console.warn('[prediction] sweep refund error:', c.code, error.message)
           })
       })
-      expired.forEach((c) => {
-        if (typeof A.triggerBotReaction === 'function') {
-          A.triggerBotReaction('expired', c.id)
-        }
-      })
-      abandoned.forEach((c) => {
-        if (typeof A.triggerBotReaction === 'function') {
-          A.triggerBotReaction('cancelled', c.id)
-        }
-      })
     }
 
     const at = new Date().toISOString()
@@ -4339,16 +4317,17 @@ export function makeActions({ setDb, setUi, dbRef, uiRef, navRef, toast, reload,
 
     supabase
       .rpc('create_bot_challenge', {
-        p_a: pick.aId,
-        p_b: pick.bId,
+        // Luôn là kèo đôi: CLB hiếm khi đánh đơn. RPC từ chối mọi phe không đúng 2 người.
+        p_team_a: pick.teamA,
+        p_team_b: pick.teamB,
         // Gửi MÃ lý do, không gửi câu chữ. Câu dựng lại lúc render từ mã + id kèo (xem
         // `bot.js: botLineKey`), nên đổi/thêm câu trong `vi.json` là mọi kèo cũ đổi theo.
         p_reason: pick.reason,
       })
       .then(({ data: chalId, error }) => {
         if (error) return console.warn('[bot] tạo kèo lỗi:', error.message)
-        // NULL = một cổng nào đó đóng (chưa bật cờ `is_bot`, chưa tới nhịp 24h, hoặc máy khác
-        // vừa tạo trước). Đường đi thường ngày, không phải sự cố.
+        // NULL = một cổng nào đó đóng (chưa bật cờ `is_bot`, chưa tới nhịp 24h, không có buổi tập
+        // nào trong 2 ngày tới, hoặc máy khác vừa tạo trước). Đường đi thường ngày, không phải sự cố.
         if (!chalId) return
 
         // RPC ghi `notifications` thẳng dưới SQL nên KHÔNG đi qua `emitEvent` — push phải tự
@@ -4356,7 +4335,7 @@ export function makeActions({ setDb, setUi, dbRef, uiRef, navRef, toast, reload,
         const bot = findBotMember(d0)
         supabase.functions.invoke('push-send', {
           body: {
-            member_ids: [pick.aId, pick.bId],
+            member_ids: [...pick.teamA, ...pick.teamB],
             club_id: d0.clubId,
             title: d0.club?.name || 'BadminClub',
             body: t('notification.bot_challenge', { bot: bot?.name || '' }),
@@ -4375,9 +4354,10 @@ export function makeActions({ setDb, setUi, dbRef, uiRef, navRef, toast, reload,
         if (typeof A.botBetOnChallenge === 'function') {
           A.botBetOnChallenge({
             id: chalId,
-            teamA: [pick.aId],
-            teamB: [pick.bId],
-            bestOf: pick.bestOf || 1,
+            teamA: pick.teamA,
+            teamB: pick.teamB,
+            // Khớp `best_of = 3` mà RPC ghi xuống.
+            bestOf: 3,
             predictionsEnabled: true,
             status: 'pending',
           })
@@ -4427,9 +4407,9 @@ export function makeActions({ setDb, setUi, dbRef, uiRef, navRef, toast, reload,
     if (!bet) return
 
     try {
+      // KHÔNG gửi phe: RPC tự chọn theo Elo trong DB, để không ai bắt được bot đặt cửa thua.
       const { data, error } = await supabase.rpc('place_bot_prediction', {
         p_challenge_id: bet.challengeId,
-        p_team: bet.team,
         p_stake: bet.stake,
       })
       if (error) {
@@ -4443,11 +4423,11 @@ export function makeActions({ setDb, setUi, dbRef, uiRef, navRef, toast, reload,
   }
 
   /**
-   * BOT PHẢN ỨNG VÒNG ĐỜI KÈO (Từ chối, Huỷ, Hết hạn, Đánh xong).
+   * BOT NHẬN XÉT SAU TRẬN của kèo do chính nó dựng (`blowout` / `clutch` / `normal`).
    *
-   * Ghi trực tiếp vào `activity_events` qua RPC `post_bot_reaction` để toàn bộ thành viên
-   * CLB thấy dòng bình luận chính thức trên Activity Feed.
-   * RPC đã có advisory lock và check duplicate nên bảo đảm idempotent.
+   * Chỉ sau trận: kèo bị từ chối / huỷ / hết hạn thì bot IM, tab Hoạt động chỉ còn dòng trung
+   * tính của hệ thống — bản đầu để bot lên tiếng ở đó và nó bêu sai người trước cả CLB.
+   * RPC `post_bot_reaction` kiểm người gọi và chỉ ghi MỘT dòng cho mỗi kèo.
    */
   A.triggerBotReaction = async (kind, challengeId) => {
     const d0 = db()
@@ -4488,7 +4468,7 @@ export function makeActions({ setDb, setUi, dbRef, uiRef, navRef, toast, reload,
 
     Promise.all(bets.map((b) => supabase
       .rpc('place_bot_prediction', {
-        p_challenge_id: b.challengeId, p_team: b.team, p_stake: b.stake,
+        p_challenge_id: b.challengeId, p_stake: b.stake,
       })
       .then(({ data, error }) => {
         if (error) {
@@ -4522,17 +4502,23 @@ export function makeActions({ setDb, setUi, dbRef, uiRef, navRef, toast, reload,
     const offer = getBotArcadeOffer(d0, meId)
     if (!offer?.game) return null
 
+    // `p_club` bắt buộc: người ở nhiều CLB phải được cộng trừ điểm đúng CLB đang mở.
     const { data, error } = await supabase.rpc('play_arcade_round', {
-      p_game: offer.game, p_stake: offer.stake, p_choice: choice,
+      p_club: d0.clubId, p_game: offer.game, p_stake: offer.stake, p_choice: choice,
     })
     if (error) {
       console.warn('[arcade] lỗi:', error.message)
       toast(t('arcade.failed'))
       return null
     }
-    // NULL = một cổng của RPC đóng (hết lượt hôm nay, chưa bật bot, nước đi không hợp lệ).
-    if (!data) {
-      toast(t('arcade.failed'))
+    // RPC trả `{ error: <mã> }` khi một cổng đóng — nói đúng lý do thay vì một câu chung chung.
+    if (!data || data.error) {
+      const why = {
+        capped: t('arcade.errorCapped', { n: ARCADE_DAILY_CAP }),
+        broke: t('arcade.errorBroke'),
+        bot_broke: t('arcade.errorBotBroke'),
+      }
+      toast(why[data?.error] || t('arcade.failed'))
       return null
     }
 

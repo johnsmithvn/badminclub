@@ -4,6 +4,8 @@
 // Thiết kế dạng Interface sạch sẽ để sẵn sàng chuyển sang đồng bộ server/DB sau này
 // mà không cần sửa đổi Scenario Engine.
 
+import { isoOf } from '#utils/dates.js'
+
 const STORAGE_PREFIX = 'badmin_bot_mem_'
 
 /**
@@ -23,14 +25,18 @@ export function getBotMemory(memberId) {
 
 /**
  * Lưu danh sách bộ nhớ của thành viên.
+ * @returns {boolean} false khi trình duyệt không cho ghi (chế độ riêng tư, bị chặn, đầy).
  */
 function saveBotMemory(memberId, records) {
-  if (!memberId || typeof window === 'undefined' || !window?.localStorage) return
+  if (!memberId || typeof window === 'undefined' || !window?.localStorage) return false
   try {
     // Chỉ giữ tối đa 50 bản ghi gần nhất để tránh phình dung lượng
     const trimmed = (records || []).slice(-50)
     localStorage.setItem(`${STORAGE_PREFIX}${memberId}`, JSON.stringify(trimmed))
-  } catch (e) {}
+    return true
+  } catch (e) {
+    return false
+  }
 }
 
 /**
@@ -41,8 +47,9 @@ function saveBotMemory(memberId, records) {
  */
 export function hasSeenModalToday(memberId, now = Date.now()) {
   const memory = getBotMemory(memberId)
-  const todayStr = new Date(now).toISOString().slice(0, 10)
-  return memory.some((rec) => rec.mode === 'modal' && new Date(rec.shownAt || 0).toISOString().slice(0, 10) === todayStr)
+  // Ngày theo giờ MÁY (giờ Việt Nam), không theo UTC: `toISOString` qua ngày lúc 7 giờ sáng.
+  const todayStr = isoOf(new Date(now))
+  return memory.some((rec) => rec.mode === 'modal' && isoOf(new Date(rec.shownAt || 0)) === todayStr)
 }
 
 /**
@@ -80,10 +87,12 @@ export function hasShownEvent(memberId, eventKey, withinDays = 7, now = Date.now
  * @param {string} memberId
  * @param {Object} encounter
  * @param {number} [now]
+ * @returns {boolean} true khi đã ghi được. Không ghi được thì ĐỪNG bật modal: bộ nhớ rỗng mãi,
+ *   engine lại ra "modal" sau mỗi lần dữ liệu đổi và modal bật đi bật lại.
  */
 export function recordEncounterShown(memberId, encounter, now = Date.now()) {
   const scenarioKey = encounter?.scenario?.scenarioKey || encounter?.scenarioKey
-  if (!memberId || !scenarioKey) return
+  if (!memberId || !scenarioKey) return false
   const memory = getBotMemory(memberId)
   const newRec = {
     id: `enc_${now}_${Math.random().toString(36).slice(2, 7)}`,
@@ -97,7 +106,7 @@ export function recordEncounterShown(memberId, encounter, now = Date.now()) {
     resolvedAt: null,
   }
   memory.push(newRec)
-  saveBotMemory(memberId, memory)
+  return saveBotMemory(memberId, memory)
 }
 
 /**

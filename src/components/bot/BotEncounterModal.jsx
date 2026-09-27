@@ -19,7 +19,7 @@ export default function BotEncounterModal({
   if (!open || !encounter?.scenario) return null
 
   const { scenario } = encounter
-  const botName = bot?.name || 'Bot'
+  const botName = bot?.name || t('bot.defaultName')
   const tone = scenario.tone || 'teasing'
   const action = scenario.action || null
 

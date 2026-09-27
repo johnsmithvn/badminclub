@@ -9,21 +9,18 @@ import React from 'react'
 import { Icon } from '#ds'
 import { t } from '#i18n'
 
-export default function BotTauntCard({ bot, taunt, interaction, encounter, isMobile = false }) {
+export default function BotTauntCard({ bot, taunt, encounter, isMobile = false }) {
+  // Kịch bản dạng thẻ (sự kiện vừa xảy ra) đứng trước câu cà khịa theo ngày.
   const encounterLine = encounter?.mode === 'card' && encounter.scenario?.lineKey
     ? { lineKey: encounter.scenario.lineKey, params: encounter.scenario.params }
     : null
 
-  const activeLine = encounterLine || ((interaction && interaction.mode !== 'silent' && interaction.lineKey)
-    ? interaction
-    : taunt)
+  const activeLine = encounterLine || taunt
 
   if (!bot || !activeLine?.lineKey) return null
 
-  const isPopup = interaction?.mode === 'popup'
-
   return (
-    <div style={{ ...S.card, ...(isPopup ? S.popupCard : {}) }}>
+    <div style={S.card}>
       <div style={S.headerRow}>
         {bot.avatarUrl ? (
           <img src={bot.avatarUrl} alt="" style={S.avatar} />
@@ -33,11 +30,6 @@ export default function BotTauntCard({ bot, taunt, interaction, encounter, isMob
           </span>
         )}
         <span style={S.title}>{bot.name || t('bot.cardTitle', { bot: bot.name })}</span>
-        {isPopup && (
-          <span style={S.directBadge}>
-            <Icon name="zap" size={12} style={{ color: '#00F5D4' }} />
-          </span>
-        )}
       </div>
 
       <div style={{ ...S.line, fontSize: isMobile ? 14 : 15 }}>
@@ -57,16 +49,6 @@ const S = {
     display: 'flex',
     flexDirection: 'column',
     gap: 10,
-  },
-  popupCard: {
-    border: '1px solid rgba(0, 245, 212, 0.35)',
-    background: 'linear-gradient(180deg, var(--surface-card) 0%, rgba(0, 245, 212, 0.04) 100%)',
-  },
-  directBadge: {
-    display: 'inline-flex',
-    alignItems: 'center',
-    justifyContent: 'center',
-    marginLeft: 'auto',
   },
   headerRow: {
     display: 'flex',

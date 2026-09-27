@@ -141,13 +141,13 @@ export default function ActivityTab() {
       case 'member_joined':
         return { icon: 'user', color: '#EC4899', key: 'member_joined', badgeColor: 'rgba(236, 72, 153, 0.15)' }
       case 'arcade_played': {
-        const outcome = item.payload?.outcome
-        const isWon = outcome === 'won'
+        // MỘT dòng mỗi người mỗi ngày, RPC cộng dồn tại chỗ. Màu chấm theo lãi/lỗ cả ngày.
+        const net = Number(item.payload?.net) || 0
         return {
           icon: 'sparkles',
-          color: isWon ? '#10B981' : (outcome === 'lost' ? '#FF2E7E' : '#FFE24B'),
-          key: `arcade_${outcome || 'played'}`,
-          badgeColor: isWon ? 'rgba(168, 85, 247, 0.15)' : 'rgba(255, 46, 126, 0.15)',
+          color: net > 0 ? '#10B981' : (net < 0 ? '#FF2E7E' : '#FFE24B'),
+          key: Number(item.payload?.draw) > 0 ? 'arcade_day_draw' : 'arcade_day',
+          badgeColor: 'rgba(168, 85, 247, 0.15)',
         }
       }
       default:
