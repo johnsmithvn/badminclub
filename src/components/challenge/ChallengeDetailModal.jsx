@@ -4,7 +4,6 @@ import { useApp } from '#contexts/AppContext.jsx'
 import { useMobile } from '#hooks/useMobile.js'
 import { courtOf, myMember, playerName, playerOf, shortName } from '#lib/money.js'
 import { expectedScore, getPlayerRating, matchCodeOf } from '#lib/rating.js'
-import { searchMatches } from '#lib/matchSearch.js'
 import { getChallengeAcceptanceProgress, canMemberAcceptChallenge, canAdminForceAcceptChallenge, challengeCloserOf, validateStakePoints, getPredictionStats, getMemberPrediction, canMemberPredict, availableSeasonPoints, isChallengeExpired, challengeExpiryAt, isChallengeAccepted } from '#lib/challenge.js'
 import { calculateSeasonLeaderboard, calcSeasonMatchDeltaFinal, challengeMultiplierOf } from '#lib/season.js'
 import cfg from '#config/app.json'
@@ -36,7 +35,6 @@ export default function ChallengeDetailModal({ challenge, session, onClose, onSc
 
   const isCreator = Boolean(myId && c.createdBy === myId)
   const isTeamA = Boolean(myId && teamA.includes(myId))
-  const isTeamB = Boolean(myId && teamB.includes(myId))
   const isParticipant = Boolean(myId && [...teamA, ...teamB].includes(myId))
   const isPending = c.status === 'pending'
   // Dùng chung `isChallengeExpired`: bản viết tay cũ ở đây bỏ qua `status`, nên kèo đã NHẬN mà
@@ -416,10 +414,64 @@ export default function ChallengeDetailModal({ challenge, session, onClose, onSc
       open
       sheet={isMobile}
       width={480}
-      title={`${t('challenge.challenge')} ${c.code}`}
+      className="challenge-detail-dialog"
+      title={
+        <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', width: '100%', gap: 10 }}>
+          <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
+            <span>{`${t('challenge.challenge')} ${c.code}`}</span>
+            {isAdmin && (
+              <button
+                type="button"
+                disabled={submitting}
+                onClick={handleDelete}
+                title={t('challenge.btnDelete')}
+                aria-label={t('challenge.btnDelete')}
+                style={{
+                  display: 'inline-flex',
+                  alignItems: 'center',
+                  justifyContent: 'center',
+                  width: 28,
+                  height: 28,
+                  borderRadius: 'var(--radius-sm)',
+                  background: 'rgba(239, 68, 68, 0.1)',
+                  border: '1px solid rgba(239, 68, 68, 0.25)',
+                  color: 'var(--red-500, #ef4444)',
+                  cursor: submitting ? 'not-allowed' : 'pointer',
+                  padding: 0,
+                  transition: 'background 0.15s ease',
+                }}
+              >
+                <Icon name="trash-2" size={14} />
+              </button>
+            )}
+          </div>
+          {isMobile && (
+            <button
+              type="button"
+              onClick={onClose}
+              aria-label="Close"
+              style={{
+                border: 0,
+                background: 'transparent',
+                color: 'var(--text-muted)',
+                cursor: 'pointer',
+                padding: 2,
+                display: 'flex',
+                alignItems: 'center',
+              }}
+            >
+              <Icon name="x" size={18} />
+            </button>
+          )}
+        </div>
+      }
       description={headerSubText}
       onClose={onClose}
       style={{
+        display: 'flex',
+        flexDirection: 'column',
+        maxHeight: isMobile ? '90vh' : '86vh',
+        overflow: 'hidden',
         paddingBottom: isMobile ? 'calc(16px + env(safe-area-inset-bottom, 0px))' : undefined,
       }}
       footer={
@@ -643,51 +695,32 @@ export default function ChallengeDetailModal({ challenge, session, onClose, onSc
             </button>
           )}
 
-          {/* Nút xoá vĩnh viễn kèo cho Admin */}
-          {isAdmin && (
-            <button
-              type="button"
-              disabled={submitting}
-              onClick={handleDelete}
-              style={{
-                height: isMobile ? 56 : 44,
-                display: 'flex',
-                alignItems: 'center',
-                padding: '0 14px',
-                borderRadius: 'var(--radius-md)',
-                background: 'rgba(239, 68, 68, 0.1)',
-                border: '1px solid rgba(239, 68, 68, 0.25)',
-                font: '600 13px/1 "IBM Plex Sans", sans-serif',
-                color: 'var(--red-500, #ef4444)',
-                cursor: submitting ? 'not-allowed' : 'pointer',
-              }}
-            >
-              <Icon name="trash-2" size={14} style={{ marginRight: 6 }} />
-              <span>{t('challenge.btnDelete')}</span>
-            </button>
-          )}
-
-          <button
-            type="button"
-            onClick={onClose}
-            style={{
-              height: isMobile ? 56 : 44,
-              display: 'flex',
-              alignItems: 'center',
-              padding: '0 18px',
-              borderRadius: 'var(--radius-md)',
-              background: 'var(--surface-card)',
-              border: '1px solid var(--border-default)',
-              font: '600 14px/1 "IBM Plex Sans", sans-serif',
-              color: 'var(--text-secondary)',
-              cursor: 'pointer',
-            }}
-          >
-            {t('common.close')}
-          </button>
         </div>
       }
     >
+      <style>{`
+        .challenge-detail-dialog {
+          display: flex !important;
+          flex-direction: column !important;
+          max-height: ${isMobile ? '90vh' : '86vh'} !important;
+          overflow: hidden !important;
+        }
+        .challenge-detail-dialog > header {
+          flex-shrink: 0 !important;
+          padding: 16px 20px 12px !important;
+          border-bottom: 1px solid var(--border-subtle) !important;
+        }
+        .challenge-detail-dialog > footer {
+          flex-shrink: 0 !important;
+          border-top: 1px solid var(--border-subtle) !important;
+        }
+        .challenge-detail-dialog > div:not([style*="margin"]):not(header):not(footer) {
+          flex: 1 1 auto !important;
+          min-height: 0 !important;
+          overflow-y: auto !important;
+          overscroll-behavior: contain !important;
+        }
+      `}</style>
       <div style={{ display: 'grid', gap: 14 }}>
         {/* Đổi thể thức BO1 / BO3 khi chưa ghi tỷ số */}
         {canEditFormat && (
@@ -1467,39 +1500,6 @@ export default function ChallengeDetailModal({ challenge, session, onClose, onSc
           </div>
         </div>
 
-        {/* DT3: Bảng thông số kỹ thuật metadata */}
-        <div style={{ display: 'grid', gap: 6 }}>
-          <div style={{
-            display: 'grid',
-            borderRadius: 'var(--radius-card)',
-            border: '1px solid var(--border-subtle)',
-            background: 'var(--surface-sunken)',
-            overflow: 'hidden',
-            fontSize: 12,
-          }}>
-            <div style={{ display: 'flex', justifyContent: 'space-between', padding: '8px 12px', borderBottom: '1px solid var(--border-subtle)' }}>
-              <span style={{ fontFamily: 'var(--font-mono)', color: 'var(--text-muted)' }}>{t('challenge.techMetaStatus')}</span>
-              <span style={{ fontFamily: 'var(--font-mono)', fontWeight: 600, color: 'var(--text-primary)' }}>{(c.status || 'pending').toUpperCase()}</span>
-            </div>
-            <div style={{ display: 'flex', justifyContent: 'space-between', padding: '8px 12px', borderBottom: '1px solid var(--border-subtle)' }}>
-              <span style={{ fontFamily: 'var(--font-mono)', color: 'var(--text-muted)' }}>{t('challenge.techMetaMatch')}</span>
-              <span style={{ fontFamily: 'var(--font-mono)', fontWeight: 600, color: matchCode ? 'var(--status-delivered-fg)' : 'var(--text-disabled)' }}>
-                {matchCode ? t('challenge.techMetaMatchCreated', { code: matchCode }) : t('challenge.techMetaMatchPending')}
-              </span>
-            </div>
-            <div style={{ display: 'flex', justifyContent: 'space-between', padding: '8px 12px', borderBottom: '1px solid var(--border-subtle)' }}>
-              <span style={{ fontFamily: 'var(--font-mono)', color: 'var(--text-muted)' }}>{t('challenge.techMetaRatingEnabled')}</span>
-              <span style={{ fontFamily: 'var(--font-mono)', fontWeight: 600, color: 'var(--text-primary)' }}>{c.ratingEnabled !== false ? 'true' : 'false'}</span>
-            </div>
-            <div style={{ display: 'flex', justifyContent: 'space-between', padding: '8px 12px' }}>
-              <span style={{ fontFamily: 'var(--font-mono)', color: 'var(--text-muted)' }}>{t('challenge.techMetaRatingAlgorithm')}</span>
-              <span style={{ fontFamily: 'var(--font-mono)', fontWeight: 600, color: 'var(--text-primary)' }}>{t('challenge.techMetaAlgoValue')}</span>
-            </div>
-          </div>
-          <div style={{ font: '400 11.5px/1.4 "IBM Plex Sans", sans-serif', color: 'var(--text-muted)' }}>
-            {t('challenge.techMetaDeclinedNote')}
-          </div>
-        </div>
 
         {/* Notice về Elo */}
         <div style={{

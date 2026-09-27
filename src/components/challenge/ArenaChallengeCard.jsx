@@ -38,7 +38,7 @@ function getAvatarColor(name = '') {
 /**
  * Component hiển thị Avatar người chơi theo phong cách Đấu trường 1a
  */
-function ArenaAvatar({ memberId, member, team, size = 44, isMobile = false }) {
+function ArenaAvatar({ memberId, member, team, size = 44 }) {
   const name = member?.name || memberId || ''
   const avatarUrl = member?.avatarUrl || member?.avatar || null
   const initials = getInitials(name)
@@ -79,6 +79,71 @@ function ArenaAvatar({ memberId, member, team, size = 44, isMobile = false }) {
       )}
     </div>
   )
+}
+
+/**
+ * Trích xuất danh sách các séc đấu của kèo đã kết thúc (cho phong cách 4e)
+ */
+function getChallengeSetsList(c, matches = []) {
+  if (!c) return []
+  const isBoSeries = (c.bestOf || 1) > 1
+  const chalProg = getChallengeSeriesProgress(c, matches)
+  const playedMts = chalProg?.playedMatches || []
+
+  if (isBoSeries && playedMts.length > 0) {
+    const list = []
+    playedMts.forEach((m) => {
+      if (Array.isArray(m?.sets) && m.sets.length > 0) {
+        m.sets.forEach((pair) => {
+          if (Array.isArray(pair) && pair.length >= 2 && Number.isFinite(Number(pair[0])) && Number.isFinite(Number(pair[1]))) {
+            list.push({ a: Number(pair[0]), b: Number(pair[1]) })
+          }
+        })
+      } else if (typeof m?.scoreText === 'string') {
+        m.scoreText.split(',').forEach((p) => {
+          const parts = p.trim().split('-')
+          if (parts.length === 2) {
+            const sa = Number(parts[0].trim())
+            const sb = Number(parts[1].trim())
+            if (Number.isFinite(sa) && Number.isFinite(sb)) {
+              list.push({ a: sa, b: sb })
+            }
+          }
+        })
+      }
+    })
+    if (list.length > 0) return list
+  }
+
+  const matchId = c.matchId || playedMts[0]?.id
+  const match = matchId ? matches.find((m) => m.id === matchId) : playedMts[0]
+  if (match) {
+    if (Array.isArray(match.sets) && match.sets.length > 0) {
+      const list = []
+      match.sets.forEach((pair) => {
+        if (Array.isArray(pair) && pair.length >= 2 && Number.isFinite(Number(pair[0])) && Number.isFinite(Number(pair[1]))) {
+          list.push({ a: Number(pair[0]), b: Number(pair[1]) })
+        }
+      })
+      if (list.length > 0) return list
+    }
+    if (typeof match.scoreText === 'string') {
+      const list = []
+      match.scoreText.split(',').forEach((p) => {
+        const parts = p.trim().split('-')
+        if (parts.length === 2) {
+          const sa = Number(parts[0].trim())
+          const sb = Number(parts[1].trim())
+          if (Number.isFinite(sa) && Number.isFinite(sb)) {
+            list.push({ a: sa, b: sb })
+          }
+        }
+      })
+      if (list.length > 0) return list
+    }
+  }
+
+  return []
 }
 
 /**
@@ -124,13 +189,13 @@ function ArenaCardMenu({ items }) {
           <div
             style={{
               position: 'absolute',
-              top: 'calc(100% + 4px)',
+              bottom: 'calc(100% + 6px)',
               right: 0,
-              zIndex: 41,
+              zIndex: 50,
               background: '#0D1526',
               border: '1px solid #243353',
               borderRadius: 8,
-              boxShadow: '0 8px 24px rgba(0,0,0,0.5)',
+              boxShadow: '0 8px 24px rgba(0,0,0,0.7)',
               padding: 4,
               minWidth: 160,
               display: 'grid',
@@ -182,13 +247,14 @@ export default function ArenaChallengeCard({
   isAdmin,
   isMobile = false,
   highlightedChallengeId,
-  now = Date.now(),
+  now = 0,
   getRating,
   memberNameOf,
   shortNameOf,
   onViewChallenge,
   onSelectSession,
   onViewMatch,
+  onRevenge,
 }) {
   const navigate = useNavigate()
 
@@ -244,9 +310,31 @@ export default function ArenaChallengeCard({
       singleScoreB = sb
     }
   }
-  const setsDetailText = isBoSeries
-    ? playedMts.map((m) => (m.sets?.[0] ? `${m.sets[0][0]}:${m.sets[0][1]}` : m.scoreText)).filter(Boolean).join(', ')
-    : ''
+
+  // Danh sách séc đấu và tỉ số theo phong cách 4e
+  const setsList = getChallengeSetsList(c, db.matches || [])
+  let aw = 0
+  let bw = 0
+  setsList.forEach((s) => {
+    if (s.a > s.b) aw++
+    else if (s.b > s.a) bw++
+  })
+
+  const setScore = isBoSeries
+    ? `${chalProg.winsA} - ${chalProg.winsB}`
+    : setsList.length > 1
+      ? `${aw} - ${bw}`
+      : setsList.length === 1
+        ? `${setsList[0].a} - ${setsList[0].b}`
+        : (singleScoreA !== null && singleScoreB !== null)
+          ? `${singleScoreA} - ${singleScoreB}`
+          : (winnerTeam === 'A' ? '1 - 0' : winnerTeam === 'B' ? '0 - 1' : '0 - 0')
+
+  // Nút Phục thù chỉ hiện với người ở đội thua
+  const isLoser = isPlayed && Boolean(myId) && (
+    (winnerTeam === 'A' && teamB.includes(myId)) ||
+    (winnerTeam === 'B' && teamA.includes(myId))
+  )
 
   const statusBadgeText = (isPending && isExpired) || c.status === 'expired'
     ? t('challenge.status.expired')
@@ -301,7 +389,6 @@ export default function ArenaChallengeCard({
       style={{
         position: 'relative',
         borderRadius: isFeatured ? 20 : 16,
-        overflow: 'hidden',
         background: '#0D1526',
         border: isHighlighted
           ? '2px solid #00F5D4'
@@ -322,6 +409,7 @@ export default function ArenaChallengeCard({
         style={{
           position: 'absolute',
           inset: 0,
+          borderRadius: isFeatured ? 19 : 15,
           background: isFeatured
             ? 'linear-gradient(90deg, rgba(46,196,182,0.18), rgba(46,196,182,0) 42%, rgba(255,122,89,0) 58%, rgba(255,122,89,0.18))'
             : 'linear-gradient(90deg, rgba(46,196,182,0.11), rgba(46,196,182,0) 40%, rgba(255,122,89,0) 60%, rgba(255,122,89,0.11))',
@@ -540,71 +628,90 @@ export default function ArenaChallengeCard({
               })}
             </div>
 
-            {/* Rating Phe A */}
-            <span
-              style={{
-                font: '600 12.5px/1 "IBM Plex Mono", monospace',
-                color: '#8FE3DA',
-              }}
-            >
-              {ratA > 0 ? t('challenge.avgPoint', { score: ratA.toLocaleString('vi-VN') }) : '—'}
-            </span>
-          </div>
-
-          {/* CỘT GIỮA: VS & TỈ SỐ / KHOẢNG CÁCH */}
-          <div style={{ display: 'flex', flexDirection: 'column', alignItems: 'center', justifyContent: 'center', gap: 4, textAlign: 'center' }}>
-            <span
-              style={{
-                font: isFeatured
-                  ? (isMobile ? 'italic 800 48px/0.95 "Barlow Condensed", system-ui, sans-serif' : 'italic 800 80px/0.9 "Barlow Condensed", system-ui, sans-serif')
-                  : 'italic 800 28px/1 "Barlow Condensed", system-ui, sans-serif',
-                color: isFeatured ? '#F4F7FB' : '#5B6A82',
-                letterSpacing: '-0.02em',
-                textShadow: isFeatured ? '0 0 35px rgba(245,196,81,0.35)' : 'none',
-              }}
-            >
-              VS
-            </span>
-
-            {/* Điểm số hoặc Khoảng cách */}
-            {isPlayed ? (
-              <div style={{ display: 'flex', flexDirection: 'column', alignItems: 'center' }}>
-                <div
-                  style={{
-                    font: '700 18px/1 "Barlow Condensed", monospace',
-                    display: 'flex',
-                    alignItems: 'center',
-                    gap: 4,
-                  }}
-                >
-                  <span style={{ color: winnerTeam === 'A' ? '#5FD9A2' : '#8494AA' }}>
-                    {isBoSeries ? chalProg.winsA : (singleScoreA ?? chalProg.winsA)}
-                  </span>
-                  <span style={{ color: '#5B6A82' }}>–</span>
-                  <span style={{ color: winnerTeam === 'B' ? '#5FD9A2' : '#8494AA' }}>
-                    {isBoSeries ? chalProg.winsB : (singleScoreB ?? chalProg.winsB)}
-                  </span>
-                </div>
-                {isBoSeries && setsDetailText && (
-                  <span style={{ font: '500 10.5px/1 "IBM Plex Mono", monospace', color: '#8494AA', marginTop: 3 }}>
-                    ({setsDetailText})
-                  </span>
-                )}
-              </div>
-            ) : hasPlayedSets ? (
-              <span style={{ font: '700 15px/1 "Barlow Condensed", monospace', color: '#D8B4FE' }}>
-                {seriesProg.seriesScoreText}
-              </span>
-            ) : (
+            {/* Rating & Badge Thắng Phe A */}
+            <div style={{ display: 'flex', alignItems: 'center', gap: 6, flexWrap: 'wrap' }}>
               <span
                 style={{
-                  font: '500 11.5px/1 "IBM Plex Mono", monospace',
-                  color: '#8494AA',
-                  whiteSpace: 'nowrap',
+                  font: '600 12.5px/1 "IBM Plex Mono", monospace',
+                  color: '#8FE3DA',
                 }}
               >
-                {t('challenge.pointGapAvg', { gap: gap.toLocaleString('vi-VN') })}
+                {ratA > 0 ? t('challenge.avgPoint', { score: ratA.toLocaleString('vi-VN') }) : '—'}
               </span>
+              {isPlayed && winnerTeam === 'A' && (
+                <span
+                  style={{
+                    font: '800 11px/1 "Barlow Condensed", system-ui, sans-serif',
+                    letterSpacing: '0.12em',
+                    textTransform: 'uppercase',
+                    color: '#04201D',
+                    background: '#2EC4B6',
+                    padding: '2px 7px',
+                    borderRadius: 5,
+                  }}
+                >
+                  {t('challenge.wonBadgeShort')}
+                </span>
+              )}
+            </div>
+          </div>
+
+          {/* CỘT GIỮA: VS & TỈ SỐ / KHOẢNG CÁCH (4E CHO KÈO ĐÃ ĐẤU) */}
+          <div style={{ display: 'flex', flexDirection: 'column', alignItems: 'center', justifyContent: 'center', gap: 4, textAlign: 'center' }}>
+            {isPlayed ? (
+              <div style={{ display: 'flex', flexDirection: 'column', alignItems: 'center', gap: 2 }}>
+                <span
+                  style={{
+                    font: isFeatured
+                      ? (isMobile ? '800 38px/1 "Barlow Condensed", system-ui, sans-serif' : '800 48px/1 "Barlow Condensed", system-ui, sans-serif')
+                      : '800 32px/1 "Barlow Condensed", system-ui, sans-serif',
+                    color: '#F4F7FB',
+                    letterSpacing: '0.02em',
+                  }}
+                >
+                  {setScore}
+                </span>
+                <span
+                  style={{
+                    font: '500 11px/1 "IBM Plex Mono", monospace',
+                    color: '#8494AA',
+                    whiteSpace: 'nowrap',
+                    textTransform: 'lowercase',
+                  }}
+                >
+                  {t('challenge.setScoreLabel')}
+                </span>
+              </div>
+            ) : (
+              <>
+                <span
+                  style={{
+                    font: isFeatured
+                      ? (isMobile ? 'italic 800 48px/0.95 "Barlow Condensed", system-ui, sans-serif' : 'italic 800 80px/0.9 "Barlow Condensed", system-ui, sans-serif')
+                      : 'italic 800 28px/1 "Barlow Condensed", system-ui, sans-serif',
+                    color: isFeatured ? '#F4F7FB' : '#5B6A82',
+                    letterSpacing: '-0.02em',
+                    textShadow: isFeatured ? '0 0 35px rgba(245,196,81,0.35)' : 'none',
+                  }}
+                >
+                  VS
+                </span>
+                {hasPlayedSets ? (
+                  <span style={{ font: '700 15px/1 "Barlow Condensed", monospace', color: '#D8B4FE' }}>
+                    {seriesProg.seriesScoreText}
+                  </span>
+                ) : ratA > 0 && ratB > 0 ? (
+                  <span
+                    style={{
+                      font: '500 11.5px/1 "IBM Plex Mono", monospace',
+                      color: '#8494AA',
+                      whiteSpace: 'nowrap',
+                    }}
+                  >
+                    {t('challenge.pointGapAvg', { gap: gap.toLocaleString('vi-VN') })}
+                  </span>
+                ) : null}
+              </>
             )}
           </div>
 
@@ -661,20 +768,61 @@ export default function ArenaChallengeCard({
               )}
             </div>
 
-            {/* Rating Phe B */}
-            <span
-              style={{
-                font: '600 12.5px/1 "IBM Plex Mono", monospace',
-                color: '#FFB39F',
-              }}
-            >
-              {ratB > 0 ? t('challenge.avgPoint', { score: ratB.toLocaleString('vi-VN') }) : '—'}
-            </span>
+            {/* Rating & Badge Thắng Phe B */}
+            <div style={{ display: 'flex', flexDirection: 'row-reverse', alignItems: 'center', gap: 6, flexWrap: 'wrap' }}>
+              <span
+                style={{
+                  font: '600 12.5px/1 "IBM Plex Mono", monospace',
+                  color: '#FFB39F',
+                }}
+              >
+                {ratB > 0 ? t('challenge.avgPoint', { score: ratB.toLocaleString('vi-VN') }) : '—'}
+              </span>
+              {isPlayed && winnerTeam === 'B' && (
+                <span
+                  style={{
+                    font: '800 11px/1 "Barlow Condensed", system-ui, sans-serif',
+                    letterSpacing: '0.12em',
+                    textTransform: 'uppercase',
+                    color: '#2A0E05',
+                    background: '#FF7A59',
+                    padding: '2px 7px',
+                    borderRadius: 5,
+                  }}
+                >
+                  {t('challenge.wonBadgeShort')}
+                </span>
+              )}
+            </div>
           </div>
         </div>
 
-        {/* HÀNG 3: THANH KHẢ NĂNG THẮNG (WIN RATE BAR) */}
-        {!isPlayed && ratB > 0 && (
+        {/* HÀNG 3: DIỄN BIẾN SÉC ĐẤU (4E) CHO KÈO ĐÃ ĐẤU, HOẶC THANH KHẢ NĂNG THẮNG CHO KÈO CHƯA ĐẤU */}
+        {isPlayed ? (
+          setsList.length > 0 && (
+            <div style={{ display: 'flex', justifyContent: 'center', gap: 8, flexWrap: 'wrap' }}>
+              {setsList.map((s, idx) => (
+                <span
+                  key={idx}
+                  style={{
+                    display: 'flex',
+                    alignItems: 'center',
+                    gap: 6,
+                    padding: isFeatured ? '7px 14px' : '5px 10px',
+                    borderRadius: 10,
+                    background: 'rgba(255,255,255,0.04)',
+                    border: '1px solid #243353',
+                    font: isFeatured ? '700 20px/1 "Barlow Condensed", monospace' : '700 17px/1 "Barlow Condensed", monospace',
+                  }}
+                >
+                  <span style={{ color: s.a > s.b ? '#2EC4B6' : '#6F7E95' }}>{s.a}</span>
+                  <span style={{ color: '#4A5A74' }}>-</span>
+                  <span style={{ color: s.b > s.a ? '#FF7A59' : '#6F7E95' }}>{s.b}</span>
+                </span>
+              ))}
+            </div>
+          )
+        ) : ratB > 0 ? (
           <div style={{ display: 'flex', flexDirection: 'column', gap: isFeatured ? 8 : 6 }}>
             <div style={{ display: 'flex', alignItems: 'baseline', justifyContent: 'space-between' }}>
               <span
@@ -750,7 +898,7 @@ export default function ArenaChallengeCard({
               />
             </div>
           </div>
-        )}
+        ) : null}
 
         {/* CẢNH BÁO BÁO VẮNG TRONG BUỔI */}
         {hasAbsentInSession && (
@@ -808,7 +956,6 @@ export default function ArenaChallengeCard({
               padding: '6px 10px',
               borderRadius: 8,
               background: 'rgba(240, 183, 92, 0.1)',
-              border: '1px solid rgba(240, 183, 92, 0.3)',
               color: '#F0B75C',
               fontSize: 12,
               lineHeight: 1.4,
@@ -821,6 +968,209 @@ export default function ArenaChallengeCard({
             <span>{t('challenge.gapWarningNotBlocked', { gap: gap.toLocaleString('vi-VN') })}</span>
           </div>
         )}
+
+        {/* KHỐI CƯỢC PHONG CÁCH 3D (KHÁN ĐÀI · THẤY RÕ AI CƯỢC AI) */}
+        <div
+          style={{
+            position: 'relative',
+            margin: isFeatured
+              ? (isMobile ? '6px -16px 0' : '8px -30px 0')
+              : '4px -20px 0',
+            display: 'grid',
+            gridTemplateColumns: 'minmax(0, 1fr) auto minmax(0, 1fr)',
+            alignItems: 'center',
+            gap: 10,
+            padding: isMobile ? '10px 14px' : '12px 20px',
+            background: '#0A1120',
+            borderTop: '1px solid #1E2A40',
+            borderBottom: '1px solid #1E2A40',
+          }}
+        >
+          {/* PHE XANH (BÊN TRÁI) */}
+          <div style={{ display: 'flex', alignItems: 'center', gap: 8, minWidth: 0 }}>
+            {predStats.countA > 0 ? (
+              <>
+                <div style={{ display: 'flex', flexShrink: 0 }}>
+                  {predStats.predictorsA.slice(0, 3).map((p, idx) => {
+                    const name = memberNameOf(p.memberId) || ''
+                    const mem = getMemberData(p.memberId)
+                    return (
+                      <div
+                        key={p.id || p.memberId || idx}
+                        title={name}
+                        style={{
+                          width: 28,
+                          height: 28,
+                          borderRadius: '50%',
+                          marginRight: -8,
+                          display: 'grid',
+                          placeItems: 'center',
+                          background: mem?.avatarUrl ? 'transparent' : getAvatarColor(name),
+                          border: '2px solid #0A1120',
+                          color: '#fff',
+                          font: '800 11px/1 "Barlow Condensed", sans-serif',
+                          overflow: 'hidden',
+                        }}
+                      >
+                        {mem?.avatarUrl ? (
+                          <img src={mem.avatarUrl} alt={name} style={{ width: '100%', height: '100%', objectFit: 'cover' }} />
+                        ) : (
+                          <span>{getInitials(name)}</span>
+                        )}
+                      </div>
+                    )
+                  })}
+                </div>
+                <div style={{ display: 'flex', flexDirection: 'column', minWidth: 0, paddingLeft: 6 }}>
+                  <span style={{ fontSize: isMobile ? 12 : 13, color: '#8FE3DA', fontWeight: 600, whiteSpace: 'nowrap' }}>
+                    {t('challenge.betBelieversA', { count: predStats.countA })}
+                  </span>
+                  <span
+                    style={{
+                      font: '500 11px/1.3 "IBM Plex Mono", monospace',
+                      color: '#8494AA',
+                      whiteSpace: 'nowrap',
+                      overflow: 'hidden',
+                      textOverflow: 'ellipsis',
+                    }}
+                    title={predStats.predictorsA.map((p) => shortNameOf(p.memberId)).join(', ')}
+                  >
+                    {predStats.predictorsA.map((p) => shortNameOf(p.memberId)).join(', ')}
+                  </span>
+                </div>
+              </>
+            ) : (
+              <div style={{ display: 'flex', alignItems: 'center', gap: 8, minWidth: 0 }}>
+                <span
+                  style={{
+                    width: 28,
+                    height: 28,
+                    borderRadius: '50%',
+                    border: '1.5px dashed rgba(46,196,182,0.5)',
+                    display: 'grid',
+                    placeItems: 'center',
+                    fontWeight: 700,
+                    color: '#8FE3DA',
+                    flexShrink: 0,
+                    fontSize: 14,
+                  }}
+                >
+                  +
+                </span>
+                <span style={{ fontSize: isMobile ? 12 : 13, color: '#8FE3DA', fontWeight: 600, whiteSpace: 'nowrap' }}>
+                  {t('challenge.betCheerA')}
+                </span>
+              </div>
+            )}
+          </div>
+
+          {/* TỔNG HŨ CƯỢC Ở GIỮA */}
+          <div style={{ display: 'flex', flexDirection: 'column', alignItems: 'center', gap: 2, textAlign: 'center', padding: '0 4px' }}>
+            <span
+              style={{
+                font: '800 22px/1 "Barlow Condensed", system-ui, sans-serif',
+                color: '#F5C451',
+                letterSpacing: '0.02em',
+              }}
+            >
+              {t('challenge.betPotPoints', { points: predStats.totalPoints })}
+            </span>
+            <span
+              style={{
+                font: '600 10px/1 "IBM Plex Sans", sans-serif',
+                letterSpacing: '0.12em',
+                textTransform: 'uppercase',
+                color: '#8494AA',
+                whiteSpace: 'nowrap',
+              }}
+            >
+              {isPlayed
+                ? t('challenge.potDistributed')
+                : (c.status === 'oncourt' || (c.status === 'accepted' && hasPlayedSets))
+                  ? t('challenge.betLocked')
+                  : t('challenge.bettingNow')}
+            </span>
+          </div>
+
+          {/* PHE CAM (BÊN PHẢI - ROW REVERSE) */}
+          <div style={{ display: 'flex', flexDirection: 'row-reverse', alignItems: 'center', gap: 8, minWidth: 0, textAlign: 'right' }}>
+            {predStats.countB > 0 ? (
+              <>
+                <div style={{ display: 'flex', flexDirection: 'row-reverse', flexShrink: 0 }}>
+                  {predStats.predictorsB.slice(0, 3).map((p, idx) => {
+                    const name = memberNameOf(p.memberId) || ''
+                    const mem = getMemberData(p.memberId)
+                    return (
+                      <div
+                        key={p.id || p.memberId || idx}
+                        title={name}
+                        style={{
+                          width: 28,
+                          height: 28,
+                          borderRadius: '50%',
+                          marginLeft: -8,
+                          display: 'grid',
+                          placeItems: 'center',
+                          background: mem?.avatarUrl ? 'transparent' : getAvatarColor(name),
+                          border: '2px solid #0A1120',
+                          color: '#fff',
+                          font: '800 11px/1 "Barlow Condensed", sans-serif',
+                          overflow: 'hidden',
+                        }}
+                      >
+                        {mem?.avatarUrl ? (
+                          <img src={mem.avatarUrl} alt={name} style={{ width: '100%', height: '100%', objectFit: 'cover' }} />
+                        ) : (
+                          <span>{getInitials(name)}</span>
+                        )}
+                      </div>
+                    )
+                  })}
+                </div>
+                <div style={{ display: 'flex', flexDirection: 'column', alignItems: 'flex-end', minWidth: 0, paddingRight: 6 }}>
+                  <span style={{ fontSize: isMobile ? 12 : 13, color: '#FFB39F', fontWeight: 600, whiteSpace: 'nowrap' }}>
+                    {t('challenge.betBelieversB', { count: predStats.countB })}
+                  </span>
+                  <span
+                    style={{
+                      font: '500 11px/1.3 "IBM Plex Mono", monospace',
+                      color: '#8494AA',
+                      whiteSpace: 'nowrap',
+                      overflow: 'hidden',
+                      textOverflow: 'ellipsis',
+                      maxWidth: '100%',
+                    }}
+                    title={predStats.predictorsB.map((p) => shortNameOf(p.memberId)).join(', ')}
+                  >
+                    {predStats.predictorsB.map((p) => shortNameOf(p.memberId)).join(', ')}
+                  </span>
+                </div>
+              </>
+            ) : (
+              <div style={{ display: 'flex', flexDirection: 'row-reverse', alignItems: 'center', gap: 8, minWidth: 0 }}>
+                <span
+                  style={{
+                    width: 28,
+                    height: 28,
+                    borderRadius: '50%',
+                    border: '1.5px dashed rgba(255,122,89,0.5)',
+                    display: 'grid',
+                    placeItems: 'center',
+                    fontWeight: 700,
+                    color: '#FFB39F',
+                    flexShrink: 0,
+                    fontSize: 14,
+                  }}
+                >
+                  +
+                </span>
+                <span style={{ fontSize: isMobile ? 12 : 13, color: '#FFB39F', fontWeight: 600, whiteSpace: 'nowrap' }}>
+                  {t('challenge.betCheerB')}
+                </span>
+              </div>
+            )}
+          </div>
+        </div>
 
         {/* HÀNG FOOTER: CƯỢC & NÚT THAO TÁC */}
         <div style={{ display: 'flex', gap: 8, alignItems: 'center', flexWrap: 'wrap', marginTop: 4 }}>
@@ -1025,6 +1375,34 @@ export default function ArenaChallengeCard({
             >
               <Icon name="plus" size={14} />
               <span>{t('challenge.chooseSession')}</span>
+            </button>
+          )}
+
+          {/* Nút Phục thù (chỉ hiện với người ở đội thua) */}
+          {isLoser && (
+            <button
+              type="button"
+              onClick={(e) => {
+                e.stopPropagation()
+                onRevenge?.(c)
+              }}
+              style={{
+                fontWeight: 700,
+                fontSize: isFeatured ? 14 : 13,
+                color: '#1A1204',
+                background: '#F5C451',
+                padding: isFeatured ? '9px 18px' : '7px 14px',
+                borderRadius: 8,
+                border: 'none',
+                cursor: 'pointer',
+                display: 'inline-flex',
+                alignItems: 'center',
+                gap: 5,
+                whiteSpace: 'nowrap',
+              }}
+            >
+              <Icon name="swords" size={14} />
+              <span>{t('challenge.btnRevenge')}</span>
             </button>
           )}
 

@@ -8,11 +8,10 @@ import { useMobile } from '#hooks/useMobile.js'
 import { t } from '#i18n'
 import NotificationBell from '#components/notification/NotificationBell.jsx'
 import cfg from '#config/app.json' with { type: 'json' }
-import { playerName, courtOf, myMember, playerOf, sessionMembers, sGuests, isPresent, timeTxt, courtTxt, presentCount, shortName } from '#lib/money.js'
-import { sessionPlayers } from '#lib/assign.js'
+import { playerName, courtOf, myMember, playerOf, timeTxt, courtTxt, presentCount, shortName } from '#lib/money.js'
 import { dd, isoOf, todayISO, weekdayOf, wd } from '#utils/dates.js'
 import {
-  getPlayerRating, expectedScore,
+  getPlayerRating,
   BALANCE_THRESHOLD, IMBALANCE_THRESHOLD, matchCodeOf, DEFAULT_RATING,
 } from '#lib/rating.js'
 import {
@@ -20,7 +19,7 @@ import {
   isCloseMatch, isThreeSetMatch, isUpsetMatch,
 } from '#lib/matchSearch.js'
 import { formatGapMinutes, parseVideoProvider } from '#utils/videoUtils.js'
-import { getChallengeAcceptanceProgress, canMemberAcceptChallenge, getChallengeSeriesProgress, getPredictionStats, challengeExpiryAt, challengeCountdown, isChallengeExpired, isChallengeAccepted } from '#lib/challenge.js'
+import { isChallengeAccepted } from '#lib/challenge.js'
 import EditScoreModal from '#components/challenge/EditScoreModal.jsx'
 import CreateChallengeModal from '#components/challenge/CreateChallengeModal.jsx'
 import MatchDetailModal from '#components/challenge/MatchDetailModal.jsx'
@@ -697,14 +696,6 @@ export default function Matches() {
 
 
 
-  // Grid style dùng lại cho cả sections
-  const challengeGridStyle = {
-    display: 'grid',
-    gridTemplateColumns: isMobile ? '1fr' : 'repeat(auto-fill, minmax(420px, 1fr))',
-    gap: 12,
-    width: '100%',
-    alignItems: 'start',
-  }
 
   return (
     <div style={{ ...S.page, gap: isMobile ? 10 : 16 }}>
@@ -739,13 +730,19 @@ export default function Matches() {
               onClick={() => a.openDialog('importMatches', {})}
             />
             <Button
-              variant="accent"
               size="sm"
               icon="plus"
               onClick={() => {
                 setInitialTeamA(myId ? [myId] : [])
                 setInitialTeamB([])
                 setChallengeModalOpen(true)
+              }}
+              style={{
+                background: '#F5C451',
+                color: '#1A1204',
+                border: 'none',
+                fontWeight: 700,
+                boxShadow: '0 2px 8px rgba(245,196,81,0.25)',
               }}
             >
               {isMobile ? t('challenge.challenge') : t('matchesPage.createBtn')}
@@ -807,6 +804,14 @@ export default function Matches() {
           onViewChallenge: setViewingChallenge,
           onSelectSession: setSelectingSessionChallenge,
           onViewMatch: setViewingMatch,
+          onRevenge: (c) => {
+            const isLoserA = c.winnerTeam === 'B'
+            const loserTeam = isLoserA ? (c.teamA || []) : (c.teamB || [])
+            const winTeam = isLoserA ? (c.teamB || []) : (c.teamA || [])
+            setInitialTeamA(loserTeam)
+            setInitialTeamB(winTeam)
+            setChallengeModalOpen(true)
+          },
         }
 
         return (
@@ -848,8 +853,8 @@ export default function Matches() {
                 <span
                   style={{
                     font: isMobile
-                      ? '800 30px/1 "Barlow Condensed", system-ui, sans-serif'
-                      : '800 44px/1 "Barlow Condensed", system-ui, sans-serif',
+                      ? '800 22px/1.1 "Barlow Condensed", system-ui, sans-serif'
+                      : '800 32px/1.1 "Barlow Condensed", system-ui, sans-serif',
                     textTransform: 'uppercase',
                     letterSpacing: '0.01em',
                     color: '#F4F7FB',
@@ -859,7 +864,7 @@ export default function Matches() {
                 </span>
               </div>
 
-              {/* Bộ lọc Subtabs, Search, Nút Tạo kèo */}
+              {/* Bộ lọc Subtabs & Search */}
               <div
                 style={{
                   display: 'flex',
@@ -929,7 +934,7 @@ export default function Matches() {
                     position: 'relative',
                     display: 'flex',
                     alignItems: 'center',
-                    minWidth: isMobile ? '100%' : 200,
+                    minWidth: isMobile ? '100%' : 220,
                     flex: isMobile ? '1 1 100%' : '0 0 auto',
                   }}
                 >
@@ -975,33 +980,6 @@ export default function Matches() {
                     </button>
                   )}
                 </div>
-
-                {/* Nút Tạo kèo mới */}
-                <button
-                  type="button"
-                  onClick={() => {
-                    setInitialTeamA(myId ? [myId] : [])
-                    setInitialTeamB([])
-                    setChallengeModalOpen(true)
-                  }}
-                  style={{
-                    font: '700 13px/1 "IBM Plex Sans", sans-serif',
-                    color: '#1A1204',
-                    background: '#F5C451',
-                    padding: '10px 16px',
-                    borderRadius: 10,
-                    border: 'none',
-                    cursor: 'pointer',
-                    display: 'inline-flex',
-                    alignItems: 'center',
-                    gap: 6,
-                    whiteSpace: 'nowrap',
-                    boxShadow: '0 2px 8px rgba(245,196,81,0.25)',
-                  }}
-                >
-                  <Icon name="plus" size={14} />
-                  <span>{t('challenge.createChallengeBtn')}</span>
-                </button>
               </div>
             </div>
 
@@ -3399,7 +3377,7 @@ export default function Matches() {
                           <span style={{ font: '600 14px/1.2 var(--font-sans)', color: 'var(--text-primary)' }}>
                             {wd(s.date)} · {t('challenge.sessionItemDate', { date: dd(s.date) })}
                           </span>
-                          {s.status === 'open' ? (
+                          {isOpen ? (
                             <span style={{
                               fontSize: 11,
                               padding: '2px 7px',

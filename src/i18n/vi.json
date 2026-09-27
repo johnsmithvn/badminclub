@@ -3077,7 +3077,7 @@
     "loser": "Thua"
   },
   "challenge": {
-    "arenaHeroTitle": "Ai hạ được ai?",
+    "arenaHeroTitle": "Bạn Sợ à?",
     "arenaSubtitle": "Sàn kèo · {{tab}} {{count}}",
     "featuredBadgeTitle": "Kèo tâm điểm",
     "winChance": "Khả năng thắng",
@@ -3088,6 +3088,18 @@
     "tagFirstTime": "Lần đầu so vợt",
     "tagRevenge": "Phục thù",
     "tagRivalry": "Duyên nợ",
+    "betBelieversA": "{{count}} người tin phe xanh",
+    "betBelieversB": "{{count}} người tin phe cam",
+    "betCheerA": "Cổ vũ phe xanh",
+    "betCheerB": "Cổ vũ phe cam",
+    "noBettorsYet": "Chưa có ai cược",
+    "bettingNow": "đang cược",
+    "betLocked": "đã khóa cược",
+    "potDistributed": "đã chia hũ",
+    "betPotPoints": "{{points}}",
+    "btnRevenge": "Phục thù",
+    "setScoreLabel": "tỉ số set",
+    "wonBadgeShort": "Thắng",
     "createChallengeBtn": "Tạo kèo mới",
     "stakeLabelPrefix": "Cược: {{stake}}",
     "focusedNotice": "Đang làm nổi bật kèo {{code}}",
@@ -5099,16 +5111,16 @@
       "emptyTitle": "Chưa có thí sinh",
       "emptyHint": "Thêm thành viên CLB vào giải, rồi chọn nội dung họ đánh.",
       "noEvents": "Thêm nội dung thi đấu trước để thí sinh chọn",
-    "addEvents": "Đưa vào nội dung",
-    "addHintOpen": "Chọn thành viên CLB, hoặc thêm người ngoài chỉ bằng tên + giới. Giới, trình độ, rating và lệ phí được chụp tại lúc đăng ký.",
-    "guestTag": "KHÁCH",
-    "guestAdd": "Người ngoài CLB",
-    "guestName": "Tên người ngoài",
-    "guestLevel": "Trình độ",
-    "guestAddBtn": "Thêm",
-    "allPaid": "Tất cả đã đóng ({{n}})",
-    "selectAll": "Chọn tất cả ({{n}})",
-    "addEventsHint": "Người không đúng giới của nội dung sẽ tự được bỏ qua. Sửa từng người sau ở cột Nội dung đăng ký."
+      "addEvents": "Đưa vào nội dung",
+      "addHintOpen": "Chọn thành viên CLB, hoặc thêm người ngoài chỉ bằng tên + giới. Giới, trình độ, rating và lệ phí được chụp tại lúc đăng ký.",
+      "guestTag": "KHÁCH",
+      "guestAdd": "Người ngoài CLB",
+      "guestName": "Tên người ngoài",
+      "guestLevel": "Trình độ",
+      "guestAddBtn": "Thêm",
+      "allPaid": "Tất cả đã đóng ({{n}})",
+      "selectAll": "Chọn tất cả ({{n}})",
+      "addEventsHint": "Người không đúng giới của nội dung sẽ tự được bỏ qua. Sửa từng người sau ở cột Nội dung đăng ký."
     },
     "toast": {
       "created": "Đã tạo giải {{name}} — đang ở trạng thái nháp",
@@ -5408,7 +5420,12 @@
       "liveCount": "{{n}} trận đang đánh"
     },
     "overview": {
-      "rankName": {"1": "Nhất", "2": "Nhì", "3": "Ba", "4": "Tư"},
+      "rankName": {
+        "1": "Nhất",
+        "2": "Nhì",
+        "3": "Ba",
+        "4": "Tư"
+      },
       "miniBracket": "Nhánh loại trực tiếp",
       "miniWait": "Điền tự động khi vòng bảng xong",
       "openBracketBtn": "Mở nhánh đấu",
@@ -5670,7 +5687,13 @@
       "rulesText": "Vòng loại {{q}} · chung kết {{f}}",
       "useRules": "Áp dụng cả luật gợi ý",
       "otherOptions": "Phương án khác",
-      "badge": { "recommended": "KHUYÊN DÙNG", "fastest": "NHANH NHẤT", "mostGames": "NHIỀU TRẬN", "over": "VƯỢT GIỜ", "edited": "ĐÃ CHỈNH" },
+      "badge": {
+        "recommended": "KHUYÊN DÙNG",
+        "fastest": "NHANH NHẤT",
+        "mostGames": "NHIỀU TRẬN",
+        "over": "VƯỢT GIỜ",
+        "edited": "ĐÃ CHỈNH"
+      },
       "open": "Gợi ý thể thức",
       "title": "Gợi ý thể thức",
       "hint": "Chọn một phương án cho mỗi nội dung, xem trước bên phải, chỉnh nếu cần rồi áp dụng.",
@@ -5694,7 +5717,11 @@
       "advance": "Số đội đi tiếp/bảng",
       "champion": "Xác định vô địch",
       "toNext": "{{n}} đội đi tiếp",
-      "priority": { "balanced": "Cân bằng", "games": "Nhiều trận", "fast": "Nhanh" },
+      "priority": {
+        "balanced": "Cân bằng",
+        "games": "Nhiều trận",
+        "fast": "Nhanh"
+      },
       "priorityHint": {
         "balanced": "Mỗi đội được đánh vài trận, có vòng bảng nếu kịp giờ.",
         "games": "Mỗi đội đánh nhiều trận nhất có thể trong khung giờ.",
