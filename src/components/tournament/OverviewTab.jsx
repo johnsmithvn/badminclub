@@ -435,6 +435,7 @@ function MiniBracket({ tour, db, stage, stages, onOpen }) {
       const r = Number(x.label.slice(1))
       return t('tournament.overview.rankSlot', { rank: r <= 4 ? t('tournament.overview.rankName.' + r) : t('tournament.flow.rank', { n: r }), g: x.label[0] })
     }
+    if (x.kind === 'rank') return t('tournament.flow.rank', { n: x.n })
     if (x.kind === 'seed') return t('tournament.canvas.seed', { n: x.n })
     if (x.kind === 'winner') return t('tournament.canvas.won', { n: x.no })
     if (x.kind === 'loser') return t('tournament.canvas.lost', { n: x.no })
@@ -474,7 +475,7 @@ function MiniBracket({ tour, db, stage, stages, onOpen }) {
     const cellP = (m) => ({ a: slot(m.a), b: slot(m.b), code: '#' + m.no, m: null, key: m.no, to: m.to })
     const colP = (r, title) => ({ title: title || t('tournament.round.' + r.roundKind), cells: r.matches.map(cellP), isThird: r.roundKind === 'third' })
     if (double) {
-      const pv = dePreviewOf(stage, n)
+      const pv = dePreviewOf(stage, source, link, n)
       if (pv) {
         sections = [
           { label: t('tournament.double.wbLabel'), cols: [...pv.wb, ...pv.gf].map((r) => colP(r)) },

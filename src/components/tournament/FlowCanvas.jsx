@@ -22,15 +22,18 @@ const BLOCK_MIME = 'text/x-tour-block'
 const ZOOM_MIN = 0.4
 const ZOOM_MAX = 1.6
 
-// Khay trái (handoff): kiểu khối kéo vào sơ đồ. Thụy Sĩ / nhánh thắng-thua là thể thức trọn gói một khối —
-// chọn qua "Tạo nhanh" (mẫu), không ghép tay với khối khác nên không có ở khay.
+// Khay trái (handoff): kiểu khối kéo vào sơ đồ. Nguồn (khối đầu, nhận mọi đội): vòng bảng / vòng tròn / Thụy Sĩ /
+// loại trực tiếp / 2 nhánh. Nhánh sau (nối từ vòng bảng hoặc Thụy Sĩ): loại trực tiếp / chung kết / 2 nhánh.
+// `source: true` = chỉ làm nguồn được (Thụy Sĩ không nhận đội theo hạng từ khối khác).
 const PALETTE = [
   { key: 'rr', type: 'round_robin', config: { numGroups: 2 }, bars: [3, 'teal'] },
   { key: 'round', type: 'round_robin', config: { numGroups: 1 }, bars: [1, 'teal'] },
+  { key: 'swiss', type: 'swiss', config: { rounds: null }, bars: [2, 'teal'], source: true },
   { key: 'ko', type: 'knockout', config: { thirdPlace: true }, bars: [3, 'amber'] },
   { key: 'final', type: 'knockout', config: { thirdPlace: false }, bars: [1, 'gold'] },
+  { key: 'de', type: 'knockout', config: { bracket: 'double', thirdPlace: false }, bars: [2, 'amber'] },
 ]
-const PAL_KEY = { rr: 'palRr', round: 'palRound', ko: 'palKo', final: 'palFinal' }
+const PAL_KEY = { rr: 'palRr', round: 'palRound', swiss: 'palSwiss', ko: 'palKo', final: 'palFinal', de: 'palDe' }
 const BAR = { teal: 'var(--teal-500)', amber: 'var(--status-delayed-fg)', gold: 'var(--podium-gold)' }
 // Hình thu nhỏ cho thẻ mẫu trong hộp "Tạo nhanh" (handoff): mỗi thanh = một khối.
 const TPL_BARS = { ko: ['amber'], rr: ['teal'], rr_ko: ['teal', 'amber'], rr_ko_plate: ['teal', 'amber', 'amber'], swiss: ['teal', 'teal'], de: ['amber', 'gold'] }
@@ -107,7 +110,7 @@ export default function FlowCanvas({ tour, event, db, a, canEdit, onBack, onOpen
 
   // Cỡ khối theo nội dung thật (đội trong bảng / nhánh thu nhỏ) — dùng cho xếp chỗ, dây nối, vùng thả.
   const sourceTeams = source ? est.stages[source.id]?.teams ?? full.length : full.length
-  const previewOf = (s) => (isDouble(s) ? dePreviewOf(s, sourceTeams) : koPreviewOf(s, source, links.find((l) => l.toStageId === s.id), sourceTeams))
+  const previewOf = (s) => (isDouble(s) ? dePreviewOf : koPreviewOf)(s, source, links.find((l) => l.toStageId === s.id), sourceTeams)
   // Bề rộng 1 cột bảng theo tên đội DÀI NHẤT đang có (không phải số cố định) — tên dài (VD "A / B") không bị cắt "...".
   const nameColW = full.length
     ? Math.min(280, Math.max(150, 50 + Math.max(...full.map((x) => teamName(tour, db, x.id).length)) * 6))
@@ -247,7 +250,8 @@ export default function FlowCanvas({ tour, event, db, a, canEdit, onBack, onOpen
   }
 
   // Thả khối từ khay trái: nguồn chưa có → thành khối nguồn; có vòng bảng → nhánh mới tại chỗ thả.
-  const canAdd = (item) => (!source ? true : source.type === 'round_robin' && item.type === 'knockout')
+  const feeds = source?.type === 'round_robin' || source?.type === 'swiss' // nguồn xếp hạng được → có nhánh sau
+  const canAdd = (item) => (!source ? true : feeds && !item.source && item.type === 'knockout')
   const addBlock = (item, at) => canAdd(item) && act(a.tourCanvasAdd(event.id, item.type, at, item.config))
   const onDropCanvas = (e) => {
     const key = e.dataTransfer.getData(BLOCK_MIME)
@@ -422,7 +426,7 @@ export default function FlowCanvas({ tour, event, db, a, canEdit, onBack, onOpen
                     isSource={s.id === source?.id} linked={links.some((l) => l.toStageId === s.id)}
                     est={est.stages[s.id]} stages={stages} full={full} tour={tour} db={db}
                     preview={s.type === 'knockout' ? previewOf(s) : null}
-                    onMoveStart={startMove(s)} onWireStart={s.id === source?.id && s.type === 'round_robin' ? startWire : null}
+                    onMoveStart={startMove(s)} onWireStart={s.id === source?.id && feeds ? startWire : null}
                     onDropTeam={dropTeam} onRun={s.id === source?.id && !blocked && !busy ? publish : null} />
                 ))}
               </div>
@@ -449,6 +453,8 @@ export default function FlowCanvas({ tour, event, db, a, canEdit, onBack, onOpen
         <aside style={{ padding: 14, borderLeft: '1px solid var(--border-subtle)', overflowY: 'auto' }}>
           {selLink && source ? (
             <LinkPanel link={selLink} source={source} stages={stages} links={links} teams={est.stages[selLink.toStageId]?.teams ?? 0}
+              // Thụy Sĩ một bảng: lấy top 8 vào knock-out là thường → cho chọn tới hạng cuối (tối đa 16).
+              choices={source.type === 'swiss' ? Array.from({ length: Math.min(16, full.length) }, (_, i) => i + 1) : RANK_CHOICES}
               onRanks={(ranks) => act(a.tourCanvasLink(source.id, selLink.toStageId, ranks))}
               onDelete={() => { act(a.tourCanvasLink(source.id, selLink.toStageId, [])); choose(null) }}
               onClose={() => choose(null)} />
@@ -629,7 +635,8 @@ function TeamChip({ team, tour, db, seed }) {
   )
 }
 
-const sideText = (x) => (x.kind === 'slot' ? x.label : x.kind === 'seed' ? t('tournament.canvas.seed', { n: x.n })
+const sideText = (x) => (x.kind === 'slot' ? x.label : x.kind === 'rank' ? t('tournament.flow.rank', { n: x.n })
+  : x.kind === 'seed' ? t('tournament.canvas.seed', { n: x.n })
   : x.kind === 'winner' ? t('tournament.canvas.won', { n: x.no }) : x.kind === 'loser' ? t('tournament.canvas.lost', { n: x.no }) : t('tournament.canvas.bye'))
 
 /** Một khối trên canvas: tiêu đề (kéo để dời) · nội dung (bảng có đội / nhánh thu nhỏ) · chân (số trận · luật · giờ). */
@@ -789,8 +796,8 @@ function PreviewRow({ rounds, third, titleOf }) {
 
 function MiniMatch({ m }) {
   const row = (x) => (
-    <span style={{ font: `${x.kind === 'slot' || x.kind === 'seed' ? 600 : 400} 10.5px/1.25 var(--font-sans)`,
-      color: x.kind === 'slot' || x.kind === 'seed' ? 'var(--text-primary)' : 'var(--text-muted)', whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis' }}>
+    <span style={{ font: `${['slot', 'seed', 'rank'].includes(x.kind) ? 600 : 400} 10.5px/1.25 var(--font-sans)`,
+      color: ['slot', 'seed', 'rank'].includes(x.kind) ? 'var(--text-primary)' : 'var(--text-muted)', whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis' }}>
       {sideText(x)}
     </span>
   )
@@ -816,7 +823,7 @@ const panelHead = (title, onClose) => (
 )
 
 /** Bảng sửa đường nối (handoff): hạng nào của mỗi bảng đi theo đường này · xoá đường nối. */
-function LinkPanel({ link, source, stages, links, teams, onRanks, onDelete, onClose }) {
+function LinkPanel({ link, source, stages, links, teams, choices, onRanks, onDelete, onClose }) {
   const to = stages.find((s) => s.id === link.toStageId)
   const taken = new Set(links.filter((l) => l.id !== link.id).flatMap((l) => l.ranks))
   const toggle = (r) => {
@@ -831,7 +838,7 @@ function LinkPanel({ link, source, stages, links, teams, onRanks, onDelete, onCl
       <Mono size={11.5} color="var(--text-muted)">{stageName(source, stages)} → {to ? stageName(to, stages) : ''}</Mono>
       <span style={{ font: 'var(--type-caption)', color: 'var(--text-muted)' }}>{t('tournament.canvas.linkHint')}</span>
       <span style={{ display: 'flex', gap: 6, flexWrap: 'wrap' }}>
-        {RANK_CHOICES.map((r) => {
+        {choices.map((r) => {
           const on = link.ranks.includes(r)
           const off = !on && taken.has(r)
           return (

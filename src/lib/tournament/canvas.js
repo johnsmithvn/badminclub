@@ -124,6 +124,9 @@ export function moveTeam(stage, fullTeams, teamId, toGroup) {
 
 /* ---------- Ước tính trên canvas (chân khối, thanh trên) ---------- */
 
+/** Nguồn xếp được hạng (đẩy đội sang nhánh sau theo hạng): vòng bảng / vòng tròn, Thụy Sĩ (một bảng). */
+const ranked = (source) => source?.type === 'round_robin' || source?.type === 'swiss'
+
 /** Số trận loại trực tiếp n đội: vòng loại / trận tranh hạng (chung kết + 3-4 nếu bật và ≥ 4 đội). */
 function koCount(n, third) {
   if (n < 2) return { q: 0, f: 0 }
@@ -152,7 +155,7 @@ export function estimateOf(tour, event) {
   stages.forEach((s) => {
     const link = links.find((l) => l.toStageId === s.id)
     const teams = s === source ? n
-      : link && source?.type === 'round_robin' ? teamsViaLink(link.ranks, n, source.config?.numGroups || 1) : 0
+      : link && ranked(source) ? teamsViaLink(link.ranks, n, source.config?.numGroups || 1) : 0
     const dq = minutesOf(s.matchRule)
     const df = minutesOf(s.ruleOverrides?.final || s.matchRule)
     let q = 0
@@ -198,33 +201,46 @@ export function estimateOf(tour, event) {
  *   a/b: { kind: 'slot', label: 'A1' } · { kind: 'seed', n } · { kind: 'winner', no } · { kind: 'loser', no } · { kind: 'bye' }
  */
 export function koPreviewOf(stage, source, link, nSource) {
-  let entrants
-  if (link && source?.type === 'round_robin') {
+  const entrants = previewEntrants(source, link, nSource)
+  if (!entrants) return null
+  let k = 0
+  const ms = buildKnockout({ stage: { ...stage, config: { ...stage.config, seeding: 'seed' } }, entrants, newId: () => 'm' + k++ })
+  const played = ms.filter((m) => m.status !== 'bye').sort((a, b) => a.round - b.round || (a.roundKind === 'third') - (b.roundKind === 'third') || a.slot - b.slot)
+  const noOf = new Map(played.map((m, i) => [m.id, i + 1]))
+  return previewRounds(played, previewSide(noOf, source), noOf, (m) => (m.roundKind === 'third' ? 'third' : m.round))
+}
+
+/**
+ * Đội giả để dựng nhánh xem trước: nhánh nối từ nguồn xếp hạng → nhãn ô bảng "A1", "B2" (qua CHÍNH
+ * `entrantsFromLinks`); còn lại → hạt giống "#1".."#n". null = không đủ đội.
+ */
+function previewEntrants(source, link, nSource) {
+  if (link && ranked(source)) {
     const G = source.config?.numGroups || 1
     const sizes = groupSizes(nSource, G)
     const groups = sizes.map((_, i) => ({ id: 'g' + i, seq: i + 1 }))
     const groupTeams = sizes.flatMap((k, i) => link.ranks.filter((r) => r <= k)
       .map((r) => ({ groupId: 'g' + i, teamId: String.fromCharCode(65 + i) + r, finalRank: r })))
     const res = entrantsFromLinks({ link, groups, groupTeams })
-    if (res.error) return null
-    entrants = res.entrants
-  } else {
-    if (nSource < 2) return null
-    entrants = Array.from({ length: nSource }, (_, i) => ({ id: '#' + (i + 1), seed: i + 1 }))
+    return res.error ? null : res.entrants
   }
-  let k = 0
-  const ms = buildKnockout({ stage: { ...stage, config: { ...stage.config, seeding: 'seed' } }, entrants, newId: () => 'm' + k++ })
-  const played = ms.filter((m) => m.status !== 'bye').sort((a, b) => a.round - b.round || (a.roundKind === 'third') - (b.roundKind === 'third') || a.slot - b.slot)
-  const noOf = new Map(played.map((m, i) => [m.id, i + 1]))
-  const side = (m, s) => {
+  if (nSource < 2) return null
+  return Array.from({ length: nSource }, (_, i) => ({ id: '#' + (i + 1), seed: i + 1 }))
+}
+
+/** Nhãn một bên của trận xem trước. Thụy Sĩ chỉ một bảng → "Hạng 3" thay vì "A3". */
+function previewSide(noOf, source) {
+  return (m, s) => {
     const team = s === 'A' ? m.teamAId : m.teamBId
-    if (team) return team.startsWith('#') ? { kind: 'seed', n: Number(team.slice(1)) } : { kind: 'slot', label: team }
+    if (team) {
+      if (team.startsWith('#')) return { kind: 'seed', n: Number(team.slice(1)) }
+      return source?.type === 'swiss' ? { kind: 'rank', n: Number(team.slice(1)) } : { kind: 'slot', label: team }
+    }
     const src = s === 'A' ? m.sourceA : m.sourceB
     if (src?.kind === 'winner') return { kind: 'winner', no: noOf.get(src.match) }
     if (src?.kind === 'loser') return { kind: 'loser', no: noOf.get(src.match) }
     return { kind: 'bye' }
   }
-  return previewRounds(played, side, noOf, (m) => (m.roundKind === 'third' ? 'third' : m.round))
 }
 
 /** Gom trận xem trước theo vòng. `to` = số trận đội thắng đi tới — để vẽ đường nối theo con trỏ thật (`linkShape`). */
@@ -240,25 +256,18 @@ function previewRounds(played, side, noOf, keyOf) {
 }
 
 /**
- * Xem trước nhánh thắng/nhánh thua với n đội (hạt giống #1..#n) — dựng bằng CHÍNH `buildDoubleElim`.
+ * Xem trước nhánh thắng/nhánh thua — dựng bằng CHÍNH `buildDoubleElim`. Khối nguồn: hạt giống #1..#n; nhánh nối
+ * từ vòng bảng / Thụy Sĩ: ô "Nhất A" / "Hạng 1" như `koPreviewOf`.
  * @returns {null | { wb: Round[], lb: Round[], gf: Round[] }}  Round cùng dạng `koPreviewOf`
  */
-export function dePreviewOf(stage, n) {
-  if (n < 2) return null
+export function dePreviewOf(stage, source, link, nSource) {
+  const entrants = previewEntrants(source, link, nSource)
+  if (!entrants) return null
   let k = 0
-  const ms = buildDoubleElim({ stage: { ...stage, config: { ...stage.config, seeding: 'seed' } },
-    entrants: Array.from({ length: n }, (_, i) => ({ id: '#' + (i + 1), seed: i + 1 })), newId: () => 'm' + k++ })
+  const ms = buildDoubleElim({ stage: { ...stage, config: { ...stage.config, seeding: 'seed' } }, entrants, newId: () => 'm' + k++ })
   const played = ms.filter((m) => m.status !== 'bye').sort((a, b) => a.round - b.round || a.slot - b.slot)
   const noOf = new Map(played.map((m, i) => [m.id, i + 1]))
-  const side = (m, s) => {
-    const team = s === 'A' ? m.teamAId : m.teamBId
-    if (team) return { kind: 'seed', n: Number(team.slice(1)) }
-    const src = s === 'A' ? m.sourceA : m.sourceB
-    if (src?.kind === 'winner') return { kind: 'winner', no: noOf.get(src.match) }
-    if (src?.kind === 'loser') return { kind: 'loser', no: noOf.get(src.match) }
-    return { kind: 'bye' }
-  }
-  const part = (list) => previewRounds(list, side, noOf, (m) => m.round)
+  const part = (list) => previewRounds(list, previewSide(noOf, source), noOf, (m) => m.round)
   return {
     wb: part(played.filter((m) => !['lb', 'gf'].includes(m.roundKind))),
     lb: part(played.filter((m) => m.roundKind === 'lb')),

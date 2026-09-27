@@ -475,7 +475,12 @@ export function makeTournamentActions({ dbRef, tourRef, setTour, toast, uid }) {
       const ranking = { ...RULE_PRESETS[d.ranking] }
       const row = {
         ...base(), id: uid(), eventId, seq: nextSeq(stages), type, title: null, status: 'pending',
-        config: { ...(type === 'round_robin' ? { numGroups: 2, legs: 1, seeding: 'seed' } : { thirdPlace: true, seeding: stages.length ? 'rank' : 'seed' }), ...config },
+        config: {
+          ...(type === 'round_robin' ? { numGroups: 2, legs: 1, seeding: 'seed' }
+            : type === 'swiss' ? { rounds: null, seeding: 'seed' }
+              : { thirdPlace: true, seeding: stages.length ? 'rank' : 'seed' }),
+          ...config,
+        },
         matchRule: qualify, ruleOverrides: type === 'knockout' ? { final: ranking, third: ranking } : {},
         canvasX: coord(at?.x), canvasY: coord(at?.y),
       }

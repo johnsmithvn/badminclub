@@ -86,7 +86,9 @@ export default function RecommendDialog({ tour, onClose, onApply }) {
         </>
       )}
     >
-      <div style={{ display: 'grid', gap: 14 }}>
+      {/* Thân hộp cao cố định vừa màn (Dialog tối đa 86vh, trừ tiêu đề + chân ~190px): cả hộp KHÔNG cuộn — từng
+          cột tự cuộn khi dài, thanh công suất / nút Áp dụng luôn nằm yên trong tầm mắt. */}
+      <div style={{ display: 'grid', gridTemplateRows: 'auto minmax(0,1fr)', gap: 14, height: 'calc(86vh - 190px)', minHeight: 380 }}>
         {res.capacity != null && (
           <div style={{ padding: '12px 16px', borderRadius: 10, background: 'var(--surface-inset)', border: '1px solid var(--border-subtle)', display: 'grid', gap: 8 }}>
             <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', gap: 8 }}>
@@ -105,9 +107,9 @@ export default function RecommendDialog({ tour, onClose, onApply }) {
           </div>
         )}
 
-        <div style={{ display: 'grid', gridTemplateColumns: '220px minmax(0,1fr) 280px', gap: 16, alignItems: 'start' }}>
+        <div style={{ display: 'grid', gridTemplateColumns: '220px minmax(0,1fr) 280px', gap: 16, minHeight: 0, gridRow: res.capacity != null ? 2 : '1 / 3' }}>
           {/* Cột trái: giả lập */}
-          <div style={{ display: 'grid', gap: 16, minWidth: 0 }}>
+          <div style={{ display: 'grid', gap: 16, minWidth: 0, minHeight: 0, alignContent: 'start', overflowY: 'auto', paddingRight: 4 }}>
             <div style={{ display: 'grid', gap: 8 }}>
               <span style={SIDE_HEAD}>{t('tournament.recommend.people')}</span>
               <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', gap: 6 }}>
@@ -162,8 +164,8 @@ export default function RecommendDialog({ tour, onClose, onApply }) {
             </div>
           </div>
 
-          {/* Cột giữa: phương án */}
-          <div style={{ display: 'grid', gap: 6, minWidth: 0 }}>
+          {/* Cột giữa: phương án — danh sách chiếm phần còn lại và tự cuộn; luật gợi ý + kết luận giờ đứng dưới */}
+          <div style={{ display: 'flex', flexDirection: 'column', gap: 6, minWidth: 0, minHeight: 0 }}>
             <div style={{ display: 'grid', gap: 6 }}>
               <Seg options={PRIORITIES.map((k) => ({ key: k, label: t('tournament.recommend.priority.' + k) }))} value={priority}
                 onChange={(k) => { setPriority(k); setPicks({}) }} />
@@ -175,7 +177,7 @@ export default function RecommendDialog({ tour, onClose, onApply }) {
               </div>
             </div>
 
-            <div style={{ display: 'grid', gap: 10, maxHeight: 380, overflowY: 'auto', paddingRight: 4 }}>
+            <div style={{ display: 'grid', gap: 10, alignContent: 'start', flex: '1 1 auto', minHeight: 120, overflowY: 'auto', paddingRight: 4 }}>
               {res.events.length === 0 && <Alert tone="info">{t('tournament.recommend.noContent')}</Alert>}
               {res.events.map((e) => {
                 const ev = tour.events.find((x) => x.id === e.eventId)
@@ -237,7 +239,7 @@ export default function RecommendDialog({ tour, onClose, onApply }) {
           </div>
 
           {/* Cột phải: xem trước */}
-          <div style={{ display: 'grid', gap: 10, alignContent: 'start', minWidth: 0, padding: 14, borderRadius: 10, background: 'var(--surface-inset)', border: '1px solid var(--border-subtle)' }}>
+          <div style={{ display: 'grid', gap: 10, alignContent: 'start', alignSelf: 'start', maxHeight: '100%', overflowY: 'auto', minWidth: 0, padding: 14, borderRadius: 10, background: 'var(--surface-inset)', border: '1px solid var(--border-subtle)' }}>
             <span style={SIDE_HEAD}>{t('tournament.recommend.preview')}</span>
             {!focusEvent?.pick ? (
               <span style={{ font: 'var(--type-caption)', color: 'var(--text-muted)' }}>{t('tournament.recommend.noContent')}</span>
