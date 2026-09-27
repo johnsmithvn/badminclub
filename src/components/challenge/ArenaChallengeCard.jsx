@@ -13,6 +13,7 @@ import {
 } from '#lib/challenge.js'
 import { sessionMembers, sGuests, isPresent } from '#lib/money.js'
 import { sessionPlayers } from '#lib/assign.js'
+import ArenaPlayerTag from './ArenaPlayerTag.jsx'
 
 /**
  * Lấy chữ cái viết tắt của người chơi (2 chữ cái hoa nếu có họ tên)
@@ -558,41 +559,20 @@ export default function ArenaChallengeCard({
             </div>
 
             {/* Tên đấu thủ Phe A */}
-            <div style={{ display: 'flex', flexDirection: 'column', gap: 2, minWidth: 0, width: '100%' }}>
+            <div style={{ display: 'flex', flexDirection: 'column', gap: isFeatured ? 6 : 5, minWidth: 0, width: '100%', alignItems: 'flex-start' }}>
               {teamA.map((id) => {
                 const isAcc = (c.acceptedPlayers || []).includes(id)
                 return (
-                  <div
+                  <ArenaPlayerTag
                     key={id}
-                    style={{
-                      font: isFeatured
-                        ? (isMobile ? '700 14px/1.2 "IBM Plex Sans", sans-serif' : '700 20px/1.2 "IBM Plex Sans", sans-serif')
-                        : '600 13.5px/1.3 "IBM Plex Sans", sans-serif',
-                      color: isPlayed && winnerTeam === 'A' ? '#5FD9A2' : '#F4F7FB',
-                      display: 'flex',
-                      alignItems: 'center',
-                      gap: 4,
-                      minWidth: 0,
-                      width: '100%',
-                    }}
-                  >
-                    {isPlayed && winnerTeam === 'A' && <span style={{ flexShrink: 0 }}>👑</span>}
-                    <span
-                      title={memberNameOf(id)}
-                      style={{
-                        overflow: 'hidden',
-                        textOverflow: 'ellipsis',
-                        whiteSpace: 'nowrap',
-                        minWidth: 0,
-                        display: 'block',
-                      }}
-                    >
-                      {shortNameOf(id)}
-                    </span>
-                    {isPending && isAcc && (
-                      <Icon name="check" size={13} style={{ color: '#2EC4B6', flexShrink: 0 }} />
-                    )}
-                  </div>
+                    name={shortNameOf(id)}
+                    team="A"
+                    isAccepted={isPending && isAcc}
+                    isWinner={isPlayed && winnerTeam === 'A'}
+                    isFeatured={isFeatured}
+                    isMobile={isMobile}
+                    align="left"
+                  />
                 )
               })}
             </div>
@@ -702,44 +682,21 @@ export default function ArenaChallengeCard({
             </div>
 
             {/* Tên đấu thủ Phe B */}
-            <div style={{ display: 'flex', flexDirection: 'column', alignItems: 'flex-end', gap: 2, minWidth: 0, width: '100%' }}>
+            <div style={{ display: 'flex', flexDirection: 'column', gap: isFeatured ? 6 : 5, minWidth: 0, width: '100%', alignItems: 'flex-end' }}>
               {teamB.length > 0 ? (
                 teamB.map((id) => {
                   const isAcc = (c.acceptedPlayers || []).includes(id)
                   return (
-                    <div
+                    <ArenaPlayerTag
                       key={id}
-                      style={{
-                        font: isFeatured
-                          ? (isMobile ? '700 14px/1.2 "IBM Plex Sans", sans-serif' : '700 20px/1.2 "IBM Plex Sans", sans-serif')
-                          : '600 13.5px/1.3 "IBM Plex Sans", sans-serif',
-                        color: isPlayed && winnerTeam === 'B' ? '#5FD9A2' : '#F4F7FB',
-                        display: 'flex',
-                        alignItems: 'center',
-                        justifyContent: 'flex-end',
-                        gap: 4,
-                        minWidth: 0,
-                        width: '100%',
-                      }}
-                    >
-                      {isPending && isAcc && (
-                        <Icon name="check" size={13} style={{ color: '#2EC4B6', flexShrink: 0 }} />
-                      )}
-                      <span
-                        title={memberNameOf(id)}
-                        style={{
-                          overflow: 'hidden',
-                          textOverflow: 'ellipsis',
-                          whiteSpace: 'nowrap',
-                          minWidth: 0,
-                          display: 'block',
-                          textAlign: 'right',
-                        }}
-                      >
-                        {shortNameOf(id)}
-                      </span>
-                      {isPlayed && winnerTeam === 'B' && <span style={{ flexShrink: 0 }}>👑</span>}
-                    </div>
+                      name={shortNameOf(id)}
+                      team="B"
+                      isAccepted={isPending && isAcc}
+                      isWinner={isPlayed && winnerTeam === 'B'}
+                      isFeatured={isFeatured}
+                      isMobile={isMobile}
+                      align="right"
+                    />
                   )
                 })
               ) : (

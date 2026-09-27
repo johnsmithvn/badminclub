@@ -8,6 +8,7 @@ import { getChallengeAcceptanceProgress, canMemberAcceptChallenge, canAdminForce
 import { calculateSeasonLeaderboard, calcSeasonMatchDeltaFinal, challengeMultiplierOf } from '#lib/season.js'
 import cfg from '#config/app.json'
 import { t } from '#i18n'
+import ArenaPlayerTag from './ArenaPlayerTag.jsx'
 
 export default function ChallengeDetailModal({ challenge, session, onClose, onScoreInput, onOpenMatch }) {
   const { db, a } = useApp()
@@ -394,18 +395,40 @@ export default function ChallengeDetailModal({ challenge, session, onClose, onSc
     ? new Date(matchObj.createdAt).toLocaleTimeString('vi-VN', { hour: '2-digit', minute: '2-digit' })
     : ''
 
-  const headerSubText = effectiveSession?.date
-    ? t('challenge.headerMeta', {
-        creator: creatorName || t('challenge.teamA'),
-        time: createdTimeStr,
-        date: effectiveSession.date,
-        court: courtName ? ` · ${courtName}` : '',
-      })
-    : t('challenge.headerMetaCasual', {
-        creator: creatorName || t('challenge.teamA'),
-        time: createdTimeStr,
-        court: courtName ? ` · ${courtName}` : '',
-      })
+  const headerSubText = (
+    <span style={{ display: 'inline-flex', alignItems: 'center', gap: 6, flexWrap: 'wrap', lineHeight: 1.4 }}>
+      <strong
+        title={creatorName || t('challenge.teamA')}
+        style={{
+          color: 'var(--text-primary)',
+          background: 'rgba(255, 255, 255, 0.08)',
+          padding: '1px 6px',
+          borderRadius: 4,
+          border: '1px solid var(--border-subtle)',
+          maxWidth: isMobile ? 140 : 200,
+          overflow: 'hidden',
+          textOverflow: 'ellipsis',
+          whiteSpace: 'nowrap',
+          display: 'inline-block',
+          verticalAlign: 'bottom',
+        }}
+      >
+        {creatorName || t('challenge.teamA')}
+      </strong>
+      <span>
+        {effectiveSession?.date
+          ? t('challenge.sentAtMeta', {
+              time: createdTimeStr,
+              date: effectiveSession.date,
+              court: courtName ? ` · ${courtName}` : '',
+            })
+          : t('challenge.sentAtMetaCasual', {
+              time: createdTimeStr,
+              court: courtName ? ` · ${courtName}` : '',
+            })}
+      </span>
+    </span>
+  )
 
   if (!challenge) return null
 
@@ -950,40 +973,48 @@ export default function ChallengeDetailModal({ challenge, session, onClose, onSc
           )}
 
           <div style={{ display: 'flex', alignItems: 'center', gap: 10 }}>
-            <div style={{ flex: 1, minWidth: 0, display: 'flex', flexDirection: 'column', gap: 2 }}>
-              <div style={{ font: '600 14.5px/1.3 "IBM Plex Sans", sans-serif', color: 'var(--text-primary)', display: 'flex', flexWrap: 'wrap', gap: 6 }}>
-                {teamA.map((id) => {
-                  const isAcc = (c.acceptedPlayers || []).includes(id)
-                  return (
-                    <span key={id} style={{ display: 'inline-flex', alignItems: 'center', gap: 4 }}>
-                      <span>{playerName(db, id)}</span>
-                      {isPending && isAcc && (
-                        <Icon name="check" size={13} style={{ color: 'var(--status-delivered-fg)' }} title={t('challenge.statusAccepted')} />
-                      )}
-                    </span>
-                  )
-                })}
+            {/* ĐỘI A */}
+            <div style={{ flex: 1, minWidth: 0, display: 'flex', flexDirection: 'column', gap: 4 }}>
+              <div style={{ display: 'flex', flexDirection: 'column', gap: 5, maxWidth: '100%' }}>
+                {teamA.map((id) => (
+                  <ArenaPlayerTag
+                    key={id}
+                    name={playerName(db, id)}
+                    team="A"
+                    isAccepted={isPending && (c.acceptedPlayers || []).includes(id)}
+                    isWinner={isPlayed && c.winner === 'A'}
+                    maxLines={3}
+                    align="left"
+                  />
+                ))}
               </div>
-              <span style={{ font: '500 12px/1.2 "IBM Plex Mono", monospace', color: 'var(--text-muted)' }}>
+              <span style={{ font: '500 12px/1.2 "IBM Plex Mono", monospace', color: 'var(--text-muted)', marginTop: 2 }}>
                 {ratA > 0 ? t('challenge.avgRating', { r: ratA.toLocaleString('vi-VN') }) : '—'}
               </span>
             </div>
-            <span style={{ font: '700 13px/1 Barlow, sans-serif', color: 'var(--text-disabled)' }}>VS</span>
-            <div style={{ flex: 1, minWidth: 0, textAlign: 'right', display: 'flex', flexDirection: 'column', gap: 2 }}>
-              <div style={{ font: '600 14.5px/1.3 "IBM Plex Sans", sans-serif', color: resolvedTeamB.length ? 'var(--text-primary)' : 'var(--text-muted)', display: 'flex', flexWrap: 'wrap', justifyContent: 'flex-end', gap: 6 }}>
-                {resolvedTeamB.length ? resolvedTeamB.map((id) => {
-                  const isAcc = (c.acceptedPlayers || []).includes(id)
-                  return (
-                    <span key={id} style={{ display: 'inline-flex', alignItems: 'center', gap: 4 }}>
-                      <span>{playerName(db, id)}</span>
-                      {isPending && isAcc && (
-                        <Icon name="check" size={13} style={{ color: 'var(--status-delivered-fg)' }} title={t('challenge.statusAccepted')} />
-                      )}
-                    </span>
-                  )
-                }) : (isOpen ? t('challenge.teamEmptyHint') : t('challenge.teamB'))}
+
+            <span style={{ font: '700 13px/1 Barlow, sans-serif', color: 'var(--text-disabled)', padding: '0 4px', flexShrink: 0 }}>VS</span>
+
+            {/* ĐỘI B */}
+            <div style={{ flex: 1, minWidth: 0, textAlign: 'right', display: 'flex', flexDirection: 'column', alignItems: 'flex-end', gap: 4 }}>
+              <div style={{ display: 'flex', flexDirection: 'column', alignItems: 'flex-end', gap: 5, maxWidth: '100%' }}>
+                {resolvedTeamB.length ? resolvedTeamB.map((id) => (
+                  <ArenaPlayerTag
+                    key={id}
+                    name={playerName(db, id)}
+                    team="B"
+                    isAccepted={isPending && (c.acceptedPlayers || []).includes(id)}
+                    isWinner={isPlayed && c.winner === 'B'}
+                    maxLines={3}
+                    align="right"
+                  />
+                )) : (
+                  <span style={{ fontSize: 13, color: 'var(--text-muted)', fontStyle: 'italic' }}>
+                    {isOpen ? t('challenge.teamEmptyHint') : t('challenge.teamB')}
+                  </span>
+                )}
               </div>
-              <span style={{ font: '500 12px/1.2 "IBM Plex Mono", monospace', color: 'var(--text-muted)' }}>
+              <span style={{ font: '500 12px/1.2 "IBM Plex Mono", monospace', color: 'var(--text-muted)', marginTop: 2 }}>
                 {ratB > 0 ? t('challenge.avgRating', { r: ratB.toLocaleString('vi-VN') }) : '—'}
               </span>
             </div>
@@ -1180,22 +1211,18 @@ export default function ChallengeDetailModal({ challenge, session, onClose, onSc
                     type="button"
                     onClick={() => setPredTeam('A')}
                     style={{
-                      padding: '8px 10px',
+                      padding: '10px 12px',
                       borderRadius: 'var(--radius-md)',
                       background: predTeam === 'A' ? 'rgba(0,178,169,0.14)' : 'var(--surface-sunken)',
                       border: predTeam === 'A' ? '1.5px solid var(--action-accent-bg, var(--teal-500))' : '1px solid var(--border-subtle)',
                       cursor: 'pointer',
                       display: 'flex',
-                      flexDirection: 'column',
                       alignItems: 'center',
-                      gap: 2,
+                      justifyContent: 'center',
                     }}
                   >
-                    <span style={{ font: '700 13px/1.2 "IBM Plex Sans", sans-serif', color: predTeam === 'A' ? 'var(--status-transit-fg)' : 'var(--text-primary)' }}>
+                    <span style={{ font: '700 13.5px/1.2 "IBM Plex Sans", sans-serif', color: predTeam === 'A' ? 'var(--status-transit-fg)' : 'var(--text-primary)' }}>
                       {t('challenge.teamA')}
-                    </span>
-                    <span style={{ font: '400 11px/1 "IBM Plex Sans", sans-serif', color: 'var(--text-muted)' }}>
-                      {teamA.map((id) => playerName(db, id)).join(' · ')}
                     </span>
                   </button>
 
@@ -1203,22 +1230,18 @@ export default function ChallengeDetailModal({ challenge, session, onClose, onSc
                     type="button"
                     onClick={() => setPredTeam('B')}
                     style={{
-                      padding: '8px 10px',
+                      padding: '10px 12px',
                       borderRadius: 'var(--radius-md)',
                       background: predTeam === 'B' ? 'rgba(239,68,68,0.12)' : 'var(--surface-sunken)',
                       border: predTeam === 'B' ? '1.5px solid var(--status-incident, var(--red-500))' : '1px solid var(--border-subtle)',
                       cursor: 'pointer',
                       display: 'flex',
-                      flexDirection: 'column',
                       alignItems: 'center',
-                      gap: 2,
+                      justifyContent: 'center',
                     }}
                   >
-                    <span style={{ font: '700 13px/1.2 "IBM Plex Sans", sans-serif', color: predTeam === 'B' ? 'var(--red-500, #ef4444)' : 'var(--text-primary)' }}>
+                    <span style={{ font: '700 13.5px/1.2 "IBM Plex Sans", sans-serif', color: predTeam === 'B' ? 'var(--red-500, #ef4444)' : 'var(--text-primary)' }}>
                       {t('challenge.teamB')}
-                    </span>
-                    <span style={{ font: '400 11px/1 "IBM Plex Sans", sans-serif', color: 'var(--text-muted)' }}>
-                      {resolvedTeamB.length ? resolvedTeamB.map((id) => playerName(db, id)).join(' · ') : t('challenge.teamB')}
                     </span>
                   </button>
                 </div>
@@ -1360,9 +1383,52 @@ export default function ChallengeDetailModal({ challenge, session, onClose, onSc
           <div style={S.boxCard}>
             <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', flexWrap: 'wrap', gap: 4 }}>
               <div style={{ display: 'flex', flexDirection: 'column' }}>
-                <span style={{ font: '600 13.5px/1.2 "IBM Plex Sans", sans-serif', color: 'var(--text-primary)' }}>
-                  {isExactPairH2H ? t('challenge.h2hExactTitle') : t('challenge.h2hLeaderTitle', { nameA, nameB })}
-                </span>
+                {isExactPairH2H ? (
+                  <span style={{ font: '600 13.5px/1.2 "IBM Plex Sans", sans-serif', color: 'var(--text-primary)' }}>
+                    {t('challenge.h2hExactTitle')}
+                  </span>
+                ) : (
+                  <div style={{ display: 'flex', alignItems: 'center', gap: 6, flexWrap: 'wrap', font: '600 13px/1.3 "IBM Plex Sans", sans-serif' }}>
+                    <span style={{ color: 'var(--text-secondary)' }}>{t('challenge.h2hLeaderPrefix')}:</span>
+                    <span
+                      title={nameA}
+                      style={{
+                        color: 'var(--status-transit-fg)',
+                        background: 'rgba(0,178,169,0.1)',
+                        border: '1px solid rgba(0,178,169,0.25)',
+                        padding: '1px 6px',
+                        borderRadius: 4,
+                        maxWidth: 130,
+                        overflow: 'hidden',
+                        textOverflow: 'ellipsis',
+                        whiteSpace: 'nowrap',
+                        display: 'inline-block',
+                        verticalAlign: 'bottom',
+                      }}
+                    >
+                      {nameA}
+                    </span>
+                    <span style={{ color: 'var(--text-disabled)', fontSize: 11, fontStyle: 'italic' }}>vs</span>
+                    <span
+                      title={nameB}
+                      style={{
+                        color: 'var(--red-500, #ef4444)',
+                        background: 'rgba(239,68,68,0.1)',
+                        border: '1px solid rgba(239,68,68,0.25)',
+                        padding: '1px 6px',
+                        borderRadius: 4,
+                        maxWidth: 130,
+                        overflow: 'hidden',
+                        textOverflow: 'ellipsis',
+                        whiteSpace: 'nowrap',
+                        display: 'inline-block',
+                        verticalAlign: 'bottom',
+                      }}
+                    >
+                      {nameB}
+                    </span>
+                  </div>
+                )}
                 <span style={{ font: '400 11px/1.3 "IBM Plex Sans", sans-serif', color: 'var(--text-muted)', marginTop: 2 }}>
                   {isExactPairH2H ? t('challenge.h2hExactSub') : t('challenge.h2hLeaderSub')}
                 </span>
