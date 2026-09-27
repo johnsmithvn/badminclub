@@ -25,6 +25,9 @@ const mem = (id, extra = {}) => ({
   id, name: `Member ${id}`, gender: 'nam', level: 'TB', active: true, ...extra,
 })
 const rating = (id, r, gamesCount = 10) => ({ memberId: id, rating: r, gamesCount })
+// `playerRatings` dựng ĐÚNG hình dạng state thật: MAP theo member_id (xem `dbmap.js: toDb`), không
+// phải mảng. Fixture mảng từng che mất lỗi `.filter is not a function` làm trắng trang chủ.
+const ratingsMap = (...rows) => Object.fromEntries(rows.map((r) => [r.memberId, r]))
 
 function makeMockDb({
   myElo = 1500,
@@ -40,12 +43,12 @@ function makeMockDb({
       mem('u2', { name: 'Văn Bắc' }),
       mem('u3', { name: 'Hải Phòng' }),
     ],
-    playerRatings: [
+    playerRatings: ratingsMap(
       rating('u1', myElo),
       rating('bot', botElo),
       rating('u2', rivalElo),
       rating('u3', 1300),
-    ],
+    ),
     matches,
     challenges: [],
   }
@@ -264,12 +267,12 @@ console.log('--- Test 5: Top 3 Entered Transition (preRank > 3 && currentRank <=
   const dbEnter = {
     clubId: 'c1',
     members: [mem('bot', { isBot: true }), mem('u1'), mem('u2'), mem('u3')],
-    playerRatings: [
+    playerRatings: ratingsMap(
       rating('bot', 1600),
       rating('u2', 1550),
       rating('u1', 1505), // Rank 3
       rating('u3', 1475), // Rank 4
-    ],
+    ),
     matches: [m_enter],
   }
   const stateEnter = inspectMemberState(dbEnter, 'u1', NOW)
@@ -291,12 +294,12 @@ console.log('--- Test 5: Top 3 Entered Transition (preRank > 3 && currentRank <=
   const dbStay = {
     clubId: 'c1',
     members: [mem('bot', { isBot: true }), mem('u1'), mem('u2'), mem('u3')],
-    playerRatings: [
+    playerRatings: ratingsMap(
       rating('bot', 1600),
       rating('u1', 1560), // Rank 2
       rating('u2', 1550), // Rank 3
       rating('u3', 1450), // Rank 4
-    ],
+    ),
     matches: [m_stay],
   }
   const stateStay = inspectMemberState(dbStay, 'u1', NOW)

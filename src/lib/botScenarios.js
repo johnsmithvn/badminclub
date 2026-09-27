@@ -10,6 +10,8 @@
 import { findBotMember, botLineKey } from '#lib/bot.js'
 import { calculateSeasonLeaderboard } from '#lib/season.js'
 import { BotMemoryStore } from '#lib/botMemory.js'
+import { getClubEloLeaderboard } from '#lib/homePersonal.js'
+import { getPlayerRating, DEFAULT_RATING } from '#lib/rating.js'
  
 /** Số trận tối đa kể từ trận thua gần nhất để còn tính là đòi nợ (khoảng 1-2 buổi tập) */
 export const MAX_REVENGE_MATCH_GAP = 6
@@ -96,18 +98,17 @@ export function inspectMemberState(db, memberId, now = Date.now(), memoryStore =
   const isBotUser = Boolean(bot && bot.id === memberId)
   if (isBotUser) return null
 
-  // 1. Bảng xếp hạng Elo hiện tại
-  const ratings = (db.playerRatings || [])
-    .filter((r) => (db.members || []).some((m) => m && m.id === r.memberId && m.active !== false))
-    .sort((a, b) => (b.rating || 0) - (a.rating || 0))
-  const myRankIdx = ratings.findIndex((r) => r.memberId === memberId)
-  const currentRank = myRankIdx >= 0 ? myRankIdx + 1 : 99
-  const currentElo = Number(ratings[myRankIdx]?.rating) || 1500
+  // 1. Bảng xếp hạng Elo hiện tại — CÙNG nguồn với thẻ Hạng, để hạng bot nói khớp con số người
+  // dùng vừa đọc. KHÔNG đọc thẳng `db.playerRatings`: ở state thật nó là MAP theo member_id
+  // (`dbmap.js`), không phải mảng — `.filter` trên nó từng làm trắng trang chủ của mọi người.
+  const board = getClubEloLeaderboard(db)
+  const myRow = board.find((r) => r.id === memberId)
+  const currentRank = myRow?.rank || 99
+  const currentElo = myRow?.elo ?? DEFAULT_RATING
 
-  const botRatingRow = ratings.find((r) => r.memberId === bot?.id)
-  const botElo = Number(botRatingRow?.rating) || 1500
-  const botRankIdx = ratings.findIndex((r) => r.memberId === bot?.id)
-  const botRank = botRankIdx >= 0 ? botRankIdx + 1 : 99
+  const botRow = board.find((r) => r.id === bot?.id)
+  const botElo = botRow?.elo ?? DEFAULT_RATING
+  const botRank = botRow?.rank || 99
 
   // 2. Điểm mùa (Season Points)
   let currentSp = 0
@@ -215,16 +216,15 @@ export function inspectMemberState(db, memberId, now = Date.now(), memoryStore =
   // 8. Thứ hạng trước trận gần nhất (preRank)
   let preRank = currentRank
   if (lastMatch) {
-    const preRatings = ratings.map((r) => {
-      if (r.memberId === memberId) {
+    const preRatings = board.map((r) => {
+      if (r.id === memberId) {
         return { memberId, rating: preMatchElo }
       }
-      if (lastOpponentIds.includes(r.memberId)) {
-        const oppPost = Number(r.rating) || 1500
-        const oppPre = lastMatchWon ? oppPost + lastMatchEloDelta : oppPost - lastMatchEloDelta
-        return { memberId: r.memberId, rating: oppPre }
+      if (lastOpponentIds.includes(r.id)) {
+        const oppPre = lastMatchWon ? r.elo + lastMatchEloDelta : r.elo - lastMatchEloDelta
+        return { memberId: r.id, rating: oppPre }
       }
-      return { memberId: r.memberId, rating: Number(r.rating) || 1500 }
+      return { memberId: r.id, rating: r.elo }
     }).sort((a, b) => (b.rating || 0) - (a.rating || 0))
 
     const pIdx = preRatings.findIndex((r) => r.memberId === memberId)
@@ -284,8 +284,8 @@ export function detectRecentEvents(db, memberId, state, now = Date.now()) {
     for (const oppId of opponents) {
       if (oppId === state.bot?.id) continue
       const oppMember = (db.members || []).find((m) => m && m.id === oppId)
-      const oppRating = (db.playerRatings || []).find((r) => r.memberId === oppId)
-      const oppPostElo = Number(oppRating?.rating) || 1500
+      // `getPlayerRating` đọc được cả map (state thật) lẫn mảng — cùng số với `getClubEloLeaderboard`.
+      const oppPostElo = getPlayerRating(db.playerRatings, oppId, oppMember, db.levels).displayRating
       const oppPreElo = state.lastMatchWon ? oppPostElo + state.lastMatchEloDelta : oppPostElo - state.lastMatchEloDelta
 
       // A vừa vượt đối thủ: Trước trận A < B, sau trận A >= B
