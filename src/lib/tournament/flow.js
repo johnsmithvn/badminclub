@@ -7,6 +7,7 @@
 import { groupSizes } from '#lib/tournament/format.js'
 import { progressOf } from '#lib/tournament/bracketView.js'
 import { eventTeams } from '#lib/tournament/pairing.js'
+import { deChampion, isDouble } from '#lib/tournament/doubleElim.js'
 
 const hasResult = (m) => m.status === 'done' || m.status === 'walkover' || m.status === 'retired'
 
@@ -17,6 +18,8 @@ const hasResult = (m) => m.status === 'done' || m.status === 'walkover' || m.sta
  */
 export function stageLabelKey(stage, eventStages) {
   if (stage.type === 'round_robin') return 'tournament.stage.groups'
+  if (stage.type === 'swiss') return 'tournament.stage.swiss'
+  if (isDouble(stage)) return 'tournament.stage.double'
   const kos = eventStages.filter((s) => s.type === 'knockout' && s.seq > 1).sort((a, b) => a.seq - b.seq)
   if (stage.seq === 1 || kos.length < 2) return 'tournament.format.koStage'
   return kos[0].id === stage.id ? 'tournament.stage.main' : 'tournament.stage.plate'
@@ -28,6 +31,7 @@ export function stageLabelKey(stage, eventStages) {
  *   vòng tròn 1 bảng: hạng 1 đã CHỐT (`final_rank`). Nhiều bảng không có "một người thắng" → null.
  */
 function winnerOf(tour, stage) {
+  if (isDouble(stage)) return deChampion(tour.matches.filter((m) => m.stageId === stage.id))
   if (stage.type === 'knockout') {
     const f = tour.matches.find((m) => m.stageId === stage.id && m.roundKind === 'final' && hasResult(m))
     return f ? (f.winner === 'A' ? f.teamAId : f.teamBId) : null
@@ -59,7 +63,7 @@ export function flowOf(tour, event) {
     const groups = (tour.groups || []).filter((g) => g.stageId === s.id)
     const inGroups = new Set((tour.groupTeams || []).filter((gt) => groups.some((g) => g.id === gt.groupId)).map((gt) => gt.teamId))
     const inFirstRound = new Set(own.filter((m) => m.round === 0).flatMap((m) => [m.teamAId, m.teamBId]).filter(Boolean))
-    const actual = s.type === 'round_robin' ? inGroups.size : inFirstRound.size
+    const actual = s.type === 'knockout' ? inFirstRound.size : inGroups.size
     return {
       id: s.id,
       seq: s.seq,
@@ -101,7 +105,7 @@ export function eventDone(tour, event) {
   const flow = flowOf(tour, event)
   if (!flow) return false
   const ends = flow.next.length ? flow.next : [flow.first]
-  return ends.every((n) => (n.type === 'round_robin' ? n.status === 'done' : Boolean(n.winner)))
+  return ends.every((n) => (n.type === 'knockout' ? Boolean(n.winner) : n.status === 'done'))
 }
 
 /** Cả giải xong: có ít nhất một nội dung và nội dung nào cũng xong. */

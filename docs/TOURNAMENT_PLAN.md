@@ -26,6 +26,7 @@ Nhãn theo RULES §1: **[V]** đã kiểm trong code · **[A]** giả định ·
 | D9 | Thông báo "sắp tới lượt": **chỉ chuông trong app**, không push | Trigger `tournament_notify_match` (0059): pending→ready, hoặc trận chưa đánh được xếp sân |
 | D10 | Làm gọn đăng ký: trạng thái giải **tự đi theo lịch**; "Tạo lịch" tự chốt đội hình; giải miễn phí ẩn phí; checklist chỉ việc chặn giải chạy | `syncStatus` trong `tournamentActions.js`; chỉ còn nút Huỷ giải |
 | D11 | **Ghi kết quả tự do về điểm** (2026-09-26): số set quyết định — mỗi set bên cao điểm hơn thắng, đủ ceil(sets/2) set, không set hoà, không thừa set; điểm 0..99 | Luật điểm (chạm 30, cách 2, trần) chỉ còn để bảng ghi điểm từng quả tự chuyển set + ước tính giờ + gợi ý "không khớp luật". Bảng ghi điểm có nút "Kết thúc set". DB: `tournament_valid_sets` thay ở migration `0061`. Bỏ cuộc: set cuối là set dở. |
+| D12 | **Thụy Sĩ + Nhánh thắng/nhánh thua** (2026-09-27, migration `0063`) — hai mẫu trọn gói một giai đoạn (`swiss`, `de`), chọn qua mẫu / Tạo nhanh, không ghép tay trên canvas với khối khác | Thụy Sĩ = `type 'swiss'`, MỘT bảng (dùng lại bảng / `final_rank` / chốt giai đoạn), vòng sinh dần (`tournament_add_swiss_round`), xếp hạng điểm → Buchholz → đối đầu. Nhánh thắng/thua = `knockout` + `config.bracket='double'`, `round_kind` thêm `wf`/`lb`/`gf`/`gf2`; chung kết tổng đúng chuẩn: đội nhánh thua thắng trận 1 → RPC commit tự chèn trận 2. Thuật toán: `swiss.js`, `doubleElim.js` (có test). |
 | D4 | Thể thức **tự do** theo mô hình giai đoạn (§2) | Schema đủ cho mọi thể thức ngay từ 0057; code làm dần theo phase. |
 | D5 | Ghi nhánh đấu qua **RPC nguyên tử**; dữ liệu giải **nạp riêng**, không qua `diff()` | §4.1 |
 | D6 | Supabase free → **poll** khi trang đang mở, không realtime | §4.4 |
@@ -137,7 +138,8 @@ config jsonb DEFAULT '{}', match_rule jsonb NOT NULL, rule_overrides jsonb DEFAU
 UNIQUE(event_id, seq)`
 - `config` knockout: `{ thirdPlace: bool, seeding: 'seed'|'slot'|'random' }`
 - `config` vòng tròn: `{ groups: int, legs: 1|2, seeding: 'snake'|'random' }`
-- `swiss` **không** vào CHECK — chưa có thuật toán; thêm sau bằng migration nhỏ khi có.
+- ~~`swiss` không vào CHECK~~ → `0063` thêm `swiss` vào CHECK. `config` Thụy Sĩ: `{ rounds: int|null (null = ⌈log₂ n⌉, tối thiểu 3), seeding }`.
+- Nhánh thắng/nhánh thua: `type 'knockout'`, `config: { bracket: 'double', thirdPlace: false, seeding }` (xem D12).
 - Toạ độ canvas (`canvas_x/y`) **không** có trong 0057 — Phase 6 thêm bằng 1 dòng `ADD COLUMN`.
 
 **`tournament_stage_links`** — `id, club_id, tournament_id, from_stage_id, to_stage_id, ranks int[] NOT NULL,
@@ -179,7 +181,7 @@ final_rank int NULL, PK(group_id, team_id)`
 | id, club_id, tournament_id, event_id, stage_id | uuid | |
 | group_id | uuid NULL | trận vòng tròn |
 | round, slot | int | knockout: vòng 0 = vòng đầu; vòng tròn: lượt |
-| round_kind | text CHECK(`r32`,`r16`,`qf`,`sf`,`final`,`third`,`group`) | hiển thị "TK1/BK/CK" tính từ đây bằng i18n — **không** lưu chữ `code` như DRAFT (RULES §3.3) |
+| round_kind | text CHECK(`r32`,`r16`,`qf`,`sf`,`final`,`third`,`group` + `0063`: `wf`,`lb`,`gf`,`gf2`) | hiển thị "TK1/BK/CK" tính từ đây bằng i18n — **không** lưu chữ `code` như DRAFT (RULES §3.3). Nhánh thắng/thua: `round` đánh số chung (nhánh thắng 4r, nhánh thua 2k+5, chung kết tổng 4R) để con trỏ luôn trỏ vòng sau |
 | team_a_id, team_b_id | uuid NULL | FK kép `(team_x_id, event_id)` → teams(id, event_id); NULL = chưa xác định |
 | source_a, source_b | jsonb | `{kind:'seed',n}` · `{kind:'draw',n}` (số bốc thăm) · `{kind:'rank',stage,group,rank}` · `{kind:'winner',match}` · `{kind:'loser',match}` · `{kind:'bye'}` |
 | next_match_id, next_side | uuid, CHECK('A','B') | đội thắng đi đâu |
@@ -469,6 +471,8 @@ cuộn ngang, bảng Thí sinh thành danh sách thẻ, chạm ≥ 48px. Thêm "
 | Không làm | nối sổ quỹ — **giữ tượng trưng** (D2, chốt lại ở Phase 6) | — |
 | **6b — Canvas bám handoff** ✅ | Trình dựng toàn màn: thanh số liệu (khối · trận · giờ ước tính) + Tạo nhanh + Công bố & chạy nhánh · khay khối kéo vào · khay cặp chưa xếp (kéo cặp vào/ra bảng) · khối bảng hiện đội, khối loại hiện nhánh thu nhỏ (dựng bằng chính `buildKnockout`) · kéo chấm để nối · phóng to/thu nhỏ/căn khung · Kiểm tra sơ đồ đủ mọi cảnh báo · trang nhánh có thanh "Thiết lập nhánh" chỉ đọc | Thụy Sĩ và nút Quay/tự chạy vẫn không làm (không thuật toán / ghi kết quả bịa) |
 | **6c — Rà soát đủ handoff** ✅ | Thí sinh: lọc Tất cả/Khách, cột Nguồn, SĐT khách, báo khách khi giải nội bộ, nút sang Ghép cặp · thẻ nội dung: khách + x/y cặp đủ · Tổng quan: nhánh thu nhỏ · Ghép cặp: nhận xét từng cặp, So với TB · Thể thức: mẫu CLB (migration `0060`), Sửa trên sơ đồ tự do, luật tự chỉnh (`RuleField`), Mỗi đội đá ít nhất · Gợi ý: chọn phương án khác + nhãn + luật gợi ý · Canvas: kéo nền / cuộn phóng, chọn đường nối, Đưa hết về khay, Cặp mỗi bảng, Độ cân các bảng, lượt miễn, hộp Tạo nhanh, "vừa lưu" · Nhánh: thiết lập sửa được + "Xong · tạo lại nhánh", kéo đổi chỗ vòng đầu, câu kết trận, Hạng 3 | **0058, 0059, 0060 chưa áp production** |
+
+| **7 — Thụy Sĩ + Nhánh thắng/thua** ✅ | D12 · migration `0063` · `swiss.js`, `doubleElim.js` + test · trang nhánh: bảng Thụy Sĩ (cột ĐIỂM/BH, nút "Tạo vòng N"), `DoubleBoard` 2 tab · Tổng quan / Sơ đồ / Tạo nhanh nhận 2 mẫu mới | **0063 chưa áp production** — áp rồi mới dùng được 2 mẫu này |
 
 Mỗi phase là một lần duyệt riêng (>5 file). Không tự `npm run build`; user build và bấm thử theo checklist.
 

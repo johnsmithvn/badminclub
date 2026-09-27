@@ -2,15 +2,18 @@ import { useEffect, useRef, useState } from 'react'
 import { Alert, Button, Dialog, Input } from '#ds'
 import { Mono } from '#ui'
 import {
-  CANVAS, RANK_CHOICES, byesOf, canvasChecks, estimateOf, groupBalanceOf, koPreviewOf, layoutOf, moveTeam, nextFreeRanks,
+  CANVAS, RANK_CHOICES, byesOf, canvasChecks, dePreviewOf, estimateOf, groupBalanceOf, koPreviewOf, layoutOf, moveTeam, nextFreeRanks,
   quickPlan, shownGroups, unplacedTeams,
 } from '#lib/tournament/canvas.js'
-import { TEMPLATES } from '#lib/tournament/format.js'
+import { TEMPLATES, entrantsOf, koPreview } from '#lib/tournament/format.js'
 import { nextPowerOf2 } from '#lib/tournament/bracket.js'
+import { linkShape } from '#lib/tournament/bracketView.js'
+import { isDouble } from '#lib/tournament/doubleElim.js'
+import { roundsOf, swissRounds } from '#lib/tournament/swiss.js'
 import { eventTeams, shuffle } from '#lib/tournament/pairing.js'
 import cfg from '#config/app.json' with { type: 'json' }
 import { t } from '#i18n'
-import { RuleField, Seg, TeamNameLines } from './TourBits.jsx'
+import { RuleCard, Seg, TeamNameLines } from './TourBits.jsx'
 import RecommendDialog from './RecommendDialog.jsx'
 import { rankLabel, ruleLabel, stageName, teamName } from './tourUtils.js'
 
@@ -19,7 +22,8 @@ const BLOCK_MIME = 'text/x-tour-block'
 const ZOOM_MIN = 0.4
 const ZOOM_MAX = 1.6
 
-// Khay trái (handoff): kiểu khối kéo vào sơ đồ. Thuỵ Sĩ chưa có thuật toán nên không có ở đây (plan §2.1).
+// Khay trái (handoff): kiểu khối kéo vào sơ đồ. Thụy Sĩ / nhánh thắng-thua là thể thức trọn gói một khối —
+// chọn qua "Tạo nhanh" (mẫu), không ghép tay với khối khác nên không có ở khay.
 const PALETTE = [
   { key: 'rr', type: 'round_robin', config: { numGroups: 2 }, bars: [3, 'teal'] },
   { key: 'round', type: 'round_robin', config: { numGroups: 1 }, bars: [1, 'teal'] },
@@ -29,7 +33,9 @@ const PALETTE = [
 const PAL_KEY = { rr: 'palRr', round: 'palRound', ko: 'palKo', final: 'palFinal' }
 const BAR = { teal: 'var(--teal-500)', amber: 'var(--status-delayed-fg)', gold: 'var(--podium-gold)' }
 // Hình thu nhỏ cho thẻ mẫu trong hộp "Tạo nhanh" (handoff): mỗi thanh = một khối.
-const TPL_BARS = { ko: ['amber'], rr: ['teal'], rr_ko: ['teal', 'amber'], rr_ko_plate: ['teal', 'amber', 'amber'] }
+const TPL_BARS = { ko: ['amber'], rr: ['teal'], rr_ko: ['teal', 'amber'], rr_ko_plate: ['teal', 'amber', 'amber'], swiss: ['teal', 'teal'], de: ['amber', 'gold'] }
+// Khối Thụy Sĩ: danh sách cặp theo hạt giống, mỗi cột tối đa ngần này cặp (khối không cao lê thê).
+const SWISS_PER_COL = 8
 
 /** Thời lượng kiểu handoff: 143 phút → "2g23". */
 const dur = (min) => t('tournament.canvas.dur', { h: Math.floor(min / 60), m: String(min % 60).padStart(2, '0') })
@@ -101,7 +107,7 @@ export default function FlowCanvas({ tour, event, db, a, canEdit, onBack, onOpen
 
   // Cỡ khối theo nội dung thật (đội trong bảng / nhánh thu nhỏ) — dùng cho xếp chỗ, dây nối, vùng thả.
   const sourceTeams = source ? est.stages[source.id]?.teams ?? full.length : full.length
-  const previewOf = (s) => koPreviewOf(s, source, links.find((l) => l.toStageId === s.id), sourceTeams)
+  const previewOf = (s) => (isDouble(s) ? dePreviewOf(s, sourceTeams) : koPreviewOf(s, source, links.find((l) => l.toStageId === s.id), sourceTeams))
   // Bề rộng 1 cột bảng theo tên đội DÀI NHẤT đang có (không phải số cố định) — tên dài (VD "A / B") không bị cắt "...".
   const nameColW = full.length
     ? Math.min(280, Math.max(150, 50 + Math.max(...full.map((x) => teamName(tour, db, x.id).length)) * 6))
@@ -114,6 +120,21 @@ export default function FlowCanvas({ tour, event, db, a, canEdit, onBack, onOpen
       // 48/đội: TeamChip xếp 2 dòng tên (TeamNameLines, đôi) + đệm + viền + gap — đo thật trong Block, không
       // phải số áng chừng; 160 = tiêu đề khối + đệm nội dung + tiêu đề bảng + ô "thả cặp vào" + chân khối.
       return { w: Math.max(280, 24 + cols * nameColW + (cols - 1) * 8), h: 160 + rows * 48 }
+    }
+    if (s.type === 'swiss') {
+      // Như khối vòng bảng nhưng không có tiêu đề bảng / ô "thả cặp vào": 110 = tiêu đề khối + đệm + chân khối.
+      const cols = Math.max(1, Math.ceil(full.length / SWISS_PER_COL))
+      const rows = Math.max(3, Math.min(SWISS_PER_COL, full.length))
+      return { w: Math.max(280, 24 + cols * nameColW + (cols - 1) * 8), h: 110 + rows * 48 }
+    }
+    if (isDouble(s)) {
+      // Hai hàng (nhánh thắng + chung kết tổng · nhánh thua), mỗi hàng: nhãn + tên cột + ô trận 64/trận.
+      const pv = previewOf(s)
+      const wb = pv ? [...pv.wb, ...pv.gf] : []
+      const lb = pv ? pv.lb : []
+      const rowOf = (rs) => (rs.length ? 40 + Math.max(...rs.map((r) => r.matches.length)) * 64 : 0)
+      const cols = Math.max(1, wb.length, lb.length)
+      return { w: Math.max(280, 24 + cols * 140 + (cols - 1) * 10), h: 58 + 16 + rowOf(wb) + rowOf(lb) + 10 + 36 }
     }
     const pv = previewOf(s) || []
     const rounds = pv.filter((r) => r.roundKind !== 'third')
@@ -615,17 +636,24 @@ const sideText = (x) => (x.kind === 'slot' ? x.label : x.kind === 'seed' ? t('to
 /** Một khối trên canvas: tiêu đề (kéo để dời) · nội dung (bảng có đội / nhánh thu nhỏ) · chân (số trận · luật · giờ). */
 function Block({ s, at, size, on, dragging, isSource, linked, est, stages, full, tour, db, preview, onMoveStart, onWireStart, onDropTeam, onRun }) {
   const rr = s.type === 'round_robin'
+  const swiss = s.type === 'swiss'
+  const double = isDouble(s)
   const groups = rr ? shownGroups(s, full) : []
   const byId = new Map(full.map((x) => [x.id, x]))
   const teams = est?.teams ?? 0
-  const byes = rr ? 0 : byesOf(teams)
+  const byes = rr || swiss ? 0 : byesOf(teams)
+  const swissOrder = swiss ? entrantsOf(full, 'seed').entrants.map((e) => byId.get(e.id)).filter(Boolean) : []
+  const swissCols = Array.from({ length: Math.ceil(swissOrder.length / SWISS_PER_COL) }, (_, i) => swissOrder.slice(i * SWISS_PER_COL, (i + 1) * SWISS_PER_COL))
   const sub = rr
     ? `${t('tournament.format.groupCount', { n: s.config?.numGroups || 1 })} × ${Math.max(0, ...groups.map((g) => g.length))} · ${t('tournament.bracket.slotsN', { n: teams })}`
-    : [isSource ? t('tournament.bracket.slotsN', { n: teams }) : t('tournament.canvas.fromPrev', { n: teams }),
-      // < 4 đội thì không có bán kết để lấy 2 đội thua tranh 3-4 (khớp bracket.js: buildKnockout chỉ sinh
-      // trận 3-4 khi n >= 4) — nhãn "có tranh 3" mà vẫn hiện dù không sinh được trận là nói dối trên khối.
-      s.config?.thirdPlace && teams >= 4 ? t('tournament.canvas.third') : null,
-      byes ? t('tournament.canvas.byes', { n: byes }) : null].filter(Boolean).join(' · ')
+    : swiss ? t('tournament.swiss.block', { rounds: roundsOf(s, teams), n: teams })
+      : [isSource ? t('tournament.bracket.slotsN', { n: teams }) : t('tournament.canvas.fromPrev', { n: teams }),
+        // < 4 đội thì không có bán kết để lấy 2 đội thua tranh 3-4 (khớp bracket.js: buildKnockout chỉ sinh
+        // trận 3-4 khi n >= 4) — nhãn "có tranh 3" mà vẫn hiện dù không sinh được trận là nói dối trên khối.
+        s.config?.thirdPlace && !double && teams >= 4 ? t('tournament.canvas.third') : null,
+        byes ? t('tournament.canvas.byes', { n: byes }) : null].filter(Boolean).join(' · ')
+  const tag = rr ? 'tagRr' : swiss ? 'tagSwiss' : double ? 'tagDe' : 'tagKo'
+  const teal = rr || swiss
   return (
     <div onPointerDown={(e) => e.stopPropagation()} style={{
       position: 'absolute', left: at.x, top: at.y, width: size.w, height: size.h, boxSizing: 'border-box', display: 'grid',
@@ -644,9 +672,9 @@ function Block({ s, at, size, on, dragging, isSource, linked, est, stages, full,
       )}
 
       <div onPointerDown={onMoveStart} style={{ display: 'flex', alignItems: 'center', gap: 8, padding: '10px 12px 8px', cursor: dragging ? 'grabbing' : 'grab', userSelect: 'none', borderBottom: '1px solid var(--border-subtle)' }}>
-        <Mono size={9.5} weight={700} color={rr ? 'var(--status-transit-fg)' : 'var(--status-delayed-fg)'}
-          style={{ padding: '2px 5px', borderRadius: 4, background: rr ? 'var(--surface-accent-soft)' : 'var(--status-delayed-bg)' }}>
-          {t(rr ? 'tournament.canvas.tagRr' : 'tournament.canvas.tagKo')}
+        <Mono size={9.5} weight={700} color={teal ? 'var(--status-transit-fg)' : 'var(--status-delayed-fg)'}
+          style={{ padding: '2px 5px', borderRadius: 4, background: teal ? 'var(--surface-accent-soft)' : 'var(--status-delayed-bg)' }}>
+          {t('tournament.canvas.' + tag)}
         </Mono>
         <span style={{ display: 'grid', gap: 2, minWidth: 0 }}>
           <span style={{ font: '700 13px/1.2 var(--font-sans)', color: 'var(--text-primary)', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>{stageName(s, stages)}</span>
@@ -675,45 +703,29 @@ function Block({ s, at, size, on, dragging, isSource, linked, est, stages, full,
               )
             })}
           </div>
-        ) : preview ? (() => {
-          const rounds = preview.filter((r) => r.roundKind !== 'third')
-          const third = preview.find((r) => r.roundKind === 'third')
-          const rowH = 64
-          const firstCount = rounds[0]?.matches.length || 1
-          return (
-            <div style={{ display: 'flex', gap: 10 }}>
-              {rounds.map((r, ri) => (
-                <div key={ri} style={{ display: 'flex', flexDirection: 'column', gap: 4, width: 140, flex: '0 0 auto' }}>
-                  <Mono size={9.5} weight={700} color="var(--text-muted)" style={{ textTransform: 'uppercase' }}>{t('tournament.round.' + r.roundKind)}</Mono>
-                  <div style={{ display: 'grid', gridTemplateRows: `repeat(${r.matches.length}, 1fr)`, height: firstCount * rowH, width: '100%' }}>
-                    {r.matches.map((m, mi) => {
-                      const last = ri === rounds.length - 1
-                      const arm = (top) => ({
-                        position: 'absolute', right: -10, width: 10, ...(top ? { top: '50%', bottom: 0 } : { top: 0, bottom: '50%' }),
-                        [top ? 'borderTop' : 'borderBottom']: '1.5px solid var(--border-default)',
-                        borderRight: '1.5px solid var(--border-default)',
-                        [top ? 'borderTopRightRadius' : 'borderBottomRightRadius']: 5,
-                      })
-                      return (
-                        <div key={m.no} style={{ position: 'relative', display: 'flex', alignItems: 'center', minWidth: 0 }}>
-                          {!last && <span aria-hidden style={arm(mi % 2 === 0)} />}
-                          {ri > 0 && <span aria-hidden style={{ position: 'absolute', left: -10, width: 10, top: '50%', borderTop: '1.5px solid var(--border-default)' }} />}
-                          <div style={{ flex: 1, minWidth: 0 }}><MiniMatch m={m} /></div>
-                        </div>
-                      )
-                    })}
-                  </div>
-                </div>
-              ))}
-              {third && (
-                <div style={{ display: 'grid', alignContent: 'end', gap: 6, width: 140, flex: '0 0 auto' }}>
-                  <Mono size={9.5} weight={700} color="var(--text-muted)" style={{ textTransform: 'uppercase' }}>{t('tournament.round.third')}</Mono>
-                  {third.matches.map((m) => <MiniMatch key={m.no} m={m} />)}
-                </div>
-              )}
-            </div>
-          )
-        })() : null}
+        ) : swiss ? (
+          // Thụy Sĩ: một danh sách theo hạt giống (rating), 8 cặp mỗi cột — cặp đấu các vòng sau chưa biết trước.
+          <div style={{ display: 'grid', gridTemplateColumns: `repeat(${swissCols.length}, minmax(0,1fr))`, gap: 8 }}>
+            {swissCols.map((list, ci) => (
+              <div key={ci} style={{ display: 'grid', alignContent: 'start', gap: 4 }}>
+                {list.map((m, k) => <TeamChip key={m.id} team={m} tour={tour} db={db} seed={ci * SWISS_PER_COL + k + 1} />)}
+              </div>
+            ))}
+          </div>
+        ) : double && preview ? (
+          <div style={{ display: 'grid', gap: 10 }}>
+            <Mono size={10} weight={700} color="var(--text-secondary)">{t('tournament.double.wbLabel')}</Mono>
+            <PreviewRow rounds={[...preview.wb, ...preview.gf]} titleOf={(r) => t('tournament.round.' + r.roundKind)} />
+            {preview.lb.length > 0 && <Mono size={10} weight={700} color="var(--text-secondary)">{t('tournament.double.lbLabel')}</Mono>}
+            {preview.lb.length > 0 && (
+              <PreviewRow rounds={preview.lb}
+                titleOf={(r, i) => t(i === preview.lb.length - 1 ? 'tournament.double.lbFinal' : 'tournament.double.lbRound', { n: i + 1 })} />
+            )}
+          </div>
+        ) : preview ? (
+          <PreviewRow rounds={preview.filter((r) => r.roundKind !== 'third')} third={preview.find((r) => r.roundKind === 'third')}
+            titleOf={(r) => t('tournament.round.' + r.roundKind)} />
+        ) : null}
       </div>
 
       <div style={{ display: 'flex', alignItems: 'center', gap: 8, padding: '7px 12px', borderTop: '1px solid var(--border-subtle)' }}>
@@ -727,6 +739,51 @@ function Block({ s, at, size, on, dragging, isSource, linked, est, stages, full,
           </button>
         )}
       </div>
+    </div>
+  )
+}
+
+/**
+ * Một hàng cột trận thu nhỏ (xem trước nhánh). Đường nối theo con trỏ THẬT (`linkShape`: 2 gộp 1 / 1 sang 1) —
+ * dùng cho nhánh loại thường lẫn nhánh thắng / nhánh thua. `third` = cột tranh 3-4 đứng riêng, không nối.
+ */
+function PreviewRow({ rounds, third, titleOf }) {
+  const rowH = 64
+  const height = Math.max(1, ...rounds.map((r) => r.matches.length)) * rowH
+  const shapes = rounds.map((r, i) => (rounds[i + 1]
+    ? linkShape(r.matches.map((m) => ({ key: m.no, to: m.to })), rounds[i + 1].matches.map((m) => ({ key: m.no })))
+    : null))
+  const line = '1.5px solid var(--border-default)'
+  const head = (x) => <Mono size={9.5} weight={700} color="var(--text-muted)" style={{ textTransform: 'uppercase' }}>{x}</Mono>
+  return (
+    <div style={{ display: 'flex', gap: 10 }}>
+      {rounds.map((r, ri) => (
+        <div key={ri} style={{ display: 'flex', flexDirection: 'column', gap: 4, width: 140, flex: '0 0 auto' }}>
+          {head(titleOf(r, ri))}
+          <div style={{ display: 'grid', gridTemplateRows: `repeat(${r.matches.length}, 1fr)`, height, width: '100%' }}>
+            {r.matches.map((m, mi) => (
+              <div key={m.no} style={{ position: 'relative', display: 'flex', alignItems: 'center', minWidth: 0 }}>
+                {shapes[ri] === 'fork' && (
+                  <span aria-hidden style={{
+                    position: 'absolute', right: -10, width: 10, ...(mi % 2 === 0 ? { top: '50%', bottom: 0 } : { top: 0, bottom: '50%' }),
+                    [mi % 2 === 0 ? 'borderTop' : 'borderBottom']: line, borderRight: line,
+                    [mi % 2 === 0 ? 'borderTopRightRadius' : 'borderBottomRightRadius']: 5,
+                  }} />
+                )}
+                {shapes[ri] === 'straight' && <span aria-hidden style={{ position: 'absolute', right: -10, width: 10, top: '50%', borderTop: line }} />}
+                {ri > 0 && shapes[ri - 1] && <span aria-hidden style={{ position: 'absolute', left: -10, width: 10, top: '50%', borderTop: line }} />}
+                <div style={{ flex: 1, minWidth: 0 }}><MiniMatch m={m} /></div>
+              </div>
+            ))}
+          </div>
+        </div>
+      ))}
+      {third && (
+        <div style={{ display: 'grid', alignContent: 'end', gap: 6, width: 140, flex: '0 0 auto' }}>
+          {head(t('tournament.round.third'))}
+          {third.matches.map((m) => <MiniMatch key={m.no} m={m} />)}
+        </div>
+      )}
     </div>
   )
 }
@@ -808,7 +865,20 @@ function StagePanel({ stage, stages, source, links, full, est, act, a, onSaveGro
   const saveConfig = (patch) => save({ config: { ...stage.config, ...patch } })
   const numGroups = stage.config?.numGroups || 1
   const rr = stage.type === 'round_robin'
+  const swiss = stage.type === 'swiss'
+  const ko = stage.type === 'knockout'
+  const double = isDouble(stage)
   const teams = est.stages[stage.id]?.teams ?? 0
+  // Thụy Sĩ: không quá số vòng còn ghép được mà không gặp lại (n lẻ: n vòng, n chẵn: n − 1).
+  const maxRounds = full.length % 2 ? full.length : full.length - 1
+  // Thẻ luật (cùng kiểu thanh Thiết lập nhánh): "Vòng loại" / "Vòng tranh hạng" + áp dụng cho vòng nào.
+  const ov = stage.ruleOverrides || {}
+  const sameRule = (x, y) => JSON.stringify(x) === JSON.stringify(y)
+  const koKinds = ko && !double ? koPreview(teams, stage).rounds.map((r) => r.kind) : []
+  const names = (ks) => (ks.length ? ks.map((k) => t('tournament.round.' + k)).join(', ') : t('tournament.rule.none'))
+  const qualifyList = rr ? t('tournament.round.group') : swiss ? t('tournament.round.swiss')
+    : double ? `${t('tournament.double.wbLabel')}, ${t('tournament.double.lbLabel')}` : names(koKinds.filter((k) => k !== 'final' && k !== 'third'))
+  const rankList = double ? t('tournament.round.gf') : names(koKinds.filter((k) => k === 'final' || k === 'third'))
   const draw = () => {
     const ids = shuffle(full.map((x) => x.id))
     onSaveGroups(Array.from({ length: numGroups }, (_, g) => ids.filter((_, i) => i % numGroups === g)))
@@ -823,6 +893,13 @@ function StagePanel({ stage, stages, source, links, full, est, act, a, onSaveGro
         <Input value={name} placeholder={t('tournament.canvas.namePh')} onChange={(e) => setName(e.target.value)}
           onBlur={() => name.trim() !== (stage.title || '') && save({ title: name.trim() || null })} />
       ))}
+      {swiss && panelRow(t('tournament.swiss.rounds'), (
+        <Seg options={[{ key: 0, label: t('tournament.swiss.roundsAuto', { n: swissRounds(full.length) }) },
+          ...[3, 4, 5, 6, 7].filter((k) => k <= maxRounds).map((k) => ({ key: k, label: String(k) }))]}
+          value={stage.config?.rounds || 0} onChange={(k) => saveConfig({ rounds: Number(k) || null })} />
+      ))}
+      {swiss && <span style={{ font: 'var(--type-caption)', color: 'var(--text-muted)' }}>{t('tournament.swiss.roundsHint')}</span>}
+      {double && <span style={{ font: 'var(--type-caption)', color: 'var(--text-muted)' }}>{t('tournament.double.note')}</span>}
       {rr && panelRow(t('tournament.format.groups'), (
         <Seg options={[1, 2, 3, 4].map((k) => ({ key: k, label: String(k) }))} value={numGroups}
           onChange={(k) => saveConfig({ numGroups: Number(k), manualGroups: null })} />
@@ -866,34 +943,35 @@ function StagePanel({ stage, stages, source, links, full, est, act, a, onSaveGro
           <span style={{ font: 'var(--type-caption)', color: 'var(--text-muted)' }}>{t('tournament.canvas.balanceHint', { n: cfg.tournament.groupBalanceOk })}</span>
         </div>
       )}
-      {!rr && (
+      {ko && (
         <span style={{ font: 'var(--type-caption)', color: link || isSource ? 'var(--text-secondary)' : 'var(--status-delayed-fg)' }}>
           {isSource ? t('tournament.canvas.koSource', { n: teams, size: teams >= 2 ? nextPowerOf2(teams) : 0 })
             : link ? t('tournament.canvas.koIn', { n: teams, size: teams >= 2 ? nextPowerOf2(teams) : 0 }) : t('tournament.canvas.koUnlinked')}
           {byesOf(teams) > 0 && ' ' + t('tournament.canvas.byes', { n: byesOf(teams) }) + '.'}
         </span>
       )}
-      {!rr && link && <Button size="sm" variant="secondary" onClick={() => onPickLink(link.id)}>{t('tournament.canvas.link')} · {rankLabel(link.ranks)}</Button>}
-      {!rr && isSource && panelRow(t('tournament.format.seeding'), (
+      {ko && link && <Button size="sm" variant="secondary" onClick={() => onPickLink(link.id)}>{t('tournament.canvas.link')} · {rankLabel(link.ranks)}</Button>}
+      {(ko || swiss) && isSource && panelRow(t('tournament.format.seeding'), (
         <Seg options={['seed', 'slot'].map((k) => ({ key: k, label: t('tournament.format.seed.' + k) }))}
           value={stage.config?.seeding || 'seed'} onChange={(k) => saveConfig({ seeding: k })} />
       ))}
-      {!rr && isSource && stage.config?.seeding === 'slot' && full.length > 0 && (
+      {(ko || swiss) && isSource && stage.config?.seeding === 'slot' && full.length > 0 && (
         <Button size="sm" variant="secondary" icon="rotate-ccw" onClick={() => act(a.tourDraw(stage.eventId))}>
           {t(full.some((x) => x.drawNo) ? 'tournament.format.redraw' : 'tournament.format.draw')}
         </Button>
       )}
-      {!rr && panelRow(t('tournament.format.thirdPlace'), (
+      {ko && !double && panelRow(t('tournament.format.thirdPlace'), (
         <Seg options={[{ key: 'on', label: t('tournament.format.on') }, { key: 'off', label: t('tournament.format.off') }]}
           value={stage.config?.thirdPlace ? 'on' : 'off'} onChange={(k) => saveConfig({ thirdPlace: k === 'on' })} />
       ))}
-      {panelRow(t('tournament.format.qualify'), (
-        <RuleField value={stage.matchRule} onChange={(rule) => save({ matchRule: rule })} />
-      ))}
-      {!rr && panelRow(t('tournament.format.ranking'), (
-        <RuleField value={stage.ruleOverrides?.final}
-          onChange={(rule) => save({ ruleOverrides: { ...stage.ruleOverrides, final: rule, third: rule } })} />
-      ))}
+      <RuleCard title={t('tournament.rule.qualify')} applies={t('tournament.rule.applies', { list: qualifyList })}
+        value={stage.matchRule} onChange={(rule) => save({ matchRule: rule })} />
+      {ko && (
+        // Tranh 3 theo chung kết, trừ khi đã đặt riêng khác đi (ở thanh Thiết lập nhánh).
+        <RuleCard title={t('tournament.rule.ranking')} applies={t('tournament.rule.applies', { list: rankList })}
+          value={ov.final || stage.matchRule}
+          onChange={(rule) => save({ ruleOverrides: { ...ov, final: rule, ...(double || (ov.third && !sameRule(ov.third, ov.final)) ? {} : { third: rule }) } })} />
+      )}
       <div style={{ display: 'grid', gap: 4 }}>
         <Button size="sm" variant="ghost" icon="trash-2" disabled={isSource && stages.length > 1} onClick={() => { act(a.tourCanvasDelete(stage.id)); onClose() }}>
           {t('tournament.canvas.delete')}

@@ -2,8 +2,10 @@ import { useLayoutEffect, useRef, useState } from 'react'
 import { Button, Icon } from '#ds'
 import { Mono, Overline } from '#ui'
 import { canUndo } from '#lib/tournament/advance.js'
-import { CHAMP_KEY, flightsOf, hasResult, sideScores, slotKey } from '#lib/tournament/bracketView.js'
+import { CHAMP_KEY, flightsOf, hasResult, linkShape, sideScores, slotKey } from '#lib/tournament/bracketView.js'
+import { deView, isDouble } from '#lib/tournament/doubleElim.js'
 import { finalRows, groupStandings, swapUpInTie } from '#lib/tournament/standings.js'
+import { roundsOf, swissProgress, swissStandings } from '#lib/tournament/swiss.js'
 import { closeScoreOf, freeSetWinner } from '#lib/tournament/scoring.js'
 import { t } from '#i18n'
 import { Seg } from './TourBits.jsx'
@@ -19,13 +21,23 @@ const SWAP_MIME = 'text/x-tour-swap'
  * Nhánh loại trực tiếp (handoff "Nhánh đấu trực tiếp"): cột theo vòng · đường nối · cột Vô địch + trận 3-4.
  * Hiệu ứng (plan §6.2): đội thắng bay lên ô vòng sau, vô địch loé vàng, thẻ hiện dần lần đầu mở.
  * Hàm thuần `flightsOf` quyết định bay từ đâu tới đâu; ở đây chỉ chạy Web Animations.
+ * Nhánh thắng/thua (`DoubleBoard`) dùng lại: `showChamp` ẩn cột vô địch (tab nhánh thắng), `champion`/`thirdTeam`
+ * truyền sẵn (vô địch = chung kết tổng, hạng 3 = đội thua chung kết nhánh thua); cột có `name`/`sub` riêng.
  */
-export default function BracketBoard({ view, tour, db, canEdit, isMobile, onScore, onUndo, onEdit, onQuick, onSwap }) {
+export default function BracketBoard({
+  view, tour, db, canEdit, isMobile, onScore, onUndo, onEdit, onQuick, onSwap,
+  showChamp = true, champion: champGiven, thirdTeam, champWait, champSub, onPickRound, pickedKind,
+}) {
+  const pickOf = (kind) => (onPickRound ? { onPick: () => onPickRound(pickedKind === kind ? null : kind), active: pickedKind === kind } : {})
   const rootRef = useRef(null)
   const prevRef = useRef(null)
   const matches = tour.matches
-  const firstCount = view.rounds[0]?.matches.length || 1
-  const height = firstCount * SLOT_H
+  // Cột đông trận nhất quyết chiều cao (nhánh thua sau miễn đấu có thể đông hơn cột đầu).
+  const height = Math.max(1, ...view.rounds.map((r) => r.matches.length)) * SLOT_H
+  // Đường nối theo con trỏ thật giữa hai cột liền nhau: 'fork' (2 → 1), 'straight' (1 → 1), null = không vẽ.
+  const shapes = view.rounds.map((rd, i) => (view.rounds[i + 1]
+    ? linkShape(rd.matches.map((m) => ({ key: m.id, to: m.nextMatchId })), view.rounds[i + 1].matches.map((m) => ({ key: m.id })))
+    : null))
 
   useLayoutEffect(() => {
     const root = rootRef.current
@@ -60,9 +72,9 @@ export default function BracketBoard({ view, tour, db, canEdit, isMobile, onScor
     })
   }, [matches])
 
-  const champion = view.final && hasResult(view.final)
+  const champion = champGiven !== undefined ? champGiven : view.final && hasResult(view.final)
     ? (view.final.winner === 'A' ? view.final.teamAId : view.final.teamBId) : null
-  const thirdWinner = view.third && hasResult(view.third)
+  const thirdWinner = thirdTeam !== undefined ? thirdTeam : view.third && hasResult(view.third)
     ? (view.third.winner === 'A' ? view.third.teamAId : view.third.teamBId) : null
   const card = (m, extra) => (
     <MatchCard key={m.id} m={m} tour={tour} db={db} canEdit={canEdit} onScore={onScore} onUndo={onUndo} onEdit={onEdit} onQuick={onQuick}
@@ -74,22 +86,23 @@ export default function BracketBoard({ view, tour, db, canEdit, isMobile, onScor
       <div style={{ display: 'flex', gap: ARM * 2, minWidth: 'min-content', padding: isMobile ? '4px 2px' : '4px 6px' }}>
         {view.rounds.map((rd, ri) => (
           <div key={rd.round} style={{ width: CARD_W, minWidth: CARD_W, maxWidth: CARD_W, flex: '0 0 auto', display: 'flex', flexDirection: 'column', gap: 10, alignContent: 'start' }}>
-            <RoundHead name={t('tournament.round.' + rd.kind)} sub={t('tournament.bracket.roundSub', { n: rd.matches.filter((m) => m.status !== 'bye').length })}
-              rule={ruleLabel(rd.matches[0].rule)} />
+            <RoundHead name={rd.name || t('tournament.round.' + rd.kind)}
+              sub={rd.sub || t('tournament.bracket.roundSub', { n: rd.matches.filter((m) => m.status !== 'bye').length })}
+              rule={ruleLabel(rd.matches[0].rule)} {...pickOf(rd.kind)} />
             <div style={{ display: 'flex', flexDirection: 'column', height, width: '100%', minWidth: 0 }}>
-              {rd.matches.map((m) => {
-                const last = ri === view.rounds.length - 1
+              {rd.matches.map((m, i) => {
                 const lit = hasResult(m) || m.status === 'bye'
+                const line = `2px solid ${lit ? 'var(--teal-500)' : 'var(--border-default)'}`
                 const arm = (top) => ({
                   position: 'absolute', right: -ARM, width: ARM, ...(top ? { top: '50%', bottom: 0 } : { top: 0, bottom: '50%' }),
-                  [top ? 'borderTop' : 'borderBottom']: `2px solid ${lit ? 'var(--teal-500)' : 'var(--border-default)'}`,
-                  borderRight: `2px solid ${lit ? 'var(--teal-500)' : 'var(--border-default)'}`,
+                  [top ? 'borderTop' : 'borderBottom']: line, borderRight: line,
                   [top ? 'borderTopRightRadius' : 'borderBottomRightRadius']: 6, transition: 'border-color .4s',
                 })
                 return (
                   <div key={m.id} style={{ flex: 1, position: 'relative', display: 'flex', alignItems: 'center', width: '100%', minWidth: 0 }}>
-                    {!last && <span aria-hidden style={arm(m.slot % 2 === 0)} />}
-                    {ri > 0 && <span aria-hidden style={{ position: 'absolute', left: -ARM, width: ARM, top: '50%', borderTop: '2px solid var(--border-default)' }} />}
+                    {shapes[ri] === 'fork' && <span aria-hidden style={arm(i % 2 === 0)} />}
+                    {shapes[ri] === 'straight' && <span aria-hidden style={{ position: 'absolute', right: -ARM, width: ARM, top: '50%', borderTop: line, transition: 'border-color .4s' }} />}
+                    {ri > 0 && shapes[ri - 1] && <span aria-hidden style={{ position: 'absolute', left: -ARM, width: ARM, top: '50%', borderTop: '2px solid var(--border-default)' }} />}
                     {card(m, { round: ri })}
                   </div>
                 )
@@ -98,8 +111,8 @@ export default function BracketBoard({ view, tour, db, canEdit, isMobile, onScor
           </div>
         ))}
 
-        <div style={{ width: CARD_W, minWidth: CARD_W, maxWidth: CARD_W, flex: '0 0 auto', display: 'flex', flexDirection: 'column', gap: 10, alignContent: 'start' }}>
-          <RoundHead name={t('tournament.bracket.champ')} sub={champion ? '' : t('tournament.bracket.champWait')} gold />
+        {showChamp && <div style={{ width: CARD_W, minWidth: CARD_W, maxWidth: CARD_W, flex: '0 0 auto', display: 'flex', flexDirection: 'column', gap: 10, alignContent: 'start' }}>
+          <RoundHead name={t('tournament.bracket.champ')} sub={champion ? '' : champWait || t('tournament.bracket.champWait')} gold />
           <div style={{ display: 'flex', flexDirection: 'column', justifyContent: 'center', gap: 16, minHeight: height }}>
             <div data-k={CHAMP_KEY} style={{
               display: 'grid', gap: 8, padding: '24px 16px', borderRadius: 12, textAlign: 'center',
@@ -112,11 +125,11 @@ export default function BracketBoard({ view, tour, db, canEdit, isMobile, onScor
               <div>
                 <Overline>{t('tournament.bracket.champKicker')}</Overline>
                 <div style={{ font: '700 16px/1.3 var(--font-display)', color: champion ? 'var(--text-primary)' : 'var(--text-secondary)', marginTop: 4 }}>
-                  {champion ? teamName(tour, db, champion) : t('tournament.bracket.champWait')}
+                  {champion ? teamName(tour, db, champion) : champWait || t('tournament.bracket.champWait')}
                 </div>
                 {!champion && (
                   <div style={{ font: '400 11.5px/1.4 var(--font-sans)', color: 'var(--text-muted)', marginTop: 4 }}>
-                    {t('tournament.bracket.champSubtitle')}
+                    {champSub || t('tournament.bracket.champSubtitle')}
                   </div>
                 )}
                 {thirdWinner && (
@@ -128,13 +141,43 @@ export default function BracketBoard({ view, tour, db, canEdit, isMobile, onScor
             </div>
             {view.third && (
               <div style={{ display: 'grid', gap: 8, marginTop: 4 }}>
-                <RoundHead name={t('tournament.round.third')} rule={ruleLabel(view.third.rule)} />
+                <RoundHead name={t('tournament.round.third')} rule={ruleLabel(view.third.rule)} {...pickOf('third')} />
                 {card(view.third, { round: view.rounds.length })}
               </div>
             )}
           </div>
-        </div>
+        </div>}
       </div>
+    </div>
+  )
+}
+
+/**
+ * Nhánh thắng / Nhánh thua (double elimination) — 2 tab như tham khảo: "Nhánh thắng" · "Nhánh thua & Chung kết".
+ * Mỗi tab là một `BracketBoard` (cùng thẻ trận, đường nối, hiệu ứng). Mặc định mở tab còn trận đang chờ ở nhánh thắng,
+ * nhánh thắng xong hết thì mở tab nhánh thua. Đổi chỗ đội vòng đầu chỉ ở tab nhánh thắng.
+ */
+export function DoubleBoard({ stage, tour, db, canEdit, isMobile, onScore, onUndo, onEdit, onQuick, onSwap, onPickRound, pickedKind }) {
+  const v = deView(tour.matches, stage.id)
+  const wbOpen = v.wb.some((r) => r.matches.some((m) => m.status !== 'bye' && !hasResult(m)))
+  const [tab, setTab] = useState(wbOpen ? 'wb' : 'lb')
+  const lbRounds = v.lb.map((r, i) => ({ ...r, name: t(i === v.lb.length - 1 ? 'tournament.double.lbFinal' : 'tournament.double.lbRound', { n: i + 1 }) }))
+  const gfRounds = [
+    v.gf && { round: v.gf.round, kind: 'gf', matches: [v.gf], sub: !v.gf2 && !hasResult(v.gf) ? t('tournament.double.gfHint') : null },
+    v.gf2 && { round: v.gf2.round, kind: 'gf2', matches: [v.gf2] },
+  ].filter(Boolean)
+  const common = { tour, db, canEdit, isMobile, onScore, onUndo, onEdit, onQuick, onPickRound, pickedKind }
+  return (
+    <div style={{ display: 'grid', gap: 12, minWidth: 0 }}>
+      <div>
+        <Seg options={[{ key: 'wb', label: t('tournament.double.wbTab') }, { key: 'lb', label: t('tournament.double.lbTab') }]} value={tab} onChange={setTab} />
+      </div>
+      {tab === 'wb' ? (
+        <BracketBoard key="wb" view={{ rounds: v.wb, third: null, final: null }} showChamp={false} onSwap={onSwap} {...common} />
+      ) : (
+        <BracketBoard key="lb" view={{ rounds: [...lbRounds, ...gfRounds], third: null, final: null }} onSwap={null}
+          champion={v.champion} thirdTeam={v.third} champWait={t('tournament.double.champWait')} champSub={t('tournament.double.champSubtitle')} {...common} />
+      )}
     </div>
   )
 }
@@ -181,14 +224,20 @@ export function GroupBoard({ groups, tour, db, canEdit, locked, isMobile, onScor
  * không có "hoà", giữ đúng cột THẮNG/THUA/HS.
  */
 function GroupCard({ g, tour, db, canEdit, edit, isMobile, wide, stage, advancePerGroup, manual, onReorder, onScore, onUndo, onEdit, onQuick }) {
+  // Thụy Sĩ: một bảng, vòng sinh dần — cột ĐIỂM (thắng + miễn) và BH (Buchholz) thay cột THẮNG.
+  const swiss = stage?.type === 'swiss'
   const own = tour.matches.filter((m) => m.groupId === g.id)
   const rounds = [...new Set(own.map((m) => m.round))].sort((x, y) => x - y)
-  const roundDone = (r) => own.filter((m) => m.round === r).every((m) => hasResult(m))
-  const [activeRound, setActiveRound] = useState(() => rounds.find((r) => !roundDone(r)) ?? rounds[0])
-  const round = rounds.includes(activeRound) ? activeRound : rounds[0]
-  const st = groupStandings(g, tour.matches)
+  const roundDone = (r) => own.filter((m) => m.round === r).every((m) => hasResult(m) || m.status === 'bye')
+  // Vòng mới sinh (Thụy Sĩ) tự hiện ra: chưa chọn tay thì luôn theo vòng đầu còn trận chưa xong.
+  const [pickedRound, setActiveRound] = useState(null)
+  const round = rounds.includes(pickedRound) ? pickedRound : (rounds.find((r) => !roundDone(r)) ?? rounds[rounds.length - 1])
+  const st = swiss ? swissStandings(g, tour.matches) : groupStandings(g, tour.matches)
   const rows = finalRows(stage, g, st, manual?.[g.id])
-  const canReorder = canEdit && stage?.status === 'running' && st.isFinished
+  // Được chốt / xếp lại hoà: vòng tròn = đấu xong hết; Thụy Sĩ = đấu xong đủ số vòng.
+  const complete = st.isFinished && (!swiss || swissProgress(g, tour.matches).played >= roundsOf(stage, g.teams.length))
+  const canReorder = canEdit && stage?.status === 'running' && complete
+  const cols = swiss ? '24px 1fr 38px 34px 30px 44px' : '24px 1fr 34px 34px 44px'
 
   return (
     <section style={{
@@ -199,7 +248,7 @@ function GroupCard({ g, tour, db, canEdit, edit, isMobile, wide, stage, advanceP
       {/* Tiêu đề Bảng + Trạng thái tiến độ */}
       <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', gap: 8, flexWrap: 'wrap' }}>
         <span style={{ font: '700 16px/1.2 var(--font-display)', color: 'var(--text-primary)' }}>
-          {t('tournament.standings.groupTitle', { label: g.label })}
+          {swiss ? t('tournament.swiss.table') : t('tournament.standings.groupTitle', { label: g.label })}
         </span>
         <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
           {advancePerGroup > 0 && (
@@ -219,7 +268,7 @@ function GroupCard({ g, tour, db, canEdit, edit, isMobile, wide, stage, advanceP
 
       {/* Chưa đấu trận nào thì ai cũng hoà 0-0 — đúng toán nhưng chưa có gì để BTC "phân xử", chỉ nhắc
           khi bảng đã đấu xong hết (lúc thật sự cần chốt thứ hạng). */}
-      {st.ties.length > 0 && st.isFinished && stage?.status !== 'done' && (
+      {st.ties.length > 0 && complete && stage?.status !== 'done' && (
         <div style={{ font: 'var(--type-caption)', color: 'var(--status-delayed-fg)', display: 'flex', alignItems: 'center', gap: 4 }}>
           <Icon name="alert-circle" size={13} />
           <span>{t(canReorder ? 'tournament.standings.tieReorder' : 'tournament.standings.tieNotice')}</span>
@@ -233,14 +282,15 @@ function GroupCard({ g, tour, db, canEdit, edit, isMobile, wide, stage, advanceP
           padding: '8px 10px', display: 'grid', gap: 4, overflow: 'hidden',
         }}>
           <div style={{
-            display: 'grid', gridTemplateColumns: '24px 1fr 34px 34px 44px', alignItems: 'center', gap: 6,
+            display: 'grid', gridTemplateColumns: cols, alignItems: 'center', gap: 6,
             font: '700 10px/1 var(--font-sans)', color: 'var(--text-muted)', padding: '0 4px 6px',
             borderBottom: '1px solid var(--border-subtle)', letterSpacing: '0.04em', textTransform: 'uppercase',
           }}>
             <span style={{ textAlign: 'center' }}>#</span>
             <span>{t('tournament.overview.pairs')}</span>
-            <span style={{ textAlign: 'center' }}>{t('tournament.overview.won')}</span>
+            <span style={{ textAlign: 'center' }}>{t(swiss ? 'tournament.swiss.points' : 'tournament.overview.won')}</span>
             <span style={{ textAlign: 'center' }}>{t('tournament.overview.lost')}</span>
+            {swiss && <span style={{ textAlign: 'center' }} title={t('tournament.swiss.buchholzHint')}>{t('tournament.swiss.buchholz')}</span>}
             <span style={{ textAlign: 'right' }}>{t('tournament.overview.diff')}</span>
           </div>
 
@@ -250,7 +300,7 @@ function GroupCard({ g, tour, db, canEdit, edit, isMobile, wide, stage, advanceP
             const up = canReorder && swapUpInTie(rows, st.ties, r.teamId)
             return (
               <div key={r.teamId} style={{
-                display: 'grid', gridTemplateColumns: '24px 1fr 34px 34px 44px', alignItems: 'center', gap: 6,
+                display: 'grid', gridTemplateColumns: cols, alignItems: 'center', gap: 6,
                 padding: '5px 4px', borderRadius: 6,
                 background: advances ? 'var(--surface-accent-soft)' : 'transparent',
                 borderLeft: advances ? '3px solid var(--teal-500)' : '3px solid transparent',
@@ -282,6 +332,7 @@ function GroupCard({ g, tour, db, canEdit, edit, isMobile, wide, stage, advanceP
                 <Mono size={11.5} color={r.lost > 0 ? 'var(--text-secondary)' : 'var(--text-muted)'} style={{ textAlign: 'center' }}>
                   {r.lost}
                 </Mono>
+                {swiss && <Mono size={11.5} color="var(--text-muted)" style={{ textAlign: 'center' }}>{r.buchholz}</Mono>}
                 <Mono size={11.5} weight={600} color={r.pointDiff > 0 ? 'var(--status-delivered-fg)' : (r.pointDiff < 0 ? 'var(--status-incident-fg)' : 'var(--text-muted)')} style={{ textAlign: 'right' }}>
                   {r.pointDiff > 0 ? `+${r.pointDiff}` : r.pointDiff}
                 </Mono>
@@ -292,7 +343,7 @@ function GroupCard({ g, tour, db, canEdit, edit, isMobile, wide, stage, advanceP
 
         {/* TAB CHỌN VÒNG + TRẬN CỦA VÒNG ĐANG CHỌN */}
         <div style={{ display: 'grid', gap: 8, minWidth: 0 }}>
-          <Seg options={rounds.map((r) => ({ key: r, label: t('tournament.bracket.groupRound', { n: r + 1 }) + (roundDone(r) ? ' ✓' : '') }))}
+          <Seg options={rounds.map((r) => ({ key: r, label: t(swiss ? 'tournament.swiss.round' : 'tournament.bracket.groupRound', { n: r + 1 }) + (roundDone(r) ? ' ✓' : '') }))}
             value={round} onChange={setActiveRound} />
           <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fill, minmax(260px, 1fr))', gap: 6 }}>
             {own.filter((m) => m.round === round).sort((x, y) => x.slot - y.slot).map((m) => (
@@ -305,9 +356,14 @@ function GroupCard({ g, tour, db, canEdit, edit, isMobile, wide, stage, advanceP
   )
 }
 
-function RoundHead({ name, sub, rule, gold }) {
+/** Tên cột vòng. `onPick` (BTC, nhánh chưa đấu): bấm để đặt luật riêng cho vòng ở thanh Thiết lập nhánh. */
+function RoundHead({ name, sub, rule, gold, onPick, active }) {
+  const pick = onPick ? { role: 'button', tabIndex: 0, title: t('tournament.rule.pickHint'), onClick: onPick, onKeyDown: (e) => e.key === 'Enter' && onPick() } : {}
   return (
-    <div style={{ display: 'grid', gap: 6, paddingBottom: 8, borderBottom: `1px solid ${gold ? 'var(--podium-gold)' : 'var(--border-subtle)'}` }}>
+    <div {...pick} style={{
+      display: 'grid', gap: 6, paddingBottom: 8, cursor: onPick ? 'pointer' : undefined,
+      borderBottom: `${active ? 2 : 1}px solid ${active ? 'var(--teal-500)' : gold ? 'var(--podium-gold)' : 'var(--border-subtle)'}`,
+    }}>
       <span style={{
         font: '700 13px/1 var(--font-display)', letterSpacing: '0.05em', textTransform: 'uppercase',
         color: gold ? 'var(--podium-gold)' : 'var(--text-primary)',
@@ -335,7 +391,8 @@ function MatchCard({ m, tour, db, canEdit, round, onScore, onUndo, onEdit, onQui
   const [dragOverSide, setDragOverSide] = useState(null)
   const open = m.status === 'ready' || m.status === 'live'
   const inline = canEdit && open && m.rule?.sets === 1
-  const undoable = canEdit && hasResult(m) && canUndo(tour.matches, m.id).ok
+  const undoable = canEdit && hasResult(m) && canUndo(tour.matches, m.id, tour.stages).ok
+  const double = isDouble(tour.stages.find((s) => s.id === m.stageId))
   const submitQuick = () => {
     const a = Number(quick[0])
     const b = Number(quick[1])
@@ -361,7 +418,11 @@ function MatchCard({ m, tour, db, canEdit, round, onScore, onUndo, onEdit, onQui
     const won = hasResult(m) && m.winner === side
     const lost = hasResult(m) && m.winner && m.winner !== side
     const seed = src?.kind === 'seed' ? String(src.n) : src?.kind === 'draw' ? t('tournament.format.drawNo', { n: src.n }) : ''
-    const label = teamId ? teamName(tour, db, teamId) : src?.kind === 'bye' ? t('tournament.bracket.bye') : t('tournament.bracket.tbd')
+    // Nhánh thắng/thua: ô chưa có đội nói rõ chờ ai ("Thắng NT1.1", "Thua TK2") — đội rơi từ nhánh thắng xuống
+    // nhiều ngả, chỉ "Chờ đội" thì không đoán được ai.
+    const from = !teamId && double && (src?.kind === 'winner' || src?.kind === 'loser') ? tour.matches.find((x) => x.id === src.match) : null
+    const label = teamId ? teamName(tour, db, teamId) : src?.kind === 'bye' ? t('tournament.bracket.bye')
+      : from ? t(src.kind === 'winner' ? 'tournament.canvas.won' : 'tournament.canvas.lost', { n: matchCode(from) }) : t('tournament.bracket.tbd')
     // Đôi 2 người: mỗi người 1 dòng riêng (không nhét chung 1 dòng rồi cắt "...") — mỗi dòng tự cắt riêng,
     // tên dài vẫn thấy được gần hết thay vì cả cặp bị cắt cụt ngay từ tên đầu.
     const names = label ? label.split(' / ') : [label]

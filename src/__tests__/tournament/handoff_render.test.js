@@ -11,7 +11,7 @@ const { default: RecommendDialog } = await load('#components/tournament/Recommen
 const { default: FlowCanvas } = await load('#components/tournament/FlowCanvas.jsx')
 const { default: BracketBoard } = await load('#components/tournament/BracketBoard.jsx')
 const { BracketSetup } = await load('#pages/TournamentBracket.jsx')
-const { RuleField } = await load('#components/tournament/TourBits.jsx')
+const { RuleCard } = await load('#components/tournament/TourBits.jsx')
 const { koRounds } = await import('#lib/tournament/bracketView.js')
 const { buildKnockout } = await import('#lib/tournament/bracket.js')
 
@@ -83,10 +83,13 @@ test('sơ đồ: mẫu CLB, Lưu làm mẫu, Mỗi đội đá ít nhất', () =
   assert.match(canvas, /Mỗi đội đá ít nhất 1 trận/, '4 cặp chia 2 bảng × 2 → mỗi cặp 1 trận vòng bảng')
 })
 
-test('luật trận: có lựa chọn Tuỳ chỉnh; luật tự chỉnh mở sẵn ô nhập', () => {
-  assert.match(text(RuleField, { value: R21, onChange: noop }), /Tuỳ chỉnh luật/)
-  const custom = text(RuleField, { value: { sets: 3, points: 25, winBy2: true, cap: 30 }, onChange: noop })
-  assert.match(custom, /Số sec .*Cách 2 .*Dùng luật này/)
+test('luật trận: thẻ luật hiện đủ số sec · điểm chạm · cách 2 + trần · câu tóm tắt, áp ngay không cần nút xác nhận', () => {
+  const touch = text(RuleCard, { title: 'Vòng loại', value: { sets: 1, points: 30, winBy2: false, cap: 30 }, onChange: noop })
+  assert.match(touch, /Vòng loại Số sec 1 3 5 Điểm chạm − 30 \+ Cách 2 1 sec 30 điểm · chạm 30 thắng/)
+  assert.doesNotMatch(touch, /trần/, 'tắt cách 2 thì không có trần')
+  const by2 = text(RuleCard, { title: 'x', value: { sets: 3, points: 25, winBy2: true, cap: 30 }, onChange: noop })
+  assert.match(by2, /Cách 2 trần − 30 \+ 3 sec 25 điểm · cách 2, 29–29 bên chạm 30 thắng/)
+  assert.doesNotMatch(by2, /Dùng luật này/)
 })
 
 test('gợi ý thể thức: danh sách phương án có nhãn; luật gợi ý + ô áp dụng', () => {

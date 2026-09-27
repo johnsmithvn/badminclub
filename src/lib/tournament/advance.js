@@ -33,14 +33,25 @@ function cloneWith(matches, matchId) {
   return { next, byId, m: byId.get(matchId) }
 }
 
-export function canUndo(matches, matchId) {
+const gf2Of = (matches, m) => matches.find((x) => x.stageId === m.stageId && x.roundKind === 'gf2')
+
+/**
+ * `stages` (tuỳ chọn): để biết trận thuộc Thụy Sĩ — trận của vòng đã có vòng sau thì không hoàn tác được
+ * (cặp vòng sau ghép theo kết quả đó).
+ */
+export function canUndo(matches, matchId, stages = []) {
   const m = matches.find((x) => x.id === matchId)
   if (!m) return { ok: false, reasonKey: 'tournament.err.matchNotFound' }
   if (m.status === 'bye') return { ok: false, reasonKey: 'tournament.err.cannotUndoBye' }
   if (!hasResult(m)) return { ok: false, reasonKey: 'tournament.err.matchNotDone' }
   const downstream = [m.nextMatchId, m.loserNextMatchId].filter(Boolean)
+  const gf2 = m.roundKind === 'gf' ? gf2Of(matches, m) : null
   const blocked = matches.some((x) => downstream.includes(x.id) && BLOCKS_UNDO.includes(x.status))
-  return blocked ? { ok: false, reasonKey: 'tournament.err.downstreamHasResult' } : { ok: true }
+    || Boolean(gf2 && BLOCKS_UNDO.includes(gf2.status))
+  if (blocked) return { ok: false, reasonKey: 'tournament.err.downstreamHasResult' }
+  const swiss = stages.find((s) => s.id === m.stageId)?.type === 'swiss'
+  if (swiss && matches.some((x) => x.stageId === m.stageId && x.round > m.round)) return { ok: false, reasonKey: 'tournament.err.swissLaterRound' }
+  return { ok: true }
 }
 
 /**
@@ -85,12 +96,19 @@ export function applyCommit(matches, { matchId, sets = [], winner, status = 'don
   const [won, lost] = winner === 'A' ? [m.teamAId, m.teamBId] : [m.teamBId, m.teamAId]
   if (m.nextMatchId) seatTeam(byId.get(m.nextMatchId), m.nextSide, won)
   if (m.loserNextMatchId) seatTeam(byId.get(m.loserNextMatchId), m.loserNextSide, lost)
+  // Chung kết tổng: đội nhánh thua (B) thắng → đá thêm trận 2 (RPC chèn trận thật; đây chỉ đoán trước).
+  if (m.roundKind === 'gf' && winner === 'B' && !gf2Of(next, m)) {
+    next.push({
+      ...m, id: m.id + ':gf2', round: m.round + 1, slot: 0, roundKind: 'gf2', status: 'ready', sets: [], winner: null, resultNote: null,
+      sourceA: { kind: 'loser', match: m.id }, sourceB: { kind: 'winner', match: m.id },
+    })
+  }
   return { matches: next, error: null }
 }
 
-/** Gỡ kết quả, gỡ đội ở CẢ trận sau lẫn trận 3-4. Chặn khi trận đích đã đánh (`canUndo`). */
-export function applyUndo(matches, { matchId, reason }) {
-  const check = canUndo(matches, matchId)
+/** Gỡ kết quả, gỡ đội ở CẢ trận sau lẫn trận 3-4 (và trận 2 chung kết tổng). Chặn khi trận đích đã đánh (`canUndo`). */
+export function applyUndo(matches, { matchId, reason }, stages = []) {
+  const check = canUndo(matches, matchId, stages)
   if (!check.ok) return { matches, error: check.reasonKey }
   if (blank(reason)) return { matches, error: 'tournament.err.missingReason' }
 
@@ -98,7 +116,8 @@ export function applyUndo(matches, { matchId, reason }) {
   Object.assign(m, { status: 'ready', sets: [], winner: null, resultNote: null })
   if (m.nextMatchId) seatTeam(byId.get(m.nextMatchId), m.nextSide, null)
   if (m.loserNextMatchId) seatTeam(byId.get(m.loserNextMatchId), m.loserNextSide, null)
-  return { matches: next, error: null }
+  const gf2 = m.roundKind === 'gf' ? gf2Of(next, m) : null
+  return { matches: gf2 ? next.filter((x) => x !== gf2) : next, error: null }
 }
 
 /**

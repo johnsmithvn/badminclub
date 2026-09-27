@@ -2,13 +2,15 @@ import { Button, Card, Icon } from '#ds'
 import { Mono } from '#ui'
 import { hubChecklist } from '#lib/tournament/hub.js'
 import { eventTeams } from '#lib/tournament/pairing.js'
-import { hasResult, progressOf, queueOf, sideScores } from '#lib/tournament/bracketView.js'
+import { hasResult, linkShape, progressOf, queueOf, sideScores } from '#lib/tournament/bracketView.js'
 import { finalRows, groupStandings, stageGroups } from '#lib/tournament/standings.js'
+import { deView, isDouble } from '#lib/tournament/doubleElim.js'
+import { roundsOf, swissProgress, swissStandings } from '#lib/tournament/swiss.js'
 import cfg from '#config/app.json' with { type: 'json' }
 import { t } from '#i18n'
 import { matchCode, stageName, teamName } from './tourUtils.js'
 import { koRounds } from '#lib/tournament/bracketView.js'
-import { estimateOf, koPreviewOf } from '#lib/tournament/canvas.js'
+import { dePreviewOf, estimateOf, koPreviewOf } from '#lib/tournament/canvas.js'
 import { StandingsTable, TeamNameLines } from './TourBits.jsx'
 
 /**
@@ -46,7 +48,8 @@ export default function OverviewTab({ tour, db, event, onGo, canEdit, onOpenBrac
   const curStages = (tour.stages || [])
     .filter((s) => !curEventId || s.eventId === curEventId)
     .sort((x, y) => x.seq - y.seq)
-  const rrStages = curStages.filter((s) => s.type === 'round_robin')
+  // Giai đoạn dạng bảng xếp hạng: vòng tròn, Thụy Sĩ (một bảng).
+  const rrStages = curStages.filter((s) => s.type !== 'knockout')
 
   // Đang đánh (đứng đầu hàng chờ) rồi tới các trận kế tiếp — của cả giải, mọi nội dung.
   const upcomingMatches = queue.slice(0, 6)
@@ -156,7 +159,8 @@ export default function OverviewTab({ tour, db, event, onGo, canEdit, onOpenBrac
               // Subtext thông tin giai đoạn
               const subInfo = st.type === 'round_robin'
                 ? t('tournament.overview.rrStageDesc', { total: stageTotal, groups: stageGroups(tour, st.id).length })
-                : t('tournament.overview.koStageDesc', { total: stageTotal })
+                : st.type === 'swiss' ? t('tournament.swiss.sub', { rounds: roundsOf(st, teamsCount) })
+                  : t('tournament.overview.koStageDesc', { total: stageTotal })
 
               return (
                 <div key={st.id} style={{ flex: '1 1 auto', display: 'flex', alignItems: 'center', gap: 10, minWidth: 200 }}>
@@ -274,13 +278,18 @@ export default function OverviewTab({ tour, db, event, onGo, canEdit, onOpenBrac
           const rrDone = total > 0 && done === total
           const toStages = new Set((tour.stageLinks || []).filter((l) => l.fromStageId === stage.id).map((l) => l.toStageId))
           const advancePerGroup = toStages.size > 0 ? (stage.config?.advancePerGroup || 2) : 0
+          const swiss = stage.type === 'swiss'
+          const sw = swiss ? swissProgress(groups[0], tour.matches) : null
           return (
             <Card key={stage.id} title={stageName(stage, curStages)} icon="table" padding="12px 16px"
               actions={<Button size="sm" variant="secondary" iconAfter="arrow-right" onClick={() => onOpenBracket(stage.eventId)}>{t('tournament.overview.openBracketBtn')}</Button>}>
               <div style={{ display: 'grid', gap: 12 }}>
                 <div style={{ display: 'grid', gap: 8 }}>
                   <div style={{ display: 'flex', alignItems: 'baseline', justifyContent: 'space-between', gap: 8 }}>
-                    <Mono size={12} color="var(--text-secondary)">{t('tournament.overview.rrStageDesc', { total, groups: groups.length })}</Mono>
+                    <Mono size={12} color="var(--text-secondary)">
+                      {swiss ? t('tournament.swiss.progress', { n: sw.played, total: roundsOf(stage, groups[0].teams.length) })
+                        : t('tournament.overview.rrStageDesc', { total, groups: groups.length })}
+                    </Mono>
                     <Mono size={12} weight={700} color={rrDone ? 'var(--status-delivered-fg)' : 'var(--teal-500)'}>
                       {done}/{total} {t('tournament.overview.matchesDone')}
                     </Mono>
@@ -294,12 +303,12 @@ export default function OverviewTab({ tour, db, event, onGo, canEdit, onOpenBrac
                 </div>
                 <div style={{ display: 'grid', gridTemplateColumns: isMobile ? '1fr' : `repeat(${Math.min(2, groups.length)}, minmax(0, 1fr))`, gap: 12 }}>
                   {groups.map((g) => {
-                    const st = groupStandings(g, tour.matches)
+                    const st = swiss ? swissStandings(g, tour.matches) : groupStandings(g, tour.matches)
                     const rows = finalRows(stage, g, st)
                     return (
                       <div key={g.id} style={{ display: 'grid', gap: 6 }}>
                         <span style={{ font: '700 13px/1.2 var(--font-sans)', color: 'var(--text-primary)' }}>
-                          {t('tournament.standings.groupTitle', { label: g.label })}
+                          {swiss ? t('tournament.swiss.table') : t('tournament.standings.groupTitle', { label: g.label })}
                         </span>
                         <StandingsTable rows={rows} advancePerGroup={advancePerGroup} teamLabel={(id) => teamName(tour, db, id)} />
                       </div>
@@ -431,10 +440,13 @@ function MiniBracket({ tour, db, stage, stages, onOpen }) {
     if (x.kind === 'loser') return t('tournament.canvas.lost', { n: x.no })
     return t('tournament.canvas.bye')
   }
-  // Cột: [{ title, cells: [{ a, b, code, m (trận thật, null nếu còn là xem trước) }] }]
-  let cols = []
+  const double = isDouble(stage)
+  const lbTitle = (i, len) => t(i === len - 1 ? 'tournament.double.lbFinal' : 'tournament.double.lbRound', { n: i + 1 })
+  // Phần (nhánh đơn: 1 phần; nhánh thắng/thua: nhánh thắng + chung kết tổng, rồi nhánh thua) → cột → ô:
+  // [{ label?, cols: [{ title, isThird?, cells: [{ a, b, code, m (trận thật | null khi xem trước), key, to }] }] }]
+  // `key`/`to` = ô này / ô đội thắng đi tới — vẽ đường nối theo con trỏ thật (`linkShape`).
+  let sections = []
   if (live) {
-    const view = koRounds(tour.matches, stage.id)
     const codeOf = new Map(tour.matches.filter((m) => m.stageId === stage.id).map((m) => [m.id, matchCode(m)]))
     const side = (m, s) => {
       const id = s === 'A' ? m.teamAId : m.teamBId
@@ -444,27 +456,86 @@ function MiniBracket({ tour, db, stage, stages, onOpen }) {
       if (src?.kind === 'loser') return t('tournament.canvas.lost', { n: codeOf.get(src.match) || '' })
       return src?.kind === 'bye' ? t('tournament.canvas.bye') : t('tournament.bracket.tbd')
     }
-    const cellOf = (m) => ({ a: side(m, 'A'), b: side(m, 'B'), code: matchCode(m), m })
-    cols = view.rounds.map((r) => ({ title: t('tournament.round.' + r.kind), cells: r.matches.filter((m) => m.status !== 'bye').map(cellOf) }))
-    if (view.third) cols.push({ title: t('tournament.round.third'), cells: [cellOf(view.third)], isThird: true })
+    const cellOf = (m) => ({ a: side(m, 'A'), b: side(m, 'B'), code: matchCode(m), m, key: m.id, to: m.nextMatchId })
+    const colOf = (r, title) => ({ title: title || t('tournament.round.' + r.kind), cells: r.matches.filter((m) => m.status !== 'bye').map(cellOf) })
+    if (double) {
+      const v = deView(tour.matches, stage.id)
+      sections = [
+        { label: t('tournament.double.wbLabel'), cols: [...v.wb.map((r) => colOf(r)), ...[v.gf, v.gf2].filter(Boolean).map((m) => ({ title: t('tournament.round.' + m.roundKind), cells: [cellOf(m)] }))] },
+        { label: t('tournament.double.lbLabel'), cols: v.lb.map((r, i) => colOf(r, lbTitle(i, v.lb.length))) },
+      ]
+    } else {
+      const view = koRounds(tour.matches, stage.id)
+      const cols = view.rounds.map((r) => colOf(r))
+      if (view.third) cols.push({ title: t('tournament.round.third'), cells: [cellOf(view.third)], isThird: true })
+      sections = [{ cols }]
+    }
   } else {
-    const pv = koPreviewOf(stage, source, link, n) || []
-    cols = pv.map((r) => ({
-      title: t('tournament.round.' + r.roundKind),
-      cells: r.matches.map((m) => ({ a: slot(m.a), b: slot(m.b), code: '#' + m.no, m: null })),
-      isThird: r.roundKind === 'third',
-    }))
+    const cellP = (m) => ({ a: slot(m.a), b: slot(m.b), code: '#' + m.no, m: null, key: m.no, to: m.to })
+    const colP = (r, title) => ({ title: title || t('tournament.round.' + r.roundKind), cells: r.matches.map(cellP), isThird: r.roundKind === 'third' })
+    if (double) {
+      const pv = dePreviewOf(stage, n)
+      if (pv) {
+        sections = [
+          { label: t('tournament.double.wbLabel'), cols: [...pv.wb, ...pv.gf].map((r) => colP(r)) },
+          { label: t('tournament.double.lbLabel'), cols: pv.lb.map((r, i) => colP(r, lbTitle(i, pv.lb.length))) },
+        ]
+      }
+    } else {
+      sections = [{ cols: (koPreviewOf(stage, source, link, n) || []).map((r) => colP(r)) }]
+    }
   }
-  if (!cols.length) return null
-  // Đường nối kiểu nhánh thật (2 trận gộp vào 1 ô vòng sau) — chỉ giữa các vòng CHÍNH, tranh hạng 3 đứng riêng
-  // (đội thua bán kết rẽ nhánh phụ, không phải "thắng đi tiếp" nên không vẽ nối vào đó).
-  const mainCols = cols.filter((c) => !c.isThird)
-  const thirdCol = cols.find((c) => c.isThird)
+  sections = sections.filter((sec) => sec.cols.length)
+  if (!sections.length) return null
   // 104/trận: mỗi ô có mã trận + 2 bên, mỗi bên tới 2 dòng tên (TeamNameLines, đôi) — 64 từng dùng là hụt,
   // dòng cuối bị cắt/tràn. Cùng cỡ với SLOT_H=112 ở BracketBoard.jsx (bảng đấu đầy đủ, thẻ to hơn) — ô ở
   // đây gọn hơn (font nhỏ hơn, đệm ít hơn) nên thấp hơn chút, không phải số áng chừng.
   const rowH = 104
-  const firstCount = mainCols[0]?.cells.length || 1
+  const colHead = (title) => (
+    <Mono size={10.5} weight={700} color="var(--text-primary)"
+      style={{ textTransform: 'uppercase', letterSpacing: '0.05em', paddingBottom: 6, borderBottom: '1px solid var(--border-subtle)' }}>
+      {title}
+    </Mono>
+  )
+  // Tranh hạng 3 đứng riêng (đội thua bán kết rẽ nhánh phụ, không phải "thắng đi tiếp" nên không vẽ nối vào đó).
+  const renderSection = (sec) => {
+    const mainCols = sec.cols.filter((c) => !c.isThird)
+    const thirdCol = sec.cols.find((c) => c.isThird)
+    const height = Math.max(1, ...mainCols.map((c) => c.cells.length)) * rowH
+    const shapes = mainCols.map((c, ci) => (mainCols[ci + 1] ? linkShape(c.cells, mainCols[ci + 1].cells) : null))
+    return (
+      <div style={{ display: 'flex', gap: 18, overflowX: 'auto', paddingBottom: 4 }}>
+        {mainCols.map((c, ci) => (
+          <div key={ci} style={{ display: 'grid', gap: 8, minWidth: 158, flex: '0 0 auto' }}>
+            {colHead(c.title)}
+            <div style={{ display: 'grid', gridTemplateRows: `repeat(${c.cells.length}, 1fr)`, height, width: '100%' }}>
+              {c.cells.map((cell, i) => (
+                <div key={i} style={{ position: 'relative', display: 'flex', alignItems: 'center', minWidth: 0 }}>
+                  {shapes[ci] === 'fork' && (
+                    <span aria-hidden style={{
+                      position: 'absolute', right: -10, width: 10, ...(i % 2 === 0 ? { top: '50%', bottom: 0 } : { top: 0, bottom: '50%' }),
+                      [i % 2 === 0 ? 'borderTop' : 'borderBottom']: '1.5px solid var(--border-default)',
+                      borderRight: '1.5px solid var(--border-default)',
+                      [i % 2 === 0 ? 'borderTopRightRadius' : 'borderBottomRightRadius']: 5,
+                    }} />
+                  )}
+                  {shapes[ci] === 'straight' && <span aria-hidden style={{ position: 'absolute', right: -10, width: 10, top: '50%', borderTop: '1.5px solid var(--border-default)' }} />}
+                  {ci > 0 && shapes[ci - 1] && <span aria-hidden style={{ position: 'absolute', left: -10, width: 10, top: '50%', borderTop: '1.5px solid var(--border-default)' }} />}
+                  <div style={{ flex: 1, minWidth: 0 }}>{box(cell)}</div>
+                </div>
+              ))}
+            </div>
+          </div>
+        ))}
+        {thirdCol && (
+          <div style={{ display: 'grid', alignContent: 'end', gap: 8, minWidth: 158, flex: '0 0 auto' }}>
+            {colHead(thirdCol.title)}
+            {thirdCol.cells.map((cell, i) => <div key={i}>{box(cell)}</div>)}
+          </div>
+        )}
+      </div>
+    )
+  }
   const box = (cell) => {
     const done = cell.m && hasResult(cell.m)
     return (
@@ -494,44 +565,18 @@ function MiniBracket({ tour, db, stage, stages, onOpen }) {
   return (
     <Card title={stageName(stage, stages)} icon="split" padding="12px 16px 14px"
       actions={live && <Button size="sm" variant="secondary" iconAfter="arrow-right" onClick={onOpen}>{t('tournament.overview.openBracketBtn')}</Button>}>
-      {!live && <div style={{ font: 'var(--type-caption)', color: 'var(--text-muted)', paddingBottom: 8 }}>{t('tournament.overview.miniWait')}</div>}
-      <div style={{ display: 'flex', gap: 18, overflowX: 'auto', paddingBottom: 4 }}>
-        {mainCols.map((c, ci) => (
-          <div key={ci} style={{ display: 'grid', gap: 8, minWidth: 158, flex: '0 0 auto' }}>
-            <Mono size={10.5} weight={700} color="var(--text-primary)"
-              style={{ textTransform: 'uppercase', letterSpacing: '0.05em', paddingBottom: 6, borderBottom: '1px solid var(--border-subtle)' }}>
-              {c.title}
-            </Mono>
-            <div style={{ display: 'grid', gridTemplateRows: `repeat(${c.cells.length}, 1fr)`, height: firstCount * rowH, width: '100%' }}>
-              {c.cells.map((cell, i) => {
-                const last = ci === mainCols.length - 1
-                return (
-                  <div key={i} style={{ position: 'relative', display: 'flex', alignItems: 'center', minWidth: 0 }}>
-                    {!last && (
-                      <span aria-hidden style={{
-                        position: 'absolute', right: -10, width: 10, ...(i % 2 === 0 ? { top: '50%', bottom: 0 } : { top: 0, bottom: '50%' }),
-                        [i % 2 === 0 ? 'borderTop' : 'borderBottom']: '1.5px solid var(--border-default)',
-                        borderRight: '1.5px solid var(--border-default)',
-                        [i % 2 === 0 ? 'borderTopRightRadius' : 'borderBottomRightRadius']: 5,
-                      }} />
-                    )}
-                    {ci > 0 && <span aria-hidden style={{ position: 'absolute', left: -10, width: 10, top: '50%', borderTop: '1.5px solid var(--border-default)' }} />}
-                    <div style={{ flex: 1, minWidth: 0 }}>{box(cell)}</div>
-                  </div>
-                )
-              })}
-            </div>
+      {!live && (
+        <div style={{ font: 'var(--type-caption)', color: 'var(--text-muted)', paddingBottom: 8 }}>
+          {t(link ? 'tournament.overview.miniWait' : 'tournament.bracket.noScheduleHint')}
+        </div>
+      )}
+      <div style={{ display: 'grid', gap: 14 }}>
+        {sections.map((sec, si) => (
+          <div key={si} style={{ display: 'grid', gap: 8, minWidth: 0 }}>
+            {sec.label && <span style={{ font: '700 12px/1.2 var(--font-sans)', color: 'var(--text-secondary)' }}>{sec.label}</span>}
+            {renderSection(sec)}
           </div>
         ))}
-        {thirdCol && (
-          <div style={{ display: 'grid', alignContent: 'end', gap: 8, minWidth: 158, flex: '0 0 auto' }}>
-            <Mono size={10.5} weight={700} color="var(--text-primary)"
-              style={{ textTransform: 'uppercase', letterSpacing: '0.05em', paddingBottom: 6, borderBottom: '1px solid var(--border-subtle)' }}>
-              {thirdCol.title}
-            </Mono>
-            {thirdCol.cells.map((cell, i) => <div key={i}>{box(cell)}</div>)}
-          </div>
-        )}
       </div>
     </Card>
   )

@@ -1,10 +1,7 @@
 // Mảnh nhỏ dùng chung của màn Giải đấu. Màu chỉ qua token (docs/TOURNAMENT_PLAN.md §6.1).
 
-import { useState } from 'react'
-import { Button, Input, StatusPill } from '#ds'
+import { StatusPill } from '#ds'
 import { Mono } from '#ui'
-import { RULE_PRESETS, presetKeyOf } from '#lib/tournament/format.js'
-import { validRule } from '#lib/tournament/scoring.js'
 import { t } from '#i18n'
 
 // Trạng thái → màu pill của TDMS. Nháp xám, mở đăng ký xanh dương, đang diễn ra teal, xong xanh lá.
@@ -152,43 +149,70 @@ export function NumStep({ value, min = 0, max = Infinity, step = 1, onChange, fo
 }
 
 /**
- * Chọn luật trận: các luật mẫu (app.json) + "Tuỳ chỉnh luật" (handoff: số sec · điểm chạm · cách 2 · trần).
- * Tuỳ chỉnh chỉ ghi khi bấm "Dùng luật này" và luật hợp lệ (`validRule`) — không ghi dở dang từng phím gõ.
+ * Thẻ luật một nhóm vòng (handoff Nhánh đấu): số sec 1/3/5 · điểm chạm −/+ · cách 2 (công tắc) + trần −/+ · câu tóm tắt.
+ * Đổi là áp ngay vào bản nháp của người gọi — không cần nút "Dùng luật này": nút −/+ kẹp sẵn (điểm 5–50, trần
+ * điểm+2–60) nên luật lúc nào cũng hợp lệ (`validRule`).
  */
-export function RuleField({ value, onChange, disabled }) {
-  const preset = presetKeyOf(value)
-  const [open, setOpen] = useState(!preset && Boolean(value?.points))
-  const [d, setD] = useState(() => ({ sets: value?.sets || 1, points: String(value?.points || 21), winBy2: Boolean(value?.winBy2), cap: String(value?.cap || 30) }))
-  const opts = [
-    ...Object.keys(RULE_PRESETS).map((k) => ({ key: k, label: t('tournament.format.preset.' + k) })),
-    { key: 'custom', label: t('tournament.format.customRule') },
-  ]
-  const draft = { sets: d.sets, points: Number(d.points), winBy2: d.winBy2, cap: d.winBy2 ? Number(d.cap) : Number(d.points) }
-  const ok = validRule(draft)
-  return (
-    <span style={{ display: 'grid', gap: 8, width: '100%', maxWidth: '100%', minWidth: 0, boxSizing: 'border-box' }}>
-      <Seg options={opts} value={open ? 'custom' : preset} disabled={disabled}
-        onChange={(k) => (k === 'custom' ? setOpen(true) : (setOpen(false), onChange({ ...RULE_PRESETS[k] })))} />
-      {open && (
-        <span style={{ display: 'flex', gap: 8, flexWrap: 'wrap', alignItems: 'flex-end' }}>
-          <span style={{ display: 'grid', gap: 4 }}>
-            <span style={{ font: 'var(--type-caption)', color: 'var(--text-muted)' }}>{t('tournament.format.ruleSets')}</span>
-            <Seg options={[1, 3, 5].map((k) => ({ key: k, label: String(k) }))} value={d.sets} disabled={disabled} onChange={(k) => setD((x) => ({ ...x, sets: k }))} />
-          </span>
-          <Input label={t('tournament.format.rulePoints')} mono inputMode="numeric" value={d.points} disabled={disabled}
-            containerStyle={{ width: 90 }} onChange={(e) => setD((x) => ({ ...x, points: e.target.value.replace(/\D/g, '') }))} />
-          <span style={{ display: 'grid', gap: 4 }}>
-            <span style={{ font: 'var(--type-caption)', color: 'var(--text-muted)' }}>{t('tournament.format.ruleWinBy2')}</span>
-            <Seg options={[{ key: 'on', label: t('tournament.format.on') }, { key: 'off', label: t('tournament.format.off') }]}
-              value={d.winBy2 ? 'on' : 'off'} disabled={disabled} onChange={(k) => setD((x) => ({ ...x, winBy2: k === 'on' }))} />
-          </span>
-          {d.winBy2 && (
-            <Input label={t('tournament.format.ruleCap')} mono inputMode="numeric" value={d.cap} disabled={disabled}
-              containerStyle={{ width: 90 }} onChange={(e) => setD((x) => ({ ...x, cap: e.target.value.replace(/\D/g, '') }))} />
-          )}
-          <Button size="sm" disabled={disabled || !ok} onClick={() => onChange(draft)}>{t('tournament.format.ruleApply')}</Button>
-        </span>
-      )}
+export function RuleCard({ title, applies, value, onChange, active = false, children }) {
+  const r = { sets: value?.sets || 1, points: value?.points || 21, winBy2: Boolean(value?.winBy2), cap: value?.cap || value?.points || 21 }
+  const upd = (patch) => {
+    const x = { ...r, ...patch }
+    x.points = Math.max(5, Math.min(50, x.points))
+    x.cap = x.winBy2 ? Math.max(x.points + 2, Math.min(60, x.cap)) : x.points
+    onChange(x)
+  }
+  const box = (on) => ({
+    height: 26, minWidth: 24, padding: '0 7px', borderRadius: 6, cursor: 'pointer', font: '600 12px/1 var(--font-mono)',
+    color: on ? 'var(--text-primary)' : 'var(--text-secondary)',
+    background: on ? 'var(--surface-accent-soft)' : 'var(--surface-raised)', border: `1px solid ${on ? 'var(--teal-500)' : 'var(--border-default)'}`,
+  })
+  const stepper = (val, key) => (
+    <span style={{ display: 'inline-flex', alignItems: 'center', gap: 4 }}>
+      <button type="button" aria-label={t('tournament.rule.less')} style={box(false)} onClick={() => upd({ [key]: val - 1 })}>−</button>
+      <Mono size={14} weight={700} color="var(--text-primary)" style={{ minWidth: 26, textAlign: 'center' }}>{val}</Mono>
+      <button type="button" aria-label={t('tournament.rule.more')} style={box(false)} onClick={() => upd({ [key]: val + 1 })}>+</button>
     </span>
   )
+  const row = (label, control) => (
+    <span style={{ display: 'grid', gridTemplateColumns: '70px minmax(0,1fr)', alignItems: 'center', gap: 8 }}>
+      <span style={{ font: '500 12px/1.2 var(--font-sans)', color: 'var(--text-secondary)' }}>{label}</span>
+      <span style={{ display: 'flex', alignItems: 'center', gap: 6, flexWrap: 'wrap', minWidth: 0 }}>{control}</span>
+    </span>
+  )
+  return (
+    <div style={{
+      display: 'grid', gap: 10, padding: 12, borderRadius: 10, minWidth: 0,
+      background: 'var(--surface-inset)', border: `1px solid ${active ? 'var(--teal-500)' : 'var(--border-subtle)'}`,
+      boxShadow: active ? '0 0 0 1px var(--teal-500)' : 'none',
+    }}>
+      <span style={{ display: 'grid', gap: 3 }}>
+        <span style={{ font: '700 13px/1.2 var(--font-sans)', color: 'var(--text-primary)' }}>{title}</span>
+        {applies && <Mono size={10.5} color="var(--text-muted)">{applies}</Mono>}
+      </span>
+      {row(t('tournament.rule.sets'), [1, 3, 5].map((v) => (
+        <button key={v} type="button" aria-pressed={r.sets === v} style={{ ...box(r.sets === v), width: 32 }} onClick={() => upd({ sets: v })}>{v}</button>
+      )))}
+      {row(t('tournament.rule.points'), stepper(r.points, 'points'))}
+      {row(t('tournament.rule.by2'), (
+        <>
+          <button type="button" role="switch" aria-checked={r.winBy2} aria-label={t('tournament.rule.by2')}
+            onClick={() => upd({ winBy2: !r.winBy2, cap: r.winBy2 ? r.points : Math.max(r.cap, r.points + 9) })}
+            style={{ position: 'relative', width: 38, height: 22, borderRadius: 999, cursor: 'pointer', flex: '0 0 auto',
+              background: r.winBy2 ? 'var(--teal-500)' : 'var(--surface-raised)', border: `1px solid ${r.winBy2 ? 'var(--teal-500)' : 'var(--border-default)'}` }}>
+            <span style={{ position: 'absolute', top: 2, left: r.winBy2 ? 18 : 2, width: 16, height: 16, borderRadius: '50%', transition: 'left .15s',
+              background: r.winBy2 ? 'var(--action-accent-fg)' : 'var(--text-muted)' }} />
+          </button>
+          {r.winBy2 && <span style={{ font: '500 12px/1 var(--font-sans)', color: 'var(--text-muted)' }}>{t('tournament.rule.cap')}</span>}
+          {r.winBy2 && stepper(r.cap, 'cap')}
+        </>
+      ))}
+      <span style={{ font: '500 11.5px/1.4 var(--font-sans)', color: 'var(--text-secondary)' }}>
+        {r.winBy2
+          ? t('tournament.rule.summaryBy2', { sets: r.sets, points: r.points, deuce: r.cap - 1, cap: r.cap })
+          : t('tournament.rule.summaryTouch', { sets: r.sets, points: r.points })}
+      </span>
+      {children}
+    </div>
+  )
 }
+

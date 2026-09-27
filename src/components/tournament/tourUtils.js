@@ -3,6 +3,7 @@ import { t } from '#i18n'
 import { presetKeyOf } from '#lib/tournament/format.js'
 import { regName } from '#lib/tournament/hub.js'
 import { stageLabelKey } from '#lib/tournament/flow.js'
+import { lbIndexOf } from '#lib/tournament/doubleElim.js'
 
 /** 'T7 · 16/08/2026 · An Bình · 2 sân · 08:00–12:00' — các mẩu thiếu thì bỏ, không để '· ·'. */
 export function tourMeta(tour) {
@@ -25,12 +26,14 @@ export function ruleLabel(rule) {
     + (rule.winBy2 ? t('tournament.format.ruleBy2', { cap: rule.cap }) : t('tournament.format.ruleTouch'))
 }
 
-/** Mã trận: TK1, BK2 — chung kết và 3-4 chỉ có một trận nên không đánh số. */
+/** Mã trận: TK1, BK2 — chung kết, 3-4, chung kết nhánh thắng / chung kết tổng chỉ có một trận nên không đánh số. */
 export function matchCode(m) {
   const head = t('tournament.code.' + m.roundKind)
-  if (m.roundKind === 'final' || m.roundKind === 'third') return head
-  // Vòng bảng: slot đánh lại từ 0 mỗi lượt → thêm lượt vào mã, không thì hai trận khác lượt trùng mã.
-  return m.roundKind === 'group' ? `${head}${m.round + 1}.${m.slot + 1}` : head + (m.slot + 1)
+  if (['final', 'third', 'wf', 'gf', 'gf2'].includes(m.roundKind)) return head
+  // Vòng bảng / nhánh thua: slot đánh lại từ 0 mỗi vòng → thêm vòng vào mã, không thì hai trận khác vòng trùng mã.
+  if (m.roundKind === 'group') return `${head}${m.round + 1}.${m.slot + 1}`
+  if (m.roundKind === 'lb') return `${head}${lbIndexOf(m.round) + 1}.${m.slot + 1}`
+  return head + (m.slot + 1)
 }
 
 /** Tên đội = tên các VĐV nối ' / ' (đội chưa xác định → null). */

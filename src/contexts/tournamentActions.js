@@ -10,7 +10,10 @@ import { EVENT_KINDS, canEnter, eligibleNotEntered, entriesOpen, newGuestRegistr
 import { autoPair, eventPlayers, eventTeams, lineupIssue, shuffle } from '#lib/tournament/pairing.js'
 import { RULE_PRESETS, buildTemplateStages, drawNumbers, entrantsOf } from '#lib/tournament/format.js'
 import { buildKnockout } from '#lib/tournament/bracket.js'
+import { buildDoubleElim, isDouble } from '#lib/tournament/doubleElim.js'
 import { buildRoundRobin } from '#lib/tournament/roundRobin.js'
+import { buildSwissStart, pairNextRound, roundsOf, swissProgress } from '#lib/tournament/swiss.js'
+import { stageGroups } from '#lib/tournament/standings.js'
 import { graphIssue, graphOf, groupsForStage, manualGroupsOk, nextSeq, stagesFromGraph } from '#lib/tournament/canvas.js'
 import { applySeedOrder, entrantsFromLinks } from '#lib/tournament/links.js'
 import { applyCommit, applyEdit, applyUndo } from '#lib/tournament/advance.js'
@@ -60,16 +63,19 @@ export function makeTournamentActions({ dbRef, tourRef, setTour, toast, uid }) {
    * đổi luật, đổi seeding, xếp cặp vào bảng — phép biến đổi JSON thuần, không thuật toán/validate phức tạp).
    * KHÔNG dùng cho ghi tỷ số hay chỗ có thuật toán server-side (đúng > nhanh ở đó, xem đầu file).
    */
+  // Ghi nền xếp HÀNG, chạy lần lượt: bấm −/+ hay kéo liên tục bắn nhiều lượt ghi cùng lúc — chạy song song thì
+  // lượt cũ có thể về sau đè lượt mới, DB lệch với cái đang thấy trên màn.
+  let writes = Promise.resolve()
   const runOptimistic = (apply, fn) => {
     setTour((cur) => (cur ? apply(cur) : cur))
-    ;(async () => {
+    writes = writes.then(async () => {
       try {
         await fn()
       } catch (e) {
         toast(tourErr(e))
         await reloadTour().catch(() => {})
       }
-    })()
+    })
     return true
   }
 
@@ -651,9 +657,27 @@ export function makeTournamentActions({ dbRef, tourRef, setTour, toast, uid }) {
     },
 
     tourUndo: (matchId, reason) => {
-      const check = applyUndo(tour().matches, { matchId, reason })
+      const check = applyUndo(tour().matches, { matchId, reason }, tour().stages)
       if (check.error) { toast(t(check.error)); return false }
       return synced(run(() => tournamentRpc('tournament_undo_match', { p_match: matchId, p_reason: reason }), 'tournament.toast.undone'))
+    },
+
+    /**
+     * Thụy Sĩ: sinh vòng kế tiếp khi vòng trước đã xong hết — ghép theo điểm hiện tại (`pairNextRound`), RPC kiểm
+     * toàn vẹn rồi chèn thêm (không ghi đè vòng cũ). Hết cặp chưa gặp thì vẫn sinh nhưng báo có cặp gặp lại.
+     */
+    tourSwissNext: (stageId) => {
+      const cur = tour()
+      const stage = cur.stages.find((s) => s.id === stageId)
+      if (!stage || stage.type !== 'swiss' || stage.status !== 'running') return false
+      const [group] = stageGroups(cur, stageId)
+      if (!group) return false
+      const { played, lastDone } = swissProgress(group, cur.matches)
+      if (!lastDone) { toast(t('tournament.err.swissRoundNotFinished')); return false }
+      if (played >= roundsOf(stage, group.teams.length)) return false
+      const { matches, rematch } = pairNextRound({ stage, group, matches: cur.matches, newId: uid })
+      return run(() => tournamentRpc('tournament_add_swiss_round', { p_stage: stageId, p_matches: matches }),
+        rematch ? 'tournament.toast.swissRematch' : 'tournament.toast.swissRound', { n: played + 1 })
     },
 
     /** BTC chỉnh thứ tự / sân của trận chưa đánh. */
@@ -711,7 +735,23 @@ export function makeTournamentActions({ dbRef, tourRef, setTour, toast, uid }) {
         'tournament.toast.generated', { n: matches.length }))
     }
 
-    // Loại trực tiếp (knockout)
+    // Thụy Sĩ: một bảng chứa mọi đội + vòng 1 (các vòng sau sinh dần — `tourSwissNext`).
+    if (stage.type === 'swiss') {
+      const { error, entrants: ent } = entrantsOf(eventTeams(cur, eventId), stage.config?.seeding)
+      if (error) return toast(t(error))
+      // Bốc thăm: số bốc thăm làm hạt giống vòng 1.
+      const entrants = ent[0]?.seed ? ent : [...ent].sort((x, y) => x.drawNo - y.drawNo).map((e, i) => ({ id: e.id, seed: i + 1 }))
+      let built
+      try {
+        built = buildSwissStart({ stage, entrants, newId: uid })
+      } catch (e) {
+        return toast(e.message)
+      }
+      return synced(run(() => tournamentRpc('tournament_generate_stage', { p_stage: stage.id, p_groups: [built.group], p_matches: built.matches }),
+        'tournament.toast.generated', { n: built.matches.filter((m) => m.status !== 'bye').length }))
+    }
+
+    // Loại trực tiếp (knockout) — một nhánh, hoặc nhánh thắng/nhánh thua (`config.bracket = 'double'`)
     let entrants
     if (stage.config?.seeding === 'rank') {
       const link = (cur.stageLinks || []).find((l) => l.toStageId === stage.id)
@@ -732,7 +772,7 @@ export function makeTournamentActions({ dbRef, tourRef, setTour, toast, uid }) {
 
     let matches
     try {
-      matches = buildKnockout({ stage, entrants, newId: uid })
+      matches = (isDouble(stage) ? buildDoubleElim : buildKnockout)({ stage, entrants, newId: uid })
     } catch (e) {
       return toast(e.message)
     }

@@ -57,7 +57,7 @@ function resolveMatchResult(match) {
 }
 
 /** Thống kê của một đội trên một tập trận (chỉ trận đã có kết quả). */
-function computeStats(teamId, matches) {
+export function computeStats(teamId, matches) {
   const s = { teamId, played: 0, won: 0, lost: 0, setsWon: 0, setsLost: 0, pointsWon: 0, pointsLost: 0 }
   matches.forEach((m) => {
     const inA = m.teamAId === teamId
@@ -88,7 +88,7 @@ function headToHead(idA, idB, matches) {
 }
 
 /** Gom các dòng liên tiếp có cùng khoá (đã sort). */
-function bucketsBy(rows, key) {
+export function bucketsBy(rows, key) {
   const out = []
   rows.forEach((r) => {
     const last = out[out.length - 1]
@@ -102,7 +102,7 @@ function bucketsBy(rows, key) {
  * Xếp một nhóm đội bằng số trận thắng. Trả `{ order, ties }` — `ties` là các nhóm id không tách được.
  * Đệ quy: mỗi lần tách được thì xét lại nhóm con với bảng con mới của riêng nhóm đó.
  */
-function rankTied(rows, matches) {
+export function rankTied(rows, matches) {
   if (rows.length <= 1) return { order: rows, ties: [] }
 
   if (rows.length === 2) {

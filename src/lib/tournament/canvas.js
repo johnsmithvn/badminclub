@@ -11,6 +11,8 @@
 import cfg from '#config/app.json' with { type: 'json' }
 import { calcGroupBalance, snakeGroups } from '#lib/tournament/roundRobin.js'
 import { buildKnockout, nextPowerOf2 } from '#lib/tournament/bracket.js'
+import { buildDoubleElim, isDouble } from '#lib/tournament/doubleElim.js'
+import { roundsOf } from '#lib/tournament/swiss.js'
 import { buildTemplateStages, groupSizes } from '#lib/tournament/format.js'
 import { entrantsFromLinks } from '#lib/tournament/links.js'
 import { eventTeams } from '#lib/tournament/pairing.js'
@@ -157,6 +159,12 @@ export function estimateOf(tour, event) {
     let f = 0
     if (s.type === 'round_robin') {
       q = groupSizes(teams, s.config?.numGroups || 1).reduce((sum, k) => sum + (k * (k - 1)) / 2, 0) * (s.config?.legs || 1)
+    } else if (s.type === 'swiss') {
+      q = roundsOf(s, teams) * Math.floor(teams / 2)
+    } else if (isDouble(s)) {
+      // Nhánh thắng n−1 + nhánh thua n−2 + chung kết tổng (trận 2 chỉ khi cần — không tính trước).
+      q = teams >= 2 ? 2 * teams - 3 : 0
+      f = teams >= 2 ? 1 : 0
     } else {
       ;({ q, f } = koCount(teams, s.config?.thirdPlace))
     }
@@ -169,7 +177,8 @@ export function estimateOf(tour, event) {
   if (source && n >= 2) {
     minPerTeam = source.type === 'round_robin'
       ? (Math.min(...groupSizes(n, source.config?.numGroups || 1)) - 1) * (source.config?.legs || 1)
-      : 1
+      : source.type === 'swiss' ? roundsOf(source, n) - (n % 2)
+        : isDouble(source) ? 2 : 1
   }
   const courts = tour.courtLabels?.length || 0
   const start = toMin(tour.startTime)
@@ -215,14 +224,46 @@ export function koPreviewOf(stage, source, link, nSource) {
     if (src?.kind === 'loser') return { kind: 'loser', no: noOf.get(src.match) }
     return { kind: 'bye' }
   }
+  return previewRounds(played, side, noOf, (m) => (m.roundKind === 'third' ? 'third' : m.round))
+}
+
+/** Gom trận xem trước theo vòng. `to` = số trận đội thắng đi tới — để vẽ đường nối theo con trỏ thật (`linkShape`). */
+function previewRounds(played, side, noOf, keyOf) {
   const rounds = []
   played.forEach((m) => {
-    const key = m.roundKind === 'third' ? 'third' : m.round
+    const key = keyOf(m)
     let r = rounds.find((x) => x.key === key)
     if (!r) rounds.push(r = { key, roundKind: m.roundKind, matches: [] })
-    r.matches.push({ no: noOf.get(m.id), a: side(m, 'A'), b: side(m, 'B') })
+    r.matches.push({ no: noOf.get(m.id), a: side(m, 'A'), b: side(m, 'B'), to: noOf.get(m.nextMatchId) ?? null })
   })
   return rounds.map((r) => ({ roundKind: r.roundKind, matches: r.matches }))
+}
+
+/**
+ * Xem trước nhánh thắng/nhánh thua với n đội (hạt giống #1..#n) — dựng bằng CHÍNH `buildDoubleElim`.
+ * @returns {null | { wb: Round[], lb: Round[], gf: Round[] }}  Round cùng dạng `koPreviewOf`
+ */
+export function dePreviewOf(stage, n) {
+  if (n < 2) return null
+  let k = 0
+  const ms = buildDoubleElim({ stage: { ...stage, config: { ...stage.config, seeding: 'seed' } },
+    entrants: Array.from({ length: n }, (_, i) => ({ id: '#' + (i + 1), seed: i + 1 })), newId: () => 'm' + k++ })
+  const played = ms.filter((m) => m.status !== 'bye').sort((a, b) => a.round - b.round || a.slot - b.slot)
+  const noOf = new Map(played.map((m, i) => [m.id, i + 1]))
+  const side = (m, s) => {
+    const team = s === 'A' ? m.teamAId : m.teamBId
+    if (team) return { kind: 'seed', n: Number(team.slice(1)) }
+    const src = s === 'A' ? m.sourceA : m.sourceB
+    if (src?.kind === 'winner') return { kind: 'winner', no: noOf.get(src.match) }
+    if (src?.kind === 'loser') return { kind: 'loser', no: noOf.get(src.match) }
+    return { kind: 'bye' }
+  }
+  const part = (list) => previewRounds(list, side, noOf, (m) => m.round)
+  return {
+    wb: part(played.filter((m) => !['lb', 'gf'].includes(m.roundKind))),
+    lb: part(played.filter((m) => m.roundKind === 'lb')),
+    gf: part(played.filter((m) => m.roundKind === 'gf')),
+  }
 }
 
 /**
@@ -278,7 +319,7 @@ export const byesOf = (n) => (n < 2 ? 0 : nextPowerOf2(n) - n)
  */
 export function quickPlan(tpl, event, n, perGroup = 4) {
   const grouped = tpl === 'rr_ko' || tpl === 'rr_ko_plate'
-  const numGroups = tpl === 'rr' ? 1 : grouped ? Math.max(2, Math.min(4, Math.ceil(n / Math.max(2, perGroup)))) : 1
+  const numGroups = grouped ? Math.max(2, Math.min(4, Math.ceil(n / Math.max(2, perGroup)))) : 1
   const advance = grouped ? 2 : 0
   const { stages, links } = buildTemplateStages(tpl, event, { numGroups, advancePerGroup: advance })
   const rule = stages[0]?.matchRule

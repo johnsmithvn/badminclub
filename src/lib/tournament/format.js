@@ -1,7 +1,7 @@
 /**
  * @file format.js
  * Thể thức của một nội dung → giai đoạn (tournament_stages) + xem trước nhánh. Thuần.
- * Mẫu: `ko` · `rr` · `rr_ko` · `rr_ko_plate` (plan §1, §7).
+ * Mẫu: `ko` · `rr` · `rr_ko` · `rr_ko_plate` (plan §1, §7) · `swiss` (Thụy Sĩ) · `de` (nhánh thắng/nhánh thua).
  */
 
 import cfg from '#config/app.json' with { type: 'json' }
@@ -10,7 +10,7 @@ import { ruleFor } from '#lib/tournament/scoring.js'
 import { snakeIndex } from '#lib/tournament/roundRobin.js'
 
 export const RULE_PRESETS = cfg.tournament.rulePresets
-export const TEMPLATES = ['ko', 'rr', 'rr_ko', 'rr_ko_plate']
+export const TEMPLATES = ['ko', 'rr', 'rr_ko', 'rr_ko_plate', 'swiss', 'de']
 
 /** Key preset trùng hệt luật, null = luật tự chỉnh. */
 export function presetKeyOf(rule) {
@@ -139,6 +139,26 @@ export function buildTemplateStages(templateKey, event, custom = {}) {
     }
   }
 
+  // Thụy Sĩ: một giai đoạn, số vòng để trống = tự tính theo số đội lúc tạo lịch (`swissRounds`).
+  if (templateKey === 'swiss') {
+    return {
+      stages: [{
+        seq: 1, type: 'swiss', title: null, status: 'pending',
+        config: { rounds: custom.rounds || null, seeding: 'seed' },
+        matchRule: qualifyRule, ruleOverrides: {},
+      }],
+      links: [],
+    }
+  }
+
+  // Nhánh thắng/nhánh thua: luật "chung kết" áp cho chung kết tổng (không có tranh hạng 3 — nhánh thua xếp hạng 3).
+  if (templateKey === 'de') {
+    return {
+      stages: [{ ...defaultStage(event), config: { bracket: 'double', thirdPlace: false, seeding: 'seed' } }],
+      links: [],
+    }
+  }
+
   // Mặc định 'ko'
   return {
     stages: [defaultStage(event)],
@@ -247,6 +267,8 @@ export function templateOf(tour, event) {
   if (event.templateKey) return event.templateKey
   const stages = tour.stages.filter((s) => s.eventId === event.id)
   if (!stages.length) return null
+  if (stages.some((s) => s.type === 'swiss')) return 'swiss'
+  if (stages.some((s) => s.config?.bracket === 'double')) return 'de'
   if (!stages.some((s) => s.type === 'round_robin')) return 'ko'
   return stages.length >= 3 ? 'rr_ko_plate' : stages.some((s) => s.type === 'knockout') ? 'rr_ko' : 'rr'
 }

@@ -10,9 +10,11 @@ import { entrantsFromLinks } from '#lib/tournament/links.js'
 import { pathOf } from '#routes'
 import { t } from '#i18n'
 import { useTourPoll } from '#hooks/useTourPoll.js'
-import BracketBoard, { GroupBoard } from '#components/tournament/BracketBoard.jsx'
-import { RuleField, Seg, TeamNameLines } from '#components/tournament/TourBits.jsx'
+import BracketBoard, { DoubleBoard, GroupBoard } from '#components/tournament/BracketBoard.jsx'
+import { RuleCard, Seg, TeamNameLines } from '#components/tournament/TourBits.jsx'
 import { finalRows, groupStandings, stageGroups } from '#lib/tournament/standings.js'
+import { isDouble } from '#lib/tournament/doubleElim.js'
+import { roundsOf, swissProgress, swissStandings } from '#lib/tournament/swiss.js'
 import TourModuleNav from '#components/tournament/TourModuleNav.jsx'
 import { EditScoreDialog, ScoreDialog, UndoDialog } from '#components/tournament/MatchDialogs.jsx'
 import { draftKey, matchCode, ruleLabel, stageName, teamName } from '#components/tournament/tourUtils.js'
@@ -38,6 +40,8 @@ export default function TournamentBracket() {
   // Thứ tự BTC tự xếp cho các đội hoà (vòng bảng), theo bảng: { [groupId]: teamId[] }. Chỉ trên máy này tới
   // lúc bấm "Chốt giai đoạn" — lúc đó mới ghi `final_rank` (xem `finalRows` ở standings.js).
   const [manual, setManual] = useState({})
+  // Vòng BTC bấm trên nhánh để đặt luật riêng (thanh Thiết lập nhánh) — gắn với giai đoạn, đổi giai đoạn là bỏ chọn.
+  const [roundPick, setRoundPick] = useState(null)
 
   useEffect(() => {
     let alive = true
@@ -101,12 +105,19 @@ export default function TournamentBracket() {
     )
   }
 
-  const isRR = stage.type === 'round_robin'
+  // Giai đoạn dạng BẢNG (vòng tròn, Thụy Sĩ — một bảng xếp hạng + trận theo vòng) hay dạng NHÁNH (loại trực tiếp).
+  const isRR = stage.type !== 'knockout'
+  const double = isDouble(stage)
   // Nhánh chưa đấu trận nào → còn sửa thiết lập / đổi chỗ vòng đầu (xoá lịch rồi sinh lại). Đổi chỗ: chỉ nhánh xuất phát.
   const restageable = canEdit && !isRR && stageEditable(tour.matches, stage.id)
   const swappable = restageable && stage.seq === 1
   const own = tour.matches.filter((m) => m.stageId === stage.id)
-  const view = isRR ? null : koRounds(tour.matches, stage.id)
+  const view = isRR || double ? null : koRounds(tour.matches, stage.id)
+  const Board = double ? DoubleBoard : BracketBoard
+  const pickedKind = roundPick?.stageId === stage.id ? roundPick.kind : null
+  const pickKind = (kind) => setRoundPick(kind ? { stageId: stage.id, kind } : null)
+  // Bấm tên vòng để đặt luật riêng: chỉ khi thanh Thiết lập nhánh hiện và còn sửa được (nhánh chưa đấu).
+  const onPickRound = restageable && !isMobile ? pickKind : undefined
   const groups = isRR ? stageGroups(tour, stage.id) : []
   const prog = progressOf(own)
   const teamsN = isRR
@@ -131,7 +142,10 @@ export default function TournamentBracket() {
         width: '100%',
       }}>
         {/* Thiết lập nhánh (handoff) — CHỈ ĐỌC: đổi thể thức / bốc thăm / đổi chỗ ở tab Thể thức trước khi có lịch */}
-        {!isRR && !isMobile && <BracketSetup key={stage.id} tour={tour} db={db} stage={stage} own={own} a={a} canEdit={canEdit} editable={restageable} />}
+        {!isRR && !isMobile && (
+          <BracketSetup key={stage.id} tour={tour} db={db} stage={stage} own={own} a={a} canEdit={canEdit} editable={restageable}
+            pickedKind={pickedKind} onPickKind={pickKind} />
+        )}
 
         {/* Khối chính hiển thị Header, Sơ đồ tiến trình và Nhánh đấu */}
         <div style={{ flex: 1, minWidth: 0, width: '100%', display: 'grid', gap: 14 }}>
@@ -150,7 +164,8 @@ export default function TournamentBracket() {
                   stageLabel(stage),
                   t('tournament.bracket.slotsN', { n: teamsN }),
                   !isRR && stage.config?.seeding ? t('tournament.format.seed.' + stage.config.seeding) : null,
-                  stage.config?.thirdPlace ? t('tournament.round.third') : null,
+                  stage.type === 'swiss' ? t('tournament.swiss.roundsN', { n: roundsOf(stage, teamsN) }) : null,
+                  stage.config?.thirdPlace && !double ? t('tournament.round.third') : null,
                   stage.matchRule ? ruleLabel(stage.matchRule) : null,
                 ].filter(Boolean).join(' · ')}
               </span>
@@ -209,11 +224,12 @@ export default function TournamentBracket() {
               onQuick={(m, sets, winner) => a.tourCommit(m.id, { sets, winner })}
             />
           ) : (
-            <BracketBoard
-              key={stage.id} view={view} tour={tour} db={db} canEdit={canEdit} isMobile={isMobile}
+            <Board
+              key={stage.id} stage={stage} view={view} tour={tour} db={db} canEdit={canEdit} isMobile={isMobile}
               onScore={(m) => setScoringId(m.id)} onEdit={(m) => setEditingId(m.id)} onUndo={(m) => setUndoingId(m.id)}
               onQuick={(m, sets, winner) => a.tourCommit(m.id, { sets, winner })}
               onSwap={swappable ? (x, y) => { const order = swapOrder(tour.matches, stage.id, x, y); if (order) a.tourRestage(stage.id, { order }) } : null}
+              onPickRound={onPickRound} pickedKind={pickedKind}
             />
           )}
         </div>
@@ -240,27 +256,41 @@ export default function TournamentBracket() {
  * không phải quay về Hub — xem lịch sử chat 2026-09-26). Không phải vòng bảng (KO) thì không hiện gì.
  */
 export function StageActions({ tour, stage, groups, a, canEdit, manual, onClosed }) {
-  const [closing, setClosing] = useState(false)
-  const isRR = stage.type === 'round_robin'
-  if (!isRR) return null
-  const allFinished = groups.length > 0 && groups.every((g) => groupStandings(g, tour.matches).isFinished)
+  const [busy, setBusy] = useState(false)
+  if (stage.type === 'knockout') return null
+  const swiss = stage.type === 'swiss'
+  const standingsOf = (g) => (swiss ? swissStandings(g, tour.matches) : groupStandings(g, tour.matches))
+  const allFinished = groups.length > 0 && groups.every((g) => standingsOf(g).isFinished)
+  // Thụy Sĩ: vòng sinh dần — đủ số vòng mới chốt; vòng hiện tại xong mà chưa đủ thì "Tạo vòng N".
+  const sw = swiss && groups[0] ? { ...swissProgress(groups[0], tour.matches), total: roundsOf(stage, groups[0].teams.length) } : null
+  const canClose = allFinished && (!sw || sw.played >= sw.total)
   const targets = targetStagesOf(tour, stage)
   const evStages = tour.stages.filter((s) => s.eventId === stage.eventId)
-  const closeStage = async () => {
-    setClosing(true)
-    const ranks = groups.flatMap((g) => finalRows(stage, g, groupStandings(g, tour.matches), manual[g.id])
+  const act = (fn) => async () => {
+    setBusy(true)
+    const ok = await fn()
+    setBusy(false)
+    return ok
+  }
+  const closeStage = act(async () => {
+    const ranks = groups.flatMap((g) => finalRows(stage, g, standingsOf(g), manual[g.id])
       .map((r) => ({ groupId: g.id, teamId: r.teamId, finalRank: r.rank })))
     const ok = await a.tourCloseStage(stage.id, ranks)
-    setClosing(false)
     if (ok) onClosed?.()
-  }
+    return ok
+  })
+  const nextRound = act(() => a.tourSwissNext(stage.id))
   return (
     <>
+      {sw && <Mono size={11} weight={700} color="var(--teal-500)">{t('tournament.swiss.progress', { n: sw.played, total: sw.total })}</Mono>}
       {stage.status === 'running' && (
-        allFinished
-          ? canEdit && <Button size="sm" icon="circle-check" loading={closing} onClick={closeStage}>{t('tournament.standings.closeStage')}</Button>
-          : <Mono size={11} color="var(--text-muted)">{t('tournament.standings.closeStageHint')}</Mono>
+        canClose
+          ? canEdit && <Button size="sm" icon="circle-check" loading={busy} disabled={busy} onClick={closeStage}>{t('tournament.standings.closeStage')}</Button>
+          : sw && sw.lastDone
+            ? canEdit && <Button size="sm" icon="calendar-plus" loading={busy} disabled={busy} onClick={nextRound}>{t('tournament.swiss.next', { n: sw.played + 1 })}</Button>
+            : <Mono size={11} color="var(--text-muted)">{sw ? t('tournament.swiss.waitRound', { n: sw.played }) : t('tournament.standings.closeStageHint')}</Mono>
       )}
+      {stage.status === 'running' && canClose && sw && <Mono size={11} color="var(--text-muted)">{t('tournament.swiss.lastRound', { n: sw.total })}</Mono>}
       {stage.status === 'done' && <Mono size={11} color="var(--text-muted)">{t('tournament.standings.closed')}</Mono>}
       {stage.status === 'done' && canEdit && targets.filter((x) => x.status === 'pending').map((x) => (
         <Button key={x.id} size="sm" icon="calendar-plus" onClick={() => a.tourGenerate(stage.eventId, x.seq)}>
@@ -276,11 +306,28 @@ export function StageActions({ tour, stage, groups, a, canEdit, manual, onClosed
  * vòng loại / chung kết → "Xong · tạo lại nhánh" (xoá lịch rồi sinh lại, `tourRestage`); kéo tên đội vòng đầu để đổi chỗ.
  * Đã có trận: chỉ đọc. Thêm / bớt đội = ghép cặp ở Hub (đội hình đã chốt khi tạo lịch).
  */
-export function BracketSetup({ tour, db, stage, own, a, canEdit, editable }) {
+export function BracketSetup({ tour, db, stage, own, a, canEdit, editable, pickedKind = null, onPickKind = () => {} }) {
   const [draft, setDraft] = useState(() => ({
-    seeding: stage.config?.seeding || 'seed', thirdPlace: Boolean(stage.config?.thirdPlace), matchRule: stage.matchRule, final: stage.ruleOverrides?.final || null,
+    seeding: stage.config?.seeding || 'seed', thirdPlace: Boolean(stage.config?.thirdPlace), matchRule: stage.matchRule, overrides: { ...(stage.ruleOverrides || {}) },
   }))
   const [busy, setBusy] = useState(false)
+  const double = isDouble(stage)
+  // Luật theo vòng (`ruleFor` đọc `ruleOverrides[roundKind]`): "Vòng loại" = matchRule; "Vòng tranh hạng" = overrides.final
+  // (chung kết / chung kết tổng, tranh 3 theo cùng trừ khi đặt riêng); bấm tên vòng trên nhánh = luật riêng vòng đó.
+  const rankKind = double ? 'gf' : 'final'
+  const rankKinds = double ? ['gf'] : ['final', 'third']
+  const ov = draft.overrides
+  const rankRule = ov.final || draft.matchRule
+  const defaultOf = (k) => (rankKinds.includes(k) ? rankRule : draft.matchRule)
+  const same = (x, y) => JSON.stringify(x) === JSON.stringify(y)
+  const custom = (k) => k !== 'final' && Boolean(ov[k]) && !same(ov[k], defaultOf(k))
+  const kinds = [...new Set([...own].sort((x, y) => x.round - y.round).map((m) => m.roundKind))].filter((k) => k !== 'gf2')
+  const nameOf = (k) => t('tournament.round.' + k)
+  const listOf = (ks) => (ks.length ? ks.map(nameOf).join(', ') : t('tournament.rule.none'))
+  const setOv = (patch) => setDraft((d) => ({ ...d, overrides: { ...d.overrides, ...patch } }))
+  const dropOv = (k) => setDraft((d) => { const o = { ...d.overrides }; delete o[k]; return { ...d, overrides: o } })
+  // Vòng riêng đang chọn (bấm tên cột); chọn đúng vòng tranh hạng chính thì chỉ tô sáng thẻ "Vòng tranh hạng".
+  const own1 = pickedKind && pickedKind !== rankKind && kinds.includes(pickedKind) ? pickedKind : null
   const first = own.filter((m) => m.round === 0 && m.roundKind !== 'third').sort((a2, b) => a2.slot - b.slot)
   const tag = (src) => (src?.kind === 'seed' ? String(src.n) : src?.kind === 'draw' ? t('tournament.format.drawNo', { n: src.n }) : '')
   const seats = first.flatMap((m) => [[m.teamAId, m.sourceA], [m.teamBId, m.sourceB]])
@@ -310,7 +357,7 @@ export function BracketSetup({ tour, db, stage, own, a, canEdit, editable }) {
   const seedOrderChanged = fromGroups && seedOrder.join() !== (Array.isArray(savedOrder) && savedOrder.length === autoEntrants.length ? savedOrder : autoEntrants.map((e) => e.id)).join()
 
   const changed = draft.seeding !== (stage.config?.seeding || 'seed') || draft.thirdPlace !== Boolean(stage.config?.thirdPlace)
-    || JSON.stringify(draft.matchRule) !== JSON.stringify(stage.matchRule) || JSON.stringify(draft.final) !== JSON.stringify(stage.ruleOverrides?.final || null)
+    || !same(draft.matchRule, stage.matchRule) || !same(draft.overrides, stage.ruleOverrides || {})
     || seedOrderChanged
   const restage = async () => {
     setBusy(true)
@@ -318,14 +365,15 @@ export function BracketSetup({ tour, db, stage, own, a, canEdit, editable }) {
       patch: {
         config: { seeding: draft.seeding, thirdPlace: draft.thirdPlace, ...(fromGroups ? { seedOrder } : {}) },
         matchRule: draft.matchRule,
-        ruleOverrides: draft.final ? { ...stage.ruleOverrides, final: draft.final, third: draft.final } : stage.ruleOverrides,
+        ruleOverrides: draft.overrides,
       },
     })
     setBusy(false)
+    onPickKind(null)
   }
   return (
     <aside style={{
-      width: 270, flex: '0 0 270px', minWidth: 0, boxSizing: 'border-box', overflow: 'hidden', display: 'grid', gap: 12, padding: 14, borderRadius: 12, height: 'fit-content',
+      width: 300, flex: '0 0 300px', minWidth: 0, boxSizing: 'border-box', overflow: 'hidden', display: 'grid', gap: 12, padding: 14, borderRadius: 12, height: 'fit-content',
       background: 'var(--surface-card)', border: '1px solid var(--border-subtle)', boxShadow: 'var(--shadow-xs)',
     }}>
       <span style={{ font: '700 15px/1.2 var(--font-display)', color: 'var(--text-primary)' }}>{t('tournament.bracket.setupTitle')}</span>
@@ -361,28 +409,54 @@ export function BracketSetup({ tour, db, stage, own, a, canEdit, editable }) {
           <span style={{ font: 'var(--type-caption)', color: 'var(--text-muted)' }}>{t('tournament.bracket.seedOrderHint')}</span>
         </div>
       )}
+      {double && <span style={{ font: 'var(--type-caption)', color: 'var(--text-muted)' }}>{t('tournament.double.note')}</span>}
       {editable ? (
         <>
-          <div style={{ display: 'grid', gap: 6 }}>
-            {label(t('tournament.format.thirdPlace'))}
-            <Seg options={[{ key: 'on', label: t('tournament.format.on') }, { key: 'off', label: t('tournament.format.off') }]}
-              value={draft.thirdPlace ? 'on' : 'off'} onChange={(k) => setDraft((d) => ({ ...d, thirdPlace: k === 'on' }))} />
-          </div>
-          <div style={{ display: 'grid', gap: 6 }}>
-            {label(t('tournament.format.qualify'))}
-            <RuleField value={draft.matchRule} onChange={(rule) => setDraft((d) => ({ ...d, matchRule: rule }))} />
-          </div>
-          <div style={{ display: 'grid', gap: 6 }}>
-            {label(t('tournament.format.ranking'))}
-            <RuleField value={draft.final} onChange={(rule) => setDraft((d) => ({ ...d, final: rule }))} />
-          </div>
+          {!double && (
+            <div style={{ display: 'grid', gap: 6 }}>
+              {label(t('tournament.format.thirdPlace'))}
+              <Seg options={[{ key: 'on', label: t('tournament.format.on') }, { key: 'off', label: t('tournament.format.off') }]}
+                value={draft.thirdPlace ? 'on' : 'off'} onChange={(k) => setDraft((d) => ({ ...d, thirdPlace: k === 'on' }))} />
+            </div>
+          )}
+          {own1 ? (
+            <RuleCard title={t('tournament.rule.own', { name: nameOf(own1) })} applies={t('tournament.rule.ownHint')} active
+              value={ov[own1] || defaultOf(own1)} onChange={(r) => setOv({ [own1]: r })}>
+              <span style={{ display: 'flex', gap: 8, flexWrap: 'wrap' }}>
+                {custom(own1) && <Button size="sm" variant="ghost" onClick={() => dropOv(own1)}>{t('tournament.rule.reset')}</Button>}
+                <Button size="sm" variant="secondary" onClick={() => onPickKind(null)}>{t('tournament.rule.back')}</Button>
+              </span>
+            </RuleCard>
+          ) : (
+            <>
+              <RuleCard title={t('tournament.rule.qualify')} value={draft.matchRule} onChange={(r) => setDraft((d) => ({ ...d, matchRule: r }))}
+                applies={t('tournament.rule.applies', { list: listOf(kinds.filter((k) => !rankKinds.includes(k) && !custom(k))) })} />
+              <RuleCard title={t('tournament.rule.ranking')} value={rankRule} active={pickedKind === rankKind}
+                applies={t('tournament.rule.applies', { list: listOf(double ? ['gf'] : ['final', ...(draft.thirdPlace && !custom('third') ? ['third'] : [])]) })}
+                onChange={(r) => setOv({ final: r, ...(double || custom('third') ? {} : { third: r }) })} />
+              {kinds.some(custom) && (
+                <div style={{ display: 'grid', gap: 6 }}>
+                  {label(t('tournament.rule.custom'))}
+                  <span style={{ display: 'flex', gap: 6, flexWrap: 'wrap' }}>
+                    {kinds.filter(custom).map((k) => (
+                      <button key={k} type="button" onClick={() => onPickKind(k)}
+                        style={{ padding: '4px 8px', borderRadius: 6, cursor: 'pointer', font: '600 11px/1.2 var(--font-sans)', color: 'var(--text-primary)', background: 'var(--surface-accent-soft)', border: '1px solid var(--teal-500)' }}>
+                        {nameOf(k)} · {ruleLabel(ov[k])}
+                      </button>
+                    ))}
+                  </span>
+                </div>
+              )}
+              <span style={{ font: 'var(--type-caption)', color: 'var(--text-muted)' }}>{t('tournament.rule.pickHint')}</span>
+            </>
+          )}
           <Button disabled={!changed || busy} loading={busy} onClick={restage}>{t('tournament.bracket.restage')}</Button>
         </>
       ) : (
         <div style={{ display: 'grid', gap: 6 }}>
           {label(t('tournament.bracket.setupRule'))}
           <Mono size={11.5} color="var(--text-secondary)">{t('tournament.format.qualify')}: {ruleLabel(stage.matchRule)}</Mono>
-          {stage.ruleOverrides?.final && <Mono size={11.5} color="var(--text-secondary)">{t('tournament.round.final')}: {ruleLabel(stage.ruleOverrides.final)}</Mono>}
+          {stage.ruleOverrides?.final && <Mono size={11.5} color="var(--text-secondary)">{t(double ? 'tournament.round.gf' : 'tournament.round.final')}: {ruleLabel(stage.ruleOverrides.final)}</Mono>}
         </div>
       )}
       <div style={{ display: 'grid', gap: 5 }}>

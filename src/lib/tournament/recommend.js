@@ -11,6 +11,7 @@
 import cfg from '#config/app.json' with { type: 'json' }
 import { RULE_PRESETS, advanceCounts, groupSizes, presetKeyOf } from '#lib/tournament/format.js'
 import { eventPlayers, eventTeams } from '#lib/tournament/pairing.js'
+import { swissRounds } from '#lib/tournament/swiss.js'
 
 const REC = cfg.tournament.recommender
 export const PRIORITIES = ['balanced', 'games', 'fast']
@@ -71,6 +72,16 @@ export function costOf(c, n, { dq, df, rest = REC.restMin }) {
   let minG = 1
   if (c.tpl === 'ko') {
     ;({ q, f } = koCost(n))
+  } else if (c.tpl === 'swiss') {
+    // Mỗi vòng ⌊n/2⌋ trận; số đội lẻ thì mỗi đội được miễn tối đa 1 vòng.
+    const rounds = swissRounds(n)
+    q = rounds * Math.floor(n / 2)
+    minG = n % 2 ? rounds - 1 : rounds
+  } else if (c.tpl === 'de') {
+    // Nhánh thắng n−1 + nhánh thua n−2 + chung kết tổng (chưa tính trận 2 — chỉ khi đội nhánh thua thắng).
+    q = n >= 2 ? 2 * n - 3 : 0
+    f = n >= 2 ? 1 : 0
+    minG = 2
   } else {
     const sizes = groupSizes(n, c.numGroups)
     q = sizes.reduce((s, k) => s + (k * (k - 1)) / 2, 0)
@@ -84,7 +95,7 @@ export function costOf(c, n, { dq, df, rest = REC.restMin }) {
       }
     }
   }
-  return { ...c, matches: q + f, minutes: q * (dq + rest) + f * (df + rest), minG, multi: c.tpl !== 'ko' && c.tpl !== 'rr' }
+  return { ...c, matches: q + f, minutes: q * (dq + rest) + f * (df + rest), minG, multi: c.tpl === 'rr_ko' || c.tpl === 'rr_ko_plate' }
 }
 
 /** Sắp phương án theo ưu tiên — phương án đầu là lựa chọn. */

@@ -43,6 +43,7 @@ export function activeRoundKey(tour, eventId) {
   const stage = stages.find((s) => s.status === 'running') || [...stages].reverse().find((s) => s.status === 'done')
   if (!stage) return null
   if (stage.type === 'round_robin') return 'group'
+  if (stage.type === 'swiss') return 'swiss'
   const view = koRounds(tour.matches || [], stage.id)
   const cur = view.rounds.find((r) => r.matches.some((m) => m.status !== 'done' && m.status !== 'bye')) || view.rounds[view.rounds.length - 1]
   return cur ? cur.kind : null
@@ -79,11 +80,26 @@ export function flightsOf(prev, next) {
     const was = before.get(m.id)
     if (!was || hasResult(was) || !hasResult(m) || !m.winner) return
     const lose = m.winner === 'A' ? 'B' : 'A'
+    // Vô địch: chung kết · trận 2 chung kết tổng · chung kết tổng khi đội nhánh thắng (A) thắng luôn.
+    const champ = m.roundKind === 'final' || m.roundKind === 'gf2' || (m.roundKind === 'gf' && m.winner === 'A')
     if (m.nextMatchId) out.push({ from: slotKey(m.id, m.winner), to: slotKey(m.nextMatchId, m.nextSide) })
-    else if (m.roundKind === 'final') out.push({ from: slotKey(m.id, m.winner), to: CHAMP_KEY, gold: true })
+    else if (champ) out.push({ from: slotKey(m.id, m.winner), to: CHAMP_KEY, gold: true })
     if (m.loserNextMatchId) out.push({ from: slotKey(m.id, lose), to: slotKey(m.loserNextMatchId, m.loserNextSide) })
   })
   return out
+}
+
+/**
+ * Kiểu đường nối giữa hai cột trận liền nhau, theo con trỏ THẬT (không đoán theo số ô): 'straight' = ô i sang ô i
+ * (nhánh thua: đội thắng gặp đội rơi xuống), 'fork' = hai ô gộp vào một, null = không vẽ (lệch vì miễn đấu…).
+ * @param {Array<{ key: string|number, to: string|number|null }>} cur
+ * @param {Array<{ key: string|number }>} next
+ */
+export function linkShape(cur, next) {
+  if (!cur.length || !next.length) return null
+  if (cur.length === next.length && cur.every((m, i) => m.to != null && m.to === next[i].key)) return 'straight'
+  if (cur.length === next.length * 2 && cur.every((m, i) => m.to != null && m.to === next[i >> 1].key)) return 'fork'
+  return null
 }
 
 /** Điểm từng set của một bên: [[21,18],[15,21]] + 'A' → [21, 15]. */

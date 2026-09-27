@@ -5120,7 +5120,9 @@
       "allPaid": "Đã ghi {{n}} người đóng phí",
       "finished": "🏆 Mọi nội dung đã có kết quả — giải đã kết thúc",
       "recommendApplied": "Đã áp dụng thể thức cho {{n}} nội dung",
-      "swapped": "Đã đổi người giữa 2 cặp"
+      "swapped": "Đã đổi người giữa 2 cặp",
+      "swissRound": "Đã tạo vòng {{n}}",
+      "swissRematch": "Đã tạo vòng {{n}} — hết cặp chưa gặp nên có đội gặp lại"
     },
     "err": {
       "tiedSet": "Có set đang hoà điểm — mỗi set phải có một bên cao điểm hơn",
@@ -5167,7 +5169,10 @@
       "stageMatchesNotFinished": "Còn trận đấu chưa kết thúc — hoàn thành tất cả các trận trước khi chốt",
       "stageNotRoundRobin": "Chỉ chốt thứ hạng được ở vòng bảng",
       "playerNotFound": "Không tìm thấy người này trong CLB — tải lại trang rồi thử lại",
-      "invalidRanks": "Thứ hạng gửi lên thiếu đội hoặc trùng hạng — tải lại trang rồi chốt lại"
+      "invalidRanks": "Thứ hạng gửi lên thiếu đội hoặc trùng hạng — tải lại trang rồi chốt lại",
+      "stageNotSwiss": "Giai đoạn này không phải vòng Thụy Sĩ",
+      "swissRoundNotFinished": "Vòng hiện tại còn trận chưa xong — đánh xong rồi mới tạo vòng sau",
+      "swissLaterRound": "Đã có vòng sau ghép theo kết quả này — không hoàn tác được"
     },
     "round": {
       "r32": "Vòng 1/32",
@@ -5176,7 +5181,12 @@
       "sf": "Bán kết",
       "final": "Chung kết",
       "third": "Tranh hạng 3",
-      "group": "Vòng bảng"
+      "group": "Vòng bảng",
+      "swiss": "Vòng Thụy Sĩ",
+      "wf": "CK nhánh thắng",
+      "lb": "Nhánh thua",
+      "gf": "Chung kết tổng",
+      "gf2": "Chung kết tổng · trận 2"
     },
     "pairing": {
       "insMixed": "Sai luật: cần 1 nam 1 nữ.",
@@ -5256,12 +5266,6 @@
       "deleteTemplate": "Xoá mẫu",
       "minPerTeam": "Mỗi đội đá ít nhất",
       "minPerTeamVal": "{{n}} trận",
-      "customRule": "Tuỳ chỉnh luật",
-      "rulePoints": "Điểm chạm",
-      "ruleSets": "Số sec",
-      "ruleWinBy2": "Cách 2",
-      "ruleCap": "Trần",
-      "ruleApply": "Dùng luật này",
       "customized": "Đang tuỳ chỉnh · khác mẫu gốc",
       "customNotice": "Đang tuỳ chỉnh · khác mẫu gốc",
       "openRecommender": "Mở trình gợi ý →",
@@ -5279,13 +5283,17 @@
         "rr": "Vòng tròn tính điểm",
         "rr_ko": "Vòng bảng + Loại trực tiếp",
         "rr_ko_plate": "Vòng bảng + Nhánh chính & phụ",
+        "swiss": "Thụy Sĩ",
+        "de": "Nhánh thắng & nhánh thua",
         "custom": "Tự dựng"
       },
       "tplSub": {
         "ko": "Thua là về · có tranh hạng 3",
         "rr": "Đấu vòng tròn xếp hạng BWF",
         "rr_ko": "Chia bảng lấy nhất nhì vào knock-out",
-        "rr_ko_plate": "Nhất nhì vào nhánh chính · hạng sau vào nhánh phụ"
+        "rr_ko_plate": "Nhất nhì vào nhánh chính · hạng sau vào nhánh phụ",
+        "swiss": "Vài vòng, mỗi vòng gặp đội cùng điểm · không gặp lại",
+        "de": "Thua 2 trận mới bị loại · có chung kết tổng"
       },
       "qualify": "Vòng loại",
       "ranking": "Chung kết & tranh hạng 3",
@@ -5358,7 +5366,11 @@
       "sf": "BK",
       "final": "CK",
       "third": "3-4",
-      "group": "B"
+      "group": "B",
+      "wf": "CKNT",
+      "lb": "NT",
+      "gf": "CKT",
+      "gf2": "CKT2"
     },
     "matchStatus": {
       "pending": "Chờ đội",
@@ -5605,6 +5617,8 @@
       "viewBracket": "Xem nhánh",
       "tagRr": "BẢNG",
       "tagKo": "KO",
+      "tagSwiss": "THỤY SĨ",
+      "tagDe": "2 NHÁNH",
       "portHint": "Kéo từ chấm này sang một nhánh để nối"
     },
     "flow": {
@@ -5676,7 +5690,61 @@
     "stage": {
       "groups": "Vòng bảng",
       "main": "Nhánh chính",
-      "plate": "Nhánh phụ"
+      "plate": "Nhánh phụ",
+      "swiss": "Vòng Thụy Sĩ",
+      "double": "Nhánh thắng & nhánh thua"
+    },
+    "swiss": {
+      "table": "Bảng xếp hạng",
+      "round": "Vòng {{n}}",
+      "progress": "Vòng {{n}}/{{total}}",
+      "next": "Tạo vòng {{n}}",
+      "waitRound": "Đánh xong vòng {{n}} rồi tạo vòng sau",
+      "lastRound": "Đã đủ {{n}} vòng — chốt để có thứ hạng cuối",
+      "points": "ĐIỂM",
+      "buchholz": "BH",
+      "buchholzHint": "Buchholz: tổng điểm các đối thủ đã gặp — xét khi bằng điểm",
+      "rounds": "Số vòng",
+      "roundsAuto": "Tự động · {{n}}",
+      "roundsN": "{{n}} vòng",
+      "roundsHint": "Mỗi vòng ghép các đội cùng điểm, không gặp lại đội đã gặp; số đội lẻ thì một đội được miễn (tính 1 thắng). Tự động = ⌈log₂ số đội⌉ vòng, tối thiểu 3.",
+      "block": "{{rounds}} vòng · {{n}} đội",
+      "sub": "{{rounds}} vòng · ghép đội cùng điểm"
+    },
+    "rule": {
+      "qualify": "Vòng loại",
+      "ranking": "Vòng tranh hạng",
+      "applies": "Áp dụng: {{list}}",
+      "none": "—",
+      "own": "Luật riêng · {{name}}",
+      "ownHint": "Chỉ áp cho vòng này — các vòng khác giữ luật chung",
+      "reset": "Về luật chung",
+      "back": "← Luật chung các vòng",
+      "pickHint": "Bấm tên một vòng trên nhánh để đặt luật riêng cho vòng đó.",
+      "custom": "Vòng có luật riêng",
+      "sets": "Số sec",
+      "points": "Điểm chạm",
+      "by2": "Cách 2",
+      "cap": "trần",
+      "less": "Giảm",
+      "more": "Tăng",
+      "summaryBy2": "{{sets}} sec {{points}} điểm · cách 2, {{deuce}}–{{deuce}} bên chạm {{cap}} thắng",
+      "summaryTouch": "{{sets}} sec {{points}} điểm · chạm {{points}} thắng"
+    },
+    "double": {
+      "wbTab": "Nhánh thắng",
+      "lbTab": "Nhánh thua & Chung kết",
+      "lbRound": "Nhánh thua · Vòng {{n}}",
+      "lbFinal": "Chung kết nhánh thua",
+      "gfHint": "Đội nhánh thua thắng → đá thêm trận 2",
+      "champSubtitle": "Đội thắng chung kết tổng sẽ bay vào đây",
+      "champWait": "Chờ chung kết tổng",
+      "wbLabel": "Nhánh thắng",
+      "lbLabel": "Nhánh thua",
+      "gfLabel": "Chung kết tổng",
+      "rule": "Chung kết tổng",
+      "note": "Thua 2 trận mới bị loại. Không có tranh hạng 3 — đội thua chung kết nhánh thua xếp hạng 3.",
+      "empty": "Nhánh thua có trận khi nhánh thắng có đội thua đầu tiên"
     },
     "standings": {
       "title": "Bảng xếp hạng vòng bảng",
