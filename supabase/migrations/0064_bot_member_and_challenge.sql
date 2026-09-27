@@ -41,7 +41,7 @@ ALTER TABLE public.club_members
   ADD COLUMN IF NOT EXISTS is_bot boolean NOT NULL DEFAULT false;
 
 COMMENT ON COLUMN public.club_members.is_bot IS
-  'Thành viên này là NPC do code điều khiển. Cờ KHÔNG khoá gì cả — vẫn đăng nhập được, vẫn tính Elo, vẫn lên BXH như mọi người. Tắt bot: UPDATE ... SET is_bot = false, không cần deploy.';
+  'Thành viên này là NPC do code điều khiển. Cờ KHÔNG khoá gì cả — vẫn đăng nhập được, vẫn tính Elo, vẫn lên BXH như mọi người. Chọn / tắt bot: Cài đặt → Chung (RPC set_club_bot), mỗi CLB tối đa một bot.';
 
 -- Lý do bot xếp bốn người này vào với nhau, dạng MÃ (`rank_neighbor` / `streak_hunt`), không phải
 -- câu chữ. Câu nói dựng lại lúc render từ mã + id kèo làm hạt giống, nên mỗi kèo một câu khác mà
@@ -793,5 +793,52 @@ $fn$;
 
 REVOKE EXECUTE ON FUNCTION public.play_arcade_round(uuid, text, integer, text) FROM PUBLIC;
 GRANT  EXECUTE ON FUNCTION public.play_arcade_round(uuid, text, integer, text) TO authenticated;
+
+-- ---------------------------------------------------------------------------
+-- 9. CHỌN THÀNH VIÊN LÀM BOT (Cài đặt → Chung).
+--
+-- Cờ `is_bot` CỐ Ý không đi đường đồng bộ chung (`dbmap.toRows` không ghi cột này), nên đây là
+-- cửa ghi duy nhất ngoài việc gõ SQL tay. Chủ CLB chọn được BẤT KỲ thành viên đang hoạt động nào
+-- — kể cả tài khoản có đăng nhập; chọn ai là việc của chủ CLB.
+--
+-- MỘT CLB MỘT BOT: mọi RPC ở trên lấy bot bằng `… AND is_bot LIMIT 1`, hai bot là chọn ngẫu nhiên
+-- mỗi lần gọi. Index unique dưới đây để chính DB chặn, không trông vào code nhớ tắt người cũ.
+-- ---------------------------------------------------------------------------
+CREATE UNIQUE INDEX IF NOT EXISTS uq_club_members_one_bot
+  ON public.club_members(club_id) WHERE is_bot;
+
+DROP FUNCTION IF EXISTS public.set_club_bot(uuid, uuid);
+
+CREATE OR REPLACE FUNCTION public.set_club_bot(
+  p_club   uuid,
+  p_member uuid   -- NULL = tắt bot
+)
+RETURNS void
+LANGUAGE plpgsql
+SECURITY DEFINER SET search_path = public
+AS $fn$
+BEGIN
+  IF p_club IS NULL OR NOT has_club_perm(p_club, 'members') THEN
+    RAISE EXCEPTION 'Chỉ chủ CLB mới chọn được bot';
+  END IF;
+
+  IF p_member IS NOT NULL AND NOT EXISTS (
+    SELECT 1 FROM club_members WHERE id = p_member AND club_id = p_club AND active IS NOT FALSE
+  ) THEN
+    RAISE EXCEPTION 'Thành viên này không thuộc CLB hoặc đã nghỉ';
+  END IF;
+
+  -- Tắt người cũ TRƯỚC rồi mới bật người mới — ngược thứ tự là đụng index unique ở trên.
+  UPDATE club_members SET is_bot = false
+   WHERE club_id = p_club AND is_bot AND id IS DISTINCT FROM p_member;
+
+  IF p_member IS NOT NULL THEN
+    UPDATE club_members SET is_bot = true WHERE id = p_member AND NOT is_bot;
+  END IF;
+END;
+$fn$;
+
+REVOKE EXECUTE ON FUNCTION public.set_club_bot(uuid, uuid) FROM PUBLIC;
+GRANT  EXECUTE ON FUNCTION public.set_club_bot(uuid, uuid) TO authenticated;
 
 COMMIT;

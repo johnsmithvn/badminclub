@@ -62,6 +62,23 @@ export default function GeneralTab({
     .filter((m) => m.userId && m.active !== false)
     .map((m) => ({ value: m.id, label: m.name })), [db?.members])
 
+  // Bot CLB: chọn BẤT KỲ thành viên đang hoạt động nào (chủ CLB tự quyết). Lưu ngay khi chọn,
+  // không chờ thanh "Lưu": cờ `is_bot` không đi đường đồng bộ chung, chỉ RPC `set_club_bot` ghi được.
+  const botOptions = useMemo(() => (db?.members || [])
+    .filter((m) => m.active !== false)
+    .map((m) => ({ value: m.id, label: m.name })), [db?.members])
+  const botId = (db?.members || []).find((m) => m.isBot && m.active !== false)?.id || ''
+  const [savingBot, setSavingBot] = useState(false)
+  const handlePickBot = async (val) => {
+    if (savingBot || (val || '') === botId) return
+    setSavingBot(true)
+    try {
+      await a.setClubBot(val || null)
+    } finally {
+      setSavingBot(false)
+    }
+  }
+
   /**
    * Bắn push thử cho chính mình. Bấm TRÊN MÁY TÍNH thì điện thoại rung — cách duy nhất thử được
    * trạng thái "app đã kill" mà vẫn bấm được nút.
@@ -552,6 +569,26 @@ export default function GeneralTab({
             usedLevels={usedLevels}
           />
         </div>
+      </SettingsCard>
+
+      {/* 4b. Bot CLB — một thành viên do máy điều khiển. Xoá chọn = tắt bot. */}
+      <SettingsCard
+        title={t('settings.botTitle')}
+        subtitle={t('settings.botSub')}
+        icon="sparkles"
+      >
+        <FormRow label={t('settings.botLabel')} note={t('settings.botNote')} last alignTop>
+          <SearchSelect
+            size="sm"
+            value={botId}
+            options={botOptions}
+            placeholder={t('settings.botNone')}
+            clearable
+            disabled={!canEdit || savingBot}
+            onChange={handlePickBot}
+            style={{ minWidth: 200 }}
+          />
+        </FormRow>
       </SettingsCard>
 
       {/* 5. Vùng nguy hiểm (Full width) */}

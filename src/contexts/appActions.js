@@ -4526,6 +4526,27 @@ export function makeActions({ setDb, setUi, dbRef, uiRef, navRef, toast, reload,
     return data
   }
 
+  /**
+   * Chọn thành viên làm bot CLB (Cài đặt → Chung). `memberId` rỗng = tắt bot.
+   *
+   * Đi thẳng RPC `set_club_bot`, KHÔNG qua đường đồng bộ chung: cột `is_bot` cố ý không có trong
+   * `toRows`, để một lần lưu hồ sơ thành viên không bao giờ vô tình bật/tắt bot. `reload()` sau đó
+   * vì cờ này đổi cả nhịp của bot lẫn thẻ bot ở trang chủ.
+   */
+  A.setClubBot = async (memberId) => {
+    const d0 = db()
+    if (!d0?.clubId || !supabase) return
+    const { error } = await supabase.rpc('set_club_bot', { p_club: d0.clubId, p_member: memberId || null })
+    if (error) {
+      console.warn('[bot] đổi bot lỗi:', error.message)
+      toast(t('settings.botFailed'))
+      return
+    }
+    const name = (d0.members || []).find((m) => m.id === memberId)?.name || ''
+    toast(memberId ? t('settings.botSaved', { name }) : t('settings.botOff'))
+    reload()
+  }
+
   A.reloadNotifications = async () => {
     const d0 = db()
     // `?.` vì hàm này chạy theo sự kiện focus tab / message của Service Worker — có thể nổ

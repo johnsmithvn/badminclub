@@ -99,3 +99,13 @@ test('số dư SP: tính trong khung mùa, không cộng dồn toàn thời gian
   assert.match(body, /created_at BETWEEN b\.start_at AND b\.end_at/, 'Ván Arcade lọc theo mùa')
   assert.match(fnBody('club_season_bounds'), /c\.seasons/, 'Khung mùa đọc từ clubs.seasons')
 })
+
+test('set_club_bot: chỉ chủ CLB, và mỗi CLB tối đa một bot', () => {
+  const body = fnBody('set_club_bot')
+  assert.match(body, /has_club_perm\(p_club, 'members'\)/, 'Chỉ người có quyền quản lý thành viên mới đổi được bot')
+  // Mọi RPC lấy bot bằng `is_bot LIMIT 1` — hai bot là chọn ngẫu nhiên mỗi lần gọi. DB phải tự chặn.
+  assert.match(sql, /CREATE UNIQUE INDEX IF NOT EXISTS \w+\s+ON public\.club_members\(club_id\) WHERE is_bot;/, 'Thiếu index unique một-bot-một-CLB')
+  const off = body.indexOf('SET is_bot = false')
+  const on = body.indexOf('SET is_bot = true')
+  assert.ok(off >= 0 && on > off, 'Phải tắt người cũ TRƯỚC khi bật người mới, không thì đụng index unique')
+})
