@@ -470,7 +470,7 @@ export default function Leaderboard() {
 
       {/* ---------------- TAB 5: Sòng bạc — BXH cược kèo ---------------- */}
       {activeTab === 'gamblers' && (
-        <GamblersTab seasonRes={seasonLeaderboardData} isMobile={isMobile} />
+        <GamblersTab seasonRes={seasonLeaderboardData} isMobile={isMobile} myId={myMem?.id} />
       )}
 
       {/* Modal tạo kèo / gạ kèo (K6) */}

@@ -175,6 +175,7 @@
   "abandonedAcceptedDays": 14,
     "maxStakePoints": 50,
     "gamblerMinTickets": 5,
+    "gamblerMinStreak": 3,
     "stakeMaxLen": 120
   },
   "ui": {

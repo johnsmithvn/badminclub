@@ -573,15 +573,43 @@ export function stakeBaseOf(seasonRes, memberId) {
  * nó đã bó phiếu trong khung mùa, nên bảng này và điểm mùa không bao giờ đếm hai bộ phiếu khác nhau.
  * Phiếu đang chờ / đã hoàn không có mặt — chưa ai được mất gì.
  *
- * @param by 'accuracy' | 'staked' | 'tickets' | 'net' | 'donor'
- * @param minTickets số phiếu tối thiểu để vào hạng 'accuracy' — 1/1 trúng không phải thần.
+ * MỘT bảng, xếp theo lãi ròng. Các chỉ số khác thành DANH HIỆU, mỗi danh hiệu trao cho đúng một
+ * người dẫn đầu chỉ số đó (hoà thì người xếp trên bảng giữ) — thay cho nhiều bảng xếp riêng.
+ *
+ * Phiếu lấy theo thứ tự `predictionLogs` (tăng dần theo lúc có kết quả), nên `form` và các chuỗi
+ * đọc đúng chiều thời gian.
+ *
+ * @param minTickets số phiếu tối thiểu để nhận "Thần dự đoán" / "Nhà đầu tư" — 1/1 trúng không phải thần.
+ * @param minStreak chuỗi tối thiểu để nhận "Tay đỏ" / "Tay đen".
+ * @returns {Array<{ id, name, avatarUrl, rank, tickets, wins, losses, staked, net, winRate, roi,
+ *   form: Array<'won'|'lost'>, streak: { won: boolean, n: number }, bestWinStreak, bestLoseStreak,
+ *   biggestWin, titles: string[] }>}
  */
-export function gamblerBoard(seasonRes, by = 'net', minTickets = cfg.challenge?.gamblerMinTickets ?? 5) {
+export function gamblerBoard(
+  seasonRes,
+  minTickets = cfg.challenge?.gamblerMinTickets ?? 5,
+  minStreak = cfg.challenge?.gamblerMinStreak ?? 3,
+) {
   const rows = (seasonRes?.leaderboard || [])
     .filter((r) => r.predictionLogs?.length)
     .map((r) => {
       const tickets = r.predictionLogs.map((l) => l.prediction)
-      const wins = tickets.filter((p) => p.status === 'won').length
+      const stakeOf = (p) => Number(p.stakePoints) || 0
+      const won = tickets.map((p) => p.status === 'won')
+      const wins = won.filter(Boolean).length
+      const staked = tickets.reduce((s, p) => s + stakeOf(p), 0)
+      const net = r.breakdown?.predictionNetPoints || 0
+
+      // Chuỗi dài nhất mỗi chiều + chuỗi đang chạy (tính tới phiếu mới nhất)
+      let run = 0
+      let bestWinStreak = 0
+      let bestLoseStreak = 0
+      won.forEach((w, i) => {
+        run = i > 0 && won[i - 1] === w ? run + 1 : 1
+        if (w) bestWinStreak = Math.max(bestWinStreak, run)
+        else bestLoseStreak = Math.max(bestLoseStreak, run)
+      })
+
       return {
         id: r.id,
         name: r.name,
@@ -589,21 +617,38 @@ export function gamblerBoard(seasonRes, by = 'net', minTickets = cfg.challenge?.
         tickets: tickets.length,
         wins,
         losses: tickets.length - wins,
-        staked: tickets.reduce((s, p) => s + (Number(p.stakePoints) || 0), 0),
-        net: r.breakdown?.predictionNetPoints || 0,
+        staked,
+        net,
         winRate: Math.round((wins / tickets.length) * 100),
+        // Lãi trên mỗi SP đặt: +50% nghĩa là cứ đặt 100 SP thì lời 50.
+        roi: staked ? Math.round((net / staked) * 100) : 0,
+        form: tickets.slice(-5).map((p) => p.status),
+        streak: { won: won[won.length - 1], n: run },
+        bestWinStreak,
+        bestLoseStreak,
+        biggestWin: Math.max(0, ...tickets.filter((p) => p.status === 'won').map(stakeOf)),
+        titles: [],
       }
     })
+    .sort((a, b) => b.net - a.net || b.winRate - a.winRate || b.tickets - a.tickets)
 
-  const SORTS = {
-    accuracy: [(r) => r.tickets >= minTickets, (a, b) => b.winRate - a.winRate || b.tickets - a.tickets],
-    staked: [() => true, (a, b) => b.staked - a.staked],
-    tickets: [() => true, (a, b) => b.tickets - a.tickets || b.staked - a.staked],
-    net: [() => true, (a, b) => b.net - a.net],
-    donor: [(r) => r.net < 0, (a, b) => a.net - b.net],
-  }
-  const [keep, cmp] = SORTS[by] || SORTS.net
-  return rows.filter(keep).sort(cmp)
+  // [danh hiệu, ai đủ điều kiện, chỉ số để so]. Thứ tự = thứ tự hiện trên màn hình.
+  const TITLES = [
+    ['accuracy', (r) => r.tickets >= minTickets, (r) => r.winRate],
+    ['roi', (r) => r.tickets >= minTickets && r.roi > 0, (r) => r.roi],
+    ['hotHand', (r) => r.bestWinStreak >= minStreak, (r) => r.bestWinStreak],
+    ['bigShot', (r) => r.biggestWin > 0, (r) => r.biggestWin],
+    ['staked', () => true, (r) => r.staked],
+    ['tickets', () => true, (r) => r.tickets],
+    ['coldHand', (r) => r.bestLoseStreak >= minStreak, (r) => r.bestLoseStreak],
+    ['donor', (r) => r.net < 0, (r) => -r.net],
+  ]
+  TITLES.forEach(([key, eligible, score]) => {
+    const best = rows.filter(eligible).reduce((top, r) => (!top || score(r) > score(top) ? r : top), null)
+    if (best) best.titles.push(key)
+  })
+  rows.forEach((r, i) => { r.rank = i + 1 })
+  return rows
 }
 
 /**
