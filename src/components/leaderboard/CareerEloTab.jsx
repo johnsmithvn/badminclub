@@ -65,7 +65,7 @@ export default function CareerEloTab({
   genderFilter = 'all',
   onGenderFilterChange,
 }) {
-  const { isDark, isGlamorous } = useTheme()
+  const { isDark } = useTheme()
 
   // Chỉ fallback về db khi prop KHÔNG được truyền. Danh sách rỗng là kết quả hợp lệ
   // (VD cha đã lọc và không còn ai) — không được tự đổ lại toàn bộ dữ liệu từ db.
@@ -383,7 +383,7 @@ export default function CareerEloTab({
           </div>
 
           {/* TỐP ĐẲNG CẤP 14a · Hào nhoáng */}
-          {isGlamorous && displayList.length >= 3 && (
+          {displayList.length >= 3 && (
             isMobile ? (
               /* Mobile Bục Tốp Đẳng Cấp Dạng Dọc (M11v2) */
               <div
@@ -964,7 +964,7 @@ export default function CareerEloTab({
           )}
 
           {/* BẢNG XẾP HẠNG ELO TOÀN BỘ */}
-          {isMobile && isGlamorous ? (
+          {isMobile ? (
             /* TOÀN BẢNG MOBILE HÀO NHOÁNG (M11v2) */
             <div style={{ background: '#141D2E', border: '1px solid #22304A', borderRadius: 10, overflow: 'hidden' }}>
               <div style={{ padding: '9px 12px', borderBottom: '1px solid #22304A', display: 'flex', alignItems: 'center', gap: 8 }}>
@@ -1036,7 +1036,7 @@ export default function CareerEloTab({
               </div>
             </div>
           ) : (
-            /* DESKTOP / SIMPLE ELO TABLE */
+            /* DESKTOP ELO TABLE */
             <div style={{ background: 'var(--surface-card)', border: '1px solid var(--border-subtle)', borderRadius: 10, overflow: 'hidden', boxShadow: 'var(--shadow-xs)' }}>
               <div style={{ padding: '10px 13px', borderBottom: '1px solid var(--border-subtle)', display: 'flex', alignItems: 'center', gap: 10, flexWrap: 'wrap' }}>
                 <span style={{ font: "600 14px/1.2 'IBM Plex Sans', sans-serif", color: 'var(--text-primary)' }}>
@@ -1044,52 +1044,44 @@ export default function CareerEloTab({
                 </span>
                 <div style={{ flex: '1 1 0%' }} />
                 <span style={{ font: "400 12px/1 'IBM Plex Mono', monospace", color: 'var(--text-muted)' }}>
-                  {isGlamorous ? t('season.singleHighestBadgeLegend14a') : t('season.sortEloDesc')}
+                  {t('season.singleHighestBadgeLegend14a')}
                 </span>
               </div>
 
-              {/* Header hàng (Desktop only) */}
-              {!isMobile && (
-                <div
-                  style={{
-                    display: 'grid',
-                    gridTemplateColumns: isGlamorous ? '46px minmax(0,1fr) 92px 78px 128px 74px 84px' : '40px minmax(0,1fr) 92px 78px 128px 74px 84px',
-                    padding: '8px 13px',
-                    borderBottom: '1px solid var(--border-subtle)',
-                    font: "600 11px/1.2 'IBM Plex Sans', sans-serif",
-                    letterSpacing: '.06em',
-                    textTransform: 'uppercase',
-                    color: 'var(--text-muted)',
-                  }}
-                >
-                  <span>#</span>
-                  <span>{t('season.colMember')}</span>
-                  <span style={{ textAlign: 'right' }}>Elo</span>
-                  <span style={{ textAlign: 'right' }}>{t('season.colMatches')}</span>
-                  <span style={{ textAlign: 'center' }}>{t('season.colConfidence')}</span>
-                  <span style={{ textAlign: 'right' }}>{t('season.colWins')}</span>
-                  <span style={{ textAlign: 'right' }}>{t('season.col30Days')}</span>
-                </div>
-              )}
+              {/* Header hàng */}
+              <div
+                style={{
+                  display: 'grid',
+                  gridTemplateColumns: '46px minmax(0,1fr) 92px 78px 128px 74px 84px',
+                  padding: '8px 13px',
+                  borderBottom: '1px solid var(--border-subtle)',
+                  font: "600 11px/1.2 'IBM Plex Sans', sans-serif",
+                  letterSpacing: '.06em',
+                  textTransform: 'uppercase',
+                  color: 'var(--text-muted)',
+                }}
+              >
+                <span>#</span>
+                <span>{t('season.colMember')}</span>
+                <span style={{ textAlign: 'right' }}>Elo</span>
+                <span style={{ textAlign: 'right' }}>{t('season.colMatches')}</span>
+                <span style={{ textAlign: 'center' }}>{t('season.colConfidence')}</span>
+                <span style={{ textAlign: 'right' }}>{t('season.colWins')}</span>
+                <span style={{ textAlign: 'right' }}>{t('season.col30Days')}</span>
+              </div>
 
-              {/* Danh sách thành viên (Mobile Simple & Desktop) */}
+              {/* Danh sách thành viên */}
               {displayList.length === 0 ? (
                 <div style={{ padding: '36px 16px', textAlign: 'center', font: "400 13px/1.4 'IBM Plex Sans', sans-serif", color: 'var(--text-muted)' }}>
                   {t('season.emptyGenderList')}
                 </div>
               ) : displayList.map((player) => {
-                const isRank1 = player.rank === 1
-                const rankColor = isRank1
-                  ? '#D97706'
-                  : player.rank === 2 || player.rank === 3
-                    ? (isDark ? '#A8B7CB' : 'var(--text-secondary)')
-                    : 'var(--text-muted)'
                 const deltaColor = player.delta30Days > 0 ? (isDark ? '#5FDBD3' : '#0D9488') : player.delta30Days < 0 ? (isDark ? '#F1A79D' : '#DC2626') : 'var(--text-muted)'
                 const deltaSign = player.delta30Days > 0 ? `+${player.delta30Days}` : player.delta30Days < 0 ? `${player.delta30Days}` : '0'
 
-                const isGlamTop1 = isGlamorous && player.rank === 1
-                const isGlamTop2 = isGlamorous && player.rank === 2
-                const isGlamTop3 = isGlamorous && player.rank === 3
+                const isGlamTop1 = player.rank === 1
+                const isGlamTop2 = player.rank === 2
+                const isGlamTop3 = player.rank === 3
                 const isGlamTopAny = isGlamTop1 || isGlamTop2 || isGlamTop3
 
                 const glamLeftBorder = isGlamTop1
@@ -1108,142 +1100,6 @@ export default function CareerEloTab({
                       ? (isDark ? 'linear-gradient(90deg, rgba(217,136,68,.12) 0%, rgba(20,27,45,.6) 45%)' : 'linear-gradient(90deg, rgba(217,119,6,.1) 0%, rgba(255,255,255,.9) 45%)')
                       : undefined
 
-                if (isMobile) {
-                  const isMe = myMember && myMember.id === player.id
-                  return (
-                    <div
-                      key={player.id}
-                      onClick={() => onSelectMember && onSelectMember(player)}
-                      title={onSelectMember ? t('leaderboard.tabChart') : undefined}
-                      style={{
-                        padding: '11px 14px',
-                        borderBottom: '1px solid var(--border-subtle)',
-                        borderLeft: isGlamorous ? glamLeftBorder : 'none',
-                        display: 'flex',
-                        flexDirection: 'column',
-                        gap: 6,
-                        cursor: onSelectMember ? 'pointer' : 'default',
-                        background: glamBg || (isMe ? (isDark ? 'rgba(29,80,160,.14)' : 'rgba(29,80,160,.06)') : 'transparent'),
-                        transition: 'background 0.15s ease',
-                      }}
-                      onMouseEnter={(e) => {
-                        if (onSelectMember) e.currentTarget.style.background = isGlamTopAny ? glamBg : isDark ? 'rgba(255,255,255,.04)' : 'rgba(0,0,0,.03)'
-                      }}
-                      onMouseLeave={(e) => {
-                        if (onSelectMember) e.currentTarget.style.background = glamBg || (isMe ? (isDark ? 'rgba(29,80,160,.14)' : 'rgba(29,80,160,.06)') : 'transparent')
-                      }}
-                    >
-                      {/* Dòng 1: Hạng + Avatar + Tên + Badge Top 1 + Elo */}
-                      <div style={{ minWidth: 0, display: 'flex', alignItems: 'center', gap: 9 }}>
-                        {isGlamorous && (player.rank === 1 || player.rank === 2 || player.rank === 3) ? (
-                          <div style={{ width: 22, display: 'flex', justifyContent: 'center' }}>
-                            <RankMedalIcon rank={player.rank} size={20} />
-                          </div>
-                        ) : (
-                          <span style={{ width: 20, font: "600 13px/1 'IBM Plex Mono', monospace", color: rankColor }}>
-                            {player.rank}
-                          </span>
-                        )}
-                        <Avatar name={player.name} src={player.avatarUrl} size={22} />
-                        <div style={{ flex: '1 1 0%', minWidth: 0, display: 'flex', flexDirection: 'column' }}>
-                          <div style={{ minWidth: 0, display: 'flex', alignItems: 'center', gap: 6 }}>
-                            <span style={{ font: "600 14px/1.3 'IBM Plex Sans', sans-serif", color: 'var(--text-primary)', minWidth: 0, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>
-                              <span title={player.name}>{player.name}</span>
-                            </span>
-                            {isMe && (
-                              <span style={{ font: "600 9.5px/1 'IBM Plex Mono', monospace", padding: '2px 6px', borderRadius: 999, background: 'rgba(29,80,160,.24)', border: '1px solid #1D50A0', color: '#B6CDEC' }}>
-                                {t('season.youTag')}
-                              </span>
-                            )}
-                          </div>
-                          {isGlamorous && player.highestBadge && (
-                            <div style={{ display: 'flex', alignItems: 'center', gap: 4, marginTop: 1 }}>
-                              <BadgeHex tier={player.highestBadge.tier} glyph={player.highestBadge.glyph} size={13} />
-                              <span
-                                style={{
-                                  font: "600 10px/1 'IBM Plex Sans', sans-serif",
-                                  color:
-                                    player.highestBadge.tier === 'legend'
-                                      ? '#FFE24B'
-                                      : player.highestBadge.tier === 'epic'
-                                        ? '#D946EF'
-                                        : player.highestBadge.tier === 'elite'
-                                          ? '#38BDF8'
-                                          : player.highestBadge.tier === 'rare'
-                                            ? '#A78BFA'
-                                            : 'var(--text-secondary)',
-                                }}
-                              >
-                                {player.highestBadge.name}
-                              </span>
-                            </div>
-                          )}
-                        </div>
-                        {!isGlamorous && player.rank === 1 && (
-                          <span
-                            style={{
-                              font: "600 10px/1 'IBM Plex Mono', monospace",
-                              padding: '2px 6px',
-                              borderRadius: 999,
-                              background: isDark ? 'rgba(201,162,39,.16)' : 'rgba(245,158,11,.14)',
-                              border: '1px solid #C9A227',
-                              color: isDark ? '#F0D26A' : '#B45309',
-                            }}
-                          >
-                            Top 1
-                          </span>
-                        )}
-                        <span
-                          style={{
-                            font: "600 15px/1 'IBM Plex Mono', monospace",
-                            color: player.rank === 1 ? (isDark ? '#F7E3A1' : '#B45309') : 'var(--text-primary)',
-                          }}
-                        >
-                          {player.rating}
-                        </span>
-                      </div>
-
-                      {/* Dòng 2: Mini confidence bar + Nhãn + {games} trận · {winRate}% · {delta} */}
-                      <div style={{ paddingLeft: 29, display: 'flex', alignItems: 'center', gap: 8 }}>
-                        <span
-                          style={{
-                            width: 52,
-                            height: 7,
-                            borderRadius: 999,
-                            background: 'var(--surface-inset)',
-                            border: '1px solid var(--border-subtle)',
-                            overflow: 'hidden',
-                            display: 'flex',
-                            flex: '0 0 auto',
-                          }}
-                        >
-                          <span style={{ width: player.confBarWidth, background: player.confBarColor }} />
-                        </span>
-                        <span
-                          style={{
-                            font: "600 10px/1 'IBM Plex Mono', monospace",
-                            color: player.confColor,
-                            letterSpacing: '.04em',
-                          }}
-                        >
-                          {player.confLabel}
-                        </span>
-                        <span
-                          style={{
-                            flex: '1 1 0%',
-                            font: "400 11px/1.3 'IBM Plex Mono', monospace",
-                            color: 'var(--text-muted)',
-                            textAlign: 'right',
-                          }}
-                        >
-                          {player.gamesCount} {t('units.match')} · {player.winRate}% ·{' '}
-                          <span style={{ color: deltaColor, fontWeight: 600 }}>{deltaSign}</span>
-                        </span>
-                      </div>
-                    </div>
-                  )
-                }
-
                 return (
                   <div
                     key={player.id}
@@ -1251,13 +1107,11 @@ export default function CareerEloTab({
                     title={onSelectMember ? t('leaderboard.tabChart') : undefined}
                     style={{
                       display: 'grid',
-                      gridTemplateColumns: isGlamorous
-                        ? '46px minmax(0,1fr) 92px 78px 128px 74px 84px'
-                        : '40px minmax(0,1fr) 92px 78px 128px 74px 84px',
+                      gridTemplateColumns: '46px minmax(0,1fr) 92px 78px 128px 74px 84px',
                       alignItems: 'center',
-                      padding: isGlamorous ? '10px 13px' : '9px 13px',
+                      padding: '10px 13px',
                       borderBottom: '1px solid var(--border-subtle)',
-                      borderLeft: isGlamorous ? glamLeftBorder : 'none',
+                      borderLeft: glamLeftBorder,
                       background: glamBg || 'transparent',
                       font: "400 13px/1.3 'IBM Plex Sans', sans-serif",
                       cursor: onSelectMember ? 'pointer' : 'default',
@@ -1279,7 +1133,7 @@ export default function CareerEloTab({
                     }}
                   >
                     {/* Rank */}
-                    {isGlamorous && (player.rank === 1 || player.rank === 2 || player.rank === 3) ? (
+                    {(player.rank === 1 || player.rank === 2 || player.rank === 3) ? (
                       <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
                         <RankMedalIcon rank={player.rank} size={28} />
                       </div>
@@ -1287,9 +1141,9 @@ export default function CareerEloTab({
                       <span
                         style={{
                           fontFamily: "'IBM Plex Mono', monospace",
-                          color: isGlamorous ? '#7F93B8' : rankColor,
+                          color: '#7F93B8',
                           fontWeight: 600,
-                          textAlign: isGlamorous ? 'center' : 'left',
+                          textAlign: 'center',
                         }}
                       >
                         {player.rank}
@@ -1313,10 +1167,10 @@ export default function CareerEloTab({
                           flexShrink: 0,
                         }}
                       >
-                        <Avatar name={player.name} src={player.avatarUrl} size={isGlamorous ? 28 : 24} />
+                        <Avatar name={player.name} src={player.avatarUrl} size={28} />
                       </div>
 
-                      <div style={{ display: 'flex', flexDirection: 'column', minWidth: 0, gap: isGlamorous && player.highestBadge ? 1 : 0 }}>
+                      <div style={{ display: 'flex', flexDirection: 'column', minWidth: 0, gap: player.highestBadge ? 1 : 0 }}>
                         <div style={{ minWidth: 0, display: 'flex', alignItems: 'center', gap: 6 }}>
                           <span
                             style={{
@@ -1334,24 +1188,10 @@ export default function CareerEloTab({
                               {t('season.youTag')}
                             </span>
                           )}
-                          {!isGlamorous && player.rank === 1 && (
-                            <span
-                              style={{
-                                font: "600 10px/1 'IBM Plex Mono', monospace",
-                                padding: '3px 6px',
-                                borderRadius: 999,
-                                background: isDark ? 'rgba(201,162,39,.16)' : 'rgba(245,158,11,.14)',
-                                border: '1px solid #C9A227',
-                                color: isDark ? '#F0D26A' : '#B45309',
-                              }}
-                            >
-                              Top 1
-                            </span>
-                          )}
                         </div>
 
-                        {/* Tên huy hiệu bậc cao nhất dưới tên người chơi khi ở chế độ hào nhoáng */}
-                        {isGlamorous && player.highestBadge && (
+                        {/* Tên huy hiệu bậc cao nhất dưới tên người chơi */}
+                        {player.highestBadge && (
                           <div style={{ display: 'flex', alignItems: 'center', gap: 5, marginTop: 1 }}>
                             <BadgeHex tier={player.highestBadge.tier} glyph={player.highestBadge.glyph} size={14} />
                             <span
@@ -1374,39 +1214,6 @@ export default function CareerEloTab({
                           </div>
                         )}
                       </div>
-
-                      {/* Chip huy hiệu khi ở chế độ đơn giản */}
-                      {!isGlamorous && player.highestBadge && (
-                        <span
-                          style={{
-                            display: 'inline-flex',
-                            alignItems: 'center',
-                            gap: 4,
-                            padding: '2px 6px',
-                            borderRadius: 4,
-                            background: isDark ? 'rgba(255, 255, 255, 0.05)' : 'rgba(0, 0, 0, 0.04)',
-                            border: '1px solid var(--border-subtle)',
-                          }}
-                          title={player.highestBadge.name}
-                        >
-                          <BadgeHex tier={player.highestBadge.tier} glyph={player.highestBadge.glyph} size={15} />
-                          <span
-                            style={{
-                              font: "600 10.5px/1 'IBM Plex Sans', sans-serif",
-                              color:
-                                player.highestBadge.tier === 'legend'
-                                  ? '#FFE24B'
-                                  : player.highestBadge.tier === 'epic'
-                                    ? '#D946EF'
-                                    : player.highestBadge.tier === 'elite'
-                                      ? '#38BDF8'
-                                      : 'var(--text-secondary)',
-                            }}
-                          >
-                            {player.highestBadge.name}
-                          </span>
-                        </span>
-                      )}
                     </div>
 
                     {/* Elo */}
