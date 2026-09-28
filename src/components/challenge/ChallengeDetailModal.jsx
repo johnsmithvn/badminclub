@@ -96,7 +96,10 @@ export default function ChallengeDetailModal({ challenge, session, onClose, onSc
     const multiplier = challengeMultiplierOf(db)
     const win = calcSeasonMatchDeltaFinal(ratA, ratB, true, { isChallenge: true, multiplier })
     const lose = calcSeasonMatchDeltaFinal(ratA, ratB, false, { isChallenge: true, multiplier })
-    return { multiplier, aWin: win.delta, aLose: lose.delta, baseWin: win.baseDelta }
+    // Hai đội đứng ở hai dải khác nhau (cửa trên / cửa dưới) nên điểm của B KHÔNG phải số đối của A.
+    const bWin = calcSeasonMatchDeltaFinal(ratB, ratA, true, { isChallenge: true, multiplier })
+    const bLose = calcSeasonMatchDeltaFinal(ratB, ratA, false, { isChallenge: true, multiplier })
+    return { multiplier, aWin: win.delta, aLose: lose.delta, bWin: bWin.delta, bLose: bLose.delta, baseWin: win.baseDelta }
   }, [isPlayed, c.ratingEnabled, teamA.length, resolvedTeamB.length, ratA, ratB, db])
 
   const gap = Math.abs(ratA - ratB)
@@ -1045,11 +1048,8 @@ export default function ChallengeDetailModal({ challenge, session, onClose, onSc
               không thể nói ba con số khác nhau. Kèo tắt xếp hạng thì không có điểm nào để khoe. */}
           {seasonPreview && (
             <div style={{
-              display: 'flex',
-              alignItems: 'center',
-              justifyContent: 'space-between',
+              display: 'grid',
               gap: 8,
-              flexWrap: 'wrap',
               marginTop: 6,
               paddingTop: 8,
               borderTop: '1px solid var(--border-subtle)',
@@ -1071,11 +1071,30 @@ export default function ChallengeDetailModal({ challenge, session, onClose, onSc
                   </span>
                 )}
               </div>
-              <span style={{ font: '700 12.5px/1.2 var(--font-mono)' }}>
-                <span style={{ color: 'var(--status-delivered-fg)' }}>+{seasonPreview.aWin}</span>
-                <span style={{ color: 'var(--text-disabled)' }}> / </span>
-                <span style={{ color: '#FF8585' }}>{seasonPreview.aLose}</span>
-              </span>
+              {/* Hai cột soi gương thẻ đối đầu ở trên: A bên trái, B bên phải */}
+              <div style={{ display: 'grid', gridTemplateColumns: 'repeat(2, minmax(0, 1fr))', gap: 10 }}>
+                {[
+                  { team: 'A', label: t('challenge.teamA'), color: 'var(--status-transit-fg)', win: seasonPreview.aWin, lose: seasonPreview.aLose },
+                  { team: 'B', label: t('challenge.teamB'), color: '#FF7A59', win: seasonPreview.bWin, lose: seasonPreview.bLose },
+                ].map((row) => (
+                  <div key={row.team} style={{ display: 'grid', gap: 5, justifyItems: row.team === 'A' ? 'start' : 'end' }}>
+                    <span style={{ font: '600 11px/1.2 var(--font-sans)', color: row.color }}>{row.label}</span>
+                    <div style={{ display: 'flex', gap: 14 }}>
+                      {[
+                        { key: 'win', label: t('challenge.seasonPreviewWin'), value: `+${row.win}`, color: 'var(--status-delivered-fg)' },
+                        { key: 'lose', label: t('challenge.seasonPreviewLose'), value: row.lose, color: 'var(--status-incident-fg)' },
+                      ].map((cell) => (
+                        <div key={cell.key} style={{ display: 'grid', gap: 3, justifyItems: row.team === 'A' ? 'start' : 'end' }}>
+                          <span style={{ font: '600 10px/1 var(--font-sans)', letterSpacing: '.06em', textTransform: 'uppercase', color: 'var(--text-muted)' }}>
+                            {cell.label}
+                          </span>
+                          <span style={{ font: '700 16px/1 var(--font-mono)', color: cell.color }}>{cell.value}</span>
+                        </div>
+                      ))}
+                    </div>
+                  </div>
+                ))}
+              </div>
             </div>
           )}
         </div>

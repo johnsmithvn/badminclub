@@ -3180,6 +3180,8 @@
     "sessionItemAttend": "{{n}} người đã điểm danh",
     "sessionItemNoAttend": "Chưa ai điểm danh",
     "seasonPreviewTitle": "Điểm mùa dự kiến",
+    "seasonPreviewWin": "Thắng",
+    "seasonPreviewLose": "Thua",
     "seasonPreviewMultBadge": "×{{mult}} vì là kèo",
     "seasonPreviewNote": "Chưa gồm thưởng chuỗi thắng và lật kèo. Elo tính riêng.",
     "seasonPreviewNoteMult": "Trận thường chỉ +{{base}} — đánh trong kèo được nhân {{mult}}. Elo vẫn tính như trận thường.",
