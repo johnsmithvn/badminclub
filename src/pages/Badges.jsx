@@ -651,7 +651,8 @@ export default function Badges() {
                 </div>
                 <div style={{ display: 'flex', flexDirection: 'column', gap: 8 }}>
                   {memberBadges.all
-                    .filter((b) => b.unlocked || b.tier === 'fun')
+                    // Danh hiệu đang gắn luôn hiện (kể cả hết hạn mùa trước) để còn nút Gỡ
+                    .filter((b) => b.unlocked || b.tier === 'fun' || (activeMember?.badge_shelf || activeMember?.badgeShelf || []).includes(b.id))
                     .map((badge) => {
                       const isEquipped = (activeMember?.badge_shelf || activeMember?.badgeShelf || []).includes(badge.id)
                       const tierMeta = ANIME_TIERS[badge.tier] || ANIME_TIERS.rare
@@ -1929,7 +1930,8 @@ export default function Badges() {
               {/* Danh sách các danh hiệu đã mở của người dùng */}
               <div style={{ display: 'flex', flexDirection: 'column', gap: 10 }}>
                 {memberBadges.all
-                  .filter((b) => b.unlocked || b.tier === 'fun')
+                  // Danh hiệu đang gắn luôn hiện (kể cả hết hạn mùa trước) để còn nút Gỡ
+                  .filter((b) => b.unlocked || b.tier === 'fun' || (currentMember?.badge_shelf || currentMember?.badgeShelf || []).includes(b.id))
                   .map((badge) => {
                     const isEquipped = (currentMember?.badge_shelf || currentMember?.badgeShelf || []).includes(badge.id)
                     const tierMeta = ANIME_TIERS[badge.tier] || ANIME_TIERS.rare

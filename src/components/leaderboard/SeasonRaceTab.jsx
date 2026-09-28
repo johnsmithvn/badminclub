@@ -6,6 +6,8 @@ import { useApp } from '#contexts/AppContext.jsx'
 import BadgeHex from '#components/badges/BadgeHex.jsx'
 import { getBadgeById } from '#lib/badges.js'
 import RankMedalIcon from '#components/leaderboard/RankMedalIcon.jsx'
+import { STAT_COLORS } from '#components/leaderboard/statColors.js'
+import WinRatePill from '#components/leaderboard/WinRatePill.jsx'
 
 function MiniShelf({ shelf = [], size = 18 }) {
   if (!shelf || !shelf.length) return null
@@ -52,13 +54,8 @@ function BountyBadgeTag({ streak = 0 }) {
   )
 }
 
-// Thẻ mobile luôn nền tối (hex cứng) nên màu chữ cũng là hex sáng — chép từ status-*-fg của dark.css.
-const STAT_COLORS = { win: '#5FD9A2', loss: '#FF9A8F', match: '#9FC0EA', session: '#C4B5FD', muted: '#8494AA' }
-
 function MobileStats({ row, fields, size = 10.5 }) {
   if (!row) return null
-  const hasMatches = row.matchesCount > 0
-  const goodRate = row.winRate >= 50
   const bits = {
     sessions: <span style={{ color: STAT_COLORS.session }}>{row.attendedCount || 0} {t('units.session')}</span>,
     matches: <span style={{ color: STAT_COLORS.match }}>{row.matchesCount || 0} {t('units.match')}</span>,
@@ -69,18 +66,7 @@ function MobileStats({ row, fields, size = 10.5 }) {
         <span style={{ color: STAT_COLORS.loss }}>{row.lossesCount || 0}L</span>
       </span>
     ),
-    winRate: (
-      <span
-        style={{
-          padding: '2px 6px',
-          borderRadius: 999,
-          background: hasMatches ? (goodRate ? 'rgba(18,168,103,.2)' : 'rgba(225,68,52,.2)') : 'transparent',
-          color: hasMatches ? (goodRate ? STAT_COLORS.win : STAT_COLORS.loss) : STAT_COLORS.muted,
-        }}
-      >
-        {row.winRate || 0}%
-      </span>
-    ),
+    winRate: <WinRatePill winRate={row.winRate} hasMatches={row.matchesCount > 0} />,
   }
   return (
     <span style={{ minWidth: 0, display: 'flex', flexWrap: 'wrap', alignItems: 'center', gap: '4px 7px', font: `600 ${size}px/1.2 'IBM Plex Mono', monospace`, whiteSpace: 'nowrap' }}>

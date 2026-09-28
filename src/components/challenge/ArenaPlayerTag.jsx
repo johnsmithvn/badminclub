@@ -51,6 +51,8 @@ export default function ArenaPlayerTag({
         maxWidth: '100%',
         minWidth: 0,
         boxSizing: 'border-box',
+        // Mặc định cho thẻ Arena nền tối cố định; nơi theo theme thì truyền style.color để đè
+        color: isWinner ? '#5FD9A2' : '#F4F7FB',
         ...style,
       }}
     >
@@ -78,7 +80,7 @@ export default function ArenaPlayerTag({
         title={name}
         style={{
           font: `${isFeatured ? 700 : 600} ${fontSize}px/1.25 "IBM Plex Sans", sans-serif`,
-          color: isWinner ? '#5FD9A2' : '#F4F7FB',
+          color: 'inherit',
           textAlign: isRight ? 'right' : 'left',
           ...(maxLines > 1
             ? {

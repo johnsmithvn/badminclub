@@ -988,6 +988,7 @@ export default function ChallengeDetailModal({ challenge, session, onClose, onSc
                     isMobile={isMobile}
                     maxLines={3}
                     align="left"
+                    style={{ color: isPlayed && c.winner === 'A' ? 'var(--status-delivered-fg)' : 'var(--text-primary)' }}
                   />
                 ))}
               </div>
@@ -1011,6 +1012,7 @@ export default function ChallengeDetailModal({ challenge, session, onClose, onSc
                     isMobile={isMobile}
                     maxLines={3}
                     align="right"
+                    style={{ color: isPlayed && c.winner === 'B' ? 'var(--status-delivered-fg)' : 'var(--text-primary)' }}
                   />
                 )) : (
                   <span style={{ fontSize: 13, color: 'var(--text-muted)', fontStyle: 'italic' }}>
