@@ -1,5 +1,5 @@
 import { useMemo } from 'react'
-import { Avatar, Icon, StatCard } from '#ds'
+import { Avatar, Icon } from '#ds'
 import { Empty } from '#ui'
 import RankMedalIcon from '#components/leaderboard/RankMedalIcon.jsx'
 import { gamblerBoard } from '#lib/challenge.js'
@@ -26,6 +26,26 @@ const SANS = "'IBM Plex Sans', sans-serif"
 
 const signed = (n) => (n > 0 ? `+${n}` : String(n))
 const signColor = (n, isDark) => (n > 0 ? (isDark ? '#5FDBD3' : '#0D9488') : n < 0 ? (isDark ? '#F87171' : '#DC2626') : 'var(--text-muted)')
+
+/**
+ * Thẻ số liệu tổng quan. KHÔNG dùng `StatCard` của DS: tone 'neutral' của nó tô số bằng
+ * `--navy-700` cố định, sang chế độ tối là chữ navy trên nền navy — gần như không đọc được.
+ */
+function StatTile({ label, value, unit, icon, color, caption }) {
+  return (
+    <div style={{ minWidth: 0, display: 'grid', gap: 8, alignContent: 'start', padding: 14, borderRadius: 10, background: 'var(--surface-card)', border: '1px solid var(--border-subtle)', boxShadow: 'var(--shadow-xs)' }}>
+      <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', gap: 8 }}>
+        <span style={{ font: `600 11px/1.2 ${SANS}`, letterSpacing: '.06em', textTransform: 'uppercase', color: 'var(--text-muted)' }}>{label}</span>
+        <Icon name={icon} size={17} style={{ color: color || 'var(--text-muted)', flexShrink: 0 }} />
+      </div>
+      <div style={{ font: "700 28px/1 'Barlow', sans-serif", color: color || 'var(--text-primary)', whiteSpace: 'nowrap' }}>
+        {value}
+        {unit && <span style={{ font: `600 12px/1 ${SANS}`, color: 'var(--text-muted)', marginLeft: 5 }}>{unit}</span>}
+      </div>
+      <span style={{ font: `400 12px/1.35 ${SANS}`, color: 'var(--text-muted)' }}>{caption}</span>
+    </div>
+  )
+}
 
 function TitleChip({ k, isDark, iconOnly }) {
   const st = TITLES[k]
@@ -153,15 +173,16 @@ export default function GamblersTab({ seasonRes, isMobile, myId }) {
 
       {/* Tổng quan cả sòng */}
       <div style={{ display: 'grid', gap: 12, gridTemplateColumns: isMobile ? 'repeat(2, minmax(0, 1fr))' : 'repeat(4, minmax(0, 1fr))' }}>
-        <StatCard label={t('gamblers.statPlayers')} value={rows.length} icon="users"
+        <StatTile label={t('gamblers.statPlayers')} value={rows.length} icon="users"
           caption={t('gamblers.statPlayersCaption', { n: totalTickets })} />
-        <StatCard label={t('gamblers.statHitRate')} value={`${Math.round((totalWins / totalTickets) * 100)}%`} icon="target" tone="accent"
+        <StatTile label={t('gamblers.statHitRate')} value={`${Math.round((totalWins / totalTickets) * 100)}%`} icon="target"
+          color={isDark ? '#5FDBD3' : '#0D9488'}
           caption={t('gamblers.statHitRateCaption', { wins: totalWins, losses: totalTickets - totalWins })} />
-        <StatCard label={t('gamblers.statStaked')} value={totalStaked} unit="SP" icon="wallet"
+        <StatTile label={t('gamblers.statStaked')} value={totalStaked} unit="SP" icon="wallet"
+          color={isDark ? '#F0D26A' : '#B45309'}
           caption={t('gamblers.statStakedCaption', { n: Math.round(totalStaked / totalTickets) })} />
-        <StatCard label={t('gamblers.statNet')} value={signed(totalNet)} unit="SP"
-          icon={totalNet >= 0 ? 'trending-up' : 'trending-down'}
-          tone={totalNet > 0 ? 'positive' : totalNet < 0 ? 'critical' : 'neutral'}
+        <StatTile label={t('gamblers.statNet')} value={signed(totalNet)} unit="SP"
+          icon={totalNet >= 0 ? 'trending-up' : 'trending-down'} color={signColor(totalNet, isDark)}
           caption={t(totalNet >= 0 ? 'gamblers.statNetUp' : 'gamblers.statNetDown')} />
       </div>
 
