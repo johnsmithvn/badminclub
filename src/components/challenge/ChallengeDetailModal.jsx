@@ -183,8 +183,8 @@ export default function ChallengeDetailModal({ challenge, session, onClose, onSc
     () => availableSeasonPoints(totalSp, predictions, db.challenges, db.sessions, myId),
     [totalSp, predictions, db.challenges, db.sessions, myId],
   )
-  // Trần tuyệt đối của một phiếu. Trùng số với CHECK trong migration 0047 — SQL không đọc được
-  // JSON nên hai chỗ phải tự giữ khớp nhau.
+  // Trần một phiếu (50, quyết định chủ CLB 2026-09-28). CỐ Ý chặt hơn CHECK 1..100 của migration
+  // 0047: chỉ chặn ở client, server giữ 100 làm lá chắn chống gọi thẳng RPC.
   const maxStake = cfg.challenge?.maxStakePoints ?? 100
   // Ô nhập để rỗng được lúc đang gõ, nên `predStake` có thể là ''. Mọi so sánh phải qua số.
   // Luật hợp lệ đọc từ `validateStakePoints` — CHUNG với `a.placePrediction`, không chép lại.
