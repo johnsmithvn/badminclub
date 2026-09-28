@@ -368,36 +368,32 @@ sàn. Nên bắt buộc sắp xếp theo `at` và tie-break theo `id`.
 
 ```
 rawNet = tổng phiếu thắng − tổng phiếu thua  (chỉ phiếu quyết toán TRONG mùa, theo settledAt)
-predictionNet = min(15, rawNet)               ← CHỈ chặn chiều thắng
+predictionNet = rawNet                        ← KHÔNG kẹp chiều nào
 điểm cuối = max(0, điểmTrận + predictionNet)
 ```
 
-**Trần +15 chỉ một chiều là cố ý.** Trước đây kẹp đối xứng `[−15, +15]`, và cái sàn đó là lỗ hổng
-cược miễn phí: chạm −15 rồi thì thua thêm không mất gì trong khi thắng vẫn cộng. Bỏ sàn thì thua
-trừ thật, và luật "hết điểm là không được cược" mới có răng.
+**Không kẹp cả hai chiều (từ 2026-09-28).** Sàn `−15` cũ là lỗ hổng cược miễn phí: chạm −15 rồi thì
+thua thêm không mất gì. Trần `+15` bị bỏ theo quyết định của chủ CLB: điểm mùa vừa là điểm BXH vừa là
+vốn đem đi cược, trần thắng cộng thua không trần thì cược luôn lỗ về kỳ vọng. Hệ quả đã chấp nhận:
+người cược giỏi leo được cao hơn người đánh nhiều. Chặn cược quá số đang có nằm ở
+`availableSeasonPoints`.
 
-Trần thắng giữ để bảng xếp hạng vẫn là bảng **thi đấu** — không ai leo hạng bằng cách ngồi ngoài
-đoán kèo.
+Người chưa ra sân trận nào vẫn cược được bằng 100 điểm khởi đầu (`stakeBaseOf`), nhưng điểm BXH
+của họ chỉ gồm lãi/lỗ cược — 100 điểm khởi đầu chỉ vào BXH sau trận đầu tiên.
 
 ### 3.7. Điều kiện xếp hạng
 
 | Nhãn | Điều kiện |
 |---|---|
-| **Qualified** | ≥ **8** trận tính rating trong mùa (`minMatchesOfficial`) |
 | **Inactive** | Đã đánh ≥ 1 trận nhưng > **21** ngày không ra sân (`inactiveDays`) |
 
-**Thứ tự xếp hạng:** (1) Qualified đứng trên chưa qualified → (2) điểm mùa giảm dần →
-(3) số trận thắng → (4) tỷ lệ thắng.
+**Thứ tự xếp hạng:** (1) điểm mùa giảm dần → (2) số trận thắng → (3) tỷ lệ thắng.
 
-Ưu tiên (1) là cơ chế **chống ôm rank**: đánh 3 trận thắng cả 3 (100 + 14×3 + 5 thưởng chuỗi
-= 147đ) không được đứng trên người đã cày 25 trận.
-
-> Ngưỡng này **hạ từ 20 xuống 8 ngày 2026-09-18**. Đo trên mô phỏng một mùa đầy đủ: ở mốc 20, cái
-> cổng đẩy nhầm người xứng đáng top 5 xuống dưới trong **19.2%** số lần, mà chỉ chặn ôm rank được
-> từ 1.4% xuống 1.0% — đổi chác quá tệ. Ở mốc 8, đẩy nhầm còn **2.2%** mà vẫn chặn ôm rank ở 0.7%.
-> Nhóm đi 2 buổi/tháng (≈14 trận/mùa) từ chỗ chỉ 11% đủ điều kiện lên **95%**.
->
-> Đặt `minMatchesOfficial: 0` là **tắt hẳn** cổng này.
+> **Đã bỏ cổng Qualified (`minMatchesOfficial`) ngày 2026-09-28**, theo quyết định của chủ CLB. Trước
+> đó người đủ 8 trận luôn đứng trên người chưa đủ, bất kể điểm (chống "ôm rank"). Giờ BXH xếp thuần
+> theo điểm. Trên dữ liệu thật Q3 (22 người): điểm không ai đổi, **16 người đổi hạng**, top 5 giữ
+> nguyên — ví dụ Hoa (156đ, 5 trận) 12 → 6, Trường (74đ, 11 trận) 11 → 21. Backtest KHÔNG bắt được
+> thay đổi này vì mốc chỉ lưu điểm, không lưu thứ hạng.
 
 ### 3.8. Trận giao lưu (`ratingEnabled = false`)
 

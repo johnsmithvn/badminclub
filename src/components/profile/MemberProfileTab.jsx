@@ -15,6 +15,7 @@ import { useMobile } from '#hooks/useMobile.js'
 import cfgApp from '#config/app.json'
 import { useTheme } from '#contexts/ThemeContext.jsx'
 import { t } from '#i18n'
+import { dd, isoOf } from '#utils/dates.js'
 
 function alphaColor(color, alphaHex, pct) {
   if (!color) return 'transparent'
@@ -71,6 +72,15 @@ function getTierPill(gap, gapText, isDark) {
   }
 }
 
+// Bộ lọc sổ điểm mùa: [key, nhãn, điều kiện]. Trận thường = không phải kèo, không phải phiếu dự đoán.
+const LEDGER_FILTERS = [
+  ['all', 'season.ledgerFilterAll', () => true],
+  ['match', 'season.ledgerFilterMatch', (ev) => !ev.isChallenge && !ev.isPrediction],
+  ['challenge', 'season.ledgerFilterChallenge', (ev) => ev.isChallenge],
+  ['prediction', 'season.ledgerFilterPrediction', (ev) => ev.isPrediction],
+]
+const signedPts = (n) => (n > 0 ? `+${n}` : String(n))
+
 export default function MemberProfileTab({
   member,
   allMembers,
@@ -92,6 +102,7 @@ export default function MemberProfileTab({
   const [expandedPartners, setExpandedPartners] = useState(false)
   const [expandedFavorites, setExpandedFavorites] = useState(false)
   const [expandedNemeses, setExpandedNemeses] = useState(false)
+  const [ledgerFilter, setLedgerFilter] = useState('all')
 
   const [prevProps, setPrevProps] = useState({ initialSubTab, memberId: member?.id })
   if (prevProps.initialSubTab !== initialSubTab || prevProps.memberId !== member?.id) {
@@ -120,6 +131,8 @@ export default function MemberProfileTab({
   const pMatchNet = Math.round((Math.max(0, seasonBreakdown.matchNetPts ?? seasonBreakdown.winPts ?? 0) / seasonTotal) * 100)
   const pStreak = Math.round(((seasonBreakdown.streakBonusPts ?? 0) / seasonTotal) * 100)
   const pUpsets = Math.max(0, 100 - pMatchNet - pStreak)
+  const shownEvents = (ledgerData?.allEvents || []).filter(LEDGER_FILTERS.find(([k]) => k === ledgerFilter)[2])
+  const predNet = seasonBreakdown.predictionNetPoints ?? 0
 
   const membersMap = useMemo(() => {
     const map = {}
@@ -885,7 +898,7 @@ export default function MemberProfileTab({
                   <div
                     style={{
                       display: 'grid',
-                      gridTemplateColumns: isMobile ? '1fr' : 'repeat(3, minmax(0, 1fr))',
+                      gridTemplateColumns: isMobile ? '1fr' : 'repeat(2, minmax(0, 1fr))',
                       gap: 8,
                       font: "500 11.5px/1.2 'IBM Plex Mono', monospace",
                       color: 'var(--text-secondary)',
@@ -950,6 +963,26 @@ export default function MemberProfileTab({
                         +{seasonBreakdown.upsetBonusPts ?? 0}
                       </span>
                     </div>
+
+                    <div
+                      style={{
+                        display: 'flex',
+                        alignItems: 'center',
+                        justifyContent: 'space-between',
+                        padding: '7px 10px',
+                        background: 'var(--surface-inset)',
+                        borderRadius: 6,
+                        border: '1px solid var(--border-subtle)',
+                      }}
+                    >
+                      <span style={{ display: 'flex', alignItems: 'center', gap: 7 }}>
+                        <span style={{ width: 8, height: 8, borderRadius: 2, background: '#8B5CF6', flexShrink: 0 }} />
+                        <span>{t('season.actPrediction')}</span>
+                      </span>
+                      <span style={{ fontWeight: 700, color: 'var(--text-primary)' }}>
+                        {signedPts(predNet)}
+                      </span>
+                    </div>
                   </div>
 
                   {/* Audit Events Timeline */}
@@ -962,12 +995,33 @@ export default function MemberProfileTab({
                         color: 'var(--text-muted)',
                       }}
                     >
-                      {t('season.recentSessionTitle')} · {(ledgerData.latestSessionPts ?? 0) >= 0 ? `+${ledgerData.latestSessionPts ?? 0}` : `${ledgerData.latestSessionPts}`}
+                      {t('season.ledgerHistoryTitle')}
+                    </div>
+
+                    <div style={{ display: 'flex', gap: 6, flexWrap: 'wrap' }}>
+                      {LEDGER_FILTERS.map(([key, labelKey]) => (
+                        <button
+                          key={key}
+                          type="button"
+                          onClick={() => setLedgerFilter(key)}
+                          style={{
+                            padding: '5px 10px',
+                            borderRadius: 999,
+                            font: "600 11.5px/1 'IBM Plex Sans', sans-serif",
+                            cursor: 'pointer',
+                            background: ledgerFilter === key ? 'var(--action-accent-bg, var(--teal-500))' : 'var(--surface-inset)',
+                            color: ledgerFilter === key ? 'var(--gray-0, #fff)' : 'var(--text-secondary)',
+                            border: ledgerFilter === key ? '1px solid transparent' : '1px solid var(--border-subtle)',
+                          }}
+                        >
+                          {t(labelKey)}
+                        </button>
+                      ))}
                     </div>
 
                     <div style={{ display: 'grid', gap: 6 }}>
-                      {ledgerData.recentEvents && ledgerData.recentEvents.length > 0 ? (
-                        ledgerData.recentEvents.map((ev, i) => (
+                      {shownEvents.length > 0 ? (
+                        shownEvents.map((ev, i) => (
                           <div
                             key={i}
                             style={{
@@ -987,7 +1041,7 @@ export default function MemberProfileTab({
                             <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', gap: 8 }}>
                               <div style={{ display: 'flex', alignItems: 'center', gap: 7, flexWrap: 'wrap' }}>
                                 <span style={{ fontFamily: "'IBM Plex Mono', monospace", fontSize: 11, color: ev.isUpset ? (isDark ? '#F0D26A' : '#92400E') : 'var(--text-muted)' }}>
-                                  {ev.time}
+                                  {ev.at ? `${dd(isoOf(new Date(ev.at)))} · ` : ''}{ev.time}
                                 </span>
 
                                 {/* Tag Trận vs Kèo */}
@@ -999,17 +1053,25 @@ export default function MemberProfileTab({
                                     padding: '2px 6px',
                                     borderRadius: 4,
                                     font: "600 10.5px/1 'IBM Plex Sans', sans-serif",
-                                    background: ev.isChallenge
+                                    background: ev.isPrediction
+                                      ? (isDark ? 'rgba(139, 92, 246, 0.2)' : 'rgba(139, 92, 246, 0.12)')
+                                      : ev.isChallenge
                                       ? (isDark ? 'rgba(249, 115, 22, 0.2)' : 'rgba(249, 115, 22, 0.12)')
                                       : (isDark ? 'rgba(56, 189, 248, 0.15)' : 'rgba(14, 165, 233, 0.12)'),
-                                    color: ev.isChallenge ? (isDark ? '#FB923C' : '#EA580C') : (isDark ? '#38BDF8' : '#0284C7'),
-                                    border: ev.isChallenge
+                                    color: ev.isPrediction
+                                      ? (isDark ? '#A78BFA' : '#7C3AED')
+                                      : ev.isChallenge ? (isDark ? '#FB923C' : '#EA580C') : (isDark ? '#38BDF8' : '#0284C7'),
+                                    border: ev.isPrediction
+                                      ? '1px solid rgba(139, 92, 246, 0.35)'
+                                      : ev.isChallenge
                                       ? '1px solid rgba(249, 115, 22, 0.35)'
                                       : '1px solid rgba(56, 189, 248, 0.25)',
                                   }}
                                   title={(ev.isChallenge && chalMult > 1) ? t('season.tagChallengeMultHint', { mult: chalMult }) : undefined}
                                 >
-                                  {ev.isChallenge
+                                  {ev.isPrediction
+                                    ? t('season.tagPrediction')
+                                    : ev.isChallenge
                                     ? (chalMult > 1 ? t('season.tagChallengeMult', { mult: chalMult }) : t('season.tagChallenge'))
                                     : t('season.tagMatch')}
                                 </span>
@@ -1090,7 +1152,9 @@ export default function MemberProfileTab({
                                     : (isDark ? '#F87171' : '#DC2626'),
                                 }}
                               >
-                                {ev.type === 'win'
+                                {ev.isPrediction
+                                  ? t(ev.titleKey, { code: ev.code })
+                                  : ev.type === 'win'
                                   ? (ev.scoreText ? t('season.winScore', { score: ev.scoreText }) : t('season.matchWin'))
                                   : (ev.scoreText ? t('season.lossScore', { score: ev.scoreText }) : t('season.matchLoss'))}
                               </span>
@@ -1110,7 +1174,7 @@ export default function MemberProfileTab({
                         ))
                       ) : (
                         <div style={{ padding: '8px 10px', color: 'var(--text-muted)', font: "400 12px/1.4 'IBM Plex Sans', sans-serif" }}>
-                          {t('season.noMatchesInSeason')}
+                          {ledgerFilter === 'all' ? t('season.noMatchesInSeason') : t('season.ledgerFilterEmpty')}
                         </div>
                       )}
                     </div>

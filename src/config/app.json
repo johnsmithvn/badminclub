@@ -63,7 +63,6 @@
     "cycle": "quarter",
     "totalSessionsExpected": 14,
     "startPoints": 100,
-    "minMatchesOfficial": 8,
     "inactiveDays": 21,
     "challengeMultiplier": 2,
     "bonusConfig": {
@@ -175,6 +174,7 @@
   "pendingExpireDays": 7,
   "abandonedAcceptedDays": 14,
     "maxStakePoints": 100,
+    "gamblerMinTickets": 5,
     "stakeMaxLen": 120
   },
   "ui": {

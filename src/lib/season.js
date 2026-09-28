@@ -250,7 +250,6 @@ export function calculateSeasonLeaderboard(db = {}, customSeason = null) {
     endDate: '2026-09-30',
     cycle: 'quarter',
     totalSessionsExpected: 14,
-    minMatchesOfficial: 8,
     inactiveDays: 21,
     bonusConfig: {
       streak3: 5,
@@ -525,13 +524,11 @@ export function calculateSeasonLeaderboard(db = {}, customSeason = null) {
 
     // 2b. Điểm dự đoán kèo đấu (Prediction Net Points)
     //
-    // TRẦN +15 CHỈ CHẶN CHIỀU THẮNG. Trước đây kẹp đối xứng [-15, +15], và cái sàn đó là một lỗ
-    // hổng cược miễn phí: chạm -15 rồi thì thua thêm KHÔNG mất gì nữa trong khi thắng vẫn được
-    // cộng — cứ thua cho đủ 15 rồi cược mức cao mãi, chỉ có lợi. Bỏ sàn thì thua trừ thật, và
-    // luật "hết điểm là không được cược" (`availableSeasonPoints`) mới có răng.
-    //
-    // Trần thắng giữ nguyên để bảng xếp hạng vẫn là bảng THI ĐẤU: không ai leo hạng bằng cách
-    // ngồi ngoài đoán kèo.
+    // KHÔNG KẸP CẢ HAI CHIỀU (2026-09-28, theo quyết định của chủ CLB). Sàn [-15] từng là lỗ cược
+    // miễn phí (chạm sàn rồi thua thêm không mất gì); trần [+15] thì bỏ vì điểm mùa giờ vừa là
+    // điểm BXH vừa là vốn đem đi cược — trần thắng + thua không trần là cược luôn lỗ về kỳ vọng.
+    // Hệ quả đã biết và chấp nhận: người cược giỏi leo được cao hơn người đánh nhiều.
+    // Chặn cược quá số đang có nằm ở `availableSeasonPoints`, không phải ở đây.
     const myPredictions = seasonPredictions.filter((p) => p.memberId === memberId)
     let predictionWonPoints = 0
     let predictionLostPoints = 0
@@ -541,7 +538,7 @@ export function calculateSeasonLeaderboard(db = {}, customSeason = null) {
       else if (p.status === 'lost') predictionLostPoints += pts
     })
     const rawPredictionNet = predictionWonPoints - predictionLostPoints
-    const predictionNetPoints = Math.min(15, rawPredictionNet)
+    const predictionNetPoints = rawPredictionNet
     const matchPointsOnly = totalSeasonPoints
     // Sàn 0 của TỔNG vẫn giữ: điểm mùa không âm, nhưng thua là tụt thật cho tới khi chạm 0.
     totalSeasonPoints = Math.max(0, matchPointsOnly + predictionNetPoints)
@@ -554,14 +551,13 @@ export function calculateSeasonLeaderboard(db = {}, customSeason = null) {
     //
     // Sửa bằng một lượt quét SAU, không đụng vào vòng lặp trận: `matchPointsOnly` phải giữ
     // nguyên từng bit, nếu không là đổi điểm mùa của cả CLB (LUẬT SỐ 0 — backtest).
-    // Mỗi mốc cộng thêm phần điểm dự đoán đã quyết toán TRƯỚC thời điểm đó, kẹp cùng công thức
-    // với tổng nên dòng cuối luôn khớp `totalSeasonPoints`.
+    // Mỗi mốc cộng thêm phần điểm dự đoán đã quyết toán TRƯỚC thời điểm đó, cùng công thức với
+    // tổng nên dòng cuối luôn khớp `totalSeasonPoints`.
     const predsAsc = [...myPredictions].sort((a, b) => Date.parse(a.settledAt) - Date.parse(b.settledAt))
     const predictionLogs = []
     let predNetSoFar = 0
     let predIdx = 0
     let matchPtsSoFar = myMatches.length ? startPoints : 0
-    const clampNet = (n) => Math.min(15, n)
 
     matchLogs.forEach((log) => {
       const at = Number(log.at) || 0
@@ -573,12 +569,12 @@ export function calculateSeasonLeaderboard(db = {}, customSeason = null) {
           prediction: p,
           at: Date.parse(p.settledAt),
           numPts: (p.status === 'won' ? 1 : -1) * (Number(p.stakePoints) || 0),
-          pointsAfter: Math.max(0, matchPtsSoFar + clampNet(predNetSoFar)),
+          pointsAfter: Math.max(0, matchPtsSoFar + predNetSoFar),
         })
         predIdx++
       }
       matchPtsSoFar = log.pointsAfter
-      log.pointsAfter = Math.max(0, matchPtsSoFar + clampNet(predNetSoFar))
+      log.pointsAfter = Math.max(0, matchPtsSoFar + predNetSoFar)
     })
 
     // Phiếu quyết toán sau trận cuối (hoặc người chưa đánh trận nào trong mùa).
@@ -589,7 +585,7 @@ export function calculateSeasonLeaderboard(db = {}, customSeason = null) {
         prediction: p,
         at: Date.parse(p.settledAt),
         numPts: (p.status === 'won' ? 1 : -1) * (Number(p.stakePoints) || 0),
-        pointsAfter: Math.max(0, matchPtsSoFar + clampNet(predNetSoFar)),
+        pointsAfter: Math.max(0, matchPtsSoFar + predNetSoFar),
       })
       predIdx++
     }
@@ -618,9 +614,6 @@ export function calculateSeasonLeaderboard(db = {}, customSeason = null) {
     const lastMatchAt = lastMatch ? lastMatch.at : null
     const daysSinceLastMatch = lastMatchAt ? Math.max(0, Math.floor((refDate - lastMatchAt) / (1000 * 60 * 60 * 24))) : null
     const isInactive = matchesCount > 0 && daysSinceLastMatch > (season.inactiveDays || 21)
-    // `??` chu khong phai `||`: dat nguong = 0 la co y TAT cai cong nay di, con `||` thi 0 bi
-    // coi la thieu cau hinh va roi ve mac dinh — tat khong duoc.
-    const isQualified = matchesCount >= (season.minMatchesOfficial ?? 8)
 
     return {
       id: m.id,
@@ -641,7 +634,6 @@ export function calculateSeasonLeaderboard(db = {}, customSeason = null) {
       threeSetsCount,
       streak,
       isInactive,
-      isQualified,
       daysSinceLastMatch,
       lastMatchAt,
       matchLogs,
@@ -659,13 +651,11 @@ export function calculateSeasonLeaderboard(db = {}, customSeason = null) {
     }
   })
 
-  // Thứ tự BXH: (1) người đủ điều kiện tranh huy chương đứng trên người còn đang thẩm định,
-  // (2) điểm mùa giảm dần, (3) số trận thắng, (4) tỷ lệ thắng.
-  // Ưu tiên 1 chính là cơ chế chống "ôm rank": đánh 3 trận thắng cả 3 (~42đ) không được
-  // đứng trên người đã cày 25 trận, dù điểm tuyệt đối có cao hơn.
+  // Thứ tự BXH: (1) điểm mùa giảm dần, (2) số trận thắng, (3) tỷ lệ thắng.
+  // Đã bỏ cổng "đủ N trận mới được xếp trên" (2026-09-28, theo quyết định của chủ CLB): BXH xếp
+  // thuần theo điểm, ai nhiều điểm đứng trên, dù đánh ít hay chỉ cược.
   rows.sort((a, b) => (
-    (Number(b.isQualified) - Number(a.isQualified))
-    || (b.totalSeasonPoints - a.totalSeasonPoints)
+    (b.totalSeasonPoints - a.totalSeasonPoints)
     || (b.winsCount - a.winsCount)
     || (b.winRate - a.winRate)
   ))
@@ -714,7 +704,7 @@ export function getMemberSeasonLedger(memberId, db = {}, customSeason = null) {
 
   // Danh sách các trận trong mùa (mới nhất lên đầu)
   const allLogs = memberRow.matchLogs || []
-  const recentLogs = [...allLogs].reverse().slice(0, 15)
+  const recentLogs = [...allLogs].reverse()
 
   let latestSessionPts = 0
   const latestSessionId = allLogs[allLogs.length - 1]?.sessionId || null
@@ -797,7 +787,8 @@ export function getMemberSeasonLedger(memberId, db = {}, customSeason = null) {
     }
   })
 
-  const combinedEvents = [...events, ...predEvents].sort((a, b) => (b.at || 0) - (a.at || 0)).slice(0, 10)
+  // `allEvents` là sổ đủ cả mùa cho modal có bộ lọc; `recentEvents` giữ 10 dòng cho các thẻ tóm tắt.
+  const allEvents = [...events, ...predEvents].sort((a, b) => (b.at || 0) - (a.at || 0))
 
   return {
     season,
@@ -808,10 +799,10 @@ export function getMemberSeasonLedger(memberId, db = {}, customSeason = null) {
     latestSessionPts,
     ptsToNextRank,
     isInactive: memberRow.isInactive,
-    isQualified: memberRow.isQualified,
     daysSinceLastMatch: memberRow.daysSinceLastMatch,
     breakdown: memberRow.breakdown,
-    recentEvents: combinedEvents,
+    recentEvents: allEvents.slice(0, 10),
+    allEvents,
   }
 }
 

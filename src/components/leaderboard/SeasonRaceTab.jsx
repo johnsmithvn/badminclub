@@ -1501,20 +1501,6 @@ export default function SeasonRaceTab({
                           {t('season.inactiveBadge')}
                         </span>
                       )}
-                      {!row.isQualified && (
-                        <span
-                          style={{
-                            font: "600 10px/1 'IBM Plex Mono', monospace",
-                            padding: '2px 6px',
-                            borderRadius: 999,
-                            background: isDark ? 'rgba(245,158,11,.15)' : 'rgba(245,158,11,.10)',
-                            border: '1px solid #D97706',
-                            color: isDark ? '#FCD34D' : '#B45309',
-                          }}
-                        >
-                          {row.matchesCount}/20
-                        </span>
-                      )}
                       {isRank1 && (
                         <span
                           style={{
@@ -1633,20 +1619,6 @@ export default function SeasonRaceTab({
                         }}
                       >
                         {t('season.inactiveBadge')}
-                      </span>
-                    )}
-                    {!row.isQualified && (
-                      <span
-                        style={{
-                          font: "600 10px/1 'IBM Plex Mono', monospace",
-                          padding: '3px 6px',
-                          borderRadius: 999,
-                          background: isDark ? 'rgba(245,158,11,.15)' : 'rgba(245,158,11,.10)',
-                          border: '1px solid #D97706',
-                          color: isDark ? '#FCD34D' : '#B45309',
-                        }}
-                      >
-                        {row.matchesCount}/20
                       </span>
                     )}
                   </span>
@@ -1768,7 +1740,6 @@ export default function SeasonRaceTab({
             <div>• {t('season.ruleFloorZero')}</div>
             <div>• {t('season.ruleStreakMilestone')}</div>
             <div>• {t('season.ruleUpsetMilestone')}</div>
-            <div>• {t('season.ruleMinMatches', { n: season?.minMatchesOfficial ?? 8 })}</div>
             <div>• {t('season.ruleInactive21Days')}</div>
           </div>
         </div>

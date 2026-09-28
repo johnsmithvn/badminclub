@@ -2,12 +2,37 @@ import { Avatar } from '#ds'
 import { t } from '#i18n'
 import { shortName } from '#lib/money.js'
 
-export default function RivalGoalCard({ rivalData, rivalAnalysis, isMobile, onH2HClick, onChallenge }) {
+export default function RivalGoalCard({ rivalData, rivalAnalysis, isMobile, onH2HClick, onChallenge, mode = 'elo', onModeChange }) {
   const activeRivalData = rivalData || rivalAnalysis
   const handleH2H = onH2HClick || onChallenge
 
+  const isSeason = mode === 'season'
+  // Cùng kiểu nút chuyển với thẻ Đua top (`SeasonRaceCard`).
+  const modeToggle = onModeChange && (
+    <div style={S.modeToggle}>
+      <button type="button" onClick={() => onModeChange('season')} style={isSeason ? S.modeBtnActive : S.modeBtn}>
+        {t('home.personal.seasonTab')}
+      </button>
+      <button type="button" onClick={() => onModeChange('elo')} style={!isSeason ? S.modeBtnActive : S.modeBtn}>
+        {t('home.personal.eloTab')}
+      </button>
+    </div>
+  )
+
+  // Đang đứng đầu bảng thì không có ai để đuổi. Vẫn giữ thẻ khi có nút chuyển — đứng đầu Elo
+  // không có nghĩa đứng đầu mùa, ẩn mất thẻ là mất luôn đường chuyển sang bảng kia.
   if (!activeRivalData || !activeRivalData.rival) {
-    return null
+    if (!modeToggle) return null
+    return (
+      <div style={S.card}>
+        <div style={S.topRow}>
+          <span style={S.badge}>{t('home.personal.goalBadge')}</span>
+          <span style={{ flex: 1 }} />
+          {modeToggle}
+        </div>
+        <div style={S.insightBox}>{t('home.personal.rivalInsightChampion')}</div>
+      </div>
+    )
   }
 
   const { me, rival, chaser } = activeRivalData
@@ -20,8 +45,9 @@ export default function RivalGoalCard({ rivalData, rivalAnalysis, isMobile, onH2
     <div style={S.card}>
       <div style={S.topRow}>
         <span style={S.badge}>{t('home.personal.goalBadge')}</span>
-        <span style={{ flex: 1 }} />
         <span style={S.gapMono}>{t('home.personal.goalGap', { points: rival.gapPoints })}</span>
+        <span style={{ flex: 1 }} />
+        {modeToggle}
       </div>
 
       <div style={S.rivalRow}>
@@ -29,7 +55,7 @@ export default function RivalGoalCard({ rivalData, rivalAnalysis, isMobile, onH2
         <div style={{ flex: 1, minWidth: 0 }}>
           <div style={isMobile ? S.rivalNameMobile : S.rivalNameDesktop} title={rival.name}>{shortName(rival.name)}</div>
           <div style={S.rivalMeta}>
-            #{rival.rank} · {rival.elo} {t('home.personal.eloNormal')}
+            #{rival.rank} · {rival.elo} {isSeason ? t('home.personal.spUnit') : t('home.personal.eloNormal')}
             {rival.streak > 0 ? ` · ${t('home.personal.recentWinsStreak', { n: rival.streak })}` : ''}
           </div>
         </div>
@@ -97,6 +123,34 @@ export default function RivalGoalCard({ rivalData, rivalAnalysis, isMobile, onH2
 }
 
 const S = {
+  modeToggle: {
+    display: 'inline-flex',
+    padding: 2,
+    borderRadius: 8,
+    background: 'var(--surface-inset)',
+    border: '1px solid var(--border-subtle)',
+    gap: 2,
+  },
+  modeBtn: {
+    background: 'none',
+    border: 'none',
+    padding: '3px 8px',
+    borderRadius: 6,
+    font: '600 11px/1 var(--font-sans)',
+    color: 'var(--text-muted)',
+    cursor: 'pointer',
+    transition: 'all 0.15s ease',
+  },
+  modeBtnActive: {
+    background: 'var(--surface-card)',
+    border: '1px solid var(--border-default)',
+    padding: '3px 8px',
+    borderRadius: 6,
+    font: '600 11px/1 var(--font-sans)',
+    color: 'var(--text-primary)',
+    boxShadow: 'var(--shadow-sm)',
+    cursor: 'default',
+  },
   card: {
     padding: '14px 15px',
     borderRadius: 'var(--radius-card, 14px)',

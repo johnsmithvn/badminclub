@@ -158,7 +158,7 @@ Màn hình Bảng xếp hạng **5 tabs** toàn diện:
    - Sàn điểm Floor = 0: Thua không bị âm điểm mùa.
    - Thưởng chuỗi thắng: Streak 3 (+5 điểm), Streak 5 (+10 điểm).
    - Thưởng lật kèo Upset: +5 điểm khi thắng đội hơn $\ge 150$ Elo.
-   - Tiêu chuẩn Qualified: Tối thiểu 20 trận tính rating trong mùa. Thành viên chưa đủ 20 trận xếp sau người đã đủ, gắn nhãn `Chưa đủ điều kiện (X/20)`.
+   - BXH mùa xếp thuần theo điểm (đã bỏ cổng "đủ N trận mới xếp trên" ngày 2026-09-28).
    - Trạng thái Tạm nghỉ (Inactive): 21 ngày không tham gia trận đấu nào.
    - Treo thưởng Vua Lì Đòn (Season Bounty): VĐV có chuỗi thắng đang chạy dài nhất ($\ge 3$ trận). Trận giao lưu không cắt chuỗi thắng.
    - Thẻ top 1/2/3 nổi bật dạng podium, thanh tiến độ mùa giải.

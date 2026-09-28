@@ -11,7 +11,6 @@ export default function SeasonSettingsModal({
     startDate: '2026-07-01',
     endDate: '2026-09-30',
     cycle: 'quarter',
-    minMatchesOfficial: 8,
     inactiveDays: 21,
     bonusConfig: { streak3: 5, streak5: 10, upset150: 5 },
     provisionalThreshold: 5,

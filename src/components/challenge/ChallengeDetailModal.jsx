@@ -4,7 +4,7 @@ import { useApp } from '#contexts/AppContext.jsx'
 import { useMobile } from '#hooks/useMobile.js'
 import { courtOf, myMember, playerName, playerOf, shortName } from '#lib/money.js'
 import { expectedScore, getPlayerRating, matchCodeOf } from '#lib/rating.js'
-import { getChallengeAcceptanceProgress, canMemberAcceptChallenge, canAdminForceAcceptChallenge, challengeCloserOf, validateStakePoints, getPredictionStats, getMemberPrediction, canMemberPredict, availableSeasonPoints, isChallengeExpired, challengeExpiryAt, isChallengeAccepted } from '#lib/challenge.js'
+import { getChallengeAcceptanceProgress, canMemberAcceptChallenge, canAdminForceAcceptChallenge, challengeCloserOf, validateStakePoints, getPredictionStats, getMemberPrediction, canMemberPredict, availableSeasonPoints, stakeBaseOf, isChallengeExpired, challengeExpiryAt, isChallengeAccepted } from '#lib/challenge.js'
 import { calculateSeasonLeaderboard, calcSeasonMatchDeltaFinal, challengeMultiplierOf } from '#lib/season.js'
 import cfg from '#config/app.json'
 import { t } from '#i18n'
@@ -174,7 +174,9 @@ export default function ChallengeDetailModal({ challenge, session, onClose, onSc
     [db.matches, db.members, db.challengePredictions, db.levels],
   )
   const myLbRow = useMemo(() => (seasonRes?.leaderboard || []).find((r) => r.id === myId), [seasonRes, myId])
-  const totalSp = myLbRow?.totalSeasonPoints || 0
+  const totalSp = stakeBaseOf(seasonRes, myId)
+  // Lãi/lỗ cược cả mùa — cộng thẳng vào điểm mùa, không kẹp.
+  const predNet = myLbRow?.breakdown?.predictionNetPoints || 0
   // SP bị giam KHÔNG tính phiếu nằm trên kèo đã chết (huỷ / từ chối / quá hạn) — kèo quá hạn mà
   // không ai bấm vào thì `status` không bao giờ đổi, và điểm của người đặt bị giam vĩnh viễn.
   const availableSp = useMemo(
@@ -1299,6 +1301,10 @@ export default function ChallengeDetailModal({ challenge, session, onClose, onSc
                   <span style={{ color: overStake ? '#FF8585' : 'var(--status-delivered-fg)' }}>
                     {t('challenge.predictionWinReward', { payout: stakeNum * 2, stake: stakeNum })}
                   </span>
+                </div>
+
+                <div style={{ fontSize: 11.5, lineHeight: 1.4, color: 'var(--text-muted)' }}>
+                  {t('challenge.predictionNetSoFar', { net: predNet > 0 ? `+${predNet}` : predNet })}
                 </div>
 
                 {/* Nút gửi dự đoán */}

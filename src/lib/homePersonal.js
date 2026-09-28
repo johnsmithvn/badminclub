@@ -443,14 +443,30 @@ export function getPlayerForm5(db, memberId) {
 }
 
 /**
+ * BXH ĐIỂM MÙA đổ vào đúng khuôn của `getClubEloLeaderboard` (`elo` = SP) để phân tích kình địch
+ * dùng chung một đường. Giữ nguyên thứ tự và hạng của BXH mùa.
+ */
+function seasonGoalList(db) {
+  const res = calculateSeasonLeaderboard(db)
+  const list = (res?.leaderboard || []).map((r) => (
+    { id: r.id, name: r.name || '', avatarUrl: r.avatarUrl, member: r.member, elo: r.totalSeasonPoints, rank: r.rank }
+  ))
+  return { list, perWin: res?.season?.deltaScale?.balanced?.win ?? 14 }
+}
+
+/**
  * 03. Phân tích kình địch & mục tiêu vượt hạng
  * @param {Object} db
  * @param {string} memberId
  * @param {string} [targetRivalId]
+ * @param {'elo'|'season'} [mode] đua Elo hay đua điểm mùa
  */
-export function getRivalAnalysis(db, memberId, targetRivalId = null) {
+export function getRivalAnalysis(db, memberId, targetRivalId = null, mode = 'elo') {
   if (!db || !memberId) return null
-  const rankedList = getClubEloLeaderboard(db)
+  const season = mode === 'season' ? seasonGoalList(db) : null
+  const rankedList = season ? season.list : getClubEloLeaderboard(db)
+  // Một trận thắng kéo gần bao nhiêu điểm: ~20 Elo, hoặc mức thắng kèo cân của thang điểm mùa.
+  const perWin = season ? season.perWin : 20
   const myIndex = rankedList.findIndex((x) => x.id === memberId)
   if (myIndex < 0) return null
 
@@ -496,8 +512,8 @@ export function getRivalAnalysis(db, memberId, targetRivalId = null) {
     })
 
     const gapPoints = Math.max(0, rivalItem.elo - myItem.elo)
-    // ponytail: neededWins = ceil(gap / 20) là ước lượng xấp xỉ trực quan dựa trên mức delta ~20 Elo/trận (chưa tính trường hợp đối thủ cùng thua làm co khoảng cách ~2x).
-    const neededWins = Math.max(1, Math.min(5, Math.ceil(gapPoints / 20)))
+    // ponytail: neededWins = ceil(gap / perWin) là ước lượng xấp xỉ trực quan (chưa tính trường hợp đối thủ cùng thua làm co khoảng cách ~2x).
+    const neededWins = Math.max(1, Math.min(5, Math.ceil(gapPoints / perWin)))
 
     let myStreak = 0
     try {
@@ -1614,7 +1630,6 @@ export function getSurroundingStandings(db, memberId, windowSize = 5, mode = 'el
           rank: r.rank,
           points: r.totalSeasonPoints,
           elo: r.member ? getPlayerRating(db.playerRatings, r.id, r.member, db.levels)?.displayRating ?? DEFAULT_RATING : DEFAULT_RATING,
-          isQualified: r.isQualified,
           streakWins,
         }
       })

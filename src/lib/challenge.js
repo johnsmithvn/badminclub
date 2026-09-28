@@ -547,6 +547,66 @@ export function pendingStakeOf(predictions = [], challenges = [], sessions = [],
 }
 
 /**
+ * VỐN CƯỢC của một thành viên = số SP được đem ra đặt, trước khi trừ phần đang bị giam.
+ *
+ * Người đã ra sân trong mùa: đúng bằng điểm mùa. Người CHƯA đánh trận nào: điểm khởi đầu cộng lãi/lỗ
+ * cược. Không có nhánh này thì đầu mùa cả CLB đều 0 SP (điểm khởi đầu chỉ cấp sau trận đầu — xem
+ * `calculateSeasonLeaderboard`), và kèo đầu tiên của mùa không ai cược được.
+ *
+ * Không mở lỗ cược miễn phí: thua trước khi ra sân thì lỗ đó vẫn nằm trong `predictionNetPoints`,
+ * trận đầu tiên cộng vào điểm khởi đầu là trừ ngay. Điểm trên BXH KHÔNG đổi — hàm này chỉ đọc.
+ *
+ * @param seasonRes kết quả `calculateSeasonLeaderboard`
+ */
+export function stakeBaseOf(seasonRes, memberId) {
+  const row = (seasonRes?.leaderboard || []).find((r) => r.id === memberId)
+  if (!row) return 0
+  if (row.matchesCount > 0) return row.totalSeasonPoints || 0
+  const start = seasonRes.season?.startPoints ?? cfg.season?.startPoints ?? 0
+  return Math.max(0, start + (row.breakdown?.predictionNetPoints || 0))
+}
+
+/**
+ * BXH "Sòng bạc": thống kê phiếu dự đoán ĐÃ ĂN/THUA trong mùa, theo từng người.
+ *
+ * Dựng từ `predictionLogs` của `calculateSeasonLeaderboard` chứ không quét lại `challengePredictions`:
+ * nó đã bó phiếu trong khung mùa, nên bảng này và điểm mùa không bao giờ đếm hai bộ phiếu khác nhau.
+ * Phiếu đang chờ / đã hoàn không có mặt — chưa ai được mất gì.
+ *
+ * @param by 'accuracy' | 'staked' | 'tickets' | 'net' | 'donor'
+ * @param minTickets số phiếu tối thiểu để vào hạng 'accuracy' — 1/1 trúng không phải thần.
+ */
+export function gamblerBoard(seasonRes, by = 'net', minTickets = cfg.challenge?.gamblerMinTickets ?? 5) {
+  const rows = (seasonRes?.leaderboard || [])
+    .filter((r) => r.predictionLogs?.length)
+    .map((r) => {
+      const tickets = r.predictionLogs.map((l) => l.prediction)
+      const wins = tickets.filter((p) => p.status === 'won').length
+      return {
+        id: r.id,
+        name: r.name,
+        avatarUrl: r.avatarUrl,
+        tickets: tickets.length,
+        wins,
+        losses: tickets.length - wins,
+        staked: tickets.reduce((s, p) => s + (Number(p.stakePoints) || 0), 0),
+        net: r.breakdown?.predictionNetPoints || 0,
+        winRate: Math.round((wins / tickets.length) * 100),
+      }
+    })
+
+  const SORTS = {
+    accuracy: [(r) => r.tickets >= minTickets, (a, b) => b.winRate - a.winRate || b.tickets - a.tickets],
+    staked: [() => true, (a, b) => b.staked - a.staked],
+    tickets: [() => true, (a, b) => b.tickets - a.tickets || b.staked - a.staked],
+    net: [() => true, (a, b) => b.net - a.net],
+    donor: [(r) => r.net < 0, (a, b) => a.net - b.net],
+  }
+  const [keep, cmp] = SORTS[by] || SORTS.net
+  return rows.filter(keep).sort(cmp)
+}
+
+/**
  * SP còn dùng được để đặt cược = điểm mùa hiện có trừ phần đang bị giam.
  * Bằng 0 là KHÔNG được cược — không có cửa nợ điểm.
  */

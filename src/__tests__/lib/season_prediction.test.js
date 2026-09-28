@@ -172,7 +172,7 @@ const resRefunded = calculateSeasonLeaderboard({ members: mockMembers, matches: 
 const rowRefunded = resRefunded.leaderboard[0]
 assert.equal(rowRefunded.breakdown.predictionNetPoints, 0, 'Phiếu hoàn / huỷ có net delta = 0')
 
-// 4.4 Trần Season Cap: chỉ kẹp CHIỀU THẮNG ở +15 SP, chiều thua trừ thật
+// 4.4 Lãi/lỗ dự đoán KHÔNG kẹp chiều nào (bỏ trần +15 ngày 2026-09-28, theo quyết định chủ CLB)
 // Giả sử thắng liên tiếp 10 kèo x 3 SP = 30 SP thắng
 const predsHugeWin = Array.from({ length: 10 }, (_, i) => ({
   id: `pw_${i}`,
@@ -187,8 +187,8 @@ const predsHugeWin = Array.from({ length: 10 }, (_, i) => ({
 const resHugeWin = calculateSeasonLeaderboard({ members: mockMembers, matches: [], challengePredictions: predsHugeWin })
 const rowHugeWin = resHugeWin.leaderboard[0]
 assert.equal(rowHugeWin.breakdown.predictionWonPoints, 30, 'Tổng thắng danh nghĩa là 30 SP')
-assert.equal(rowHugeWin.breakdown.predictionNetPoints, 15, 'Nhưng net points bị kẹp tối đa +15 SP')
-assert.equal(rowHugeWin.totalSeasonPoints, 15)
+assert.equal(rowHugeWin.breakdown.predictionNetPoints, 30, 'Thắng bao nhiêu cộng bấy nhiêu — trần +15 đã bỏ')
+assert.equal(rowHugeWin.totalSeasonPoints, 30, 'Chưa ra sân thì BXH chỉ có lãi cược, chưa có điểm khởi đầu')
 
 // Giả sử thua liên tiếp 10 kèo x 3 SP = -30 SP
 const predsHugeLoss = Array.from({ length: 10 }, (_, i) => ({
@@ -204,8 +204,8 @@ const predsHugeLoss = Array.from({ length: 10 }, (_, i) => ({
 const resHugeLoss = calculateSeasonLeaderboard({ members: mockMembers, matches: [], challengePredictions: predsHugeLoss })
 const rowHugeLoss = resHugeLoss.leaderboard[0]
 assert.equal(rowHugeLoss.breakdown.predictionLostPoints, 30, 'Tổng thua danh nghĩa là 30 SP')
-// TRẦN CHỈ CHẶN CHIỀU THẮNG. Sàn -15 cũ là một lỗ hổng cược miễn phí: chạm -15 rồi thì thua
-// thêm không mất gì nữa trong khi thắng vẫn được cộng.
+// Sàn -15 cũ là một lỗ hổng cược miễn phí: chạm -15 rồi thì thua thêm không mất gì nữa trong
+// khi thắng vẫn được cộng.
 assert.equal(rowHugeLoss.breakdown.predictionNetPoints, -30, 'Thua là trừ thật, không còn sàn -15')
 assert.equal(rowHugeLoss.totalSeasonPoints, 0, 'Sàn 0 của TỔNG vẫn giữ — điểm mùa không âm')
 
