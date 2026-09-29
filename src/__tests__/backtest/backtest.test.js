@@ -175,11 +175,27 @@ test('Sao lưu bản 2 — điểm danh, sân của buổi, khách theo buổi',
 
   await t.test('11. File bản mới hơn bị validateMatchBackup từ chối, bản cũ vẫn đọc được', async () => {
     const { validateMatchBackup, MATCH_BACKUP_VERSION } = await import('#lib/matchBackup.js')
-    assert.equal(MATCH_BACKUP_VERSION, 2)
+    assert.equal(MATCH_BACKUP_VERSION, 3)
     const db = { matches: [], sessions: [{ id: 's1' }], members: [{ id: 'p1' }, { id: 'p2' }], guests: [] }
     const v1file = { ...mkBackup(), version: 1, matches: [{ id: 'm', sessionId: 's1', playerKeys: ['p1', 'p2'] }] }
     assert.equal(validateMatchBackup(v1file, db).ok, true, 'Bản 1 phải nhập được vào app bản mới')
-    assert.equal(validateMatchBackup({ ...v1file, version: 3 }, db).error, 'matchIo.errVersion')
+    assert.equal(validateMatchBackup({ ...v1file, version: 4 }, db).error, 'matchIo.errVersion')
+  })
+
+  await t.test('12. Phiếu cược trong file vào tới điểm mùa, không thì backtest lệch điểm thật', () => {
+    const pred = { id: 'pr1', challengeId: 'c1', memberId: 'p1', stakePoints: 20, status: 'won', settledAt: '2026-08-01T10:00:00Z' }
+    const b = mkBackup()
+    b.ref = { ...b.ref, challengePredictions: [pred] }
+    assert.deepEqual(datasetToDb(b).challengePredictions, [pred])
+    assert.deepEqual(datasetToDb(mkBackup()).challengePredictions, [], 'File bản cũ không có cược: rỗng, không bịa')
+  })
+
+  await t.test('13. Khung mùa đi theo dữ liệu, không theo ngày cứng trong app.json', () => {
+    const b = mkBackup()
+    b.ref.sessions = [{ id: 's1', date: '2027-11-20' }]   // ngoài khung mùa của app.json
+    const snap = runBacktest(b)
+    assert.ok(snap.season.length > 0, 'File mùa khác ra điểm mùa rỗng là backtest gác hụt mà không ai hay')
+    assert.equal(snap.season.find((r) => r.id === 'p1').matches, 2)
   })
 })
 

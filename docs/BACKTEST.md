@@ -127,6 +127,8 @@ Chép vào `data/`, tạo mốc bằng `--save`, xong. Test tự động gác t�
 
 ## 7. Giới hạn — phải biết trước khi kết luận
 
+- **File bản 1–2 không có trận kèo và phiếu cược.** Kèo bị tính như trận thường (mất hệ số ×2)
+  và điểm cược bị bỏ sót, nên điểm mùa ra thấp hơn thật. Muốn đo thang điểm mùa thì xuất lại bản 3.
 - **File bản 1 không có điểm danh.** Người đi tập mà không được gọi trận nào là **vô hình**.
   Xuất lại bằng bản 2 là hết.
 - **Bộ số phản ánh cách xếp sân ĐÃ THỰC SỰ DIỄN RA.** Nếu các trận đó do quản trò xếp tay thì nó

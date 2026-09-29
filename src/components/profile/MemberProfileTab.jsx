@@ -5,7 +5,7 @@ import { playerName, shortName } from '#lib/money.js'
 import { getPlayerRating, applyInactivityDecay, lastMatchAtOf, getPlayerFormatRatings, getPlayerPartnersAndMatchups, DEFAULT_RATING } from '#lib/rating.js'
 import { RANK_THEMES } from '#data/rankThemes.js'
 import { calculateMemberXp, getMemberXpLedger } from '#lib/xp.js'
-import { calculateMemberBadges, TIER_ORDER, getBadgeById, ANIME_TIERS } from '#lib/badges.js'
+import { calculateMemberBadges, TIER_ORDER, getBadgeById, ANIME_TIERS, resolveBadgeId } from '#lib/badges.js'
 import { getSeasonBountyPlayer, getMemberSeasonLedger, seasonConfigOf } from '#lib/season.js'
 import RatingLineChart from '#components/challenge/RatingLineChart.jsx'
 import PairDetailModal from '#components/leaderboard/PairDetailModal.jsx'
@@ -395,7 +395,8 @@ export default function MemberProfileTab({
   const badgeShelf = member?.badge_shelf || member?.badgeShelf
   const shelfBadges = useMemo(() => {
     if (Array.isArray(badgeShelf) && badgeShelf.length > 0) {
-      const equipped = badgeShelf
+      // Quy mã cũ về mã mới rồi bỏ trùng — kệ cũ có thể giữ cả de_bep_3 lẫn de_bep_2 (cùng "Đè bẹp I")
+      const equipped = [...new Set(badgeShelf.map(resolveBadgeId))]
         .slice(0, 3)
         .map((id) => badgeDetailOf(id))
         .filter(Boolean)

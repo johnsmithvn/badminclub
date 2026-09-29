@@ -26,6 +26,7 @@ import {
   getRarestBadges,
   groupBadgesByFamily,
   getBadgeFamily,
+  resolveBadgeId,
   sortBadgesByRarity,
   ANIME_TIERS,
   NOTCH_CLIP,
@@ -77,6 +78,12 @@ export default function Badges() {
   // `myMember` chỉ nhận 1 tham số (xem money.js) — truyền thêm `me` là thừa và gây hiểu nhầm
   // rằng danh tính đăng nhập có ảnh hưởng; nó đọc `db.currentUserId` bên trong.
   const currentMember = useMemo(() => myMember(db), [db])
+  // Kệ của chính mình, đã quy mã cũ về mã mới và bỏ trùng — mã cũ (vd de_bep_3) không có trong
+  // danh mục nên không bao giờ hiện nút Gỡ, kẹt vĩnh viễn trên kệ.
+  const myShelf = useMemo(
+    () => [...new Set((currentMember?.badge_shelf || currentMember?.badgeShelf || []).map(resolveBadgeId))],
+    [currentMember]
+  )
 
   // Thành viên đang được xem hồ sơ danh hiệu (mặc định là người dùng hiện tại, hoặc người đầu tiên)
   const [viewingMemberId, setViewingMemberId] = useState(null)
@@ -274,7 +281,7 @@ export default function Badges() {
   // Thao tác gắn danh hiệu lên kệ
   const handleToggleShelf = (badgeId) => {
     if (!badgeId || !currentMember?.id) return
-    const currentShelf = (currentMember.badge_shelf || currentMember.badgeShelf || []).slice()
+    const currentShelf = myShelf.slice()
     const foundIdx = currentShelf.indexOf(badgeId)
     if (foundIdx >= 0) {
       currentShelf.splice(foundIdx, 1)
@@ -652,9 +659,9 @@ export default function Badges() {
                 <div style={{ display: 'flex', flexDirection: 'column', gap: 8 }}>
                   {memberBadges.all
                     // Danh hiệu đang gắn luôn hiện (kể cả hết hạn mùa trước) để còn nút Gỡ
-                    .filter((b) => b.unlocked || b.tier === 'fun' || (activeMember?.badge_shelf || activeMember?.badgeShelf || []).includes(b.id))
+                    .filter((b) => b.unlocked || b.tier === 'fun' || myShelf.includes(b.id))
                     .map((badge) => {
-                      const isEquipped = (activeMember?.badge_shelf || activeMember?.badgeShelf || []).includes(badge.id)
+                      const isEquipped = myShelf.includes(badge.id)
                       const tierMeta = ANIME_TIERS[badge.tier] || ANIME_TIERS.rare
                       return (
                         <div
@@ -1931,9 +1938,9 @@ export default function Badges() {
               <div style={{ display: 'flex', flexDirection: 'column', gap: 10 }}>
                 {memberBadges.all
                   // Danh hiệu đang gắn luôn hiện (kể cả hết hạn mùa trước) để còn nút Gỡ
-                  .filter((b) => b.unlocked || b.tier === 'fun' || (currentMember?.badge_shelf || currentMember?.badgeShelf || []).includes(b.id))
+                  .filter((b) => b.unlocked || b.tier === 'fun' || myShelf.includes(b.id))
                   .map((badge) => {
-                    const isEquipped = (currentMember?.badge_shelf || currentMember?.badgeShelf || []).includes(badge.id)
+                    const isEquipped = myShelf.includes(badge.id)
                     const tierMeta = ANIME_TIERS[badge.tier] || ANIME_TIERS.rare
 
                     return (

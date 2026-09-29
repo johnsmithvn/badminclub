@@ -40,6 +40,11 @@ export function datasetToDb(backup = {}) {
     // File bản 1 không có điểm danh -> để rỗng. KHÔNG dựng bừa: đo công bằng trên điểm danh
     // tưởng tượng còn tệ hơn là không đo.
     attendance: ref.attendance || {},
+    // File bản 3 trở lên mới có kèo và phiếu cược; bản cũ để rỗng — điểm mùa khi đó thiếu phần cược.
+    // `ref.seasons` cố ý KHÔNG nạp: có nó thì điểm mùa đọc thang của CLB thay vì app.json, và
+    // backtest thôi gác công thức trong code.
+    challenges: ref.challenges || [],
+    challengePredictions: ref.challengePredictions || [],
     matches: (backup.matches || []).map((m) => ({
       ...m,
       teamA: (m.playerKeys || []).slice(0, 2),
@@ -118,7 +123,16 @@ export function runBacktest(backup = {}) {
     })
   })
 
-  const { leaderboard } = calculateSeasonLeaderboard(db)
+  // Luật tính lấy từ app.json (backtest gác CÔNG THỨC code), còn KHUNG NGÀY lấy theo dữ liệu:
+  // khoảng lúc xuất, không có thì từ buổi đầu tới buổi cuối có trận. Để nguyên khung trong
+  // app.json thì file của mùa khác ra điểm mùa rỗng mà không báo gì.
+  const dateOf = Object.fromEntries(db.sessions.map((x) => [x.id, x.date || '']))
+  const days = ms.map((m) => dateOf[m.sessionId]).filter(Boolean).sort()
+  const { leaderboard } = calculateSeasonLeaderboard(db, {
+    ...cfg.season,
+    startDate: backup.range?.from || days[0] || cfg.season.startDate,
+    endDate: backup.range?.to || days[days.length - 1] || cfg.season.endDate,
+  })
   const startPoints = cfg.season?.startPoints ?? 0
 
   // Sàn 0 kẹp sau MỖI trận, nên trận thua bị cắt rồi trận thắng sau lại cộng từ 0 -> điểm sinh ra

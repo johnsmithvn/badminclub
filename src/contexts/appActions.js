@@ -2538,23 +2538,28 @@ export function makeActions({ setDb, setUi, dbRef, uiRef, navRef, toast, reload,
       toast(t('toast.renamedMe', { name: nm }))
     },
 
-    setMemberShelf: (mid, shelf) => {
+    // Kệ & châm ngôn ghi THẲNG đúng cột, không qua `up()`. Đường sync upsert CẢ DÒNG, mà vài cột
+    // không khứ hồi nguyên vẹn (`linked_at` bị cắt còn ngày, `bank_accounts` [] thành null) — trigger
+    // `guard_member_self_update` thấy cột bị gác "đổi" nên chặn mọi thành viên thường.
+    setMemberShelf: async (mid, shelf) => {
       const s = Array.isArray(shelf) ? shelf.slice(0, 3) : []
-      up((d) => ({
-        members: (d.members || []).map((m) =>
-          m.id === mid ? { ...m, badgeShelf: s, badge_shelf: s } : m,
-        ),
-      }))
+      try {
+        unwrap(await supabase.from('club_members').update({ badge_shelf: s }).eq('id', mid))
+      } catch (e) {
+        return toast(e.message)
+      }
+      await reload()
       toast(t('badges.shelfSaved'))
     },
 
-    setMemberSignature: (mid, sig) => {
+    setMemberSignature: async (mid, sig) => {
       const text = String(sig || '').trim().slice(0, 80)
-      up((d) => ({
-        members: (d.members || []).map((m) =>
-          m.id === mid ? { ...m, signature: text } : m,
-        ),
-      }))
+      try {
+        unwrap(await supabase.from('club_members').update({ signature: text }).eq('id', mid))
+      } catch (e) {
+        return toast(e.message)
+      }
+      await reload()
       toast(t('badges.signatureSaved'))
     },
 
