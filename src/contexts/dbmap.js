@@ -387,8 +387,10 @@ export function toRows(db, ctx) {
       avatar_url: m.avatarUrl || null, qr_url: m.qrUrl || null,
       bank_holder: m.bankHolder || null, bank_no: m.bankNo || null, bank_name: m.bankName || null,
       bank_accounts: m.bankAccounts && m.bankAccounts.length ? m.bankAccounts : null,
-      badge_shelf: m.badgeShelf || m.badge_shelf || [],
-      signature: m.signature || '',
+      // `badge_shelf` / `signature` CỐ Ý không có ở đây: chỉ ghi thẳng qua `setMemberShelf` /
+      // `setMemberSignature` (appActions). Để trong đường sync thì một lượt đồng bộ đang chạy dở
+      // ghi đè ảnh chụp, lượt sau upsert CẢ DÒNG — mà dòng này không khứ hồi nguyên vẹn
+      // (`linked_at` bị cắt còn ngày) nên trigger `guard_member_self_update` chặn thành viên thường.
       pending_level: m.pendingLevel || null, pending_level_from: m.pendingLevelFrom || null,
       joined_at: m.joined, active: m.active !== false, linked_at: m.linkedAt || null,
       note: m.note || null,

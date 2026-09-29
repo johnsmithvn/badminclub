@@ -350,16 +350,6 @@ export function syncPatchMatchVideo(matchId, videoUrl, videoTimestamp, videoNote
   }
 }
 
-/**
- * Vá snapshot dòng `club_members` cho cột vừa ghi thẳng (kệ danh hiệu, châm ngôn) để `diff` không
- * upsert CẢ DÒNG — dòng đó không khứ hồi nguyên vẹn (`linked_at` bị cắt còn ngày...) nên trigger
- * `guard_member_self_update` chặn mọi thành viên thường.
- */
-export function syncPatchMember(memberId, cols) {
-  const row = (synced?.rows?.club_members || []).find((m) => m.id === memberId)
-  if (row) Object.assign(row, cols)
-}
-
 /* ================= GIẢI ĐẤU (TOURNAMENT) I/O ================= */
 
 /** Nạp danh sách các giải đấu của CLB. */

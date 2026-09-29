@@ -24,7 +24,7 @@ import { getMemberStreak, cleanShelf, calculateMemberBadges, resolveBadgeId } fr
 import { seasonMatchesOf, calculateSeasonLeaderboard } from '#lib/season.js'
 import { buildMatchBackup, validateMatchBackup } from '#lib/matchBackup.js'
 import cfgBadges from '#config/badges.json' with { type: 'json' }
-import { syncPatchMatchViews, syncPatchMatchVideo, syncPatchMember } from '#contexts/storage.js'
+import { syncPatchMatchViews, syncPatchMatchVideo } from '#contexts/storage.js'
 import { makeTournamentActions } from '#contexts/tournamentActions.js'
 import { detectMatchNarrative, notifyRecipients, notifiableMemberIds, resolveNotificationPayload } from '#lib/activity.js'
 
@@ -94,10 +94,9 @@ export function makeActions({ setDb, setUi, dbRef, uiRef, navRef, toast, reload,
    * dùng thấy màn "Lỗi khởi động ứng dụng". Bỏ qua patch là đúng: CLB cũ không còn trên màn.
    */
   const up = (fn) => setDb((d) => (d ? { ...d, ...fn(d) } : d))
-  // Ghi thẳng vài cột hồ sơ của 1 thành viên: UI đổi ngay, 1 request, snapshot đã vá nên sync
-  // không upsert cả dòng. Hỏng mới nạp lại để màn hình khớp DB.
+  // Ghi thẳng cột kệ / châm ngôn: UI đổi ngay, 1 request. Hai cột này nằm NGOÀI đường sync
+  // (xem `toRows` ở dbmap.js) nên không bao giờ bị upsert cả dòng. Hỏng mới nạp lại cho khớp DB.
   const saveMemberCols = (mid, cols) => {
-    syncPatchMember(mid, cols)
     supabase.from('club_members').update(cols).eq('id', mid).then(({ error }) => {
       if (error) { toast(error.message); reload() }
     })
