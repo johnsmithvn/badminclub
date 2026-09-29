@@ -3706,7 +3706,7 @@
     "statNet": "Cả sòng lãi / lỗ",
     "statNetUp": "Người chơi đang ăn nhiều hơn mất",
     "statNetDown": "Người chơi đang mất nhiều hơn ăn",
-    "king": "Vua sòng",
+    "king": "Thần Bài",
     "streakWon": "Đang trúng {{n}} liền",
     "streakLost": "Đang trượt {{n}} liền",
     "titlesHeading": "Danh hiệu mùa",
@@ -4195,7 +4195,6 @@
       "subtabFeed": "BẢNG TIN"
     },
     "detail": {
-      "back": "← DANH HIỆU",
       "yourProgress": "TIẾN ĐỘ CỦA BẠN",
       "remainingHint": "còn {{remain}} trận để mở khóa danh hiệu",
       "remainingStreakHint": "chuỗi hiện tại: {{current}} · còn {{remain}} trận liên tiếp nữa",

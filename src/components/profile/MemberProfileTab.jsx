@@ -5,7 +5,7 @@ import { playerName, shortName } from '#lib/money.js'
 import { getPlayerRating, applyInactivityDecay, lastMatchAtOf, getPlayerFormatRatings, getPlayerPartnersAndMatchups, DEFAULT_RATING } from '#lib/rating.js'
 import { RANK_THEMES } from '#data/rankThemes.js'
 import { calculateMemberXp, getMemberXpLedger } from '#lib/xp.js'
-import { calculateMemberBadges, TIER_ORDER, getBadgeById, ANIME_TIERS } from '#lib/badges.js'
+import { calculateMemberBadges, TIER_ORDER, getBadgeById, ANIME_TIERS, familyViewOf } from '#lib/badges.js'
 import { getSeasonBountyPlayer, getMemberSeasonLedger, seasonConfigOf } from '#lib/season.js'
 import RatingLineChart from '#components/challenge/RatingLineChart.jsx'
 import PairDetailModal from '#components/leaderboard/PairDetailModal.jsx'
@@ -467,8 +467,7 @@ export default function MemberProfileTab({
                           onClick={(e) => {
                             e.preventDefault()
                             e.stopPropagation()
-                            const detailed = badgeDetailOf(b.id) || b
-                            setInspectingBadge(detailed)
+                            setInspectingBadge(familyViewOf(badgeDetailOf(b.id) || b, memberBadgeData?.all))
                           }}
                           title={bName}
                           style={{
@@ -2203,8 +2202,7 @@ export default function MemberProfileTab({
                       onClick={(e) => {
                         e.preventDefault()
                         e.stopPropagation()
-                        const detailed = badgeDetailOf(ach.id) || ach
-                        setInspectingBadge(detailed)
+                        setInspectingBadge(familyViewOf(badgeDetailOf(ach.id) || ach, memberBadgeData?.all))
                       }}
                       style={{
                         background: ach.achieved ? 'var(--surface-card)' : 'var(--surface-sunken)',

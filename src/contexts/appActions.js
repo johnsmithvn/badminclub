@@ -20,7 +20,7 @@ import { resolveVenue } from '#lib/forms.js'
 import { supabase, unwrap } from '#supabase'
 import { pathOf, buildPushUrl } from '#routes'
 import { t } from '#i18n'
-import { getMemberStreak, cleanShelf } from '#lib/badges.js'
+import { getMemberStreak, cleanShelf, calculateMemberBadges, resolveBadgeId } from '#lib/badges.js'
 import { seasonMatchesOf, calculateSeasonLeaderboard } from '#lib/season.js'
 import { buildMatchBackup, validateMatchBackup } from '#lib/matchBackup.js'
 import cfgBadges from '#config/badges.json' with { type: 'json' }
@@ -2547,7 +2547,10 @@ export function makeActions({ setDb, setUi, dbRef, uiRef, navRef, toast, reload,
     },
 
     setMemberShelf: (mid, shelf) => {
-      const s = cleanShelf(shelf)
+      // Chỉ giữ danh hiệu đang có ở mùa hiện tại (lọc TRƯỚC khi cắt 3 ô) — danh hiệu mùa trước còn
+      // nằm trong badge_shelf nhưng đang ẩn thì rớt ra trước, không đẩy mất cái đang hiện.
+      const held = new Set(calculateMemberBadges(mid, db()).unlocked.map((b) => b.id))
+      const s = cleanShelf((shelf || []).map(resolveBadgeId).filter((id) => held.has(id)))
       saveMemberCols(mid, { badge_shelf: s })
       up((d) => ({
         members: (d.members || []).map((m) =>

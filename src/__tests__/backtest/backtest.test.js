@@ -91,6 +91,17 @@ test('Bộ máy backtest', async (t) => {
     assert.equal(db.matches[0].teamB.length, 2)
   })
 
+  await t.test('5b. Trận đơn tách 1-1, vẫn vào Elo', () => {
+    // Cắt cứng 0-2 / 2-4 thì hai người đánh đơn thành đồng đội, đội B rỗng, và trận bị bỏ qua.
+    const b = mkBackup()
+    b.matches = [{ id: 'm1', sessionId: 's1', at: 1000, minutes: 20, sets: [[21, 15]], winnerTeam: 'A', ratingEnabled: true, playerKeys: ['p2', 'p3'] }]
+    const m = datasetToDb(b).matches[0]
+    assert.deepEqual([m.teamA, m.teamB], [['p2'], ['p3']])
+    const snap = runBacktest(b)
+    assert.ok(snap.elo.find((x) => x.id === 'p2').rating > 500, 'Người thắng trận đơn phải được cộng Elo')
+    assert.equal(snap.season.find((x) => x.id === 'p3').losses, 1, 'Người thua trận đơn phải ghi một trận thua')
+  })
+
   await t.test('6. diffBacktest chỉ ra đúng người và đúng con số đã đổi', () => {
     const before = runBacktest(mkBackup())
     const after = JSON.parse(JSON.stringify(before))

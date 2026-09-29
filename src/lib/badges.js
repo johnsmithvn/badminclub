@@ -1677,11 +1677,12 @@ export function calculateMemberBadges(
     return acc + (ANIME_TIERS[b.tier]?.pts || 0)
   }, 0)
 
-  // Kệ = ĐÚNG những gì người dùng tự gắn. KHÔNG tự lấp ô trống: danh hiệu Tự phong luôn "mở", nên
-  // tự lấp là ai cũng bị gắn sẵn 3 cái không chọn, gỡ ra lại mọc lại.
+  // Kệ = những gì người dùng tự gắn VÀ đang giữ ở mùa đang xét. KHÔNG tự lấp ô trống: Tự phong luôn
+  // "mở", tự lấp là ai cũng bị gắn sẵn 3 cái không chọn. Danh hiệu mùa trước chưa đạt lại mùa này thì
+  // ẩn (vẫn giữ trong badge_shelf — đạt lại là tự hiện, khỏi gắn lại).
   const shelfBadges = shelfStored
     .map((id) => processed.find((b) => b.id === id))
-    .filter(Boolean)
+    .filter((b) => b?.unlocked)
 
   return {
     all: processed,
@@ -2022,6 +2023,18 @@ export function cleanShelf(ids) {
     if (!out.includes(id) && getBadgeById(id)) out.push(id)
   }
   return out.slice(0, cfgBadges.shelfSlots ?? 3)
+}
+
+/**
+ * Bản để mở modal chi tiết: danh hiệu thuộc họ thì trả cả họ (có thanh hành trình các mốc),
+ * không thì trả nguyên. `all` = danh sách đã tính tiến độ của người đang xem (calculateMemberBadges().all).
+ */
+export function familyViewOf(badge, all) {
+  if (!badge || badge.isFamily) return badge
+  const fInfo = getBadgeFamily(badge.id)
+  if (!fInfo) return badge
+  const grouped = groupBadgesByFamily((all || []).filter((b) => (fInfo.badgeIds || []).includes(b.id)))
+  return grouped[0] || badge
 }
 
 /**

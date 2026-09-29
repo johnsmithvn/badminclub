@@ -4,7 +4,8 @@ import { t } from '#i18n'
 import { useTheme } from '#contexts/ThemeContext.jsx'
 import { useApp } from '#contexts/AppContext.jsx'
 import BadgeHex from '#components/badges/BadgeHex.jsx'
-import { getBadgeById, cleanShelf } from '#lib/badges.js'
+import { getBadgeById, cleanShelf, calculateMemberBadges, computeClubBadgeStats } from '#lib/badges.js'
+import { seasonMatchesOf } from '#lib/season.js'
 import RankMedalIcon from '#components/leaderboard/RankMedalIcon.jsx'
 import { STAT_COLORS } from '#components/leaderboard/statColors.js'
 import WinRatePill from '#components/leaderboard/WinRatePill.jsx'
@@ -122,6 +123,16 @@ export default function SeasonRaceTab({
   }, [db])
 
   const { season, leaderboard = [], topStats = {} } = seasonLeaderboardData || {}
+
+  // Kệ mỗi người = danh hiệu đã gắn VÀ đang giữ ở mùa đang xem (cùng luật với trang Danh hiệu/hồ sơ)
+  const shelfById = useMemo(() => {
+    if (!db) return new Map()
+    const matches = seasonMatchesOf(db, season) || []
+    const stats = computeClubBadgeStats(db, season, matches)
+    return new Map(leaderboard.map((r) => [
+      r.id, calculateMemberBadges(r.id, db, season, matches, stats).shelfBadges.map((b) => b.id),
+    ]))
+  }, [db, season, leaderboard])
   const isArchived = season && season.active === false
 
   const totalCount = leaderboard.length
@@ -601,7 +612,7 @@ export default function SeasonRaceTab({
                     </span>
                   </div>
                   <div style={{ display: 'flex', gap: 5, alignItems: 'center' }}>
-                    <MiniShelf shelf={top1?.badgeShelf || top1?.member?.badgeShelf || top1?.member?.badge_shelf || []} size={19} />
+                    <MiniShelf shelf={shelfById.get(top1?.id)} size={19} />
                     <div style={{ flex: 1 }} />
                     <TrendSpark logs={top1?.matchLogs} width={48} height={16} showDelta />
                   </div>
@@ -675,7 +686,7 @@ export default function SeasonRaceTab({
                     <div style={{ font: "600 19px/1 'IBM Plex Mono', monospace", color: '#DCE6F5' }}>
                       {top2?.totalSeasonPoints?.toLocaleString()}
                     </div>
-                    <MiniShelf shelf={top2?.badgeShelf || top2?.member?.badgeShelf || top2?.member?.badge_shelf || []} size={16} />
+                    <MiniShelf shelf={shelfById.get(top2?.id)} size={16} />
                     <MobileStats row={top2} fields={['matches', 'winRate']} />
                     <div style={{ font: "400 10.5px/1 'IBM Plex Mono', monospace", color: '#8494AA' }}>
                       {t('season.behindTop1', { diff: ((top1?.totalSeasonPoints || 0) - (top2?.totalSeasonPoints || 0)).toLocaleString() })}
@@ -747,7 +758,7 @@ export default function SeasonRaceTab({
                     <div style={{ font: "600 19px/1 'IBM Plex Mono', monospace", color: '#F0C096' }}>
                       {top3?.totalSeasonPoints?.toLocaleString()}
                     </div>
-                    <MiniShelf shelf={top3?.badgeShelf || top3?.member?.badgeShelf || top3?.member?.badge_shelf || []} size={16} />
+                    <MiniShelf shelf={shelfById.get(top3?.id)} size={16} />
                     <MobileStats row={top3} fields={['matches', 'winRate']} />
                     <div style={{ font: "400 10.5px/1 'IBM Plex Mono', monospace", color: '#F0D26A' }}>
                       {top3EloRank ? t('season.eloRankClub', { rank: top3EloRank }) : t('season.behindTop1', { diff: ((top1?.totalSeasonPoints || 0) - (top3?.totalSeasonPoints || 0)).toLocaleString() })}
@@ -865,7 +876,7 @@ export default function SeasonRaceTab({
                   <div style={{ font: "600 24px/1 'IBM Plex Mono', monospace", color: '#DCE6F5' }}>
                     {top2?.totalSeasonPoints?.toLocaleString()}
                   </div>
-                  <MiniShelf shelf={top2?.badgeShelf || top2?.member?.badgeShelf || top2?.member?.badge_shelf || []} />
+                  <MiniShelf shelf={shelfById.get(top2?.id)} />
                   <div style={{ font: "400 11px/1.3 'IBM Plex Sans', sans-serif", color: '#8494AA' }}>
                     {top2?.matchesCount} {t('units.match')} · {top2?.winsCount}W–{top2?.lossesCount}L · {top2?.winRate}%
                   </div>
@@ -942,7 +953,7 @@ export default function SeasonRaceTab({
                     {top1?.totalSeasonPoints?.toLocaleString()}
                   </div>
                   <div style={{ display: 'flex', alignItems: 'center', gap: 6, flexWrap: 'wrap', justifyContent: 'center' }}>
-                    <MiniShelf shelf={top1?.badgeShelf || top1?.member?.badgeShelf || top1?.member?.badge_shelf || []} />
+                    <MiniShelf shelf={shelfById.get(top1?.id)} />
                     {top1?.streak >= 5 && <BountyBadgeTag streak={top1.streak} />}
                   </div>
                   <div style={{ font: "400 12px/1.3 'IBM Plex Sans', sans-serif", color: '#C6B683' }}>
@@ -1005,7 +1016,7 @@ export default function SeasonRaceTab({
                   <div style={{ font: "600 22px/1 'IBM Plex Mono', monospace", color: '#E8C8AE' }}>
                     {top3?.totalSeasonPoints?.toLocaleString()}
                   </div>
-                  <MiniShelf shelf={top3?.badgeShelf || top3?.member?.badgeShelf || top3?.member?.badge_shelf || []} />
+                  <MiniShelf shelf={shelfById.get(top3?.id)} />
                   <div style={{ font: "400 11px/1.3 'IBM Plex Sans', sans-serif", color: '#8494AA' }}>
                     {top3?.matchesCount} {t('units.match')} · {top3?.winsCount}W–{top3?.lossesCount}L · {top3?.winRate}%
                   </div>
@@ -1120,7 +1131,7 @@ export default function SeasonRaceTab({
                         ) : null}
                       </div>
                       <div style={{ display: 'flex', flexWrap: 'wrap', gap: '4px 6px', alignItems: 'center' }}>
-                        <MiniShelf shelf={row.badgeShelf || row.member?.badgeShelf || row.member?.badge_shelf || []} size={17} />
+                        <MiniShelf shelf={shelfById.get(row.id)} size={17} />
                         <MobileStats row={row} fields={['matches', 'record', 'winRate', 'sessions']} />
                       </div>
                     </div>
@@ -1258,7 +1269,7 @@ export default function SeasonRaceTab({
                     <span style={{ fontWeight: 600, color: 'var(--text-primary)', whiteSpace: 'nowrap', minWidth: 0, overflow: 'hidden', textOverflow: 'ellipsis' }}>
                       <span title={row.name}>{row.name}</span>
                     </span>
-                    <MiniShelf shelf={row.badgeShelf || row.member?.badgeShelf || row.member?.badge_shelf || []} />
+                    <MiniShelf shelf={shelfById.get(row.id)} />
                     {row.streak >= 5 ? (
                       <BountyBadgeTag streak={row.streak} />
                     ) : row.streak >= 3 ? (

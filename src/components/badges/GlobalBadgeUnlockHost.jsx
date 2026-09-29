@@ -103,8 +103,8 @@ export default function GlobalBadgeUnlockHost() {
   const handleEquipShelf = useCallback(
     (badge) => {
       if (!badge || !me?.id) return
-      // Gắn lên đầu kệ, đầy 3 ô thì rớt ô cuối
-      a?.setMemberShelf?.(me.id, cleanShelf([badge.id, ...(me.badgeShelf || me.badge_shelf || [])]))
+      // Gắn lên đầu kệ; setMemberShelf lọc & cắt 3 ô
+      a?.setMemberShelf?.(me.id, [badge.id, ...(me.badgeShelf || me.badge_shelf || [])])
 
       handleClose()
     },

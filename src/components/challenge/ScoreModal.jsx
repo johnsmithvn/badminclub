@@ -740,7 +740,7 @@ export default function ScoreModal({ court, session, challenge, onClose, onSaved
             const targetId = currentMember?.id || (b.winnerPlayerIds && b.winnerPlayerIds[0])
             if (targetId && a.setMemberShelf) {
               const targetMem = (db.members || []).find((m) => m.id === targetId) || currentMember
-              a.setMemberShelf(targetId, cleanShelf([b.id, ...(targetMem?.badge_shelf || targetMem?.badgeShelf || [])]))
+              a.setMemberShelf(targetId, [b.id, ...(targetMem?.badge_shelf || targetMem?.badgeShelf || [])])
             }
             handleFinishScore()
           }}

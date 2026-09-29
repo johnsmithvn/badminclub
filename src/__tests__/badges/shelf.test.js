@@ -25,9 +25,10 @@ test('Kệ trống thì hiện trống — không tự lấp danh hiệu Tự ph
   assert.deepEqual(res.shelfBadges, [])
 })
 
-test('Kệ hiện đúng thứ đã gắn, mã cũ được quy về mã mới', () => {
+test('Kệ chỉ hiện thứ đã gắn VÀ đang giữ mùa này — danh hiệu mùa trước chưa đạt lại thì ẩn', () => {
+  // de_bep_3 (mã cũ của de_bep_2) gắn từ mùa trước, mùa này chưa đánh trận nào nên chưa giữ
   const db = { members: [{ id: 'm1', name: 'A', badge_shelf: ['de_bep_3', 'de_bep_2', 'vo_hut'] }], matches: [] }
-  assert.deepEqual(calculateMemberBadges('m1', db).shelfBadges.map((b) => b.id), ['de_bep_2', 'vo_hut'])
+  assert.deepEqual(calculateMemberBadges('m1', db).shelfBadges.map((b) => b.id), ['vo_hut'])
 })
 
 console.log('Shelf check: OK')
