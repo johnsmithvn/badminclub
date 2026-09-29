@@ -4,16 +4,17 @@ import { t } from '#i18n'
 import { useTheme } from '#contexts/ThemeContext.jsx'
 import { useApp } from '#contexts/AppContext.jsx'
 import BadgeHex from '#components/badges/BadgeHex.jsx'
-import { getBadgeById } from '#lib/badges.js'
+import { getBadgeById, cleanShelf } from '#lib/badges.js'
 import RankMedalIcon from '#components/leaderboard/RankMedalIcon.jsx'
 import { STAT_COLORS } from '#components/leaderboard/statColors.js'
 import WinRatePill from '#components/leaderboard/WinRatePill.jsx'
 
 function MiniShelf({ shelf = [], size = 18 }) {
-  if (!shelf || !shelf.length) return null
+  const ids = cleanShelf(shelf)
+  if (!ids.length) return null
   return (
     <span style={{ display: 'inline-flex', alignItems: 'center', gap: 3, flexShrink: 0 }}>
-      {shelf.slice(0, 3).map((badgeId, idx) => {
+      {ids.map((badgeId, idx) => {
         const b = getBadgeById(badgeId)
         if (!b) return null
         return (

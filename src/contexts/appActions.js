@@ -20,7 +20,7 @@ import { resolveVenue } from '#lib/forms.js'
 import { supabase, unwrap } from '#supabase'
 import { pathOf, buildPushUrl } from '#routes'
 import { t } from '#i18n'
-import { getMemberStreak } from '#lib/badges.js'
+import { getMemberStreak, cleanShelf } from '#lib/badges.js'
 import { seasonMatchesOf, calculateSeasonLeaderboard } from '#lib/season.js'
 import { buildMatchBackup, validateMatchBackup } from '#lib/matchBackup.js'
 import cfgBadges from '#config/badges.json' with { type: 'json' }
@@ -2547,7 +2547,7 @@ export function makeActions({ setDb, setUi, dbRef, uiRef, navRef, toast, reload,
     },
 
     setMemberShelf: (mid, shelf) => {
-      const s = Array.isArray(shelf) ? shelf.slice(0, 3) : []
+      const s = cleanShelf(shelf)
       saveMemberCols(mid, { badge_shelf: s })
       up((d) => ({
         members: (d.members || []).map((m) =>

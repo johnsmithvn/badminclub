@@ -5,8 +5,6 @@ import {
   NOTCH_CLIP,
   NOTCH_S_CLIP,
   HEX_CLIP,
-  getBadgeFamily,
-  groupBadgesByFamily,
   sortBadgesByRarity,
 } from '#lib/badges.js'
 import { t } from '#i18n'
@@ -63,26 +61,8 @@ export default function AnimeMobileCollection({
 
   const activeGroup = groups[selectedGroupIdx] || groups[0] || null
 
-  // Huy hiệu gắn trên kệ của activeMember (3 ô)
-  const shelfBadgeIds = useMemo(() => {
-    return (activeMember?.badge_shelf || activeMember?.badgeShelf || []).slice(0, 3)
-  }, [activeMember])
-
-  const shelfBadges = useMemo(() => {
-    const all = memberBadges?.all || []
-    return shelfBadgeIds.map((id) => {
-      const found = all.find((b) => b.id === id)
-      if (found) return found
-      // Nếu là họ danh hiệu
-      const fInfo = getBadgeFamily(id)
-      if (fInfo) {
-        const fBadges = all.filter((item) => (fInfo.badgeIds || []).includes(item.id))
-        const grouped = groupBadgesByFamily(fBadges)
-        if (grouped[0]) return grouped[0]
-      }
-      return { id, name: id, tier: 'rare', glyph: 'crystal' }
-    })
-  }, [shelfBadgeIds, memberBadges?.all])
+  // Kệ của activeMember — đúng những gì họ tự gắn (đã chuẩn hoá trong calculateMemberBadges)
+  const shelfBadges = memberBadges?.shelfBadges || []
 
   // Cấp độ và tiến độ XP
   const level = memberXpData?.level || 1
@@ -178,8 +158,8 @@ export default function AnimeMobileCollection({
             </span>
           </div>
 
-          {/* Nút SẮP KỆ */}
-          <button
+          {/* Nút SẮP KỆ — chỉ trên hồ sơ của chính mình (modal gắn/gỡ kệ của người đăng nhập) */}
+          {isViewingSelf && <button
             type="button"
             onClick={onReorderShelf}
             style={{
@@ -198,7 +178,7 @@ export default function AnimeMobileCollection({
             }}
           >
             {t('badges.reorderShelf')}
-          </button>
+          </button>}
         </div>
 
         {/* Bộ chọn Mùa giải trên Mobile */}
@@ -451,7 +431,7 @@ export default function AnimeMobileCollection({
                   </span>
                 </div>
                 <span style={{ font: "400 10px/1 'IBM Plex Mono', monospace", color: '#7E6FA0' }}>
-                  {shelfBadgeIds.length} / 3
+                  {shelfBadges.length} / 3
                 </span>
               </div>
 
@@ -599,7 +579,7 @@ export default function AnimeMobileCollection({
               {t('badges.myShelfTitle')}
             </span>
             <span style={{ font: "400 9.5px/1 'IBM Plex Mono', monospace", color: '#7E6FA0' }}>
-              {shelfBadgeIds.length} / 3
+              {shelfBadges.length} / 3
             </span>
           </div>
 
@@ -617,7 +597,7 @@ export default function AnimeMobileCollection({
                   onClick={() => {
                     if (hasBadge && onSelectBadge) {
                       onSelectBadge(b)
-                    } else if (onReorderShelf) {
+                    } else if (isViewingSelf && onReorderShelf) {
                       onReorderShelf()
                     }
                   }}

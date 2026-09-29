@@ -5,7 +5,7 @@ import { playerName, shortName } from '#lib/money.js'
 import { getPlayerRating, applyInactivityDecay, lastMatchAtOf, getPlayerFormatRatings, getPlayerPartnersAndMatchups, DEFAULT_RATING } from '#lib/rating.js'
 import { RANK_THEMES } from '#data/rankThemes.js'
 import { calculateMemberXp, getMemberXpLedger } from '#lib/xp.js'
-import { calculateMemberBadges, TIER_ORDER, getBadgeById, ANIME_TIERS, resolveBadgeId } from '#lib/badges.js'
+import { calculateMemberBadges, TIER_ORDER, getBadgeById, ANIME_TIERS } from '#lib/badges.js'
 import { getSeasonBountyPlayer, getMemberSeasonLedger, seasonConfigOf } from '#lib/season.js'
 import RatingLineChart from '#components/challenge/RatingLineChart.jsx'
 import PairDetailModal from '#components/leaderboard/PairDetailModal.jsx'
@@ -391,30 +391,9 @@ export default function MemberProfileTab({
   const lastMatchIso = lastMatchAtOf(matches, mid)
   const decayInfo = applyInactivityDecay(pr.rating, lastMatchIso)
 
-  // Danh hiệu được gắn trên kệ (tối đa 3 danh hiệu); nếu không có thì lấy 1 danh hiệu hiếm nhất đã mở khóa
-  const badgeShelf = member?.badge_shelf || member?.badgeShelf
-  const shelfBadges = useMemo(() => {
-    if (Array.isArray(badgeShelf) && badgeShelf.length > 0) {
-      // Quy mã cũ về mã mới rồi bỏ trùng — kệ cũ có thể giữ cả de_bep_3 lẫn de_bep_2 (cùng "Đè bẹp I")
-      const equipped = [...new Set(badgeShelf.map(resolveBadgeId))]
-        .slice(0, 3)
-        .map((id) => badgeDetailOf(id))
-        .filter(Boolean)
-      if (equipped.length > 0) return equipped
-    }
-    // Trường hợp không có danh hiệu gắn trên kệ: lấy 1 danh hiệu hiếm nhất đã mở khóa của họ
-    const res = memberBadgeData
-    const unlocked = res?.officialUnlocked || []
-    if (!unlocked.length) return []
-    const maxScore = Math.max(...unlocked.map((b) => TIER_ORDER[b.tier] || 0))
-    const highestBadges = unlocked.filter((b) => (TIER_ORDER[b.tier] || 0) === maxScore)
-    if (!highestBadges.length) return []
-    // Chọn 1 danh hiệu ổn định (pure) theo mã thành viên
-    const hash = String(mid).split('').reduce((acc, c) => acc + c.charCodeAt(0), 0)
-    const picked = highestBadges[hash % highestBadges.length]
-    const badgeObj = badgeDetailOf(picked.id) || picked
-    return [badgeObj]
-  }, [badgeShelf, mid, memberBadgeData, badgeDetailOf])
+  // Kệ = đúng những gì họ tự gắn (đã chuẩn hoá trong calculateMemberBadges). Không tự chọn thay khi
+  // kệ trống — trước đây lấy 1 danh hiệu hiếm nhất, thành ra hồ sơ hiện thứ người đó không hề gắn.
+  const shelfBadges = memberBadgeData?.shelfBadges || []
 
   return (
     <div style={{ display: 'grid', gap: 16 }}>

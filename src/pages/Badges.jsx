@@ -26,7 +26,7 @@ import {
   getRarestBadges,
   groupBadgesByFamily,
   getBadgeFamily,
-  resolveBadgeId,
+  cleanShelf,
   sortBadgesByRarity,
   ANIME_TIERS,
   NOTCH_CLIP,
@@ -78,10 +78,9 @@ export default function Badges() {
   // `myMember` chỉ nhận 1 tham số (xem money.js) — truyền thêm `me` là thừa và gây hiểu nhầm
   // rằng danh tính đăng nhập có ảnh hưởng; nó đọc `db.currentUserId` bên trong.
   const currentMember = useMemo(() => myMember(db), [db])
-  // Kệ của chính mình, đã quy mã cũ về mã mới và bỏ trùng — mã cũ (vd de_bep_3) không có trong
-  // danh mục nên không bao giờ hiện nút Gỡ, kẹt vĩnh viễn trên kệ.
+  // Kệ của chính mình ở dạng chuẩn (mã cũ -> mã mới, bỏ trùng) — mọi thao tác gắn/gỡ đọc từ đây
   const myShelf = useMemo(
-    () => [...new Set((currentMember?.badge_shelf || currentMember?.badgeShelf || []).map(resolveBadgeId))],
+    () => cleanShelf(currentMember?.badge_shelf || currentMember?.badgeShelf),
     [currentMember]
   )
 
@@ -281,20 +280,11 @@ export default function Badges() {
   // Thao tác gắn danh hiệu lên kệ
   const handleToggleShelf = (badgeId) => {
     if (!badgeId || !currentMember?.id) return
-    const currentShelf = myShelf.slice()
-    const foundIdx = currentShelf.indexOf(badgeId)
-    if (foundIdx >= 0) {
-      currentShelf.splice(foundIdx, 1)
-    } else {
-      if (currentShelf.length >= (badgesConfig.shelfSlots || 3)) {
-        currentShelf.pop() // Thay ô cuối nếu đã đầy 3 ô
-      }
-      currentShelf.unshift(badgeId)
-    }
-
-    if (a && a.setMemberShelf) {
-      a.setMemberShelf(currentMember.id, currentShelf)
-    }
+    // Đã gắn -> gỡ; chưa -> gắn lên đầu (đầy 3 ô thì rớt ô cuối)
+    const next = myShelf.includes(badgeId)
+      ? myShelf.filter((x) => x !== badgeId)
+      : cleanShelf([badgeId, ...myShelf])
+    a?.setMemberShelf?.(currentMember.id, next)
   }
 
   // Lưu châm ngôn / chữ ký
@@ -660,6 +650,8 @@ export default function Badges() {
                   {memberBadges.all
                     // Danh hiệu đang gắn luôn hiện (kể cả hết hạn mùa trước) để còn nút Gỡ
                     .filter((b) => b.unlocked || b.tier === 'fun' || myShelf.includes(b.id))
+                    // Đang gắn lên đầu danh sách cho dễ thấy mà gỡ
+                    .sort((x, y) => myShelf.includes(y.id) - myShelf.includes(x.id))
                     .map((badge) => {
                       const isEquipped = myShelf.includes(badge.id)
                       const tierMeta = ANIME_TIERS[badge.tier] || ANIME_TIERS.rare
@@ -840,8 +832,8 @@ export default function Badges() {
             </select>
           </div>
 
-          {/* Nút Sắp lại kệ */}
-          <button
+          {/* Nút Sắp lại kệ — chỉ trên hồ sơ của chính mình */}
+          {isViewingSelf && <button
             type="button"
             onClick={() => setShowShelfModal(true)}
             style={{
@@ -860,7 +852,7 @@ export default function Badges() {
             onMouseLeave={(e) => (e.currentTarget.style.background = 'rgba(255,255,255,.06)')}
           >
             {t('badges.reorderShelf')}
-          </button>
+          </button>}
 
           {/* Nút Luật danh hiệu */}
           <button
@@ -1841,10 +1833,11 @@ export default function Badges() {
       {unlockingBadge && (
         <BadgeUnlockModal
           badge={unlockingBadge}
-          shelfCount={(currentMember?.badge_shelf || currentMember?.badgeShelf || []).length}
-          shelfIsFull={(currentMember?.badge_shelf || currentMember?.badgeShelf || []).length >= 3}
+          shelfCount={myShelf.length}
+          shelfIsFull={myShelf.length >= (badgesConfig.shelfSlots || 3)}
           onEquipShelf={(b) => {
-            handleToggleShelf(b?.id || unlockingBadge.id)
+            // Nút này chỉ GẮN — không đi qua toggle, kẻo bấm lúc đã có trên kệ lại thành gỡ
+            if (currentMember?.id) a?.setMemberShelf?.(currentMember.id, cleanShelf([b?.id || unlockingBadge.id, ...myShelf]))
             setUnlockingBadge(null)
           }}
           onViewCollection={(b) => {
@@ -1939,6 +1932,8 @@ export default function Badges() {
                 {memberBadges.all
                   // Danh hiệu đang gắn luôn hiện (kể cả hết hạn mùa trước) để còn nút Gỡ
                   .filter((b) => b.unlocked || b.tier === 'fun' || myShelf.includes(b.id))
+                  // Đang gắn lên đầu danh sách cho dễ thấy mà gỡ
+                  .sort((x, y) => myShelf.includes(y.id) - myShelf.includes(x.id))
                   .map((badge) => {
                     const isEquipped = myShelf.includes(badge.id)
                     const tierMeta = ANIME_TIERS[badge.tier] || ANIME_TIERS.rare
