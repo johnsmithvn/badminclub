@@ -1433,9 +1433,16 @@ function ExportMatchesDialog() {
     return d.toISOString().slice(0, 10)
   }
 
+  // Mỗi mùa một lựa chọn, không chỉ mùa đang chạy: vừa sang mùa mới thì "mùa hiện tại" rỗng,
+  // mà mùa cần backtest thường là mùa vừa kết thúc.
+  const seasons = (db.seasons?.length ? db.seasons : [season]).filter(Boolean)
   const OPTS = [
     { key: 'all', label: t('matchIo.rangeAll'), range: null },
-    { key: 'season', label: t('matchIo.rangeSeason', { name: season?.name || season?.code || '' }), range: { from: season?.startDate || '', to: season?.endDate || '', label: season?.code || 'mua' } },
+    ...seasons.map((s) => ({
+      key: `season:${s.id || s.code}`,
+      label: t(s === season ? 'matchIo.rangeSeason' : 'matchIo.rangeSeasonOther', { name: s.name || s.code || '' }),
+      range: { from: s.startDate || '', to: s.endDate || '', label: s.code || 'mua' },
+    })),
     { key: 'm3', label: t('matchIo.range3m'), range: { from: monthsAgo(3), to: today, label: '3thang' } },
     { key: 'm1', label: t('matchIo.range1m'), range: { from: monthsAgo(1), to: today, label: '1thang' } },
   ]

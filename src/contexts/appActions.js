@@ -2330,7 +2330,7 @@ export function makeActions({ setDb, setUi, dbRef, uiRef, navRef, toast, reload,
       const url = URL.createObjectURL(blob)
       const aEl = document.createElement('a')
       // Tên file nói rõ trong đó là khoảng nào — sau này có chục file thì không phải mở ra đoán.
-      const tag = range?.label ? `_${String(range.label).replace(/[^w-]+/g, '-')}` : ''
+      const tag = range?.label ? `_${String(range.label).replace(/[^\w-]+/g, '-')}` : ''
       const fileName = `tran_dau_${d.club?.code || 'badmin'}${tag}_${new Date().toISOString().slice(0, 10)}.json`
       aEl.href = url
       aEl.download = fileName
