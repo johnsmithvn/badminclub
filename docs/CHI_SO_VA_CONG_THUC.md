@@ -161,7 +161,7 @@ delta(người j thuộc B) = round( K_j × (kếtQuả − Eb) × mult )
 
 **Hệ quả quan trọng:** vì K khác nhau theo người, **tổng delta của trận KHÔNG bằng 0**. Người mới
 thắng người kỳ cựu ăn 48/16 = gấp 3 lần số điểm đối phương mất. Đây là lý do chỉ số `eloDrift`
-trong backtest không bao giờ đúng 0 tuyệt đối (đo được **−15** trên 53 trận — chấp nhận được).
+trong backtest không bao giờ đúng 0 tuyệt đối (đo được **+82** trên 118 trận Q3, ≈ +0.7/trận — chấp nhận được).
 
 ### 2.7. Kẹp sàn — `applyRatingDelta(rating, delta)`
 
@@ -288,9 +288,15 @@ Ngưỡng đọc từ `minGap` trong `app.json`, không hard-code — sửa conf
 
 Cả hai người cùng đội nhận **cùng delta**.
 
-> 📊 **Đo trên dữ liệu thật (53 trận):** chênh đội median 42, p90 94, **max 123**. Nghĩa là
-> `heavyFavored` và `deepUnderdog` **chưa bao giờ chạy một lần nào**. Thực tế chỉ có 3 dải hoạt
-> động: balanced 120 trận · favored 42 · underdog 38.
+> 📊 **Đo trên dữ liệu thật (118 trận, trọn Q3):** chênh đội median 45, p90 113, **max 200**.
+> `heavyFavored` và `deepUnderdog` **hiếm khi chạy** (5 và 4 lượt). Gần như chỉ có 3 dải hoạt
+> động: balanced 220 lượt · favored 91 · underdog 86.
+>
+> **Vì sao chung một delta cho cả đội, không tính riêng từng người:** xác suất thắng là của ĐỘI.
+> Giả lập 2026-09-29 tính riêng (gap = Elo mình − Elo TB đội bạn) trên 118 trận: CLB xếp tay ghép
+> mạnh + yếu nên chênh cá nhân rất lớn (median 76, p90 206) trong khi chênh đội nhỏ → người yếu
+> luôn rơi vào dải kẻ yếu dù đội họ có cửa 50/50. Nhóm Y/Y+ tăng từ 3.5 lên 5.6đ/trận, nhóm TB tụt
+> từ 4.7 xuống 3.8, người thua 10–19 nhảy từ hạng 11 lên hạng 5. Được cõng hoá ra có lãi.
 
 ### 3.3. Hệ số KÈO (`challengeMultiplier`)
 
@@ -349,8 +355,8 @@ Cả điểm mùa (`season.js`) lẫn danh hiệu (`badges.js → getMemberStrea
 Ngược lại, `upset150` **vẫn tính theo từng set** — nó thưởng cho việc hạ đối thủ mạnh trong một
 ván cụ thể, không phải cho cả chuỗi.
 
-> 📊 Ngưỡng upset 150 > chênh đội tối đa 123 → **`totalUpsets = 0`**, thưởng lật kèo chưa từng
-> phát một lần. Đang chờ user quyết có hạ xuống ~90 không.
+> 📊 Trên 118 trận Q3, chênh đội chỉ chạm 150 vài lần → **`totalUpsets = 2`**, thưởng lật kèo gần
+> như không phát. Đang chờ user quyết có hạ xuống ~90 không.
 
 ### 3.5. Sàn 0 và thứ tự
 
@@ -720,8 +726,8 @@ mất** nếu điều kiện siết lại.
 
 | # | Vấn đề | Ở đâu | Tác động |
 |---|---|---|---|
-| 1 | **2 dải điểm mùa chưa bao giờ chạy** — chênh đội max 123 < ngưỡng 150 | `app.json` `deltaScale` | `heavyFavored`, `deepUnderdog` là code chết trên thực tế |
-| 2 | **Thưởng lật kèo chưa phát lần nào** — `upsetMinGap 150` > max 123 | `app.json` `bonusConfig` | Tính năng có mà không chạy. Cân nhắc hạ ~90 |
+| 1 | **2 dải điểm mùa hiếm khi chạy** — chênh đội max 200, chỉ 9/406 lượt ≥ 150 | `app.json` `deltaScale` | `heavyFavored`, `deepUnderdog` gần như không có tác dụng |
+| 2 | **Thưởng lật kèo gần như không phát** — `upsetMinGap 150`, mới 2 lần trên 118 trận | `app.json` `bonusConfig` | Tính năng có mà không chạy. Cân nhắc hạ ~90 |
 | 3 | **Thua đậm và thua sát nút trừ như nhau** | `calcSeasonMatchDelta` bỏ qua `sets` | User đã nêu "thua đau trừ nhiều" — chưa làm |
 | 4 | **Suy hao nghỉ dài không trừ thật** | `applyInactivityDecay` chỉ dùng để hiện chữ | Hiển thị nói một đằng, DB một nẻo |
 | ~~5~~ | ~~`rating_deviation` luôn = 350~~ | — | ✅ **ĐÃ SỬA** — xoá nhánh chết trong `confidenceOf`, bỏ cột (migration 0045) |
@@ -729,7 +735,7 @@ mất** nếu điều kiện siết lại.
 | ~~7~~ | ~~Hệ số ×2 ma thuật ở hiệu chỉnh chéo giới~~ | — | ✅ **ĐÃ SỬA** — dùng chung `effectiveTeamRating()`, bỏ số bịa khi thiếu dữ liệu (xem §5.6) |
 | 8 | **Hai mô hình co cụm khác nhau** — synergy dùng `min(1, g/15)` liên tục, còn bonus xếp sân dùng bậc thang `0 / 0.5 / 1` | `rating.js` vs `assign.js` | Cùng một cặp cho hai con số khác nhau ở hai màn |
 | 9 | **Xếp sân mode `balance` dùng trình độ khai, không dùng Elo** | `assign.js` `arrange` | Hai nguồn sự thật cho cùng một việc |
-| 10 | **Tổng delta Elo mỗi trận ≠ 0** vì K khác nhau theo người | `calcPlayerDeltas` | `eloDrift −15` / 53 trận. Chấp nhận được, nhưng phải biết |
+| 10 | **Tổng delta Elo mỗi trận ≠ 0** vì K khác nhau theo người | `calcPlayerDeltas` | `eloDrift +82` / 118 trận. Chấp nhận được, nhưng phải biết |
 | 11 | **`docs/HE_THONG_RATING_VA_DIEM_MUA.md` đã lệch code** | doc cũ | Ghi trọng số 35/20/15/15/15 (nay 55/20/15/10), công thức `100 − Δ/50×6` (nay `100 − expectedGapPp`), còn tả `arrangeBestOfN` (đã xoá), thiếu `startPoints` |
 
 ---

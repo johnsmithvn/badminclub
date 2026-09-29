@@ -141,20 +141,20 @@ Chép vào `data/`, tạo mốc bằng `--save`, xong. Test tự động gác t�
 
 ## 8. Bộ số mốc hiện tại
 
-Đo trên 53 trận · 4 buổi · 2026-Q3:
+Đo trên 118 trận · 8 buổi · trọn mùa 2026-Q3 (05/09 → 27/09, file bản 3 có kèo + phiếu cược):
 
 ```
-eloDrift          -15     ✓ khoẻ, gần như tổng-bằng-không
-clampGainTotal   +201     ✗ BỆNH — sàn 0 tạo điểm cho 11/22 người
-totalUpsets         0     — chênh đội tối đa 123, chưa bao giờ chạm ngưỡng 150
-tierCounts        balanced 120 · favored 42 · underdog 38
-                  heavyFavored 0 · deepUnderdog 0  ← hai dải chưa bao giờ chạy
-pairGapMedian      76     ✓ ghép cặp cân
-teamGapMedian      42     ✓ trận cân
+eloDrift          +82     ✓ ≈ +0.7/trận, do K khác nhau theo người (§2.6 CHI_SO_VA_CONG_THUC)
+clampGainTotal      0     ✓ sàn 0 không tạo điểm (từ khi có startPoints 100)
+totalUpsets         2     — chênh đội tối đa 200, mới chạm ngưỡng 150 vài lần
+tierCounts        balanced 220 · favored 91 · underdog 86
+                  heavyFavored 5 · deepUnderdog 4  ← hai dải ngoài hiếm khi chạy
+pairGapMedian     114     — xếp tay ghép mạnh + yếu, nên đôi lệch nhau nhiều
+teamGapMedian      45     ✓ trận cân (p90 113)
 ```
 
-`clampGainTotal` là con số cần theo dõi: làm Phase 3 (bỏ sàn 0, dịch thang) xong thì nó **phải về 0**,
-và backtest sẽ xác nhận thay vì phải tin lời ai.
+Bộ 53 trận cũ (14/09) là tập con của bộ này nên đã bỏ. Mốc cũ lúc đó: `clampGainTotal` từng là +201
+trước khi có `startPoints`, nay về 0.
 
 ---
 
