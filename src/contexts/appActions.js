@@ -24,7 +24,7 @@ import { getMemberStreak } from '#lib/badges.js'
 import { seasonMatchesOf, calculateSeasonLeaderboard } from '#lib/season.js'
 import { buildMatchBackup, validateMatchBackup } from '#lib/matchBackup.js'
 import cfgBadges from '#config/badges.json' with { type: 'json' }
-import { syncPatchMatchViews, syncPatchMatchVideo } from '#contexts/storage.js'
+import { syncPatchMatchViews, syncPatchMatchVideo, syncPatchMember } from '#contexts/storage.js'
 import { makeTournamentActions } from '#contexts/tournamentActions.js'
 import { detectMatchNarrative, notifyRecipients, notifiableMemberIds, resolveNotificationPayload } from '#lib/activity.js'
 
@@ -94,6 +94,14 @@ export function makeActions({ setDb, setUi, dbRef, uiRef, navRef, toast, reload,
    * dùng thấy màn "Lỗi khởi động ứng dụng". Bỏ qua patch là đúng: CLB cũ không còn trên màn.
    */
   const up = (fn) => setDb((d) => (d ? { ...d, ...fn(d) } : d))
+  // Ghi thẳng vài cột hồ sơ của 1 thành viên: UI đổi ngay, 1 request, snapshot đã vá nên sync
+  // không upsert cả dòng. Hỏng mới nạp lại để màn hình khớp DB.
+  const saveMemberCols = (mid, cols) => {
+    syncPatchMember(mid, cols)
+    supabase.from('club_members').update(cols).eq('id', mid).then(({ error }) => {
+      if (error) { toast(error.message); reload() }
+    })
+  }
 
   /**
    * Ghi/đè một dòng đối chiếu buổi. Lần đầu chạm vào là LƯU con số hiện tại — từ đó sửa điểm
@@ -2538,28 +2546,25 @@ export function makeActions({ setDb, setUi, dbRef, uiRef, navRef, toast, reload,
       toast(t('toast.renamedMe', { name: nm }))
     },
 
-    // Kệ & châm ngôn ghi THẲNG đúng cột, không qua `up()`. Đường sync upsert CẢ DÒNG, mà vài cột
-    // không khứ hồi nguyên vẹn (`linked_at` bị cắt còn ngày, `bank_accounts` [] thành null) — trigger
-    // `guard_member_self_update` thấy cột bị gác "đổi" nên chặn mọi thành viên thường.
-    setMemberShelf: async (mid, shelf) => {
+    setMemberShelf: (mid, shelf) => {
       const s = Array.isArray(shelf) ? shelf.slice(0, 3) : []
-      try {
-        unwrap(await supabase.from('club_members').update({ badge_shelf: s }).eq('id', mid))
-      } catch (e) {
-        return toast(e.message)
-      }
-      await reload()
+      saveMemberCols(mid, { badge_shelf: s })
+      up((d) => ({
+        members: (d.members || []).map((m) =>
+          m.id === mid ? { ...m, badgeShelf: s, badge_shelf: s } : m,
+        ),
+      }))
       toast(t('badges.shelfSaved'))
     },
 
-    setMemberSignature: async (mid, sig) => {
+    setMemberSignature: (mid, sig) => {
       const text = String(sig || '').trim().slice(0, 80)
-      try {
-        unwrap(await supabase.from('club_members').update({ signature: text }).eq('id', mid))
-      } catch (e) {
-        return toast(e.message)
-      }
-      await reload()
+      saveMemberCols(mid, { signature: text })
+      up((d) => ({
+        members: (d.members || []).map((m) =>
+          m.id === mid ? { ...m, signature: text } : m,
+        ),
+      }))
       toast(t('badges.signatureSaved'))
     },
 
