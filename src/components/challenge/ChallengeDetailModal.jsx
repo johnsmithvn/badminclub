@@ -368,7 +368,7 @@ export default function ChallengeDetailModal({ challenge, session, onClose, onSc
   // đã bấm nhận rồi mà người thiếu là đồng đội họ (hoặc ai đó bên đội A) — đọc "Chờ X nhận kèo"
   // với X đã nhận xong là sai. `+n` cho số người còn lại thay vì nối chuỗi tên (tên CLB dài).
   // Kèo chưa đủ người thì không có ai để chờ đích danh, giữ nguyên `acceptorName`.
-  const pendingName = (prog.isFullTeam && prog.pendingPlayerIds.length)
+  const pendingName = (isAdmin && prog.isFullTeam && prog.pendingPlayerIds.length)
     ? playerName(db, prog.pendingPlayerIds[0]) + (prog.pendingPlayerIds.length > 1 ? ` +${prog.pendingPlayerIds.length - 1}` : '')
     : acceptorName
 
@@ -965,9 +965,15 @@ export default function ChallengeDetailModal({ challenge, session, onClose, onSc
         <div style={S.boxCard}>
           {isPending && !isExpired && (
             <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', paddingBottom: 6, borderBottom: '1px solid var(--border-subtle)', marginBottom: 2 }}>
-              <span style={{ fontSize: 12, color: 'var(--text-muted)', fontFamily: 'var(--font-mono)', fontWeight: 600 }}>
-                {t('challenge.acceptedProgress', { count: prog.acceptedCount, total: prog.totalCount })}
-              </span>
+              {isAdmin ? (
+                <span style={{ fontSize: 12, color: 'var(--text-muted)', fontFamily: 'var(--font-mono)', fontWeight: 600 }}>
+                  {t('challenge.acceptedProgress', { count: prog.acceptedCount, total: prog.totalCount })}
+                </span>
+              ) : (
+                <span style={{ fontSize: 12, color: 'var(--text-muted)', fontFamily: 'var(--font-mono)', fontWeight: 600 }}>
+                  {t('challenge.status.pending')}
+                </span>
+              )}
               {Boolean(myId && (c.acceptedPlayers || []).includes(myId)) && !prog.isFullyAccepted && (
                 <span style={{ fontSize: 12, color: 'var(--status-delivered-fg)', display: 'inline-flex', alignItems: 'center', gap: 4 }}>
                   <Icon name="check" size={12} />
@@ -986,7 +992,7 @@ export default function ChallengeDetailModal({ challenge, session, onClose, onSc
                     key={id}
                     name={playerName(db, id)}
                     team="A"
-                    isAccepted={isPending && (c.acceptedPlayers || []).includes(id)}
+                    isAccepted={isPending && (c.acceptedPlayers || []).includes(id) && Boolean(isAdmin || (myId && id === myId))}
                     isWinner={isPlayed && c.winner === 'A'}
                     isMobile={isMobile}
                     maxLines={3}
@@ -1010,7 +1016,7 @@ export default function ChallengeDetailModal({ challenge, session, onClose, onSc
                     key={id}
                     name={playerName(db, id)}
                     team="B"
-                    isAccepted={isPending && (c.acceptedPlayers || []).includes(id)}
+                    isAccepted={isPending && (c.acceptedPlayers || []).includes(id) && Boolean(isAdmin || (myId && id === myId))}
                     isWinner={isPlayed && c.winner === 'B'}
                     isMobile={isMobile}
                     maxLines={3}
@@ -1524,7 +1530,7 @@ export default function ChallengeDetailModal({ challenge, session, onClose, onSc
                     : t('challenge.step2Sub', { time: acceptedTimeStr }))
                   : (c.status === 'declined'
                     ? t('challenge.toastDeclined', { code: c.code })
-                    : (prog.totalCount > 0 ? t('challenge.acceptedProgress', { count: prog.acceptedCount, total: prog.totalCount }) : t('challenge.status.pending'))),
+                    : (isAdmin && prog.totalCount > 0 ? t('challenge.acceptedProgress', { count: prog.acceptedCount, total: prog.totalCount }) : t('challenge.status.pending'))),
                 status: (isAccepted || isPlayed) ? 'done' : (isPending ? 'current' : 'pending'),
               },
               {

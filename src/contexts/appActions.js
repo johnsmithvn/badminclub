@@ -3044,13 +3044,15 @@ export function makeActions({ setDb, setUi, dbRef, uiRef, navRef, toast, reload,
           challenges: (d.challenges || []).map((c) => (c.id === challengeId ? { ...c, status: 'declined' } : c)),
         }))
         settlePredictions(challengeId, null)
+        // Từ chối âm thầm: không đăng lên Bảng tin CLB, không lưu ai từ chối để bảo vệ riêng tư
         emitEvent({
           type: 'challenge_declined',
-          payload: { chalId: chal.id, code: chal.code, declinedById: myMem?.id || null },
+          payload: { chalId: chal.id, code: chal.code },
           recipients: [chal.createdBy],
           refType: 'challenge',
           refId: chal.id,
-          actorId: myMem?.id || null,
+          actorId: null,
+          skipActivity: true,
         })
         toast(t('challenge.toastDeclined', { code: chal.code }))
         return
@@ -3090,6 +3092,7 @@ export function makeActions({ setDb, setUi, dbRef, uiRef, navRef, toast, reload,
           refType: 'challenge',
           refId: chal.id,
           actorId: myMem?.id || null,
+          skipActivity: true,
         })
         toast(t('challenge.toastAccepted', { code: chal.code }))
       } else {
@@ -3152,7 +3155,7 @@ export function makeActions({ setDb, setUi, dbRef, uiRef, navRef, toast, reload,
         refType: 'challenge',
         refId: chal.id,
         actorId: myId,
-        skipActivity: !isFullyAccepted,
+        skipActivity: true,
       })
 
       // Người được rủ đánh cặp bị kéo thẳng vào `teamB` mà không ai báo — cùng lỗi với nhánh
