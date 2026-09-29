@@ -2879,10 +2879,9 @@ export function makeActions({ setDb, setUi, dbRef, uiRef, navRef, toast, reload,
         return
       }
       const code = nextChallengeCode(d0.challenges)
-      // Hạn NHẬN kèo. 60 phút cũ quá ngắn: gạ kèo buổi sáng cho buổi tối là kèo chết trước khi
-      // người ta kịp mở app. `defaultExpireMins` vẫn giữ trong config nhưng CHỈ còn dùng để suy
+      // Hạn NHẬN kèo (24h). `defaultExpireMins` vẫn giữ trong config nhưng CHỈ còn dùng để suy
       // cho dòng cũ thiếu `expiresAt` (xem `challengeExpiryAt`) — kèo tạo từ đây ghi thẳng mốc.
-      const expireDays = cfg.challenge?.pendingExpireDays ?? 7
+      const expireHours = cfg.challenge?.pendingExpireHours ?? ((cfg.challenge?.pendingExpireDays ?? 1) * 24)
       const allInMatch = [...(teamA || []), ...(teamB || [])]
       const acceptedPlayers = allInMatch.includes(myId) ? [myId] : []
       const newChalTemp = {
@@ -2902,7 +2901,7 @@ export function makeActions({ setDb, setUi, dbRef, uiRef, navRef, toast, reload,
         scheduledAt: scheduledAt || null,
         bestOf,
         ratingEnabled,
-        expiresAt: new Date(Date.now() + expireDays * 86400000).toISOString(),
+        expiresAt: new Date(Date.now() + expireHours * 3600000).toISOString(),
         matchId: null,
         acceptedPlayers,
         // Kèo tạo ra đã đủ chữ ký (người tạo đánh một mình cả hai đội thì không xảy ra, nhưng

@@ -204,22 +204,27 @@ export function validateMatchBackup(data, db = {}) {
   const rated = matches.filter((m) => m.ratingEnabled !== false).length
   return {
     ok: true,
-    matches: matches.map((m) => ({
-      id: m.id,
-      sessionId: m.sessionId,
-      courtIdx: m.courtIdx ?? 0,
-      minutes: m.minutes ?? 0,
-      at: m.at ?? null,
-      sets: m.sets || [],
-      winnerTeam: m.winnerTeam ?? null,
-      ratingEnabled: m.ratingEnabled !== false,
-      initialRatingA: m.initialRatingA ?? null,
-      initialRatingB: m.initialRatingB ?? null,
-      eloDelta: m.eloDelta ?? null,
-      playerKeys: keysOf(m),
-      teamA: keysOf(m).slice(0, 2),
-      teamB: keysOf(m).slice(2, 4),
-    })),
+    matches: matches.map((m) => {
+      // Trận đơn chỉ có 2 ô: cắt cứng 0-2 / 2-4 thì cả hai người rơi vào đội A, đội B rỗng.
+      const pk = keysOf(m)
+      const half = pk.length <= 2 ? 1 : 2
+      return {
+        id: m.id,
+        sessionId: m.sessionId,
+        courtIdx: m.courtIdx ?? 0,
+        minutes: m.minutes ?? 0,
+        at: m.at ?? null,
+        sets: m.sets || [],
+        winnerTeam: m.winnerTeam ?? null,
+        ratingEnabled: m.ratingEnabled !== false,
+        initialRatingA: m.initialRatingA ?? null,
+        initialRatingB: m.initialRatingB ?? null,
+        eloDelta: m.eloDelta ?? null,
+        playerKeys: pk,
+        teamA: pk.slice(0, half),
+        teamB: pk.slice(half, half * 2),
+      }
+    }),
     stats: {
       total: matches.length,
       rated,

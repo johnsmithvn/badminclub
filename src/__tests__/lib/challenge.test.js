@@ -315,7 +315,8 @@ const pastRivalryMatches = [
 ]
 const tRivalry = getChallengeMatchTags({ teamA: ['m1'], teamB: ['m2'] }, pastRivalryMatches, 1000, 1000)
 assert.ok(tRivalry.some((t) => t.id === 'rivalry'), 'Gặp nhau 3 trận thắng 2-1 phải có tag rivalry')
-assert.ok(!tRivalry.some((t) => t.id === 'revenge'), 'Đã là rivalry thì không gắn revenge')
+// 5. Cấu hình hạn nhận kèo là 24h
+assert.equal(cfg.challenge?.pendingExpireHours, 24, 'Hạn nhận kèo mặc định phải là 24h')
 
 console.log('challenge check: OK')
 

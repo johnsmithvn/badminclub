@@ -120,6 +120,15 @@ test('Sao lưu lịch sử trận', async (t) => {
     assert.equal(validateMatchBackup(dup, okDb()).error, 'matchIo.errDuplicateId', 'Trùng id là ghi đè lẫn nhau lúc lưu')
   })
 
+  await t.test('7b. Trận đơn 2 người: mỗi đội một người, không dồn cả hai vào đội A', () => {
+    const db = srcDb()
+    db.matches = [{ id: 'mt3', sessionId: 's1', sets: [[19, 21]], winnerTeam: 'B', playerKeys: ['m1', 'g1'] }]
+    const res = validateMatchBackup(buildMatchBackup(db), okDb())
+    assert.equal(res.ok, true, res.error)
+    assert.deepEqual(res.matches[0].teamA, ['m1'])
+    assert.deepEqual(res.matches[0].teamB, ['g1'], 'Đội B rỗng là replay Elo bỏ qua trận — người thua giữ nguyên điểm như chưa đánh')
+  })
+
   await t.test('8. File rỗng hoặc không có mảng matches thì chặn', () => {
     assert.equal(validateMatchBackup({ schema: MATCH_BACKUP_SCHEMA, version: 1 }, okDb()).error, 'matchIo.errNoMatches')
     assert.equal(validateMatchBackup({ schema: MATCH_BACKUP_SCHEMA, version: 1, matches: [] }, okDb()).error, 'matchIo.errEmptyFile')

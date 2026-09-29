@@ -44,7 +44,7 @@ export function challengeCountdown(ms) {
  * Trả về mili-giây, hoặc null nếu không suy ra được.
  *
  * `defaultExpireMins` (60) CHỈ dùng cho nhánh suy dòng cũ — giữ nguyên để kèo cũ hành xử y như
- * trước. Kèo tạo từ giờ ghi thẳng `expiresAt` theo `pendingExpireDays`, xem `createChallenge`.
+ * trước. Kèo tạo từ giờ ghi thẳng `expiresAt` theo `pendingExpireHours` (24h), xem `createChallenge`.
  */
 export function challengeExpiryAt(challenge) {
   if (challenge?.expiresAt) return new Date(challenge.expiresAt).getTime()
