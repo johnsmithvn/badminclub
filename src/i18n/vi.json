@@ -3280,6 +3280,7 @@
     "step1Sub": "{{time}} · status PENDING · hết hạn {{expire}}",
     "step2Accept": "{{name}} nhận kèo",
     "step2AcceptPending": "Chờ {{name}} nhận kèo",
+    "step2AcceptPendingAny": "Chờ đấu thủ nhận kèo",
     "step2Sub": "{{time}} · status ACCEPTED",
     "step2SubBy": "{{time}} · {{name}} chốt kèo",
     "step3WaitCourt": "Thẻ chờ sân ở tab Chia sân",

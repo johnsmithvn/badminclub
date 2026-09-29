@@ -367,10 +367,12 @@ export default function ChallengeDetailModal({ challenge, session, onClose, onSc
   // Lúc CÒN CHỜ thì tên phải là người thật sự chưa ký, không phải `acceptorName`. teamB[0] có thể
   // đã bấm nhận rồi mà người thiếu là đồng đội họ (hoặc ai đó bên đội A) — đọc "Chờ X nhận kèo"
   // với X đã nhận xong là sai. `+n` cho số người còn lại thay vì nối chuỗi tên (tên CLB dài).
-  // Kèo chưa đủ người thì không có ai để chờ đích danh, giữ nguyên `acceptorName`.
+  // Chỉ admin được biết ai chưa ký (riêng tư nhận/từ chối kèo). Còn lại trả null → timeline nói
+  // chung "Chờ đấu thủ nhận kèo" — KHÔNG rơi về teamB[0], người đó có thể đã nhận rồi. Đội B còn
+  // trống (kèo mở chưa ai vào) thì giữ `acceptorName`.
   const pendingName = (isAdmin && prog.isFullTeam && prog.pendingPlayerIds.length)
     ? playerName(db, prog.pendingPlayerIds[0]) + (prog.pendingPlayerIds.length > 1 ? ` +${prog.pendingPlayerIds.length - 1}` : '')
-    : acceptorName
+    : (teamB.length ? null : acceptorName)
 
   // Người chốt kèo chỉ đáng nhắc khi KHÔNG phải đội B — tức admin duyệt hộ hoặc người đội A bấm
   // cuối. Đội B tự nhận là chuyện đương nhiên, nói ra chỉ thừa.
@@ -1523,7 +1525,7 @@ export default function ChallengeDetailModal({ challenge, session, onClose, onSc
                 // hiện "Hùng nhận kèo" dù Hùng chưa đụng vào, đọc y như đã nhận rồi.
                 title: (isAccepted || isPlayed)
                   ? t('challenge.step2Accept', { name: acceptorName || t('challenge.teamB') })
-                  : t('challenge.step2AcceptPending', { name: pendingName || t('challenge.teamB') }),
+                  : (pendingName ? t('challenge.step2AcceptPending', { name: pendingName }) : t('challenge.step2AcceptPendingAny')),
                 sub: (isAccepted || isPlayed)
                   ? (closerName
                     ? t('challenge.step2SubBy', { time: acceptedTimeStr, name: closerName })

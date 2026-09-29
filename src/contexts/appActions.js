@@ -65,7 +65,7 @@ const PUSH_EVENTS = new Set([
   'session_rsvp_invite', // mở điểm danh — quản trò cần câu trả lời để xếp sân
 
   // ---- ĐÃ BỎ khỏi push (vẫn còn chuông trong app) ----
-  // 'challenge_accepted'  'challenge_declined'  'challenge_completed'
+  // 'challenge_accepted'  'challenge_completed'   ('challenge_declined' bỏ hẳn — xem respondChallenge)
   //      Không gấp: mở app là thấy. Một kèo sinh tới 4 thông báo cho cùng nhóm người,
   //      đánh 5 kèo một buổi là 20 lần rung máy.
   // 'bounty_broken'
@@ -3044,16 +3044,8 @@ export function makeActions({ setDb, setUi, dbRef, uiRef, navRef, toast, reload,
           challenges: (d.challenges || []).map((c) => (c.id === challengeId ? { ...c, status: 'declined' } : c)),
         }))
         settlePredictions(challengeId, null)
-        // Từ chối âm thầm: không đăng lên Bảng tin CLB, không lưu ai từ chối để bảo vệ riêng tư
-        emitEvent({
-          type: 'challenge_declined',
-          payload: { chalId: chal.id, code: chal.code },
-          recipients: [chal.createdBy],
-          refType: 'challenge',
-          refId: chal.id,
-          actorId: null,
-          skipActivity: true,
-        })
+        // Từ chối âm thầm: không Bảng tin, không thông báo cho người tạo, không lưu ai từ chối.
+        // Kèo đơn chỉ có một đối thủ — báo "bị từ chối" là chỉ thẳng mặt người đó.
         toast(t('challenge.toastDeclined', { code: chal.code }))
         return
       }
