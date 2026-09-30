@@ -34,7 +34,9 @@
   ],
   "toastMs": 2600,
   "sync": {
-    "debounceMs": 500
+    "debounceMs": 500,
+    "_noteRefresh": "Quay lại app (tab/PWA hiện lên) thì nạp lại cả CLB, nhưng không quá 1 lần mỗi refreshMinMs. Có push mới thì nạp luôn, không chờ.",
+    "refreshMinMs": 20000
   },
   "clockTickMs": 10000,
   "money": {

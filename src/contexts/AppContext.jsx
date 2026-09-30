@@ -46,24 +46,59 @@ export function StoreProvider({ children }) {
   const role = activeClub ? activeClub.role : 'owner'
   const userId = session ? session.user.id : null
 
-  /** Nạp lại toàn bộ CLB từ DB. Dùng lúc đổi CLB và sau các RPC ghi phía server. */
-  const reload = useCallback(async () => {
+  const loadedAt = useRef(0)
+
+  /**
+   * Nạp lại toàn bộ CLB từ DB. Dùng lúc đổi CLB và sau các RPC ghi phía server.
+   * `soft` = nạp nền khi quay lại app: giữ tháng đang xem, lỗi mạng thì im lặng (không thay cả
+   * app bằng màn lỗi), còn thay đổi chưa xuống DB thì bỏ lượt này — xem `load()`.
+   */
+  const reload = useCallback(async (soft = false) => {
     if (!activeClubId) return
     try {
-      const fresh = await load(activeClubId)
-      setDb((cur) => ({
-        ...fresh,
-        currentUserId: userId,
-        myRole: role,
-        viewAs: (cur && cur.clubId === activeClubId && cur.viewAs) || role,
-        sessionId: (cur && cur.clubId === activeClubId && cur.sessionId) || null,
-      }))
+      const fresh = await load(activeClubId, soft)
+      if (!fresh) return
+      loadedAt.current = Date.now()
+      setDb((cur) => {
+        const same = cur && cur.clubId === activeClubId
+        return {
+          ...fresh,
+          ...(soft && same && { month: cur.month }),
+          currentUserId: userId,
+          myRole: role,
+          viewAs: (same && cur.viewAs) || role,
+          sessionId: (same && cur.sessionId) || null,
+        }
+      })
       setError(null)
     } catch (e) {
       console.error('[app] không nạp được dữ liệu CLB', e)
-      setError(e)
+      if (!soft) setError(e)
     }
   }, [activeClubId, role, userId])
+
+  // Không có realtime (xem NotificationBell): quay lại app hoặc có push mới thì nạp lại CLB.
+  // PWA trên iPhone không có kéo-để-tải-lại và chạy nền rất lâu — thiếu cái này là người dùng
+  // thấy chuông báo kèo mới mà danh sách kèo vẫn là ảnh chụp từ lúc mở app.
+  useEffect(() => {
+    if (!activeClubId) return undefined
+    const refresh = async () => {
+      save(dbRef.current) // đẩy nốt thay đổi đang chờ / lần ghi hỏng trước khi nạp đè
+      await flushNow()
+      reload(true)
+    }
+    const onShow = () => {
+      if (document.visibilityState === 'visible' && Date.now() - loadedAt.current > cfg.sync.refreshMinMs) refresh()
+    }
+    const onPush = (e) => { if (e.data?.type === 'push-received') refresh() }
+    const sw = navigator.serviceWorker
+    document.addEventListener('visibilitychange', onShow)
+    sw?.addEventListener('message', onPush)
+    return () => {
+      document.removeEventListener('visibilitychange', onShow)
+      sw?.removeEventListener('message', onPush)
+    }
+  }, [activeClubId, reload])
 
   // Đổi CLB (kể cả bỏ chọn) → đẩy nốt thay đổi của CLB cũ (cleanup chạy TRƯỚC body của
   // effect mới), quên ảnh chụp cũ, rồi nạp lại từ đầu.

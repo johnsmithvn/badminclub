@@ -25,14 +25,24 @@ export function todayISO() {
 
 let synced = { clubId: null, rows: {}, club: null }
 
+// Nạp nền (`load(id, true)`) chỉ được đè ảnh chụp khi không còn thay đổi nào chưa xuống DB.
+// `gen` tăng mỗi lần có thay đổi mới hoặc một lượt ghi vừa xong; `dirty` = lượt ghi gần nhất hỏng.
+let gen = 0
+let dirty = false
+
 /* ================= ĐỌC ================= */
 
 const SESSION_TREE =
   '*, session_courts(*), attendances(*), session_guests(*), session_lineups(*),' +
   ' session_court_groups(*), matches(*, match_players(*))'
 
-export async function load(clubId) {
+/**
+ * @param {boolean} [soft] nạp nền (quay lại app): trả `null` thay vì đè nếu trong lúc chờ mạng
+ *   có thay đổi chưa xuống DB. Đè lúc đó là lệch ảnh chụp với `db` → `diff` xoá mất dòng lệch.
+ */
+export async function load(clubId, soft = false) {
   if (!supabase) throw new Error('Chưa cấu hình Supabase')
+  const g0 = gen
   const of = (table, sel) => supabase.from(table).select(sel || '*').eq('club_id', clubId)
 
   const [
@@ -131,12 +141,15 @@ export async function load(clubId) {
     challengePredictions: challengePredictions.error ? [] : (challengePredictions.data || []),
   }
 
+  if (soft && (synced.clubId !== clubId || pending || running || dirty || gen !== g0)) return null
+
   const today = todayISO()
   const db = { ...toDb(raw, { clubId }), clubId, today, month: monthOf(today) }
 
   // Ảnh chụp phải dựng LẠI từ `db` chứ không từ `raw`: có vậy load và save mới cùng một
   // hàm map, lệch nhau là lộ ra ngay ở lần save đầu chứ không âm thầm xoá dòng.
   synced = { clubId, rows: toRows(db, ctxOf(db)), club: JSON.stringify(clubRow(db)) }
+  dirty = false
   return db
 }
 
@@ -193,6 +206,7 @@ export const isFatal = (e) => Boolean(e && e.code) && !RETRY_CODES.has(e.code)
 export function save(db) {
   if (!supabase || !db || !db.clubId || db.clubId !== synced.clubId) return
   pending = db
+  gen++
   clearTimeout(timer)
   timer = setTimeout(flush, cfg.sync.debounceMs)
 }
@@ -244,8 +258,9 @@ async function flush() {
     // thì op hỏng nằm lại trong diff mãi và mọi thay đổi sau nó cũng không xuống được DB —
     // màn hình vẫn báo đã lưu. Nâng cấp khi cần: hoặc reload() đè state khi lỗi không phải
     // lỗi mạng, hoặc ghi nhận ảnh chụp từng phần theo op đã chạy xong.
-    if (mine()) synced.rows = rows
+    if (mine()) { synced.rows = rows; dirty = false }
   } catch (e) {
+    if (mine()) dirty = true
     console.error('[storage] đồng bộ thất bại', e)
     if (onError) onError(e)
     // Lỗi cố định mà cứ để đó thì op hỏng nằm lại trong diff MÃI, và mọi thay đổi sau nó cũng
@@ -254,6 +269,7 @@ async function flush() {
     if (isFatal(e) && onFatal) onFatal(e)
   } finally {
     running = false
+    gen++
     if (pending) flush()
   }
 }
@@ -318,6 +334,7 @@ const inList = (vals) => '(' + vals.map((v) =>
 export function reset() {
   clearTimeout(timer)
   pending = null
+  dirty = false
   synced = { clubId: null, rows: {}, club: null }
 }
 
