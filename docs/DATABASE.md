@@ -1,8 +1,8 @@
 # DATABASE.md
 
-**Version:** v1.2.0 · **Updated:** 2026-09-17
+**Version:** v2.0.0 · **Updated:** 2026-09-30
 
-Schema đầy đủ: [`supabase/migrations/0001_init.sql`](../supabase/migrations/0001_init.sql) kèm các migration bổ sung `0002..0039`.
+Schema đầy đủ: [`supabase/migrations/0001_init.sql`](../supabase/migrations/0001_init.sql) kèm các migration bổ sung `0002..0063`.
 Đặc tả gốc: handoff `03-data-model.md`. File này nói **luật bất di bất dịch** và **chỗ shape
 localStorage khác shape Postgres** — để lúc nối Supabase không đoán.
 
@@ -187,8 +187,21 @@ State `db` của client dùng shape gọn của prototype. Cài đặt tại `sr
 | `club.hasMemberExtraDiscount` · `club.memberExtraDiscount` | `clubs.has_member_extra_discount` · `clubs.member_extra_discount` | Cấu hình ưu đãi giảm trừ cho hội viên cố định khi đi thêm buổi (0024) |
 | `session_courts[].courtLabel` · `schedule_slots[].courtLabel` | `session_courts.court_label` · `schedule_slots.court_label` | Nhãn số sân cụ thể (Sân 1, Sân 2...) của buổi tập và lịch cố định (0025) |
 | `challenges[].acceptedPlayers` | `challenges.accepted_players uuid[]` | Mảng danh sách ID thành viên đã bấm nhận kèo đấu (0037) |
+| `challenges[].acceptedAt` · `acceptedBy` · `deployedAt` | `challenges.accepted_at` · `accepted_by` · `deployed_at` | Mốc thời gian nhận đủ kèo, người chốt và lúc đưa lên sân (0046) |
+| `challenges[].stakeText` | `challenges.stake_text text` | Giao kèo đời thật tự gõ (tối đa 120 ký tự), thuần trang trí (0048) |
+| `challenges[].predictionsEnabled` · `predictionsLocked` | `challenges.predictions_enabled` · `predictions_locked` | Cờ đóng/mở cổng dự đoán bằng Điểm Mùa (0041) |
+| `challenges[].status` | `challenges.status` | Bỏ trạng thái `oncourt` (0043): "đang đánh" suy từ số hiệp đã ghi, không lưu vào status |
+| `challengePredictions` (RPC-only, không nạp state `db`) | `challenge_predictions` | Phiếu cược Điểm Mùa: đặt cược, huỷ cược, quyết toán qua RPC (`place_challenge_prediction`, `cancel_challenge_prediction`, `settle_challenge_predictions`). CỐ Ý KHÔNG CÓ trong `dbmap.TABLES` để tránh lỗi 42501 (0041, 0042, 0047) |
+| `push_subscriptions` (Quản lý riêng, không nạp state `db`) | `push_subscriptions` | Token Web Push (VAPID endpoint, p256dh, auth) cho thiết bị PWA/Mobile (0049, 0050) |
+| `sessions[].rsvpInvitedAt` | `sessions.rsvp_invited_at` | Mốc thời gian gửi lời mời điểm danh RSVP 1 chạm, chống spam khi mở lại buổi (0051) |
+| `club.seasons` | `clubs.seasons jsonb` | Cấu hình danh sách các mùa giải CLB, mùa active và snapshot bục vinh quang (0055) |
+| `groups[].sortOrder` | `member_groups.sort_order int` | Thứ tự sắp xếp hiển thị tùy biến của nhóm (0056) |
+| `groups[].hasCustomPricing` | `member_groups.has_custom_pricing bool` | Nhóm áp dụng mức thu riêng hay theo biểu phí chung CLB (0062) |
+| `members[].badgeShelf` | `club_members.badge_shelf text[]` | Kệ tối đa 3 huy hiệu danh dự hiển thị trên profile (0027, 0053: ràng buộc CHECK max 3 & trigger guard) |
+| `members[].signature` | `club_members.signature text` | Câu châm ngôn cá nhân của thành viên, tự sửa được (0053) |
 | `notifications[]` | `notifications` | Thông báo cá nhân từng thành viên: mã CLB, memberId nhận, loại, payload (chỉ lưu ID/số), refType/refId, readAt, createdAt (0038) |
 | `activity_events` (DB-only, không nạp state `db`) | `activity_events` | Bảng tin hoạt động toàn CLB: mã CLB, actorId, loại sự kiện, payload (chỉ lưu ID/số), refType/refId, createdAt. Tải lazy-load phân trang trên UI (0038) |
+| `tournaments_*` (16 bảng giải đấu, nạp độc lập) | 16 bảng `tournament_*` | Phân hệ Giải đấu nạp riêng theo trang và ghi qua RPC nguyên tử (`advance.js`, `tournamentActions.js`), CỐ Ý KHÔNG đi qua `diff()` và state `db` chung (0057..0063) |
 
 ---
 
@@ -236,6 +249,29 @@ State `db` của client dùng shape gọn của prototype. Cài đặt tại `sr
 | `0038_notifications_and_activity.sql` | Tạo bảng `activity_events` (dòng thời gian sự kiện toàn CLB) và bảng `notifications` (hộp thư thông báo cá nhân của từng thành viên); thiết lập indexes và các chính sách RLS bảo vệ chặt chẽ (`actor_id = auth_member_id() OR NULL`, `member_id = auth_member_id()`). |
 | `0039_member_self_attendance.sql` | Cập nhật RLS policies cho bảng `attendances` cho phép thành viên tự thêm/sửa/xóa dòng điểm danh của chính mình khi buổi chưa chốt (`status != 'closed'`); tạo hàm RPC `member_self_checkin(p_session_id, p_status)` hỗ trợ tự điểm danh 1 chạm an toàn. |
 | `0040_member_adjustments_settled_sessions.sql` | Bổ sung cột `settled_sessions uuid[] NOT NULL DEFAULT '{}'` cho bảng `member_adjustments` để hỗ trợ thu / hoàn tiền và hoàn tác độc lập theo từng buổi lẻ cho hội viên cố định (`absent_back` và `extra_session`). |
+| `0041_challenge_predictions.sql` | Tạo bảng `challenge_predictions` (dự đoán kèo bằng Điểm Mùa - SP); bổ sung cờ `predictions_enabled` và `predictions_locked` cho `challenges`; RPC hủy và quyết toán cược. |
+| `0042_challenge_predictions_rpc.sql` | Sửa lỗi P0 42501: chuyển toàn bộ thao tác đặt/hủy cược sang RPC `place_challenge_prediction` với `ON CONFLICT DO UPDATE`; siết trần cược 1..3; RLS đọc theo CLB `is_club_member`. |
+| `0043_drop_challenge_oncourt.sql` | Gỡ trạng thái 'oncourt' khỏi máy trạng thái của Kèo: "đang đánh" suy từ số hiệp đã ghi (`getChallengeSeriesProgress`), tránh kẹt kèo và khóa cổng cược vĩnh viễn. |
+| `0044_undo_wrong_challenge_expiry.sql` | Hoàn tác các kèo bị đánh dấu 'expired' nhầm khi buổi chơi bị chốt sổ hoặc hủy; tách rõ hết hạn nhận kèo vs mồ côi buổi chơi. |
+| `0045_drop_dead_rating_objects.sql` | Dọn dẹp cột chết `player_ratings.rating_deviation` (hằng số 350) và bảng chết `public.player_rating_context`. |
+| `0046_challenge_accept_deploy_timestamps.sql` | Bổ sung mốc thời gian thật cho vòng đời kèo: `accepted_at` (lúc nhận đủ), `accepted_by` (người chốt nhát cuối), `deployed_at` (lúc lên sân). |
+| `0047_prediction_free_stake.sql` | Mở mức cược dự đoán từ 3 nấc cố định sang nhập tự do trong khoảng 1..100 SP; cập nhật guard trong `place_challenge_prediction`. |
+| `0048_challenge_stake_text.sql` | Bổ sung cột `stake_text text` (tối đa 120 ký tự) cho bảng `challenges` lưu giao kèo đời thật tự gõ (vd: "Thua mua 2 chai nước"), thuần trang trí. |
+| `0049_push_subscriptions.sql` | Tạo bảng `push_subscriptions` lưu Web Push token (VAPID endpoint, p256dh, auth) cho PWA iOS/Android/Desktop, RLS theo tài khoản. |
+| `0050_grant_service_role.sql` | Cấp quyền tối thiểu cho vai `service_role` (schema `public`, `club_members` SELECT, `push_subscriptions` SELECT/DELETE) để Edge Function `push-send` hoạt động. |
+| `0051_session_rsvp_invited_at.sql` | Bổ sung cột `rsvp_invited_at timestamptz` cho bảng `sessions` lưu mốc đã gửi lời mời điểm danh 1 chạm, chống spam khi đóng/mở lại buổi. |
+| `0052_challenge_insert_policy_for_players.sql` | Nới policy `challenges_ins` cho phép đấu thủ trong kèo thực hiện UPSERT (nhận kèo, giao kèo) mà không bị RLS chặn vì thiếu quyền `assign`. |
+| `0053_member_self_shelf_and_signature.sql` | Cập nhật trigger `guard_member_self_update` cho phép thành viên tự sửa `badge_shelf` và `signature`; bổ sung ràng buộc CHECK `badge_shelf` tối đa 3 huy hiệu. |
+| `0054_member_self_upsert_policy.sql` | Bổ sung function `is_my_member_row` và nới `cm_write` policy cho phép câu lệnh UPSERT của thành viên tự cập nhật thông tin hồ sơ của chính mình. |
+| `0055_add_club_seasons.sql` | Thêm cột `seasons jsonb NOT NULL DEFAULT '[]'` vào bảng `clubs` lưu trữ danh sách các mùa giải CLB và snapshot bục vinh quang. |
+| `0056_member_groups_sort_order.sql` | Bổ sung cột `sort_order int NOT NULL DEFAULT 0` và `created_at` cho bảng `member_groups` để hỗ trợ sắp xếp thứ tự hiển thị nhóm tùy biến. |
+| `0057_tournaments.sql` | Migration nền tảng cho Module Giải đấu: tạo 14 bảng `tournament_*` (giải, nội dung, giai đoạn, liên kết nhánh, đăng ký, đội, trận, set đấu, giải thưởng, dự trù chi) và core RPCs. |
+| `0058_tournament_round_robin.sql` | Bổ sung thể thức Vòng tròn (Round Robin) cho giải đấu: sinh bảng, thuật toán ghép cặp vòng tròn, RPC `tournament_generate_stage` nhánh vòng tròn. |
+| `0059_tournament_guests_canvas_notify.sql` | Bổ sung bảng `tournament_guests` cho khách ngoài tham gia giải mở rộng; trigger thông báo trận đấu sắp lên sân; lưu trữ tọa độ Canvas. |
+| `0060_tournament_templates.sql` | Bổ sung bảng `tournament_templates` lưu trữ các mẫu cấu trúc thể thức giải đấu đồ thị (`ko`, `rr`, `rr_ko`, `custom`). |
+| `0061_tournament_free_scores.sql` | Bỏ ràng buộc điểm cứng trong giải đấu: cho phép nhập điểm tự do (0..99) và linh hoạt số set qua `tournament_valid_sets`. |
+| `0062_member_groups_has_custom_pricing.sql` | Thêm cột `has_custom_pricing boolean NOT NULL DEFAULT false` vào bảng `member_groups` (false = áp dụng biểu phí CLB, true = mức thu riêng của nhóm). |
+| `0063_tournament_swiss_double.sql` | Mở rộng thể thức giải đấu: Hệ Thụy Sĩ (`swiss`) sinh vòng dần qua RPC `tournament_add_swiss_round`; Nhánh thắng/nhánh thua (`double elimination`) kèm cơ chế chung kết tổng 2 (GF2). |
 
 ---
 
@@ -244,7 +280,10 @@ State `db` của client dùng shape gọn của prototype. Cài đặt tại `sr
 - [x] RLS trên mọi bảng: user chỉ thấy CLB mình là `club_members`.
 - [x] **Kiểm RLS bằng hai tài khoản khác CLB — ĐẠT 2026-09-01.**
 - [x] Kiểm tra công thức xếp hạng với dữ liệu lịch sử CLB qua runner Backtest (`src/__tests__/backtest/`).
+- [x] Web Push Notifications qua Supabase Edge Function (`push-send`, 0049, 0050).
+- [x] Phân hệ Giải đấu (16 bảng, RPCs, 4 thể thức: KO, RR, Swiss, Double Elim - 0057..0063).
+- [x] Hệ thống Dự đoán kèo & Sòng bạc Điểm Mùa (0041, 0042, 0047).
 - [ ] Kiểm cờ quyền **server-side** theo `role_permissions` — hiện `has_club_perm` đã có.
-- [ ] Trigger ghi `audit_logs` cho mọi bảng dính tiền.
+- [ ] Trigger ghi `audit_logs` cho mọi bảng dính tiền (hiện mới có `match_edits`).
 - [ ] Trigger/RPC sinh `transactions` khi chốt buổi, để không phụ thuộc client.
 - [ ] Realtime channel theo `session_id` cho `session_lineups` + `matches`.
