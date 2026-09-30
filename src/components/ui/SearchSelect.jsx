@@ -264,9 +264,8 @@ export function SearchSelect({
                 gap: 4,
                 padding: '2px 7px',
                 borderRadius: 99,
-                background: 'var(--surface-brand-soft, #e0f2fe)',
-                color: 'var(--teal-800, #0369a1)',
-                border: '1px solid var(--teal-200, #bae6fd)',
+                background: 'var(--surface-accent-soft)',
+                color: 'var(--text-accent)',
                 fontSize: size === 'sm' ? 11 : 12,
                 fontWeight: 600,
                 whiteSpace: 'nowrap',
@@ -288,7 +287,7 @@ export function SearchSelect({
                     display: 'inline-flex',
                     alignItems: 'center',
                     justifyContent: 'center',
-                    color: 'var(--teal-700, #0284c7)',
+                    color: 'inherit',
                     borderRadius: '50%',
                     marginLeft: 2,
                   }}
@@ -469,7 +468,7 @@ export function SearchSelect({
                         style={{
                           fontSize: 12.5,
                           fontWeight: isSelected ? 600 : 400,
-                          color: isSelected ? 'var(--teal-700, #0f766e)' : 'var(--text-primary)',
+                          color: isSelected ? 'var(--text-accent)' : 'var(--text-primary)',
                           whiteSpace: 'nowrap',
                           overflow: 'hidden',
                           textOverflow: 'ellipsis',
@@ -484,7 +483,7 @@ export function SearchSelect({
                       )}
                     </div>
                     {isSelected && (
-                      <Icon name="check" size={14} style={{ color: 'var(--teal-600)', flexShrink: 0 }} />
+                      <Icon name="check" size={14} style={{ color: 'var(--text-accent)', flexShrink: 0 }} />
                     )}
                   </div>
                 )

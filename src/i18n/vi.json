@@ -998,7 +998,7 @@
       "myEloLegend": "Elo của bạn",
       "mySeasonLegend": "Điểm mùa của bạn",
       "rivalEloLegend": "{{name}} (#{{rank}})",
-      "compareWith": "So sánh:",
+      "compareWith": "Thêm người",
       "gapShrinkNote": "Khoảng cách thu hẹp từ {{from}} xuống {{to}} điểm trong {{weeks}} tuần.",
       "gapWidenNote": "Khoảng cách nới rộng từ {{from}} lên {{to}} điểm trong {{weeks}} tuần.",
       "today": "hôm nay",
