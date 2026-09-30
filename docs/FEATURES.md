@@ -1,6 +1,6 @@
 # FEATURES.md
 
-**Version:** v1.2.0 · **Updated:** 2026-09-17
+**Version:** v2.0.0 · **Updated:** 2026-09-30
 
 Chức năng theo màn hình, kèm **luật nghiệp vụ** dễ làm sai. Bố cục và copy chính xác nằm ở handoff
 `02-screens-ui-spec.md` — file này không lặp lại pixel, chỉ nói **app phải xử sự thế nào**.
@@ -15,7 +15,7 @@ Chức năng theo màn hình, kèm **luật nghiệp vụ** dễ làm sai. Bố 
    *"250.000 ÷ 5 buổi của Cố định Chủ nhật"*.
 3. **Chỉ có MỘT tầng tiền: sổ quỹ** (`DATABASE.md` §3) — tiền đã đổi tay. Chốt buổi chỉ ghi sổ
    đúng ba thứ: sân bán được, sân thuê thêm, và tiền sân nếu CLB trả theo buổi.
-   Chia sân, số trận, bấm giờ, kèo đấu và xếp hạng Elo **không bao giờ** ảnh hưởng tiền.
+   Chia sân, số trận, bấm giờ, kèo đấu, dự đoán điểm mùa và xếp hạng Elo **không bao giờ** ảnh hưởng tiền.
 
 ---
 
@@ -54,14 +54,24 @@ Buổi `cancelled` **không** tính tiền và **không** tính vào số buổi
 
 ---
 
-## 2. Trang chủ (`/`)
+## 2. Trang chủ (`/` — render `src/pages/MyStats.jsx`)
 
-5 tab trong thanh cuộn ngang `TabTrack`:
-1. **Tổng quan (`overview`)**: 6 StatCard (số dư quỹ, công nợ khách, tiến độ đóng quỹ, thu tháng, chi tháng, buổi đã chốt) · "Buổi tới" (mở điểm danh trước giờ chơi) · "Tiến độ đóng quỹ tháng" (kèm chip từng người **chưa** đóng, bấm là đánh dấu đã đóng) · "Đi nhiều nhất" top 7 · "Khách nợ nhiều nhất" 5 dòng · "Buổi gần nhất" (bảng, click mở buổi).
-2. **Hoạt động (`activity`)**: Bảng tin dòng thời gian toàn CLB (Social Activity Feed). Tải lazy-load các sự kiện trận đấu kèm sắc thái (nghẹt thở, áp đảo, lội ngược dòng), phá chuỗi bất bại, kèo đấu, mở/chốt/huỷ buổi tập, chào đón thành viên mới.
-3. **Trận đấu (`match`)**: Màn tóm tắt trận đấu và các kèo nóng gần đây (`HomeMatchTab`).
-4. **Giao dịch (`transactions`)**: Bảng sổ quỹ chi tiết và tổng hợp dòng tiền tháng.
-5. **Báo cáo (`report`)**: Thu chi theo tháng (cột đôi) · tỷ lệ đi tập · khách theo trình độ.
+Trang chủ là **Bàn cờ cá nhân hoá** trung tâm dành riêng cho người dùng đang đăng nhập (route key `home`):
+
+- **3 Subtab chức năng**:
+  1. **Tab Cá nhân (`personal`)**:
+     - `HeroRankCard`: Card vinh danh cá nhân gồm Avatar, Tên, Cấp bậc rank tier, Elo hiện tại, Điểm Mùa, Tỷ lệ thắng %, Tổng XP, Kệ 3 huy hiệu danh dự (`badge_shelf`) và châm ngôn cá nhân (`signature`).
+     - `UpcomingSessionCard`: Nhắc buổi tập sắp tới của nhóm sinh hoạt, kèm nút RSVP tự điểm danh 1 chạm nhanh `[Có mặt]` / `[Báo vắng]`.
+     - `SeasonRaceCard`: Vị trí đua top mùa giải của bản thân, khoảng cách điểm so với người đứng trên và người đuổi phía sau.
+     - `RecentFormCard`: Phong độ 5 trận gần nhất (dải W/L badges màu sắc) kèm biến động Elo từng trận.
+     - `RivalGoalCard`: Mục tiêu đối thủ bám đuổi (VĐV xếp ngay phía trên mình trên BXH Elo hoặc Mùa giải).
+     - `SynergyBadgesCard`: Cặp bài trùng / đối tác ăn ý nhất (Best Partner) và các huy hiệu phong cách thi đấu nổi bật.
+     - `MyOpponentsCard`: Danh sách các đối thủ thường xuyên chạm trán nhiều nhất kèm tỷ số thắng-thua đối đầu.
+     - `NearbyStandingsCard`: BXH mini cục bộ hiển thị 1 người xếp trên, chính mình, và 1 người xếp dưới.
+     - `RecentMatchesCard`: Danh sách các trận đấu gần đây nhất mà cá nhân tham gia kèm tỷ số set và link video replay nếu có.
+     - `ClubFeedCard`: Tóm tắt các sự kiện nổi bật trong ngày của CLB.
+  2. **Tab Trận đấu (`match`)**: Màn `HomeMatchTab` tổng hợp các trận đấu đã diễn ra và các kèo đấu nóng trong ngày của CLB.
+  3. **Tab Hoạt động (`activity`)**: Bảng tin hoạt động toàn CLB (`ActivityTab`) tải theo dòng thời gian.
 
 ## 3. Buổi tập (`/buoi-tap`) và Chi tiết buổi (`/buoi-tap/:id`)
 
@@ -445,3 +455,122 @@ Nhằm tạo động lực thi đấu và tăng cường tương tác trong CLB,
 - Các sự kiện CLB khác: Phá chuỗi thắng đối thủ (Bounty Broken — `bounty_broken`), Thách đấu mới (`challenge_created`), Nhận kèo (`challenge_accepted`), Từ chối kèo (`challenge_declined`), Huỷ kèo (`challenge_cancelled`), Kèo hoàn tất (`challenge_completed`), Sửa điểm trận đấu (`match_edited`), Buổi tập mở điểm danh (`session_opened`), Chốt sổ buổi tập (`session_closed`), Huỷ buổi tập (`session_cancelled`), Thành viên mới gia nhập CLB (`member_joined`).
 - **Chống trùng dòng**: trận thuộc kèo **không** sinh dòng `match_recorded` riêng — kèo BO3 lưu mỗi set thành một match (`-H1`/`-H2`/`-H3`), không chặn thì một kèo đẻ ra 3 dòng trận + 1 dòng kèo. `session_opened`/`session_closed`/`session_cancelled` chỉ bắn khi trạng thái **thực sự đổi**, và lời mời điểm danh chỉ gửi cho người **chưa trả lời** (chốt sổ rồi mở lại để sửa không nã lại cả nhóm).
 - **Tuân thủ Luật §3.3**: Toàn bộ payload chỉ lưu ID và số nguyên, tên người chơi và tỷ số được giải mã động (`resolveActivityPayload`) khi hiển thị, hỗ trợ đổi tên và đa ngôn ngữ hoàn hảo.
+
+---
+
+## 12. Hệ thống Dự Đoán Kèo & Sòng Bạc Điểm Mùa (Match Predictions & Casino Hub — `challenge_predictions`)
+
+Cung cấp tính năng dự đoán kết quả các trận thách đấu hấp dẫn trong CLB, tạo thêm nhiệt huyết cho các trận cầu:
+
+- **Cược bằng Điểm Mùa (Season Points — SP)**:
+  - Thành viên sử dụng số dư Điểm Mùa kiếm được từ cày rank để dự đoán đội thắng (Đội A hoặc Đội B).
+  - Điểm mùa khả dụng (`availableSeasonPoints`): Tự động tính toán `availableSp = totalSeasonPoints - pendingStakes` (trừ đi các khoản cược đang chờ quyết toán).
+- **Luật bảo vệ & RLS Chống Gian Lận Nghiêm Ngặt**:
+  - **Đấu thủ trong trận tuyệt đối không được cược chính trận của mình** (`predictionPlayerConflict`).
+  - **Khách vãng lai (`guest`) không có điểm mùa** nên bị chặn cược (`predictionGuestHint`).
+  - **Trần cược UI tối đa 50 SP** (Database kẹp 1..100 SP).
+  - **Khóa cược tự động (`isPredLocked`)**: Kèo tự động khoá khi trận đã lên sân (`oncourt`), đã kết thúc (`played`), bị huỷ (`cancelled`) hoặc quá hạn (`isExpired`).
+  - **Cơ chế RPC-only**: Dữ liệu lưu tại `challenge_predictions`. Bảng này **CỐ Ý KHÔNG ĐƯA VÀO `dbmap.TABLES`** để tránh lỗi quyền hạn Postgres `42501`. Mọi thao tác đặt cược (`place_challenge_prediction`), huỷ cược (`cancel_challenge_prediction`) và quyết toán (`settle_challenge_predictions`) đều bắt buộc gọi qua RPC.
+- **Vòng đời phiếu cược**:
+  - `pending`: Đang chờ trận đấu diễn ra. Có thể huỷ cược nhận lại 100% SP trước giờ bóng lăn (`cancelPrediction`).
+  - `won`: Đoán đúng đội thắng. Nhận thưởng tỷ lệ 1:1 (+net SP).
+  - `lost`: Đoán sai đội thắng. Trừ số SP đã đặt cược (-stake SP).
+  - `refunded`: Kèo bị huỷ hoặc trận đấu không diễn ra. Hoàn trả nguyên vẹn số điểm cược.
+- **Giao kèo đời thật (`stake_text`)**:
+  - Cho phép ghi nhớ thỏa thuận giao lưu ngoài đời giữa các đấu thủ (ví dụ: "1 chai nước ngọt", "bữa sáng bún bò").
+  - Thuần túy mang tính giải trí, hiển thị trên thẻ kèo, không trừ điểm hay sinh dòng tiền sổ quỹ.
+
+---
+
+## 13. Hệ thống Quản Lý Đa Mùa Giải & Lưu Trữ Bục Vinh Quang (Seasons Engine — `clubs.seasons`)
+
+- **Đa mùa giải linh hoạt (`clubs.seasons jsonb`)**:
+  - Cho phép CLB tổ chức nhiều mùa giải kế tiếp nhau (Mùa 1, Mùa 2, Mùa hè, Mùa thu...).
+  - Mỗi mùa giải xác định: Tên mùa, ngày bắt đầu, ngày kết thúc, trạng thái (`active` / `closed`), số trận tiêu chuẩn để xếp hạng chính thức (`minMatchesOfficial`).
+- **Lưu trữ Bục Vinh Quang (Podium Snapshots)**:
+  - Khi chủ CLB đóng mùa giải, hệ thống tự động chụp lại danh sách bục vinh quang (`podiumSnapshot`): Top 1 (Vàng), Top 2 (Bạc), Top 3 (Đồng) cùng toàn bộ bảng xếp hạng chung cuộc đóng băng của mùa đó.
+  - Cho phép thành viên tra cứu lại lịch sử vinh danh các mùa giải cũ bất cứ lúc nào trên giao diện Bảng xếp hạng.
+- **Cơ chế Reset Chuyển Mùa An Toàn**:
+  - Khi bắt đầu mùa mới: Điểm Mùa (Season Points) của toàn bộ thành viên reset về 0, chuỗi thắng/thua mùa giải reset.
+  - **Bảo toàn 100% Lịch sử & Elo Sự nghiệp (Career Elo)**: Điểm Elo và toàn bộ lịch sử trận đấu của thành viên không bao giờ bị mất hoặc reset khi sang mùa mới.
+
+---
+
+## 14. Tổng quan CLB (`/tong-quan` — render `src/pages/Home.jsx`)
+
+Trang `/tong-quan` (Route key `overview`, component `src/pages/Home.jsx`) là **Bàn cờ quản trị vận hành CLB**, bao gồm Banner nhắc nợ cá nhân và 2 tab nghiệp vụ:
+
+- **Banner nhắc nợ cá nhân (`MyDebtPanel`)**: Nằm ngay đầu trang, tự động phát hiện số tiền cá nhân đang nợ CLB (quỹ tháng, tiền đi thêm, tiền khách rủ chưa thanh toán) kèm số tài khoản/QR của thủ quỹ để chuyển khoản nhanh.
+- **Tab 1: Tổng quan (`overview`)**:
+  - **Lưới 6 StatCard chỉ số cốt lõi**: Số dư quỹ tiền mặt, Công nợ khách & đi thêm, Tiến độ thu quỹ tháng (%), Tổng thu tháng, Tổng chi tháng, Số buổi đã chốt.
+  - **Thẻ "Buổi tới" (Upcoming Session)**: Nổi bật ca tập sắp diễn ra gần nhất; cho phép bấm mở điểm danh trước giờ chơi hoặc nhảy nhanh vào chi tiết buổi tập.
+  - **Thẻ "Tiến độ đóng quỹ tháng"**: Thanh tiến độ trực quan kèm danh sách chip từng hội viên **chưa** đóng; thủ quỹ có thể bấm trực tiếp vào chip để đánh dấu đã đóng nhanh.
+  - **Bảng "Đi nhiều nhất"**: Top 7 hội viên siêng năng nhất trong tháng.
+  - **Bảng "Khách nợ nhiều nhất"**: Danh sách 5 khách giao lưu còn nợ tiền sân chưa thanh toán.
+  - **Bảng "Buổi gần nhất"**: Danh sách các buổi tập đã qua kèm ngày, ca, số sân và trạng thái chốt sổ.
+  - **Khối "Thiết lập ban đầu" (`Setup`)**: Hiện danh sách 5 bước checklist cần làm khi CLB mới khởi tạo và tự biến mất khi đã hoàn tất.
+- **Tab 2: Báo cáo (`report`)**:
+  - Biểu đồ cột đôi Thu - Chi so sánh 4 tháng gần nhất.
+  - Bảng tổng hợp Tỷ lệ đi tập chuyên cần của hội viên cố định theo từng nhóm sinh hoạt.
+
+---
+
+## 15. Kho Danh Hiệu & Huy Hiệu Anime Thành Tích (`/danh-hieu` & `src/lib/badges.js`)
+
+Trang `/danh-hieu` (Route key `badges`, component `src/pages/Badges.jsx`) cung cấp hệ thống huy hiệu và danh hiệu anime thể thao phong phú:
+
+- **3 Tab chính**:
+  1. **Bộ sưu tập (`collection`)**:
+     - Danh sách huy hiệu lấy cảm hứng từ các bộ anime thể thao kinh điển, chia theo các hệ: *Chiến Binh, Bất Bại, Cặp Đôi, Thâm Niên, Kình Địch, Nghệ Sĩ Sân Cầu*.
+     - Mỗi huy hiệu có các cấp bậc độ hiếm (Đồng, Bạc, Vàng, Kim Cương, Thần Thoại), điều kiện mở khóa tự động dựa trên phân tích số liệu thực chiến (`lib/badges.js: calculateMemberBadges`).
+     - **Kệ 3 Huy Hiệu Danh Dự (`BadgeShelf`)**: Cho phép thành viên tự chọn 3 huy hiệu ưng ý nhất ghim lên kệ vinh danh hiển thị ở đầu hồ sơ cá nhân và Hero Card.
+     - **Châm ngôn cá nhân (`signature`)**: Lời tuyên ngôn / slogan ngắn hiển thị trên thẻ cá nhân.
+  2. **Bảng Treo Thưởng Vua Lì Đòn (`bounty`)**:
+     - Tự động phát lệnh truy nã (Wanted Poster) cho đấu thủ đang sở hữu chuỗi thắng dài nhất CLB ($\ge 3$ trận).
+     - Ghi nhận phần thưởng Điểm Mùa (Season Bounty) cho người nào xuất sắc đánh bại được Vua Lì Đòn, lưu vết danh dự `bounty_broken`.
+  3. **BXH Người Sưu Tập (`leaderboard`)**:
+     - Xếp hạng các thành viên theo tổng số huy hiệu và điểm thành tích sưu tập đạt được.
+     - Danh sách các huy hiệu hiếm nhất (Rarest Badges) toàn CLB và những ai đang sở hữu chúng.
+
+---
+
+## 16. Web Push Notifications PWA & Thông Báo Đẩy Nền (`push_subscriptions`)
+
+- **Đăng ký Web Push (`src/lib/pushSubscription.js`)**:
+  - Hỗ trợ người dùng nhận thông báo đẩy trên điện thoại (PWA / Chrome Mobile / Safari iOS 16.4+) và máy tính ngay cả khi không mở ứng dụng.
+  - Trình duyệt tạo Push Subscription chứa `endpoint` và khoá `keys` (`p256dh`, `auth`) lưu vào bảng `public.push_subscriptions` (migration 0048).
+- **Gửi thông báo nền qua Supabase Edge Function**:
+  - Edge function `push-send` nhận payload và gửi thông báo đẩy chuẩn Web Push Protocol (VAPID).
+  - Tự động kích hoạt khi có các sự kiện cá nhân quan trọng: Được thách đấu kèo mới, Đối thủ nhận kèo, Lời mời điểm danh mở buổi (`session_rsvp_invite`), Kết quả cược kèo.
+
+---
+
+## 17. Phân Hệ Giải Đấu Toàn Diện (Tournament System — 16 bảng `tournament_*` & 4 routes)
+
+- **Nguyên tắc cốt lõi: Cách ly tuyệt đối với vận hành thường**:
+  - Trận đấu giải lưu ở `tournament_matches`, **không** ghi vào `matches` thường, **không** tính Elo và **không** tính Điểm Mùa.
+  - Phí tham gia và giải thưởng lưu ở `tournaments`, `tournament_prizes`, `tournament_budget_lines` chỉ để dự trù và hiển thị trong giải, **không** ghi vào sổ quỹ `transactions`.
+- **4 Màn hình giải đấu**:
+  1. `/giai-dau` (`Tournaments.jsx`): Danh sách giải đấu CLB (Đang diễn ra, Sắp tới, Đã xong), nút Tạo giải đấu mới.
+  2. `/giai-dau/:id` (`TournamentHub.jsx`): Trung tâm điều hành giải đấu với 4 tab (`HUB_TABS`):
+     - `overview`: Hero giải, dải sân live, danh sách nội dung thi đấu, checklist "Trước khi bắt đầu", tiến độ các nội dung.
+     - `info`: Thông tin chi tiết giải, cơ cấu giải thưởng (`tournament_prizes`), dự trù ngân sách thu chi (`tournament_budget_lines`).
+     - `players`: Quản lý danh sách VĐV đăng ký (hội viên CLB hoặc khách ngoài `tournament_guests`), phân bổ vào các nội dung, trạng thái đóng lệ phí.
+     - `pairing`: Ghép cặp thi đấu (Tự động theo Elo/ngẫu nhiên, xếp hạt giống Seeds, hoặc Bốc thăm quay số trực quan), kiểm tra hợp lệ đội hình.
+  3. `/giai-dau/:id/nhanh/:eventId` (`TournamentBracket.jsx`):
+     - Hiển thị cây nhánh thi đấu trực quan theo từng giai đoạn của nội dung (vòng bảng, vòng knock-out, nhánh thắng/thua, Thụy Sĩ).
+     - Hàng đợi trận theo sân đấu, điều phối trận lên sân.
+     - Nhập điểm set linh hoạt (1x21 cách 2 trần 30, 3x15, 1x30...), hỗ trợ Walkover / Bỏ cuộc Retired, Hoàn tác kết quả và Sửa điểm.
+  4. `/giai-dau/:id/so-do` (`TournamentFlow.jsx`):
+     - Sơ đồ Canvas đồ thị trực quan hóa toàn bộ luồng giải đấu.
+     - Kết nối liên kết giữa các giai đoạn (Stage Links - ví dụ Nhất nhì Bảng A, B, C vào Bán kết Nhánh Vàng; Ba tư vào Nhánh Bạc Plate).
+- **4 Thể thức thi đấu tiêu chuẩn**:
+  1. *Loại trực tiếp (Knockout)*: Hỗ trợ nhánh chính và nhánh phụ (Tranh hạng 3, Nhánh Plate).
+  2. *Vòng tròn chia bảng (Round Robin)*: Thuật toán xoay vòng Berger, tự động xếp hạng theo điểm, hiệu số set, hiệu số điểm và đối đầu trực tiếp (H2H).
+  3. *Hệ Thụy Sĩ (Swiss System)*: Ghép cặp từng vòng dựa trên điểm số hiện tại, tránh gặp lại đối thủ cũ, hỗ trợ điểm miễn đấu (bye).
+  4. *Nhánh thắng / Nhánh thua (Double Elimination)*: Nhánh Winners + Losers, tự động sinh trận Chung kết Tổng 2 (GF2) nếu đội nhánh thua thắng trận Chung kết 1.
+- **Kiến trúc Nạp & Ghi riêng biệt**:
+  - Dữ liệu giải đấu không nạp vào state `db` của `AppContext` và không qua `diff()`.
+  - Nạp độc lập qua `loadTournament` / `loadTournamentMatches`, lưu qua `tournamentWrite` và 6 RPC nguyên tử: `tournament_generate_stage`, `tournament_commit_match`, `tournament_undo_match`, `tournament_edit_match`, `tournament_close_stage`, `tournament_add_swiss_round`.
+  - Giữ tươi dữ liệu qua hook `useTourPoll` (chỉ poll khi có lịch thi đấu và tab đang active để tối ưu tài nguyên Supabase).
+
