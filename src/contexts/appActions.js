@@ -16,7 +16,7 @@ import { can, membersWithPerm, roleDesc, roleName, viewAsOptions } from '#lib/ro
 import { applyScheduleEdit, planScheduleDelete, planScheduleEdit } from '#lib/schedules.js'
 import { teamRating, replayRatingCascade, DEFAULT_RATING, MIN_RATING, applyRatingDelta, calcPlayerDeltas, rankTierOf, initialRatingOf, computeClubCalibration, confidenceOf } from '#lib/rating.js'
 import { nextChallengeCode, isChallengeFullyAccepted, getChallengeSeriesProgress, canMemberPredict, availableSeasonPoints, stakeBaseOf, settlePredictionsLocal, expiredChallenges, orphanedChallenges, abandonedChallenges, isChallengeAccepted, validateStakePoints } from '#lib/challenge.js'
-import { pickBotChallenge, findBotMember, pickBotRemark, pickBotPredictions, pickBotPredictionForChallenge, getBotArcadeOffer, ARCADE_DAILY_CAP } from '#lib/bot.js'
+import { botFeatureOn, pickBotChallenge, findBotMember, pickBotRemark, pickBotPredictions, pickBotPredictionForChallenge, getBotArcadeOffer, ARCADE_DAILY_CAP } from '#lib/bot.js'
 import { resolveVenue } from '#lib/forms.js'
 import { supabase, unwrap } from '#supabase'
 import { pathOf, buildPushUrl } from '#routes'
@@ -4457,7 +4457,7 @@ export function makeActions({ setDb, setUi, dbRef, uiRef, navRef, toast, reload,
     const d0 = db()
     if (!d0?.clubId || !supabase || !challengeId || !kind) return
     const bot = findBotMember(d0)
-    if (!bot) return
+    if (!bot || !botFeatureOn(d0, 'reaction')) return
 
     try {
       const { error } = await supabase.rpc('post_bot_reaction', {
@@ -4569,6 +4569,28 @@ export function makeActions({ setDb, setUi, dbRef, uiRef, navRef, toast, reload,
     const name = (d0.members || []).find((m) => m.id === memberId)?.name || ''
     toast(memberId ? t('settings.botSaved', { name }) : t('settings.botOff'))
     reload()
+  }
+
+  /**
+   * Bật/tắt hành động của bot (`patch` = { <khoá>: boolean }, khoá ở `bot.js: BOT_FEATURES` +
+   * `paused` + `leaderboard`). Đổi màn hình ngay rồi ghi thẳng `clubs.bot_features` — cột này không
+   * đi đường đồng bộ chung (xem 0065).
+   *
+   * `.select('id')` để biết có ghi được thật không: RLS chặn UPDATE thì Supabase KHÔNG báo lỗi, chỉ
+   * trả 0 dòng — thiếu bước này là màn hình báo đã tắt trong khi DB vẫn bật.
+   */
+  A.setBotFeatures = async (patch) => {
+    const d0 = db()
+    if (!d0?.clubId || !supabase) return
+    const next = { ...(d0.club?.botFeatures || {}), ...patch }
+    up((d) => ({ club: { ...d.club, botFeatures: next } }))
+    const { data, error } = await supabase
+      .from('clubs').update({ bot_features: next }).eq('id', d0.clubId).select('id')
+    if (error || !data?.length) {
+      console.warn('[bot] lưu cờ bot lỗi:', error?.message || 'RLS chặn')
+      toast(t('settings.botFeaturesFailed'))
+      reload()
+    }
   }
 
   A.reloadNotifications = async () => {

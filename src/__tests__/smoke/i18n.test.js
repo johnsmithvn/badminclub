@@ -20,7 +20,7 @@ import { CATS, MANUAL_CATS } from '#lib/ledger.js'
 import { BLOCK_KEYS } from '#lib/schedules.js'
 import { MERGE_FIELDS } from '#lib/members.js'
 import { SCHEMA_GROUPS } from '#data/schema.js'
-import { BOT_LINE_VARIANTS, ARCADE_GAMES, ARCADE_CHOICES } from '#lib/bot.js'
+import { BOT_LINE_VARIANTS, ARCADE_GAMES, ARCADE_CHOICES, BOT_FEATURES } from '#lib/bot.js'
 import { EVENT_KINDS, EVENT_STATUSES, HUB_TABS, TOUR_STATUSES, hubChecklist } from '#lib/tournament/hub.js'
 import { RULE_PRESETS, TEMPLATES } from '#lib/tournament/format.js'
 
@@ -173,6 +173,8 @@ Object.entries(BOT_LINE_VARIANTS).forEach(([group, kinds]) => {
 // Tên trò và tên nước đi trong Arcade — cũng ghép động từ hằng số, thêm trò là test đòi nhãn mới.
 ARCADE_GAMES.forEach((g) => need('arcade.game.' + g))
 Object.values(ARCADE_CHOICES).flat().forEach((c) => need('arcade.choice.' + c))
+// Công tắc từng hành động của bot ở Cài đặt → Chung: thêm khoá vào `BOT_FEATURES` là test đòi nhãn.
+BOT_FEATURES.forEach((k) => { need('settings.botFeat.' + k); need('settings.botFeatNote.' + k) })
 
 // Giải đấu. Mã lỗi `tournament.err.*` tới màn hình qua t(e.message) — cả từ JS lẫn từ RAISE của RPC
 // SQL — nên quét thẳng nguồn của hai phía: thêm một RAISE mới mà quên dịch là test đỏ.

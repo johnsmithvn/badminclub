@@ -82,6 +82,21 @@ export function findBotMember(db) {
   return (db?.members || []).find((m) => m && m.isBot && m.active !== false) || null
 }
 
+/**
+ * Các hành động bật/tắt được của bot (Cài đặt → Chung → Bot CLB), theo thứ tự hiện trên màn hình.
+ * Năm khoá đầu ghi xuống DB nên server gác lại bằng `bot_feature_on` (migration 0065) — đổi tên
+ * khoá thì đổi cả ở đó. `taunt` / `encounter` chỉ hiện ở client.
+ * Cờ `leaderboard` (hiện bot trên BXH mùa) KHÔNG nằm ở đây: nó là chuyện hiển thị, không phải hành
+ * động, nên "Tạm dừng bot" không ẩn bot khỏi BXH — xem `season.js`.
+ */
+export const BOT_FEATURES = ['challenge', 'bet', 'remark', 'reaction', 'arcade', 'taunt', 'encounter']
+
+/** Hành động `key` của bot có đang bật không. Thiếu khoá = bật; `paused` tắt hết. */
+export function botFeatureOn(db, key) {
+  const f = db?.club?.botFeatures || {}
+  return !f.paused && f[key] !== false
+}
+
 const BOT_CHALLENGE_COOLDOWN_MS = 24 * 60 * 60 * 1000
 
 /**
@@ -164,7 +179,7 @@ function streakOf(db, memberId) {
  * @returns {{ teamA: string[], teamB: string[], reason: string }|null}
  */
 export function pickBotChallenge(db, now = Date.now()) {
-  if (!db || !db.clubId) return null
+  if (!db || !db.clubId || !botFeatureOn(db, 'challenge')) return null
   const bot = findBotMember(db)
   if (!bot || !botGateOpen(db, now)) return null
 
@@ -242,7 +257,7 @@ const REMARK_STREAK = 4
  * @returns {{ lineKey: string, params: Object }|null}
  */
 export function getBotTaunt(db, memberId, now = Date.now()) {
-  if (!db || !memberId) return null
+  if (!db || !memberId || !botFeatureOn(db, 'taunt')) return null
   const bot = findBotMember(db)
   // Bot không cà khịa chính nó — bạn đăng nhập vào tài khoản bot thì nó im.
   if (!bot || bot.id === memberId) return null
@@ -288,7 +303,7 @@ export function getBotTaunt(db, memberId, now = Date.now()) {
  * @returns {{ lineKey: string, params: Object }|null} null khi chưa đánh, hoặc kèo không phải của bot.
  */
 export function getBotMatchReaction(db, challenge) {
-  if (!challenge?.botReason) return null
+  if (!challenge?.botReason || !botFeatureOn(db, 'reaction')) return null
 
   const played = (db?.matches || [])
     .filter((m) => m && m.challengeId === challenge.id && m.winnerTeam)
@@ -317,7 +332,7 @@ export function getBotMatchReaction(db, challenge) {
  * @returns {{ kind: string, subjectId: string }|null}
  */
 export function pickBotRemark(db, now = Date.now()) {
-  if (!db?.clubId) return null
+  if (!db?.clubId || !botFeatureOn(db, 'remark')) return null
   const bot = findBotMember(db)
   if (!bot) return null
 
@@ -500,11 +515,11 @@ function calculateBotBet(db, challenge, budget, tilt) {
  * @returns {{ challengeId: string, team: 'A'|'B', stake: number }|null}
  */
 export function pickBotPredictionForChallenge(db, challenge, now = Date.now()) {
-  if (!challenge || !challenge.id) return null
+  if (!challenge || !challenge.id || !botFeatureOn(db, 'bet')) return null
   const bot = findBotMember(db)
   if (!bot || !db?.clubId) return null
 
-  const row = calculateSeasonLeaderboard(db).leaderboard.find((r) => r.id === bot.id)
+  const row = calculateSeasonLeaderboard(db).allRows.find((r) => r.id === bot.id)
   const budget = availableSeasonPoints(
     Number(row?.totalSeasonPoints) || 0,
     db.challengePredictions, db.challenges, db.sessions, bot.id, now,
@@ -532,9 +547,9 @@ export function pickBotPredictionForChallenge(db, challenge, now = Date.now()) {
  */
 export function pickBotPredictions(db, now = Date.now()) {
   const bot = findBotMember(db)
-  if (!bot || !db?.clubId) return []
+  if (!bot || !db?.clubId || !botFeatureOn(db, 'bet')) return []
 
-  const row = calculateSeasonLeaderboard(db).leaderboard.find((r) => r.id === bot.id)
+  const row = calculateSeasonLeaderboard(db).allRows.find((r) => r.id === bot.id)
   let budget = availableSeasonPoints(
     Number(row?.totalSeasonPoints) || 0,
     db.challengePredictions, db.challenges, db.sessions, bot.id, now,
@@ -571,7 +586,7 @@ export function pickBotPredictions(db, now = Date.now()) {
  */
 export function getBotBetLine(db, challenge) {
   const bot = findBotMember(db)
-  if (!bot || !challenge) return null
+  if (!bot || !challenge || !botFeatureOn(db, 'bet')) return null
 
   const pred = getMemberPrediction(db?.challengePredictions || [], challenge.id, bot.id)
   if (!pred) return null
@@ -636,7 +651,7 @@ const ARCADE_MIN_STAKE = 1
  */
 export function spendableSeasonPoints(db, memberId, now = Date.now(), board = null) {
   if (!db || !memberId) return 0
-  const rows = board || calculateSeasonLeaderboard(db).leaderboard
+  const rows = board || calculateSeasonLeaderboard(db).allRows
   const row = rows.find((r) => r.id === memberId)
   return availableSeasonPoints(
     Number(row?.totalSeasonPoints) || 0,
@@ -669,7 +684,7 @@ export function arcadeRoundsToday(db, memberId, now = Date.now()) {
 export function getBotArcadeOffer(db, memberId, now = Date.now()) {
   const bot = findBotMember(db)
   // Đăng nhập bằng chính tài khoản bot thì không có ai để gạ.
-  if (!bot || !memberId || bot.id === memberId) return null
+  if (!bot || !memberId || bot.id === memberId || !botFeatureOn(db, 'arcade')) return null
 
   const played = arcadeRoundsToday(db, memberId, now)
   const seed = `bot-arcade:${memberId}:${new Date(now).toDateString()}:${played}`
@@ -678,7 +693,7 @@ export function getBotArcadeOffer(db, memberId, now = Date.now()) {
     return { blocked: 'capped', lineKey: botLineKey('arcade', 'capped', seed), params: { n: ARCADE_DAILY_CAP } }
   }
 
-  const board = calculateSeasonLeaderboard(db).leaderboard
+  const board = calculateSeasonLeaderboard(db).allRows
   const mine = spendableSeasonPoints(db, memberId, now, board)
   const botHas = spendableSeasonPoints(db, bot.id, now, board)
   // Một trong hai hết điểm là không có ván nào. Bot hết điểm là trạng thái CHẾT một chiều —
@@ -799,9 +814,11 @@ export function getBotState(db) {
   const bot = findBotMember(db)
   if (!bot) return null
 
-  const seasonBoard = calculateSeasonLeaderboard(db).leaderboard
+  const seasonRes = calculateSeasonLeaderboard(db)
+  const seasonBoard = seasonRes.leaderboard
   const botIdx = seasonBoard.findIndex((r) => r.id === bot.id)
-  const botRow = botIdx >= 0 ? seasonBoard[botIdx] : null
+  // Từ `allRows`: bot bị ẩn khỏi BXH thì vẫn phải biết nó còn bao nhiêu điểm.
+  const botRow = seasonRes.allRows.find((r) => r.id === bot.id) || null
   const botRank = botRow?.rank || (botIdx >= 0 ? botIdx + 1 : seasonBoard.length)
   const botSp = Number(botRow?.totalSeasonPoints) || 0
 

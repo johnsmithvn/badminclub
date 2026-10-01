@@ -2767,7 +2767,30 @@
     "botNote": "Lưu ngay khi chọn. Đổi bot giữa mùa thì điểm và phiếu cược cũ ở lại tài khoản cũ, bot mới bắt đầu từ 100 SP.",
     "botSaved": "Đã chọn {{name}} làm bot. Từ lần mở app tới, bot gạ kèo, nhận cược và chơi Arcade dưới tên này.",
     "botOff": "Đã tắt bot. Kèo và phiếu cược cũ của bot vẫn giữ nguyên.",
-    "botFailed": "Không đổi được bot. Chỉ chủ CLB mới chọn được."
+    "botFailed": "Không đổi được bot. Chỉ chủ CLB mới chọn được.",
+    "botLeaderboard": "Hiện bot trên BXH mùa",
+    "botLeaderboardNote": "Tắt thì bot đứng ngoài bảng xếp hạng, không chiếm hạng của ai. Điểm của bot vẫn giữ để chơi Arcade và cược.",
+    "botPause": "Tạm dừng bot",
+    "botPauseNote": "Tắt mọi hành động bên dưới cùng lúc mà không mất cài đặt từng mục. Bot vẫn giữ điểm và các phiếu cược đang chờ.",
+    "botFeaturesFailed": "Không lưu được cài đặt bot. Chỉ người có quyền sửa cài đặt CLB mới đổi được.",
+    "botFeat": {
+      "challenge": "Tự gạ kèo",
+      "bet": "Đặt cược vào kèo",
+      "remark": "Bình luận chuyện CLB",
+      "reaction": "Nhận xét sau trận",
+      "arcade": "Sòng Arcade",
+      "taunt": "Cà khịa riêng",
+      "encounter": "Hộp thoại bắt chuyện"
+    },
+    "botFeatNote": {
+      "challenge": "Tối đa một kèo đôi mỗi ngày cho 4 người sát hạng Elo nhau hoặc đang có chuỗi thắng, khi buổi tập kế tiếp còn trong 2 ngày.",
+      "bet": "Bot vào cược các kèo đang mở bằng điểm mùa của nó, kèm một câu bình về phiếu đó.",
+      "remark": "Bot đăng nhận xét về chuyện trong CLB lên tab Hoạt động, tối đa 12 tiếng một lần.",
+      "reaction": "Sau trận của kèo do bot dựng, bot bình một câu trên tab Hoạt động.",
+      "arcade": "Thẻ chơi oẳn tù tì / sấp ngửa với bot ở trang cá nhân, ăn thua bằng điểm mùa.",
+      "taunt": "Mỗi ngày bot nói riêng một câu với từng người ở trang cá nhân. Người khác không thấy.",
+      "encounter": "Bot bật hộp thoại bắt chuyện khi bạn vừa có chuyện đáng nói."
+    }
   },
   "schema": {
     "alertTitle": "Thiết kế database cho bản chạy thật",

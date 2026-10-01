@@ -7,7 +7,7 @@ import {
   botBetStreak, pickBotPredictions, pickBotPredictionForChallenge, getBotBetLine,
   getBotArcadeOffer, getArcadeResultLine, arcadeRoundsToday,
   spendableSeasonPoints, ARCADE_GAMES, ARCADE_CHOICES, ARCADE_DAILY_CAP,
-  getPlayerRelationships, getBotState,
+  getPlayerRelationships, getBotState, botFeatureOn,
 } from '#lib/bot.js'
 
 const NOW = Date.parse('2026-09-21T12:00:00.000Z')
@@ -537,5 +537,62 @@ assert.ok(state.bot, 'Có thông tin bot')
 assert.equal(state.bot.id, 'bot', 'Đúng ID bot')
 assert.equal(state.seasonPoints, 100, 'Bot có 100 SP khởi đầu')
 assert.ok(state.clubRivalries.length > 0, 'Phát hiện được rivalry m1-m2 trong CLB')
+
+/* ---------- BẬT / TẮT TỪNG HÀNH ĐỘNG (Cài đặt → Chung → Bot CLB) ---------- */
+
+const withFeat = (d, botFeatures) => ({ ...d, club: { ...(d.club || {}), botFeatures } })
+const off = (k) => ({ [k]: false })
+
+// Thiếu khoá = bật: cột mặc định `{}`, CLB chưa từng mở trang cài đặt phải chạy y như trước.
+assert.equal(botFeatureOn(baseDb(), 'bet'), true, 'Chưa có cờ nào mà bot đã tắt là cả CLB mất bot sau khi chạy migration')
+assert.equal(botFeatureOn(withFeat(baseDb(), off('bet')), 'bet'), false, 'Tắt đúng khoá thì hành động đó tắt')
+assert.equal(botFeatureOn(withFeat(baseDb(), off('bet')), 'arcade'), true, 'Tắt một khoá không được kéo theo khoá khác')
+assert.equal(
+  botFeatureOn(withFeat(baseDb(), { paused: true, arcade: true }), 'arcade'),
+  false,
+  'Tạm dừng phải đè lên cả khoá đang bật — không thì "tạm dừng" vẫn để bot ăn điểm arcade',
+)
+
+// Mỗi cửa vào: bộ dữ liệu ở trên đang RA hành động, tắt cờ thì phải im. Kiểm gốc trước — gốc đã
+// im sẵn thì các dòng dưới xanh vô nghĩa.
+const oneBet = pickBotPredictionForChallenge(dbBets, dbBets.challenges[0], NOW)
+assert.ok(picked && taunt && reaction && remark && bets.length && oneBet && lineP && offer, 'Bộ dữ liệu gốc phải đang ra hành động')
+assert.equal(pickBotChallenge(withFeat(baseDb(), off('challenge')), NOW), null, 'Tắt gạ kèo mà bot vẫn dựng kèo là vẫn có push gửi cả CLB')
+assert.deepEqual(pickBotPredictions(withFeat(dbBets, off('bet')), NOW), [], 'Tắt cược mà bot vẫn đặt phiếu là vẫn tiêu điểm mùa')
+assert.equal(
+  pickBotPredictionForChallenge(withFeat(dbBets, off('bet')), dbBets.challenges[0], NOW),
+  null,
+  'Tắt cược thì cả lượt cược ngay lúc tạo kèo cũng phải im',
+)
+assert.equal(getBotBetLine(withFeat(withPending, off('bet')), chalForLine), null, 'Tắt cược thì bot im về phiếu của nó')
+assert.equal(pickBotRemark(withFeat(dbClimb, off('remark')), NOW), null, 'Tắt bình luận mà bot vẫn đăng là rác trên tab Hoạt động')
+assert.equal(getBotMatchReaction(withFeat(dbPlayed, off('reaction')), botChal), null, 'Tắt nhận xét sau trận thì không có câu')
+assert.equal(getBotArcadeOffer(withFeat(dbArcade(), off('arcade')), 'm1', NOW), null, 'Tắt arcade mà vẫn hiện sòng là người chơi vẫn mất điểm')
+assert.equal(getBotTaunt(withFeat(baseDb(), off('taunt')), 'm1', NOW), null, 'Tắt cà khịa thì thẻ bot câm')
+
+// Ẩn bot khỏi BXH mùa: hạng người thật dồn lên, nhưng điểm của AI cũng không được đổi — kể cả bot.
+const shown = calculateSeasonLeaderboard(dbArcade())
+const hidden = calculateSeasonLeaderboard(withFeat(dbArcade(), { leaderboard: false }))
+const rankOf = (res, id) => res.leaderboard.find((r) => r.id === id)?.rank
+const ptsOf = (res) => Object.fromEntries(res.allRows.map((r) => [r.id, r.totalSeasonPoints]))
+assert.ok(rankOf(shown, 'bot'), 'Mặc định bot vẫn đứng trên BXH như trước')
+assert.ok(rankOf(shown, 'm2') > rankOf(shown, 'bot'), 'Bộ dữ liệu phải có người đứng dưới bot thì mới kiểm được việc dồn hạng')
+assert.equal(rankOf(hidden, 'bot'), undefined, 'Tắt thì bot ra khỏi BXH')
+assert.equal(rankOf(hidden, 'm2'), rankOf(shown, 'm2') - 1, 'Người đứng dưới bot phải được dồn lên một hạng')
+assert.deepEqual(
+  hidden.leaderboard.map((r) => r.rank),
+  hidden.leaderboard.map((_, i) => i + 1),
+  'Hạng phải liền mạch 1..N — chừa lỗ chỗ bot là "còn bao nhiêu điểm lên hạng" tính sai',
+)
+assert.deepEqual(ptsOf(hidden), ptsOf(shown), 'Ẩn bot chỉ đổi số hạng, không đổi điểm của ai')
+assert.equal(
+  spendableSeasonPoints(withFeat(dbArcade(), { leaderboard: false }), 'bot', NOW),
+  spendableSeasonPoints(dbArcade(), 'bot', NOW),
+  'Ẩn khỏi BXH mà bot mất số dư là sòng báo "bot hết vốn" và cả arcade lẫn cược chết theo',
+)
+assert.ok(
+  rankOf(calculateSeasonLeaderboard(withFeat(dbArcade(), { paused: true })), 'bot'),
+  'Tạm dừng bot KHÔNG ẩn bot khỏi BXH — đó là công tắc riêng',
+)
 
 console.log('bot check: OK')

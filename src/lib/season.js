@@ -730,21 +730,28 @@ export function calculateSeasonLeaderboard(db = {}, customSeason = null) {
     || (b.winRate - a.winRate)
   ))
 
+  // Ẩn bot khỏi BXH (Cài đặt → Chung → Bot CLB, cờ `leaderboard`; thiếu cờ = hiện): bot đứng ngoài
+  // bảng nên không chiếm hạng của ai. Dòng của nó vẫn ở `allRows` — số dư arcade / cược của bot
+  // đọc từ đó. Điểm của MỌI người không đổi, chỉ đổi số hạng.
+  const hideBot = db.club?.botFeatures?.leaderboard === false
+  const ranked = hideBot ? rows.filter((r) => !r.member?.isBot) : rows
+
   // Đánh số thứ hạng 1..N
-  rows.forEach((row, idx) => {
+  ranked.forEach((row, idx) => {
     row.rank = idx + 1
   })
 
   // Tính thống kê tổng hợp mùa
-  const totalSeasonPoints = rows.reduce((sum, r) => sum + r.totalSeasonPoints, 0)
+  const totalSeasonPoints = ranked.reduce((sum, r) => sum + r.totalSeasonPoints, 0)
   const totalSeasonMatches = seasonMatches.length
-  const leaderPlayer = rows[0] || null
-  const mostAttendedPlayer = [...rows].sort((a, b) => b.attendedCount - a.attendedCount)[0] || null
-  const mostUpsetsPlayer = [...rows].sort((a, b) => b.upsetsCount - a.upsetsCount)[0] || null
+  const leaderPlayer = ranked[0] || null
+  const mostAttendedPlayer = [...ranked].sort((a, b) => b.attendedCount - a.attendedCount)[0] || null
+  const mostUpsetsPlayer = [...ranked].sort((a, b) => b.upsetsCount - a.upsetsCount)[0] || null
 
   return {
     season,
-    leaderboard: rows,
+    leaderboard: ranked,
+    allRows: rows,
     topStats: {
       totalSeasonPoints,
       totalSeasonMatches,

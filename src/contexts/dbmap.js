@@ -254,6 +254,9 @@ export function toDb(raw, ctx) {
       linkModes: { code: club.allow_code_join, invite: club.allow_invite, phone: club.allow_phone_suggest },
       levels,
       seasons,
+      // Cờ bật/tắt hành động của bot — thiếu khoá = bật (0065). KHÔNG có trong `clubRow`: ghi riêng
+      // bằng `A.setBotFeatures`, không đi đường đồng bộ chung.
+      botFeatures: club.bot_features || {},
     },
     levels,
     seasons,

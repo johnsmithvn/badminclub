@@ -429,6 +429,13 @@ console.log('--- Test 8: getPersonalBotEncounter Pipeline E2E ---')
   assert.ok(result.scenario, 'Phải có scenario')
   assert.ok(result.scenario.lineKey, 'Scenario phải có i18n lineKey')
 
+  // Cài đặt → Chung → Bot CLB: tắt "Hộp thoại bắt chuyện" (hoặc tạm dừng bot) thì cùng dữ liệu này
+  // phải im — chủ CLB đã tắt mà bot vẫn bật popup giữa màn hình là công tắc nói dối.
+  const offDb = { ...db, club: { ...(db.club || {}), botFeatures: { encounter: false } } }
+  assert.equal(getPersonalBotEncounter(offDb, 'u1', NOW, mockMemory).mode, 'none', 'Tắt bắt chuyện thì không có popup')
+  const pausedDb = { ...db, club: { ...(db.club || {}), botFeatures: { paused: true } } }
+  assert.equal(getPersonalBotEncounter(pausedDb, 'u1', NOW, mockMemory).mode, 'none', 'Tạm dừng bot thì cũng không có popup')
+
   console.log('Bot Scenario Engine: OK')
 }
 

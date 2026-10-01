@@ -7,7 +7,7 @@
 // 4. applySynergy()          -> Gộp candidates CÙNG eventKey thành kịch bản đỉnh cao
 // 5. evaluateEncounter()     -> Tính finalScore phẳng, Daily Cap (1 modal/ngày), trả về Decision
 
-import { findBotMember } from '#lib/bot.js'
+import { botFeatureOn, findBotMember } from '#lib/bot.js'
 import { BotMemoryStore } from '#lib/botMemory.js'
 import { getClubEloLeaderboard } from '#lib/homePersonal.js'
 import { getPlayerRating, DEFAULT_RATING } from '#lib/rating.js'
@@ -821,6 +821,7 @@ export function evaluateEncounter(candidates, memberId, now = Date.now(), memory
  * @returns {{ mode: 'modal'|'card'|'none', scenario: Object|null, eventKey: string|null }}
  */
 export function getPersonalBotEncounter(db, memberId, now = Date.now(), memoryStore = BotMemoryStore) {
+  if (!botFeatureOn(db, 'encounter')) return { mode: 'none', scenario: null, eventKey: null }
   const state = inspectMemberState(db, memberId, now, memoryStore)
   if (!state) return { mode: 'none', scenario: null, eventKey: null }
 

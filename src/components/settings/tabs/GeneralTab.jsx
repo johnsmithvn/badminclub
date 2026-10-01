@@ -12,6 +12,7 @@ import {
 import { scanQrCodeFromImage, parseVietQr, getVietQrUrl, findBank } from '#utils/vietqr.js'
 import banks from '#config/banks.json' with { type: 'json' }
 import { myMember } from '#lib/money.js'
+import { BOT_FEATURES } from '#lib/bot.js'
 import { t } from '#i18n'
 import { useAuth } from '#contexts/AuthContext.jsx'
 import { useApp } from '#contexts/AppContext.jsx'
@@ -68,6 +69,7 @@ export default function GeneralTab({
     .filter((m) => m.active !== false)
     .map((m) => ({ value: m.id, label: m.name })), [db?.members])
   const botId = (db?.members || []).find((m) => m.isBot && m.active !== false)?.id || ''
+  const botFeat = db?.club?.botFeatures || {}
   const [savingBot, setSavingBot] = useState(false)
   const handlePickBot = async (val) => {
     if (savingBot || (val || '') === botId) return
@@ -577,7 +579,7 @@ export default function GeneralTab({
         subtitle={t('settings.botSub')}
         icon="sparkles"
       >
-        <FormRow label={t('settings.botLabel')} note={t('settings.botNote')} last alignTop>
+        <FormRow label={t('settings.botLabel')} note={t('settings.botNote')} last={!botId} alignTop>
           <SearchSelect
             size="sm"
             value={botId}
@@ -589,6 +591,46 @@ export default function GeneralTab({
             style={{ minWidth: 200 }}
           />
         </FormRow>
+
+        {/* Công tắc lưu ngay khi gạt (giống ô chọn bot), không chờ thanh "Lưu". Thiếu khoá = bật. */}
+        {botId && (
+          <>
+            <FormRow isToggle label={t('settings.botLeaderboard')} note={t('settings.botLeaderboardNote')}>
+              <ToggleSwitch
+                checked={botFeat.leaderboard !== false}
+                disabled={!canEdit}
+                aria-label={t('settings.botLeaderboard')}
+                onChange={(on) => a.setBotFeatures({ leaderboard: on })}
+              />
+            </FormRow>
+            <FormRow isToggle label={t('settings.botPause')} note={t('settings.botPauseNote')}>
+              <ToggleSwitch
+                checked={Boolean(botFeat.paused)}
+                disabled={!canEdit}
+                aria-label={t('settings.botPause')}
+                onChange={(on) => a.setBotFeatures({ paused: on })}
+              />
+            </FormRow>
+            {/* Đang tạm dừng thì khoá các công tắc con nhưng vẫn hiện trạng thái riêng của chúng:
+                bỏ tạm dừng là bot quay lại đúng như trước. */}
+            {BOT_FEATURES.map((k, i) => (
+              <FormRow
+                key={k}
+                isToggle
+                label={t('settings.botFeat.' + k)}
+                note={t('settings.botFeatNote.' + k)}
+                last={i === BOT_FEATURES.length - 1}
+              >
+                <ToggleSwitch
+                  checked={botFeat[k] !== false}
+                  disabled={!canEdit || Boolean(botFeat.paused)}
+                  aria-label={t('settings.botFeat.' + k)}
+                  onChange={(on) => a.setBotFeatures({ [k]: on })}
+                />
+              </FormRow>
+            ))}
+          </>
+        )}
       </SettingsCard>
 
       {/* 5. Vùng nguy hiểm (Full width) */}
