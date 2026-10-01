@@ -74,7 +74,7 @@ export default function MoreSheet({ open, onClose, route }) {
           badge: counts.pendingChallenges,
         }] : []),
         { value: 'tournaments', icon: 'medal' },
-        { value: 'badges', icon: 'award' },
+        ...(!currentSlots.includes('badges') ? [{ value: 'badges', icon: 'award' }] : []),
         {
           value: 'members',
           icon: 'users',

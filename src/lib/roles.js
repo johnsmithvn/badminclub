@@ -43,14 +43,12 @@ export function effRoute(role, route) {
 }
 
 /**
- * Bốn slot đầu đổi theo vai (dựa trên flag 'money'), slot 5 luôn là 'more' (Handoff §1.2 & §B3).
- * - can(role, 'money') -> home, sessions, debts, leaderboard, more
- * - ngược lại          -> home, sessions, leaderboard, profile, more
+ * 5 slot thanh điều hướng đáy mobile (slot 5 luôn là 'more').
+ * Gồm: home, matches, leaderboard, badges, more.
+ * Công nợ và các mục còn lại nằm trong menu 'more' (Handoff §1.2 & §B3).
  */
-export function footerSlots(role) {
-  const canMoney = can(role, 'money')
-  return canMoney
-    ? ['home', 'matches', 'debts', 'leaderboard', 'more']
-    : ['home', 'matches', 'leaderboard', 'profile', 'more']
+export function footerSlots(_role) {
+  return ['home', 'matches', 'leaderboard', 'badges', 'more']
 }
+
 

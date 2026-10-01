@@ -13,6 +13,7 @@ const SLOT_ICONS = {
   sessions: 'clipboard-check',
   debts: 'clock-alert',
   leaderboard: 'trophy',
+  badges: 'award',
   profile: 'user-round',
   more: 'ellipsis',
 }
@@ -29,7 +30,7 @@ export default function MobileFooterNav({ route, isMoreOpen, onToggleMore }) {
   const debtPending = debtCounts.total
   const pendingJoins = (db.joinRequests || []).length
   const pendingChanges = (db.changes || []).filter((c) => c.status === 'pending').length
-  const morePending = pendingJoins + pendingChanges
+  const morePending = pendingJoins + pendingChanges + (!slots.includes('debts') && debtPending > 0 ? debtPending : 0)
 
   const currentMember = (db.members || []).find((m) => m.userId === db.currentUserId)
   const myMemId = currentMember?.id || null
@@ -57,6 +58,7 @@ export default function MobileFooterNav({ route, isMoreOpen, onToggleMore }) {
     if (slot === 'sessions') return route === 'sessions' || route === 'session'
     if (slot === 'debts') return route === 'debts'
     if (slot === 'leaderboard') return route === 'leaderboard'
+    if (slot === 'badges') return route === 'badges'
     if (slot === 'profile') return route === 'profile'
     return false
   }
