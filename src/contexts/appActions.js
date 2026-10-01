@@ -25,7 +25,7 @@ import { getMemberStreak, cleanShelf, calculateMemberBadges, resolveBadgeId } fr
 import { seasonMatchesOf, calculateSeasonLeaderboard } from '#lib/season.js'
 import { buildMatchBackup, validateMatchBackup } from '#lib/matchBackup.js'
 import cfgBadges from '#config/badges.json' with { type: 'json' }
-import { syncPatchMatchViews, syncPatchMatchVideo } from '#contexts/storage.js'
+import { flushNow, save, syncPatchMatchViews, syncPatchMatchVideo } from '#contexts/storage.js'
 import { makeTournamentActions } from '#contexts/tournamentActions.js'
 import { detectMatchNarrative, notifyRecipients, notifiableMemberIds, resolveNotificationPayload } from '#lib/activity.js'
 
@@ -2949,9 +2949,14 @@ export function makeActions({ setDb, setUi, dbRef, uiRef, navRef, toast, reload,
         })
       }
       toast(t('challenge.toastCreated', { code }))
-      // Bot cược ngay lập tức dựa trên chính đối tượng kèo vừa tạo
+      // Bot cược ngay — nhưng CHỈ sau khi kèo đã nằm dưới DB. `up()` chỉ đổi state, kèo xuống DB
+      // qua debounce của `save()`, mà RPC `place_bot_prediction` đọc kèo từ DB: gọi liền là luôn
+      // nhận NULL. Đẩy thẳng ảnh chụp có kèo mới rồi mới cược (cùng cách `refresh()` ở AppContext).
+      // ponytail: đúng lúc đang có lượt flush chạy dở thì `flushNow()` trả về ngay và bot vẫn hụt —
+      // `botBetTick` ở lần mở app sau cược bù.
       if (typeof A.botBetOnChallenge === 'function') {
-        A.botBetOnChallenge(newChal)
+        save({ ...d0, challenges: [newChal, ...(d0.challenges || [])] })
+        flushNow().then(() => A.botBetOnChallenge(newChal))
       }
       return newChal
     },

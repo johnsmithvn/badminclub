@@ -1,5 +1,6 @@
 import assert from 'node:assert/strict'
 import { calculateSeasonLeaderboard } from '#lib/season.js'
+import cfg from '#config/app.json' with { type: 'json' }
 import {
   findBotMember, botGateOpen, pickBotChallenge, BOT_REASONS,
   botLineKey, BOT_LINE_VARIANTS, getBotTaunt, getBotMatchReaction, pickBotRemark,
@@ -364,8 +365,14 @@ const pairMatch = (id, a, b) => ({
   teamA: [a], teamB: [b], sets: [[21, 15]], playerKeys: [a, b],
 })
 
+// Mùa phủ mọi mốc. Trận và ván ở khối này đóng dấu theo đồng hồ THẬT (`arcadeRoundsToday` đọc
+// `Date.now()`), còn db không có mùa thì rơi về mùa cố định trong config — qua ngày hết mùa đó là
+// cả khối tính 0 SP và đỏ (đã đỏ thật ngày 01/10/2026).
+const anySeason = [{ ...cfg.season, startDate: '2000-01-01', endDate: '2999-12-31', active: true }]
+
 const dbArcade = () => ({
   ...baseDb(),
+  seasons: anySeason,
   matches: [pairMatch('am1', 'm1', 'm2')],
   arcadeRounds: [],
 })
@@ -422,6 +429,7 @@ assert.match(capped.lineKey, /^bot\.arcade\.capped\.[1-2]$/, 'Câu hết lượt
 // Bot hết sạch điểm: khi bot thua arcade 100 SP, số dư về 0 SP
 const dbBotBroke = {
   ...baseDb(),
+  seasons: anySeason,
   matches: [pairMatch('am1', 'm1', 'm2')],
   arcadeRounds: [round('r_broke', 'm1', 'won', 100)],
 }
@@ -449,6 +457,7 @@ const sumSp = (d) => calculateSeasonLeaderboard(d).leaderboard
 
 const dbBeforeRound = {
   ...baseDb(),
+  seasons: anySeason,
   matches: [pairMatch('bm1', 'm1', 'm2'), pairMatch('bm2', 'm1', 'm3')],
   arcadeRounds: [],
 }
