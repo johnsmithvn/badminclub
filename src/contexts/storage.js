@@ -50,7 +50,7 @@ export async function load(clubId, soft = false) {
     dues, adjustments, courtBills, manual, guestPrices,
     locks, rosterRows, changes, levelRows, joinRequests,
     challenges, playerRatings, matchEdits, clubCalibration,
-    notifications, challengePredictions,
+    notifications, challengePredictions, arcadeRounds,
   ] = await Promise.all([
     supabase.from('clubs').select('*').eq('id', clubId).single(),
     of('courts'),
@@ -82,6 +82,10 @@ export async function load(clubId, soft = false) {
     of('club_calibration'),
     of('notifications').order('created_at', { ascending: false }).limit(100),
     of('challenge_predictions'),
+    // CHỈ ĐỌC, như `challenge_predictions`: bảng này bị REVOKE INSERT/UPDATE/DELETE và chỉ RPC
+    // `play_arcade_round` ghi được. Đừng thêm vào `dbmap.TABLES` — đường đồng bộ chung ghi bằng
+    // upsert và sẽ ăn 42501 y như sự cố 0042 đã mô tả.
+    of('arcade_rounds'),
   ])
 
   const clubRowRaw = unwrap(club)
@@ -139,6 +143,7 @@ export async function load(clubId, soft = false) {
     clubCalibration: clubCalibration.error ? [] : (clubCalibration.data || []),
     notifications: notifications.error ? [] : (notifications.data || []),
     challengePredictions: challengePredictions.error ? [] : (challengePredictions.data || []),
+    arcadeRounds: arcadeRounds.error ? [] : (arcadeRounds.data || []),
   }
 
   if (soft && (synced.clubId !== clubId || pending || running || dirty || gen !== g0)) return null

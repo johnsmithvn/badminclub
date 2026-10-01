@@ -1,4 +1,4 @@
-import { useMemo, useState } from 'react'
+import { useEffect, useMemo, useRef, useState } from 'react'
 import { Avatar, Button, IconButton, Tabs } from '#ds'
 import { TabTrack } from '#ui'
 import { useApp } from '#contexts/AppContext.jsx'
@@ -31,6 +31,17 @@ import UpcomingSessionCard from '#components/home/personal/UpcomingSessionCard.j
 import ClubFeedCard from '#components/home/personal/ClubFeedCard.jsx'
 import NearbyStandingsCard from '#components/home/personal/NearbyStandingsCard.jsx'
 import MyOpponentsCard from '#components/home/personal/MyOpponentsCard.jsx'
+import BotTauntCard from '#components/home/personal/BotTauntCard.jsx'
+import BotArcadeCard from '#components/home/personal/BotArcadeCard.jsx'
+import BotEncounterModal from '#components/bot/BotEncounterModal.jsx'
+import {
+  findBotMember,
+  getBotTaunt,
+  getBotArcadeOffer,
+  spendableSeasonPoints,
+} from '#lib/bot.js'
+import { getPersonalBotEncounter } from '#lib/botScenarios.js'
+import { recordEncounterShown, recordActionTaken } from '#lib/botMemory.js'
 import HomeMatchTab from '#components/home/HomeMatchTab.jsx'
 import ActivityTab from '#components/home/ActivityTab.jsx'
 
@@ -147,6 +158,57 @@ export default function MyStats() {
   // 8. Tin tức nổi bật hôm nay
   const clubHighlights = useMemo(() => getClubTodayHighlights(db, memberId), [db, memberId])
 
+  // 8b. Bot cà khịa riêng bạn. Không có bot trong CLB thì cả hai giá trị là null và thẻ tự biến mất.
+  // CỐ Ý không đưa `sessionSeed` vào: câu của bot chốt theo NGÀY, mở lại app trong ngày vẫn câu đó.
+  const botMember = useMemo(() => findBotMember(db), [db])
+  const botTaunt = useMemo(() => getBotTaunt(db, memberId), [db, memberId])
+
+  // Kịch bản NPC tính lại theo `db` — thẻ bot luôn dùng bản mới nhất. Nhưng MODAL giữ BẢN CHỤP lúc
+  // mở: bản đầu đọc thẳng `botEncounter`, và lần `reload()` đầu tiên (bot vừa cược xong, vài giây
+  // sau khi mở app) đã xoá nội dung modal đang hiện, vì kịch bản vừa được ghi là "đã xem".
+  const botEncounter = useMemo(() => getPersonalBotEncounter(db, memberId), [db, memberId])
+  const [openEncounter, setOpenEncounter] = useState(null)
+  // Kịch bản đã xử lý — không có nó thì vừa đóng modal, effect chạy lại với CÙNG object (memo chưa
+  // tính lại vì `db` chưa đổi) và bật modal lần nữa.
+  const handledEncounter = useRef(null)
+
+  useEffect(() => {
+    if (botEncounter?.mode !== 'modal' || !memberId || handledEncounter.current === botEncounter) return
+    handledEncounter.current = botEncounter
+    // Chỉ bật khi ghi được bộ nhớ: trình duyệt chặn localStorage thì không nhớ đã xem, engine lại
+    // ra "modal" sau mỗi lần dữ liệu đổi và modal bật đi bật lại.
+    // Effect đồng bộ với hệ thống ngoài (localStorage) rồi mới mở — ghi trong lúc render thì
+    // StrictMode render hai lần là ghi hai bản.
+    // eslint-disable-next-line react-hooks/set-state-in-effect
+    if (recordEncounterShown(memberId, botEncounter)) setOpenEncounter(botEncounter)
+  }, [botEncounter, memberId])
+
+  const handleCloseEncounter = () => {
+    setOpenEncounter(null)
+  }
+
+  const handleActionEncounter = (action, scenario) => {
+    setOpenEncounter(null)
+    if (memberId && action?.type && scenario?.scenarioKey) {
+      recordActionTaken(memberId, scenario.scenarioKey, action.type)
+    }
+    if (action?.type === 'rank') {
+      a.go('leaderboard')
+    } else if (action?.type === 'challenge_rival') {
+      a.go('challenges')
+    } else if (action?.type === 'arcade') {
+      // Không có trang Arcade riêng — thẻ nằm ngay trên trang này.
+      document.getElementById('bot-arcade-card')?.scrollIntoView({ behavior: 'smooth', block: 'center' })
+    } else if (action?.type === 'matches') {
+      a.go('matches')
+    }
+  }
+
+  // 8c. Sòng của bot. `getBotArcadeOffer` dựng lại cả bảng điểm mùa nên BẮT BUỘC memo — không thì
+  // mỗi lần re-render là một lượt quét toàn bộ lịch sử trận.
+  const arcadeOffer = useMemo(() => getBotArcadeOffer(db, memberId), [db, memberId])
+  const spendableSp = useMemo(() => spendableSeasonPoints(db, memberId), [db, memberId])
+
   // 9. BXH quanh bạn (Desktop)
   const nearbyStandings = useMemo(() => getSurroundingStandings(db, memberId, 5, 'elo'), [db, memberId])
   const nearbySeasonStandings = useMemo(() => getSurroundingSeasonStandings(db, memberId, 5), [db, memberId])
@@ -230,6 +292,17 @@ export default function MyStats() {
           <>
             {/* Thẻ 01: Hero Rank */}
             <HeroRankCard hero={heroStats} isMobile={true} />
+
+            {/* Thẻ 01b: Bot cà khịa — ngay dưới hạng, vì câu nó nói là về đúng con số vừa đọc. */}
+            <BotTauntCard
+              bot={botMember}
+              taunt={botTaunt}
+              encounter={botEncounter}
+              isMobile={true}
+            />
+
+            {/* Thẻ 01c: Sòng của bot — cược bằng chính SP vừa hiện ở thẻ hạng. */}
+            <BotArcadeCard bot={botMember} offer={arcadeOffer} balance={spendableSp} onPlay={a.playArcade} />
 
             {/* Thẻ 02: Recent Form */}
             <RecentFormCard form={formStats} isMobile={true} />
@@ -367,6 +440,17 @@ export default function MyStats() {
             {/* 01. Hạng của tôi */}
             <HeroRankCard hero={heroStats} isMobile={false} />
 
+            {/* 01b. Bot cà khịa — ngay dưới hạng, vì câu nó nói là về đúng con số vừa đọc. */}
+            <BotTauntCard
+              bot={botMember}
+              taunt={botTaunt}
+              encounter={botEncounter}
+              isMobile={false}
+            />
+
+            {/* 01c. Sòng của bot — cược bằng chính SP vừa hiện ở thẻ hạng. */}
+            <BotArcadeCard bot={botMember} offer={arcadeOffer} balance={spendableSp} onPlay={a.playArcade} />
+
             {/* Hàng 2 cột: 02. Phong độ 5 trận + 03. Mục tiêu */}
             <div style={S.twoColRow}>
               <RecentFormCard
@@ -443,6 +527,15 @@ export default function MyStats() {
           </div>
         </div>
       )}
+
+      {/* Modal đối thoại NPC 1-1 với Bot */}
+      <BotEncounterModal
+        open={Boolean(openEncounter)}
+        encounter={openEncounter}
+        bot={botMember}
+        onClose={handleCloseEncounter}
+        onAction={handleActionEncounter}
+      />
     </div>
   )
 }

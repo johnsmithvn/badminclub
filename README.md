@@ -235,6 +235,8 @@ Chi tiết: [docs/RULES.md](docs/RULES.md).
 
 | File | Nội dung |
 | --- | --- |
+| [docs/TOAN_BO_LOGIC_VA_LUONG_HE_THONG.md](docs/TOAN_BO_LOGIC_VA_LUONG_HE_THONG.md) | **TỔNG QUAN HỆ THỐNG**: Ý tưởng, kiến trúc, 12 luồng nghiệp vụ đầu-cuối (Đọc đầu tiên) |
+| [docs/HE_THONG_BOT_VA_PERSONAL_NPC.md](docs/HE_THONG_BOT_VA_PERSONAL_NPC.md) | **HỆ THỐNG BOT & PERSONAL NPC**: Triết lý, pipeline 5 bước, Session Freshness, quy tắc mở rộng kịch bản |
 | [docs/RULES.md](docs/RULES.md) | Policy cho người và cho agent — đọc trước khi sửa gì |
 | [docs/ARCHITECTURE.md](docs/ARCHITECTURE.md) | Stack, cây file, phân lớp, đường lên Supabase |
 | [docs/FEATURES.md](docs/FEATURES.md) | Chức năng từng màn + luật nghiệp vụ dễ sai |

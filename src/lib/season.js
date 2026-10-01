@@ -313,6 +313,14 @@ export function calculateSeasonLeaderboard(db = {}, customSeason = null) {
     return Number.isFinite(ts) && ts >= startTs && ts <= endTs
   })
 
+  // Ván arcade cũng bó trong khung mùa, cùng khuôn với phiếu dự đoán. Ván hoà không sinh điểm
+  // nên loại luôn ở đây cho khối tính ở dưới khỏi phải xét lại.
+  const seasonArcade = (db.arcadeRounds || []).filter((r) => {
+    if (r.outcome !== 'won' && r.outcome !== 'lost') return false
+    const ts = Date.parse(r.createdAt || '')
+    return Number.isFinite(ts) && ts >= startTs && ts <= endTs
+  })
+
   // Sắp xếp các trận theo thời gian tăng dần (chronological) để tính điểm lũy kế sàn Floor 0 và streak.
   // BẮT BUỘC tie-break theo id: sàn Floor 0 kẹp sau MỖI trận nên phép tính phụ thuộc thứ tự
   // (thua-rồi-thắng = 14đ, thắng-rồi-thua = 6đ). Hai sân bấm lưu cùng mili-giây mà không có
@@ -433,10 +441,10 @@ export function calculateSeasonLeaderboard(db = {}, customSeason = null) {
     // hạng — cộng cùng một hằng số cho tất cả thì mọi thứ giữ nguyên. Việc nó làm là ĐẨY SÀN 0
     // RA XA: sàn kẹp sau mỗi trận, ai chạm 0 thì các trận thua tiếp theo thành miễn phí và điểm
     // sinh ra từ hư không. Với 100 điểm đệm, người thắng từ ~25% trở lên không bao giờ chạm sàn.
-    // Điểm khởi đầu chỉ cấp cho người ĐÃ RA SÂN ít nhất một trận. Cấp cho cả người chưa đánh
-    // thì họ đứng trên người có đi tập mà thua — đánh dở hoá ra tệ hơn không đánh, ngược hẳn
-    // mục đích của bảng xếp hạng.
-    let totalSeasonPoints = myMatches.length ? startPoints : 0
+    // Điểm khởi đầu chỉ cấp cho người ĐÃ RA SÂN ít nhất một trận hoặc BOT CLB (isBot). Cấp cho
+    // cả người chưa đánh thì họ đứng trên người có đi tập mà thua. Bot không ra sân đánh badminton
+    // nhưng là thành viên tham gia nền kinh tế cược/Arcade nên bắt đầu với đúng startPoints.
+    let totalSeasonPoints = (myMatches.length || m.isBot) ? startPoints : 0
     let streak = 0
     let matchNetPts = 0
     let streakBonusPts = 0
@@ -539,9 +547,27 @@ export function calculateSeasonLeaderboard(db = {}, customSeason = null) {
     })
     const rawPredictionNet = predictionWonPoints - predictionLostPoints
     const predictionNetPoints = rawPredictionNet
+
+    // Arcade — ván tay đôi với bot. MỘT dòng mang CẢ HAI phe: người chơi là `memberId`, bot là
+    // `opponentId`, phe bot là dấu ngược. Nhờ vậy tổng điểm hai bên luôn bằng không mà không cần
+    // ai canh — tách thành hai dòng là mở đường cho hai phe lệch nhau.
+    let arcadeNetPoints = 0
+    seasonArcade.forEach((r) => {
+      const pts = Number(r.stake) || 0
+      const playerDelta = r.outcome === 'won' ? pts : -pts
+      if (r.memberId === memberId) arcadeNetPoints += playerDelta
+      else if (r.opponentId === memberId) arcadeNetPoints -= playerDelta
+    })
+
     const matchPointsOnly = totalSeasonPoints
-    // Sàn 0 của TỔNG vẫn giữ: điểm mùa không âm, nhưng thua là tụt thật cho tới khi chạm 0.
-    totalSeasonPoints = Math.max(0, matchPointsOnly + predictionNetPoints)
+    // Sàn 0 của TỔNG vẫn giữ, và nó KHÔNG phá luật tổng-bằng-không: `availableSeasonPoints` chặn
+    // không ai cược quá số đang có, nên tổng không bao giờ xuống dưới 0 để sàn phải cắt. Ở đây
+    // nó là lưới an toàn cho dữ liệu hỏng, không phải một luật chơi.
+    //
+    // ⚠️ BACKTEST KHÔNG GÁC KHỐI NÀY. `backtest/data/*.json` chỉ chứa `matches` — không có phiếu
+    // cược hay ván arcade nào — nên mọi thay đổi trong khối điểm cược đều cho ra số y hệt và test
+    // vẫn xanh. Sửa ở đây thì phải tự nghĩ cách kiểm; đừng tin màu xanh của backtest.
+    totalSeasonPoints = Math.max(0, matchPointsOnly + predictionNetPoints + arcadeNetPoints)
 
     // Cột "điểm sau" của sổ cái.
     //
@@ -551,43 +577,85 @@ export function calculateSeasonLeaderboard(db = {}, customSeason = null) {
     //
     // Sửa bằng một lượt quét SAU, không đụng vào vòng lặp trận: `matchPointsOnly` phải giữ
     // nguyên từng bit, nếu không là đổi điểm mùa của cả CLB (LUẬT SỐ 0 — backtest).
-    // Mỗi mốc cộng thêm phần điểm dự đoán đã quyết toán TRƯỚC thời điểm đó, cùng công thức với
-    // tổng nên dòng cuối luôn khớp `totalSeasonPoints`.
-    const predsAsc = [...myPredictions].sort((a, b) => Date.parse(a.settledAt) - Date.parse(b.settledAt))
+    // Mỗi mốc cộng thêm phần điểm dự đoán + arcade đã quyết toán TRƯỚC thời điểm đó, cùng công
+    // thức với tổng nên dòng cuối luôn khớp `totalSeasonPoints`.
+    const myArcade = seasonArcade.filter((r) => r.memberId === memberId || r.opponentId === memberId)
+    const nonMatchEvents = [
+      ...myPredictions.map((p) => ({
+        type: 'prediction',
+        at: Date.parse(p.settledAt || ''),
+        numPts: (p.status === 'won' ? 1 : -1) * (Number(p.stakePoints) || 0),
+        item: p,
+      })),
+      ...myArcade.map((r) => {
+        const isPlayer = r.memberId === memberId
+        const outcome = isPlayer ? r.outcome : (r.outcome === 'won' ? 'lost' : (r.outcome === 'lost' ? 'won' : 'draw'))
+        const numPts = outcome === 'won' ? (Number(r.stake) || 0) : (outcome === 'lost' ? -(Number(r.stake) || 0) : 0)
+        return {
+          type: 'arcade',
+          at: Date.parse(r.createdAt || ''),
+          numPts,
+          outcome,
+          item: r,
+        }
+      }),
+    ].sort((a, b) => (a.at || 0) - (b.at || 0))
+
     const predictionLogs = []
-    let predNetSoFar = 0
-    let predIdx = 0
-    let matchPtsSoFar = myMatches.length ? startPoints : 0
+    const arcadeLogs = []
+    let nonMatchNetSoFar = 0
+    let nmIdx = 0
+    let matchPtsSoFar = (myMatches.length || m.isBot) ? startPoints : 0
 
     matchLogs.forEach((log) => {
       const at = Number(log.at) || 0
-      // Phiếu quyết toán trước trận này thì đã nằm trong điểm lúc trận diễn ra.
-      while (predIdx < predsAsc.length && Date.parse(predsAsc[predIdx].settledAt) <= at) {
-        const p = predsAsc[predIdx]
-        predNetSoFar += (p.status === 'won' ? 1 : -1) * (Number(p.stakePoints) || 0)
-        predictionLogs.push({
-          prediction: p,
-          at: Date.parse(p.settledAt),
-          numPts: (p.status === 'won' ? 1 : -1) * (Number(p.stakePoints) || 0),
-          pointsAfter: Math.max(0, matchPtsSoFar + predNetSoFar),
-        })
-        predIdx++
+      while (nmIdx < nonMatchEvents.length && (nonMatchEvents[nmIdx].at || 0) <= at) {
+        const ev = nonMatchEvents[nmIdx]
+        nonMatchNetSoFar += ev.numPts
+        const currentPtsAfter = Math.max(0, matchPtsSoFar + nonMatchNetSoFar)
+        if (ev.type === 'prediction') {
+          predictionLogs.push({
+            prediction: ev.item,
+            at: ev.at,
+            numPts: ev.numPts,
+            pointsAfter: currentPtsAfter,
+          })
+        } else if (ev.type === 'arcade') {
+          arcadeLogs.push({
+            round: ev.item,
+            outcome: ev.outcome,
+            at: ev.at,
+            numPts: ev.numPts,
+            pointsAfter: currentPtsAfter,
+          })
+        }
+        nmIdx++
       }
       matchPtsSoFar = log.pointsAfter
-      log.pointsAfter = Math.max(0, matchPtsSoFar + predNetSoFar)
+      log.pointsAfter = Math.max(0, matchPtsSoFar + nonMatchNetSoFar)
     })
 
-    // Phiếu quyết toán sau trận cuối (hoặc người chưa đánh trận nào trong mùa).
-    while (predIdx < predsAsc.length) {
-      const p = predsAsc[predIdx]
-      predNetSoFar += (p.status === 'won' ? 1 : -1) * (Number(p.stakePoints) || 0)
-      predictionLogs.push({
-        prediction: p,
-        at: Date.parse(p.settledAt),
-        numPts: (p.status === 'won' ? 1 : -1) * (Number(p.stakePoints) || 0),
-        pointsAfter: Math.max(0, matchPtsSoFar + predNetSoFar),
-      })
-      predIdx++
+    while (nmIdx < nonMatchEvents.length) {
+      const ev = nonMatchEvents[nmIdx]
+      nonMatchNetSoFar += ev.numPts
+      const currentPtsAfter = Math.max(0, matchPtsSoFar + nonMatchNetSoFar)
+      if (ev.type === 'prediction') {
+        predictionLogs.push({
+          prediction: ev.item,
+          at: ev.at,
+          numPts: ev.numPts,
+          pointsAfter: currentPtsAfter,
+        })
+      } else if (ev.type === 'arcade') {
+        arcadeLogs.push({
+          round: ev.item,
+          outcome: ev.outcome,
+          at: ev.at,
+          numPts: ev.numPts,
+          pointsAfter: currentPtsAfter,
+        })
+      }
+      nmIdx++
     }
 
     // 3. Số buổi có mặt
@@ -638,6 +706,7 @@ export function calculateSeasonLeaderboard(db = {}, customSeason = null) {
       lastMatchAt,
       matchLogs,
       predictionLogs,
+      arcadeLogs,
       breakdown: {
         matchNetPts,
         streakBonusPts,
@@ -647,6 +716,7 @@ export function calculateSeasonLeaderboard(db = {}, customSeason = null) {
         predictionLostPoints,
         predictionNetPoints,
         rawPredictionNet,
+        arcadeNetPoints,
       },
     }
   })
@@ -660,21 +730,28 @@ export function calculateSeasonLeaderboard(db = {}, customSeason = null) {
     || (b.winRate - a.winRate)
   ))
 
+  // Bot CHỈ đứng trên BXH khi chủ CLB bật (Cài đặt → Chung → Bot CLB, cờ `leaderboard`; mặc định
+  // TẮT). Ẩn thì bot đứng ngoài bảng nên không chiếm hạng của ai. Dòng của nó vẫn ở `allRows` — số
+  // dư arcade / cược của bot đọc từ đó. Điểm của MỌI người không đổi, chỉ đổi số hạng.
+  const hideBot = db.club?.botFeatures?.leaderboard !== true
+  const ranked = hideBot ? rows.filter((r) => !r.member?.isBot) : rows
+
   // Đánh số thứ hạng 1..N
-  rows.forEach((row, idx) => {
+  ranked.forEach((row, idx) => {
     row.rank = idx + 1
   })
 
   // Tính thống kê tổng hợp mùa
-  const totalSeasonPoints = rows.reduce((sum, r) => sum + r.totalSeasonPoints, 0)
+  const totalSeasonPoints = ranked.reduce((sum, r) => sum + r.totalSeasonPoints, 0)
   const totalSeasonMatches = seasonMatches.length
-  const leaderPlayer = rows[0] || null
-  const mostAttendedPlayer = [...rows].sort((a, b) => b.attendedCount - a.attendedCount)[0] || null
-  const mostUpsetsPlayer = [...rows].sort((a, b) => b.upsetsCount - a.upsetsCount)[0] || null
+  const leaderPlayer = ranked[0] || null
+  const mostAttendedPlayer = [...ranked].sort((a, b) => b.attendedCount - a.attendedCount)[0] || null
+  const mostUpsetsPlayer = [...ranked].sort((a, b) => b.upsetsCount - a.upsetsCount)[0] || null
 
   return {
     season,
-    leaderboard: rows,
+    leaderboard: ranked,
+    allRows: rows,
     topStats: {
       totalSeasonPoints,
       totalSeasonMatches,
@@ -787,8 +864,33 @@ export function getMemberSeasonLedger(memberId, db = {}, customSeason = null) {
     }
   })
 
+  const arcadeEvents = (memberRow.arcadeLogs || []).map((log) => {
+    const r = log.round
+    const isWon = log.outcome === 'won'
+    const isLost = log.outcome === 'lost'
+    const oppId = r.memberId === memberId ? r.opponentId : r.memberId
+    const oppName = memberNameOf(oppId)
+    const titleKey = isWon
+      ? 'season.ledgerArcadeWon'
+      : (isLost ? 'season.ledgerArcadeLost' : 'season.ledgerArcadeDraw')
+    return {
+      id: r.id,
+      time: r.createdAt ? new Date(r.createdAt).toTimeString().slice(0, 5) : '',
+      titleKey,
+      oppName,
+      scoreText: oppName,
+      gapText: '',
+      pts: log.numPts > 0 ? `+${log.numPts}` : String(log.numPts),
+      numPts: log.numPts,
+      pointsAfter: log.pointsAfter,
+      type: isWon ? 'win' : (isLost ? 'loss' : 'draw'),
+      isArcade: true,
+      at: log.at || 0,
+    }
+  })
+
   // `allEvents` là sổ đủ cả mùa cho modal có bộ lọc; `recentEvents` giữ 10 dòng cho các thẻ tóm tắt.
-  const allEvents = [...events, ...predEvents].sort((a, b) => (b.at || 0) - (a.at || 0))
+  const allEvents = [...events, ...predEvents, ...arcadeEvents].sort((a, b) => (b.at || 0) - (a.at || 0))
 
   return {
     season,

@@ -409,7 +409,8 @@ test('Home Personal Dashboard Logic Suite', async (t) => {
         { id: 's-tomorrow', date: '2026-09-25', status: 'open', courts: [{ from: '18:00', to: '20:00' }] },
       ],
     }
-    const resToday = getNextUpcomingSession(dbWithClosedToday, 'm1')
+    // Phải truyền giờ: không truyền thì hàm đọc đồng hồ thật, chạy test sau 20:00 là đỏ.
+    const resToday = getNextUpcomingSession(dbWithClosedToday, 'm1', new Date('2026-09-24T12:00:00'))
     assert.equal(resToday?.id, 's-today', 'Phải lấy buổi hôm nay dù đã chốt (closed)')
     assert.equal(resToday?.status, 'closed')
 

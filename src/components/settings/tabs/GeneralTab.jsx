@@ -12,6 +12,7 @@ import {
 import { scanQrCodeFromImage, parseVietQr, getVietQrUrl, findBank } from '#utils/vietqr.js'
 import banks from '#config/banks.json' with { type: 'json' }
 import { myMember } from '#lib/money.js'
+import { BOT_FEATURES } from '#lib/bot.js'
 import { t } from '#i18n'
 import { useAuth } from '#contexts/AuthContext.jsx'
 import { useApp } from '#contexts/AppContext.jsx'
@@ -61,6 +62,24 @@ export default function GeneralTab({
   const pushTargets = useMemo(() => (db?.members || [])
     .filter((m) => m.userId && m.active !== false)
     .map((m) => ({ value: m.id, label: m.name })), [db?.members])
+
+  // Bot CLB: chọn BẤT KỲ thành viên đang hoạt động nào (chủ CLB tự quyết). Lưu ngay khi chọn,
+  // không chờ thanh "Lưu": cờ `is_bot` không đi đường đồng bộ chung, chỉ RPC `set_club_bot` ghi được.
+  const botOptions = useMemo(() => (db?.members || [])
+    .filter((m) => m.active !== false)
+    .map((m) => ({ value: m.id, label: m.name })), [db?.members])
+  const botId = (db?.members || []).find((m) => m.isBot && m.active !== false)?.id || ''
+  const botFeat = db?.club?.botFeatures || {}
+  const [savingBot, setSavingBot] = useState(false)
+  const handlePickBot = async (val) => {
+    if (savingBot || (val || '') === botId) return
+    setSavingBot(true)
+    try {
+      await a.setClubBot(val || null)
+    } finally {
+      setSavingBot(false)
+    }
+  }
 
   /**
    * Bắn push thử cho chính mình. Bấm TRÊN MÁY TÍNH thì điện thoại rung — cách duy nhất thử được
@@ -552,6 +571,67 @@ export default function GeneralTab({
             usedLevels={usedLevels}
           />
         </div>
+      </SettingsCard>
+
+      {/* 4b. Bot CLB — một thành viên do máy điều khiển. Xoá chọn = tắt bot. */}
+      <SettingsCard
+        title={t('settings.botTitle')}
+        subtitle={t('settings.botSub')}
+        icon="sparkles"
+      >
+        <FormRow label={t('settings.botLabel')} note={t('settings.botNote')} last={!botId} alignTop>
+          <SearchSelect
+            size="sm"
+            value={botId}
+            options={botOptions}
+            placeholder={t('settings.botNone')}
+            clearable
+            disabled={!canEdit || savingBot}
+            onChange={handlePickBot}
+            style={{ minWidth: 200 }}
+          />
+        </FormRow>
+
+        {/* Công tắc lưu ngay khi gạt (giống ô chọn bot), không chờ thanh "Lưu". Mặc định TẮT hết:
+            chỉ cờ `true` mới bật, và bật là chạy cho cả CLB (cờ nằm trên dòng `clubs`). */}
+        {botId && (
+          <>
+            <FormRow isToggle label={t('settings.botLeaderboard')} note={t('settings.botLeaderboardNote')}>
+              <ToggleSwitch
+                checked={botFeat.leaderboard === true}
+                disabled={!canEdit}
+                aria-label={t('settings.botLeaderboard')}
+                onChange={(on) => a.setBotFeatures({ leaderboard: on })}
+              />
+            </FormRow>
+            <FormRow isToggle label={t('settings.botPause')} note={t('settings.botPauseNote')}>
+              <ToggleSwitch
+                checked={Boolean(botFeat.paused)}
+                disabled={!canEdit}
+                aria-label={t('settings.botPause')}
+                onChange={(on) => a.setBotFeatures({ paused: on })}
+              />
+            </FormRow>
+            {/* Đang tạm dừng thì khoá các công tắc con nhưng vẫn hiện trạng thái riêng của chúng:
+                bỏ tạm dừng là bot quay lại đúng như trước. */}
+            {BOT_FEATURES.map((k, i) => (
+              <FormRow
+                key={k}
+                isToggle
+                label={t('settings.botFeat.' + k)}
+                note={t('settings.botFeatNote.' + k)}
+                last={i === BOT_FEATURES.length - 1}
+              >
+                <ToggleSwitch
+                  checked={botFeat[k] === true}
+                  disabled={!canEdit || Boolean(botFeat.paused)}
+                  aria-label={t('settings.botFeat.' + k)}
+                  onChange={(on) => a.setBotFeatures({ [k]: on })}
+                />
+              </FormRow>
+            ))}
+          </>
+        )}
       </SettingsCard>
 
       {/* 5. Vùng nguy hiểm (Full width) */}

@@ -413,6 +413,13 @@ của họ chỉ gồm lãi/lỗ cược — 100 điểm khởi đầu chỉ và
 > nguyên — ví dụ Hoa (156đ, 5 trận) 12 → 6, Trường (74đ, 11 trận) 11 → 21. Backtest KHÔNG bắt được
 > thay đổi này vì mốc chỉ lưu điểm, không lưu thứ hạng.
 
+**Bot CLB trên BXH:** bot có điểm mùa như mọi người (100 điểm khởi đầu dù không ra sân), nhưng
+**mặc định đứng NGOÀI bảng**: chỉ khi admin bật Cài đặt → Chung → Bot CLB → "Hiện bot trên BXH mùa"
+(cờ `clubs.bot_features.leaderboard = true`) bot mới chiếm một hạng. Ẩn hay hiện thì **điểm của mọi
+người kể cả bot không đổi**, chỉ số hạng của người đứng dưới bot đổi một bậc.
+`calculateSeasonLeaderboard` trả `leaderboard` (bảng xếp hạng) và `allRows` (đủ mọi người, kể cả bot
+bị ẩn) — số dư của bot cho arcade / cược phải đọc từ `allRows`.
+
 ### 3.8. Trận giao lưu (`ratingEnabled = false`)
 
 - Không sinh điểm mùa

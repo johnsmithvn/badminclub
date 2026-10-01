@@ -4,6 +4,7 @@ import { Button, Icon } from '#ds'
 import { useApp } from '#contexts/AppContext.jsx'
 import { supabase } from '#supabase'
 import { resolveActivityPayload } from '#lib/activity.js'
+import { botLineKey, BOT_LINE_VARIANTS } from '#lib/bot.js'
 import { t } from '#i18n'
 
 function formatActivityTime(rawTs) {
@@ -107,22 +108,73 @@ export default function ActivityTab() {
       }
     }
 
+    // Bot nói: câu nằm trong BONG BÓNG có tên bot, tách khỏi dòng sự kiện — đọc ra ngay đâu là lời
+    // bình, đâu là chuyện đã xảy ra. Câu ở `bot.remark.*` / `bot.reaction.*`, biến thể chọn bằng
+    // chính `item.id`. Nhóm lấy thẳng từ `BOT_LINE_VARIANTS` để thêm kind mới không phải sửa ở đây.
+    if (item.type === 'bot_remark') {
+      const kind = item.payload?.kind
+      const group = Object.hasOwn(BOT_LINE_VARIANTS.reaction, kind) ? 'reaction' : 'remark'
+      return {
+        icon: 'sparkles',
+        color: '#A855F7',
+        key: 'bot_remark',
+        bubbleKey: botLineKey(group, kind, item.id),
+        // Chỉ có bong bóng, không có dòng tiêu đề. Mã lạ (không có câu) thì `bubbleKey` là null và
+        // dòng rơi về câu thường "{{bot}} vừa nhắc tới {{name}}".
+        bubbleOnly: true,
+        badgeColor: 'rgba(168, 85, 247, 0.15)',
+      }
+    }
+
     switch (item.type) {
       case 'bounty_broken':
         return { icon: 'flame', color: '#FF2E7E', key: 'bounty_broken', badgeColor: 'rgba(255, 46, 126, 0.15)' }
       case 'challenge_completed':
         return { icon: 'trophy', color: '#FFE24B', key: 'challenge_completed', badgeColor: 'rgba(255, 226, 75, 0.15)' }
-      case 'challenge_created':
+      case 'challenge_created': {
+        // Kèo do bot dựng phải nói rõ là BOT gạ — câu chung "A thách đấu B" đọc như A tự đi gạ B.
+        // Lý do bot chọn bốn người này hiện trong bong bóng, cùng câu với màn Chi tiết kèo.
+        const chal = (db?.challenges || []).find((c) => c.id === (item.ref_id || item.payload?.chalId))
+        if (chal?.botReason) {
+          return {
+            icon: 'swords',
+            color: '#00F5D4',
+            key: 'challenge_created_bot',
+            bubbleKey: botLineKey('reason', chal.botReason, chal.id),
+            badgeColor: 'rgba(168, 85, 247, 0.15)',
+          }
+        }
         return { icon: 'swords', color: '#00F5D4', key: 'challenge_created', badgeColor: 'rgba(0, 245, 212, 0.15)' }
-      case 'challenge_cancelled':
+      }
+      case 'challenge_declined':
+      case 'challenge_cancelled': {
+        // Kèo không diễn ra: chấm xám trung tính, không đỏ — không phải sự cố, và không bêu ai.
+        // Gọi bằng tên hai phe; kèo không còn trong state thì đành dùng mã kèo.
+        const known = (db?.challenges || []).some((c) => c.id === (item.ref_id || item.payload?.chalId))
+        return {
+          icon: 'x',
+          color: 'var(--status-idle-fg)',
+          key: known ? 'challenge_not_played' : 'challenge_not_played_code',
+          badgeColor: 'var(--surface-sunken)',
+        }
+      }
       case 'session_cancelled':
         return { icon: 'x', color: '#EF4444', key: item.type, badgeColor: 'rgba(239, 68, 68, 0.15)' }
       case 'session_opened':
         return { icon: 'calendar', color: '#3B82F6', key: 'session_opened', badgeColor: 'rgba(59, 130, 246, 0.15)' }
       case 'session_closed':
-        return { icon: 'check', color: '#10B981', key: 'session_closed', badgeColor: 'rgba(16, 185, 129, 0.15)' }
+        return { icon: 'check', color: '#10B981', key: 'session_closed', badgeColor: 'rgba(168, 85, 247, 0.15)' }
       case 'member_joined':
         return { icon: 'user', color: '#EC4899', key: 'member_joined', badgeColor: 'rgba(236, 72, 153, 0.15)' }
+      case 'arcade_played': {
+        // MỘT dòng mỗi người mỗi ngày, RPC cộng dồn tại chỗ. Chấm tím như mọi dòng dính tới bot.
+        return {
+          icon: 'sparkles',
+          color: '#A855F7',
+          key: Number(item.payload?.draw) > 0 ? 'arcade_day_draw' : 'arcade_day',
+          badgeColor: 'rgba(168, 85, 247, 0.15)',
+        }
+      }
       default:
         return { icon: 'activity', color: 'var(--text-accent, #00B2A9)', key: item.type, badgeColor: 'var(--surface-sunken)' }
     }
@@ -148,13 +200,20 @@ export default function ActivityTab() {
             {events.map((item) => {
               const meta = getEventMeta(item)
               const resolvedPayload = resolveActivityPayload(item, db)
-              const text = t('activity.' + meta.key, resolvedPayload)
+              const bubble = meta.bubbleKey ? t(meta.bubbleKey, resolvedPayload) : null
+              const title = meta.bubbleOnly && bubble ? null : t('activity.' + meta.key, resolvedPayload)
 
               return (
                 <div key={item.id} style={S.eventRow}>
                   <span style={{ ...S.dot, background: meta.color }} />
                   <div style={S.eventContent}>
-                    <div style={S.eventTitle}>{text}</div>
+                    {title && <div style={S.eventTitle}>{title}</div>}
+                    {bubble && (
+                      <div style={title ? S.botCommentBubble : { ...S.botCommentBubble, marginTop: 0 }}>
+                        <span style={S.botCommentAuthor}>{resolvedPayload.bot || t('bot.defaultName')}</span>
+                        <span style={S.botCommentText}>“{bubble}”</span>
+                      </div>
+                    )}
                     <div style={S.eventTime}>{formatActivityTime(item.created_at)}</div>
                   </div>
                 </div>
@@ -249,6 +308,27 @@ const S = {
     font: '500 13px/1.4 var(--font-sans)',
     color: 'var(--text-primary)',
     wordBreak: 'break-word',
+  },
+  botCommentBubble: {
+    marginTop: 6,
+    padding: '7px 10px',
+    borderRadius: 'var(--radius-md, 8px)',
+    background: 'var(--surface-sunken)',
+    border: '1px solid var(--border-subtle)',
+    display: 'flex',
+    flexDirection: 'column',
+    gap: 2,
+  },
+  botCommentAuthor: {
+    font: '600 11px/1.2 var(--font-sans)',
+    color: 'var(--action-violet-fg)',
+    textTransform: 'uppercase',
+    letterSpacing: '0.04em',
+  },
+  botCommentText: {
+    font: '400 12.5px/1.4 var(--font-sans)',
+    fontStyle: 'italic',
+    color: 'var(--text-primary)',
   },
   eventTime: {
     font: '400 11px/1.2 var(--font-sans)',

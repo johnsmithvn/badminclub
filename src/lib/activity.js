@@ -5,7 +5,7 @@
 import { getPlayerPartnersAndMatchups } from '#lib/rating.js'
 import { getMemberStreak } from '#lib/badges.js'
 import { seasonMatchesOf } from '#lib/season.js'
-import { dd } from '#utils/dates.js'
+import { dd, isoOf, wd } from '#utils/dates.js'
 import { t } from '#i18n'
 
 /**
@@ -389,6 +389,15 @@ export function resolveActivityPayload(item, db) {
   if (item?.type === 'challenge_created') {
     res.challengers = p.challengers || formatTeamNames(db, p.challengerIds)
     res.opponents = p.opponents || formatTeamNames(db, p.opponentIds)
+    // Kèo do bot dựng: tên bot + ngày cuối được nhận kèo. RPC `create_bot_challenge` đặt hạn ở nửa
+    // đêm SAU ngày buổi tập kế tiếp, nên lùi 1ms là ra đúng ngày buổi đó ("CN 28/09").
+    const chal = (db?.challenges || []).find((c) => c.id === (item.ref_id || item.refId || p.chalId))
+    if (chal?.botReason) {
+      res.bot = getEntityName(db, chal.createdBy)
+      const exp = Date.parse(chal.expiresAt || '')
+      const lastDay = Number.isFinite(exp) ? isoOf(new Date(exp - 1)) : ''
+      res.day = lastDay ? `${wd(lastDay)} ${dd(lastDay)}` : ''
+    }
   }
 
   if (item?.type === 'challenge_completed') {
@@ -399,8 +408,40 @@ export function resolveActivityPayload(item, db) {
     }
   }
 
+  // Kèo không diễn ra (từ chối / huỷ): một dòng trung tính gọi tên HAI PHE, không nêu ai là người
+  // từ chối — bêu tên trước cả CLB là chuyện bot từng làm và đã bị bỏ.
+  if (item?.type === 'challenge_declined' || item?.type === 'challenge_cancelled') {
+    const chal = (db?.challenges || []).find((c) => c.id === (item.ref_id || item.refId || p.chalId))
+    res.code = p.code || chal?.code || ''
+    if (chal) {
+      res.challengers = formatTeamNames(db, chal.teamA)
+      res.opponents = formatTeamNames(db, chal.teamB)
+    }
+  }
+
   if (item?.type === 'member_joined') {
     res.name = p.name || getEntityName(db, p.memberId)
+  }
+
+  if (item?.type === 'bot_remark') {
+    // Payload chỉ giữ `subject` (id) — tên giải mã lúc render như mọi loại khác (RULES §3.3).
+    res.name = getEntityName(db, p.subject)
+    res.bot = getEntityName(db, item.actor_id || item.actorId)
+    const chal = (db?.challenges || []).find((c) => c.id === (item.ref_id || item.refId || p.chalId))
+    const declinerId = p.declinerId || chal?.declinedBy || chal?.teamB?.[0]
+    res.decliner = getEntityName(db, declinerId) || ''
+    const challengerId = chal?.createdBy || chal?.teamA?.[0]
+    res.challenger = getEntityName(db, challengerId) || ''
+  }
+
+  if (item?.type === 'arcade_played') {
+    // Dòng tổng của cả ngày (RPC `play_arcade_round` cộng dồn tại chỗ), không phải một ván.
+    res.userName = getEntityName(db, item.actor_id || item.actorId)
+    res.oppName = getEntityName(db, p.opponentId)
+    res.rounds = Number(p.rounds) || 0
+    res.won = Number(p.won) || 0
+    res.lost = Number(p.lost) || 0
+    res.draw = Number(p.draw) || 0
   }
 
   if (item?.type === 'session_opened' || item?.type === 'session_closed' || item?.type === 'session_cancelled') {
