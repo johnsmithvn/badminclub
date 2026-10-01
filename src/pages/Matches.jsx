@@ -70,7 +70,7 @@ export default function Matches() {
     : (tabParam === 'matrix' ? 'matrix' : 'challenges')
 
   const [activeTab, setActiveTab] = useState(initialTab)
-  const [challengeSubTab, setChallengeSubTab] = useState('my') // 'my' | 'pending' | 'accepted' | 'played'
+  const [challengeSubTab, setChallengeSubTab] = useState('my') // 'my' | 'pending' | 'accepted' | 'played' | 'bet'
   const [challengeSearch, setChallengeSearch] = useState('')
   const [myEndedCollapsed, setMyEndedCollapsed] = useState(true)
 
@@ -314,6 +314,15 @@ export default function Matches() {
     return allChallenges.filter((c) => c.status === 'played')
   }, [allChallenges])
 
+  // Kèo mình đã đặt phiếu dự đoán (phiếu tự huỷ thì thôi) — chỗ tìm lại "tôi đã cược những gì".
+  const betChallenges = useMemo(() => {
+    if (!myId) return []
+    const mine = new Set((db.challengePredictions || [])
+      .filter((p) => p.memberId === myId && p.status !== 'cancelled')
+      .map((p) => p.challengeId))
+    return allChallenges.filter((c) => mine.has(c.id))
+  }, [allChallenges, db.challengePredictions, myId])
+
   const displayedChallenges = useMemo(() => {
     let list
     switch (challengeSubTab) {
@@ -321,6 +330,7 @@ export default function Matches() {
       case 'pending': list = pendingChallenges; break
       case 'accepted': list = acceptedChallenges; break
       case 'played': list = playedChallenges; break
+      case 'bet': list = betChallenges; break
       default: list = myChallenges
     }
 
@@ -346,7 +356,7 @@ export default function Matches() {
       }
     }
     return list
-  }, [challengeSubTab, myChallenges, pendingChallenges, acceptedChallenges, playedChallenges, challengeSearch, memberNameOf, allChallenges, highlightedChallengeId])
+  }, [challengeSubTab, myChallenges, pendingChallenges, acceptedChallenges, playedChallenges, betChallenges, challengeSearch, memberNameOf, allChallenges, highlightedChallengeId])
 
   // =========================================================================
   // TAB 2: LỊCH SỬ ĐẤU & VIDEO (SEARCH) - BÊ NGUYÊN TỪ LEADERBOARD CŨ
@@ -775,6 +785,7 @@ export default function Matches() {
           { id: 'pending', label: t('challenge.tabPending'), count: pendingChallenges.length, color: '#F0B75C' },
           { id: 'accepted', label: t('challenge.tabAccepted'), count: acceptedChallenges.length, color: '#2EC4B6' },
           { id: 'played', label: t('challenge.tabPlayed'), count: playedChallenges.length },
+          { id: 'bet', label: t('challenge.tabBet'), count: betChallenges.length, color: '#A78BFA' },
         ]
         const currentTabObj = subTabs.find((st) => st.id === challengeSubTab) || subTabs[0]
         const arenaSubtitleText = t('challenge.arenaSubtitle', {

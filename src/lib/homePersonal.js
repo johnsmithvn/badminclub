@@ -443,14 +443,30 @@ export function getPlayerForm5(db, memberId) {
 }
 
 /**
+ * BXH ĐIỂM MÙA đổ vào đúng khuôn của `getClubEloLeaderboard` (`elo` = SP) để phân tích kình địch
+ * dùng chung một đường. Giữ nguyên thứ tự và hạng của BXH mùa.
+ */
+function seasonGoalList(db) {
+  const res = calculateSeasonLeaderboard(db)
+  const list = (res?.leaderboard || []).map((r) => (
+    { id: r.id, name: r.name || '', avatarUrl: r.avatarUrl, member: r.member, elo: r.totalSeasonPoints, rank: r.rank }
+  ))
+  return { list, perWin: res?.season?.deltaScale?.balanced?.win ?? 14 }
+}
+
+/**
  * 03. Phân tích kình địch & mục tiêu vượt hạng
  * @param {Object} db
  * @param {string} memberId
  * @param {string} [targetRivalId]
+ * @param {'elo'|'season'} [mode] đua Elo hay đua điểm mùa
  */
-export function getRivalAnalysis(db, memberId, targetRivalId = null) {
+export function getRivalAnalysis(db, memberId, targetRivalId = null, mode = 'elo') {
   if (!db || !memberId) return null
-  const rankedList = getClubEloLeaderboard(db)
+  const season = mode === 'season' ? seasonGoalList(db) : null
+  const rankedList = season ? season.list : getClubEloLeaderboard(db)
+  // Một trận thắng kéo gần bao nhiêu điểm: ~20 Elo, hoặc mức thắng kèo cân của thang điểm mùa.
+  const perWin = season ? season.perWin : 20
   const myIndex = rankedList.findIndex((x) => x.id === memberId)
   if (myIndex < 0) return null
 
@@ -460,22 +476,43 @@ export function getRivalAnalysis(db, memberId, targetRivalId = null) {
 
   const myItem = rankedList[myIndex]
 
+  // Câu insight xoay vòng theo NGÀY: key `base` có n biến thể đánh số 1..n trong vi.json.
+  const pick = (base, n, seed) => `${base}${getDeterministicRoll(`${memberId}_${seed}_${todayKey}_${base}`, n) + 1}`
+  const streakOf = (id) => {
+    try {
+      return getMemberStreak(id, db)?.streak || 0
+    } catch {
+      return 0 // không tính được chuỗi: coi như không có chuỗi
+    }
+  }
+
   let rivalItem = null
   if (targetRivalId) {
     rivalItem = rankedList.find((x) => x.id === targetRivalId)
   }
   if (!rivalItem && myIndex > 0) {
-    rivalItem = rankedList[myIndex - 1]
+    // Không có mục tiêu chỉ định: đổi đối thủ theo NGÀY trong tối đa 3 người ngay trên mà còn với
+    // tới (≤ 5 trận thắng) — ngày nào cũng đuổi đúng một người thì thẻ nhàm. Không ai trong tầm
+    // thì lấy người ngay trên.
+    const pool = rankedList.slice(Math.max(0, myIndex - 3), myIndex)
+      .filter((x) => x.elo - myItem.elo <= perWin * 5)
+    rivalItem = pool.length
+      ? pool[getDeterministicRoll(`${memberId}_${todayKey}_rivalPick`, pool.length)]
+      : rankedList[myIndex - 1]
   }
 
-  const chaserItem = myIndex < rankedList.length - 1 ? rankedList[myIndex + 1] : null
+  // Người bám đuổi: trong 3 người ngay dưới, ai đang thắng liền (≥ 2) mà còn trong tầm 2.5 trận
+  // thắng mới là mối nguy thật — chọn người chuỗi dài nhất. Không ai như vậy thì lấy người ngay dưới.
+  const below = rankedList.slice(myIndex + 1, myIndex + 4)
+  const threat = below
+    .map((x) => ({ x, streak: streakOf(x.id) }))
+    .filter(({ x, streak }) => streak >= 2 && myItem.elo - x.elo <= perWin * 2.5)
+    .sort((p, q) => q.streak - p.streak)[0]
+  const chaserItem = threat?.x || below[0] || null
 
   let rival = null
   if (rivalItem) {
-    let rivalStreak = 0
-    try {
-      rivalStreak = getMemberStreak(rivalItem.id, db)?.streak || 0
-    } catch { /* không tính được chuỗi của đối thủ: giữ 0 */ }
+    const rivalStreak = streakOf(rivalItem.id)
 
     let myH2HWins = 0
     let rivalH2HWins = 0
@@ -496,37 +533,27 @@ export function getRivalAnalysis(db, memberId, targetRivalId = null) {
     })
 
     const gapPoints = Math.max(0, rivalItem.elo - myItem.elo)
-    // ponytail: neededWins = ceil(gap / 20) là ước lượng xấp xỉ trực quan dựa trên mức delta ~20 Elo/trận (chưa tính trường hợp đối thủ cùng thua làm co khoảng cách ~2x).
-    const neededWins = Math.max(1, Math.min(5, Math.ceil(gapPoints / 20)))
+    // ponytail: neededWins = ceil(gap / perWin) là ước lượng xấp xỉ trực quan (chưa tính trường hợp đối thủ cùng thua làm co khoảng cách ~2x).
+    const neededWins = Math.max(1, Math.min(5, Math.ceil(gapPoints / perWin)))
 
-    let myStreak = 0
-    try {
-      myStreak = getMemberStreak(memberId, db)?.streak || 0
-    } catch { /* không tính được chuỗi của mình: giữ 0 */ }
+    const myStreak = streakOf(memberId)
 
-    let rivalInsightKey = 'rivalInsightMedium'
-    let rivalInsightParams = { name: rivalItem.name, gap: gapPoints, n: neededWins }
-
-    if (gapPoints === 0) {
-      rivalInsightKey = 'rivalInsightEven'
-      rivalInsightParams = { name: rivalItem.name }
-    } else if (gapPoints <= 20) {
-      const v = getDeterministicRoll(`${memberId}_${rivalItem.id}_${todayKey}_rivalClose`, 2) === 0 ? '1' : '2'
-      rivalInsightKey = `rivalInsightClose${v}`
-      rivalInsightParams = { name: rivalItem.name, rank: rivalItem.rank }
-    } else if (myStreak >= 3 && gapPoints <= 50) {
-      rivalInsightKey = 'rivalInsightOnFire'
-      rivalInsightParams = { name: rivalItem.name, streak: myStreak }
-    } else if (myH2HWins >= 2 && myH2HWins > rivalH2HWins && gapPoints <= 60) {
-      rivalInsightKey = 'rivalInsightH2H'
-      rivalInsightParams = { name: rivalItem.name, myWins: myH2HWins, rivalWins: rivalH2HWins }
-    } else if (neededWins <= 3) {
-      rivalInsightKey = 'rivalInsightMedium'
-      rivalInsightParams = { name: rivalItem.name, gap: gapPoints, n: neededWins }
-    } else {
-      rivalInsightKey = 'rivalInsightFar'
-      rivalInsightParams = { name: rivalItem.name, gap: gapPoints }
+    // Ngưỡng tính theo SỐ TRẬN THẮNG (`perWin`) để một bộ luật dùng chung cho Elo (~20/trận) và
+    // điểm mùa (~14/trận). Với Elo, perWin = 20 ra đúng các mốc cũ 20 / 50 / 60. Trước đây mốc viết
+    // cứng theo Elo nên ở chế độ Mùa gần như lúc nào cũng rơi vào câu "Cứ cày từ từ".
+    const rivalInsightParams = {
+      name: rivalItem.name, rank: rivalItem.rank, gap: gapPoints, n: neededWins,
+      streak: myStreak, rivalStreak, myWins: myH2HWins, rivalWins: rivalH2HWins,
     }
+    let rivalInsightKey
+    if (gapPoints === 0) rivalInsightKey = pick('rivalInsightEven', 2, rivalItem.id)
+    else if (gapPoints <= perWin) rivalInsightKey = pick('rivalInsightClose', 3, rivalItem.id)
+    else if (myStreak >= 3 && gapPoints <= perWin * 2.5) rivalInsightKey = pick('rivalInsightOnFire', 2, rivalItem.id)
+    else if (myH2HWins >= 2 && myH2HWins > rivalH2HWins && gapPoints <= perWin * 3) rivalInsightKey = pick('rivalInsightH2H', 2, rivalItem.id)
+    else if (rivalH2HWins >= 2 && rivalH2HWins > myH2HWins) rivalInsightKey = pick('rivalInsightNemesis', 2, rivalItem.id)
+    else if (rivalStreak >= 3) rivalInsightKey = pick('rivalInsightRivalHot', 2, rivalItem.id)
+    else if (neededWins <= 3) rivalInsightKey = pick('rivalInsightMedium', 3, rivalItem.id)
+    else rivalInsightKey = pick('rivalInsightFar', 3, rivalItem.id)
 
     rival = {
       id: rivalItem.id,
@@ -551,30 +578,15 @@ export function getRivalAnalysis(db, memberId, targetRivalId = null) {
 
   let chaser = null
   if (chaserItem) {
-    let chaserStreak = 0
-    try {
-      chaserStreak = getMemberStreak(chaserItem.id, db)?.streak || 0
-    } catch { /* không tính được chuỗi của người bám đuổi: giữ 0 */ }
-
+    const chaserStreak = threat?.x === chaserItem ? threat.streak : streakOf(chaserItem.id)
     const chaserGap = Math.max(0, myItem.elo - chaserItem.elo)
-    let chaserWarningKey = 'chaserWarningNormal'
-    let chaserWarningParams = { name: chaserItem.name, rank: chaserItem.rank, gap: chaserGap }
-
-    if (chaserGap <= 25 && chaserStreak >= 2) {
-      const v = getDeterministicRoll(`${memberId}_${chaserItem.id}_${todayKey}_chaserThreat`, 2) === 0 ? '1' : '2'
-      chaserWarningKey = `chaserWarningThreat${v}`
-      chaserWarningParams = { name: chaserItem.name, rank: chaserItem.rank, gap: chaserGap, streak: chaserStreak }
-    } else if (chaserGap <= 25) {
-      chaserWarningKey = 'chaserWarningClose'
-      chaserWarningParams = { name: chaserItem.name, rank: chaserItem.rank, gap: chaserGap }
-    } else if (chaserStreak >= 2) {
-      chaserWarningKey = 'chaserWarningHot'
-      chaserWarningParams = { name: chaserItem.name, rank: chaserItem.rank, streak: chaserStreak }
-    } else if (chaserGap > 50) {
-      const v = getDeterministicRoll(`${memberId}_${chaserItem.id}_${todayKey}_chaserSafe`, 2) === 0 ? '1' : '2'
-      chaserWarningKey = `chaserWarningSafe${v}`
-      chaserWarningParams = { name: chaserItem.name, rank: chaserItem.rank, gap: chaserGap }
-    }
+    const chaserWarningParams = { name: chaserItem.name, rank: chaserItem.rank, gap: chaserGap, streak: chaserStreak }
+    let chaserWarningKey
+    if (chaserGap <= perWin * 1.25 && chaserStreak >= 2) chaserWarningKey = pick('chaserWarningThreat', 2, chaserItem.id)
+    else if (chaserGap <= perWin * 1.25) chaserWarningKey = pick('chaserWarningClose', 2, chaserItem.id)
+    else if (chaserStreak >= 2) chaserWarningKey = pick('chaserWarningHot', 2, chaserItem.id)
+    else if (chaserGap > perWin * 2.5) chaserWarningKey = pick('chaserWarningSafe', 3, chaserItem.id)
+    else chaserWarningKey = pick('chaserWarningNormal', 2, chaserItem.id)
 
     chaser = {
       id: chaserItem.id,
@@ -1614,7 +1626,6 @@ export function getSurroundingStandings(db, memberId, windowSize = 5, mode = 'el
           rank: r.rank,
           points: r.totalSeasonPoints,
           elo: r.member ? getPlayerRating(db.playerRatings, r.id, r.member, db.levels)?.displayRating ?? DEFAULT_RATING : DEFAULT_RATING,
-          isQualified: r.isQualified,
           streakWins,
         }
       })

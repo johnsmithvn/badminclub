@@ -2,7 +2,7 @@ import React, { useState, useEffect, useMemo, useCallback } from 'react'
 import { useNavigate } from 'react-router-dom'
 import { useApp } from '#contexts/AppContext.jsx'
 import { myMember } from '#lib/money.js'
-import { calculateMemberBadges, computeClubBadgeStats, TIER_ORDER } from '#lib/badges.js'
+import { calculateMemberBadges, computeClubBadgeStats, TIER_ORDER, cleanShelf } from '#lib/badges.js'
 import { resolveSeason, seasonMatchesOf } from '#lib/season.js'
 import cfgBadges from '#config/badges.json' with { type: 'json' }
 import { seenBadgesKey, readSeenBadges, markBadgeSeen } from '#utils/seenBadges.js'
@@ -103,19 +103,8 @@ export default function GlobalBadgeUnlockHost() {
   const handleEquipShelf = useCallback(
     (badge) => {
       if (!badge || !me?.id) return
-      const currentShelf = (me.badgeShelf || me.badge_shelf || []).slice()
-      const foundIdx = currentShelf.indexOf(badge.id)
-
-      if (foundIdx < 0) {
-        if (currentShelf.length >= SHELF_SLOTS) {
-          currentShelf.pop() // Kệ đầy 3 ô -> thay ô cuối cùng
-        }
-        currentShelf.unshift(badge.id)
-
-        if (a && a.setMemberShelf) {
-          a.setMemberShelf(me.id, currentShelf)
-        }
-      }
+      // Gắn lên đầu kệ; setMemberShelf lọc & cắt 3 ô
+      a?.setMemberShelf?.(me.id, [badge.id, ...(me.badgeShelf || me.badge_shelf || [])])
 
       handleClose()
     },
@@ -148,7 +137,7 @@ export default function GlobalBadgeUnlockHost() {
 
   if (!activeBadge || !me) return null
 
-  const currentShelf = me.badgeShelf || me.badge_shelf || []
+  const currentShelf = cleanShelf(me.badgeShelf || me.badge_shelf)
   const shelfCount = currentShelf.length
   const shelfIsFull = shelfCount >= SHELF_SLOTS
 

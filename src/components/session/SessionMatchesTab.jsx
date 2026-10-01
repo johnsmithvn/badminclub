@@ -1386,7 +1386,7 @@ export default function SessionMatchesTab({ s, onSwitchTab }) {
                   <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', gap: 8 }}>
                     <div style={{ display: 'flex', alignItems: 'center', gap: 6 }}>
                       <span style={S.monoCode}>{c.code}</span>
-                      {isPending && (
+                      {isPending && isAdmin && (
                         <span style={{
                           fontSize: 10.5,
                           fontFamily: 'var(--font-mono)',

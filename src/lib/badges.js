@@ -840,8 +840,7 @@ export function calculateMemberBadges(
   const bountiesBrokenCount = countBountiesBroken(memberId, db, false, allSeasonMatches)
   const bountiesBrokenDistinctCount = countBountiesBroken(memberId, db, true, allSeasonMatches)
 
-  // D2: Chuẩn hóa đọc badgeShelf và badge_shelf, map qua ID mới nếu có ID cũ
-  const shelfStored = (member?.badgeShelf || member?.badge_shelf || []).map(resolveBadgeId)
+  const shelfStored = cleanShelf(member?.badgeShelf || member?.badge_shelf)
 
   // Thống kê chuyên sâu từ dữ liệu trận đấu mùa giải
   const memberMatches = allSeasonMatches.filter(
@@ -1678,22 +1677,12 @@ export function calculateMemberBadges(
     return acc + (ANIME_TIERS[b.tier]?.pts || 0)
   }, 0)
 
-  // Xây dựng 3 ô trên kệ
-  let shelfBadges = shelfStored
+  // Kệ = những gì người dùng tự gắn VÀ đang giữ ở mùa đang xét. KHÔNG tự lấp ô trống: Tự phong luôn
+  // "mở", tự lấp là ai cũng bị gắn sẵn 3 cái không chọn. Danh hiệu mùa trước chưa đạt lại mùa này thì
+  // ẩn (vẫn giữ trong badge_shelf — đạt lại là tự hiện, khỏi gắn lại).
+  const shelfBadges = shelfStored
     .map((id) => processed.find((b) => b.id === id))
-    .filter(Boolean)
-
-  // D3: Tự động lấp đầy các ô trống còn lại nếu kệ chưa đủ 3 ô
-  const maxShelf = cfgBadges.shelfSlots ?? 3
-  if (shelfBadges.length < maxShelf && unlocked.length > 0) {
-    const remainingSlots = maxShelf - shelfBadges.length
-    const currentShelfIds = new Set(shelfBadges.map((b) => b.id))
-    const availableToFill = unlocked
-      .filter((b) => !currentShelfIds.has(b.id))
-      .sort((a, b) => (TIER_ORDER[b.tier] || 0) - (TIER_ORDER[a.tier] || 0) || (b.pts || 0) - (a.pts || 0))
-      .slice(0, remainingSlots)
-    shelfBadges = [...shelfBadges, ...availableToFill]
-  }
+    .filter((b) => b?.unlocked)
 
   return {
     all: processed,
@@ -2020,6 +2009,32 @@ export function getBadgeById(badgeId) {
   if (!badgeId) return null
   const resolvedId = resolveBadgeId(badgeId)
   return activeCatalog().find((b) => b.id === resolvedId) || null
+}
+
+/**
+ * Kệ danh hiệu dạng chuẩn — NGUỒN DUY NHẤT cho mọi chỗ đọc/ghi kệ.
+ * Quy mã cũ về mã mới, bỏ trùng (giữ lần đầu), bỏ mã không còn trong danh mục, cắt còn số ô.
+ * Gắn = cleanShelf([id, ...kệ]) (lên đầu, đầy thì rớt ô cuối). Gỡ = cleanShelf(kệ).filter(x => x !== id).
+ */
+export function cleanShelf(ids) {
+  const out = []
+  for (const raw of Array.isArray(ids) ? ids : []) {
+    const id = resolveBadgeId(raw)
+    if (!out.includes(id) && getBadgeById(id)) out.push(id)
+  }
+  return out.slice(0, cfgBadges.shelfSlots ?? 3)
+}
+
+/**
+ * Bản để mở modal chi tiết: danh hiệu thuộc họ thì trả cả họ (có thanh hành trình các mốc),
+ * không thì trả nguyên. `all` = danh sách đã tính tiến độ của người đang xem (calculateMemberBadges().all).
+ */
+export function familyViewOf(badge, all) {
+  if (!badge || badge.isFamily) return badge
+  const fInfo = getBadgeFamily(badge.id)
+  if (!fInfo) return badge
+  const grouped = groupBadgesByFamily((all || []).filter((b) => (fInfo.badgeIds || []).includes(b.id)))
+  return grouped[0] || badge
 }
 
 /**

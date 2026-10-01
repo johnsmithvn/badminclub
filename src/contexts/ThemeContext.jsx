@@ -75,7 +75,6 @@ export function ThemeProvider({ children }) {
     isDark: theme === 'dark',
     toggleTheme,
     setTheme,
-    isGlamorous: true,
   }), [theme, toggleTheme, setTheme])
 
   return <Ctx.Provider value={value}>{children}</Ctx.Provider>
@@ -89,7 +88,6 @@ export function useTheme() {
       isDark: false,
       toggleTheme: () => {},
       setTheme: () => {},
-      isGlamorous: true,
     }
   }
   return ctx

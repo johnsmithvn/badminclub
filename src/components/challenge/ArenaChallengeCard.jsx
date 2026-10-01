@@ -572,7 +572,7 @@ export default function ArenaChallengeCard({
                     key={id}
                     name={shortNameOf(id)}
                     team="A"
-                    isAccepted={isPending && isAcc}
+                    isAccepted={isPending && isAcc && Boolean(isAdmin || (myId && id === myId))}
                     isWinner={isPlayed && winnerTeam === 'A'}
                     isFeatured={isFeatured}
                     isMobile={isMobile}
@@ -696,7 +696,7 @@ export default function ArenaChallengeCard({
                       key={id}
                       name={shortNameOf(id)}
                       team="B"
-                      isAccepted={isPending && isAcc}
+                      isAccepted={isPending && isAcc && Boolean(isAdmin || (myId && id === myId))}
                       isWinner={isPlayed && winnerTeam === 'B'}
                       isFeatured={isFeatured}
                       isMobile={isMobile}

@@ -14,18 +14,15 @@ import BadgeUnlockModal from '#components/badges/BadgeUnlockModal.jsx'
 import CollectorLeaderboardTab from '#components/badges/CollectorLeaderboardTab.jsx'
 import { useMobile } from '#hooks/useMobile.js'
 import AnimeMobileCollection from '#components/badges/mobile/AnimeMobileCollection.jsx'
-import AnimeMobileBadgeDetail from '#components/badges/mobile/AnimeMobileBadgeDetail.jsx'
 import {
   calculateMemberBadges,
   computeClubBadgeStats,
   getActiveBounties,
-  getStreakTimeline,
-  getBadgeOwners,
-  getBadgeChasers,
   getCollectorLeaderboard,
   getRarestBadges,
   groupBadgesByFamily,
-  getBadgeFamily,
+  familyViewOf,
+  cleanShelf,
   sortBadgesByRarity,
   ANIME_TIERS,
   NOTCH_CLIP,
@@ -77,6 +74,11 @@ export default function Badges() {
   // `myMember` chỉ nhận 1 tham số (xem money.js) — truyền thêm `me` là thừa và gây hiểu nhầm
   // rằng danh tính đăng nhập có ảnh hưởng; nó đọc `db.currentUserId` bên trong.
   const currentMember = useMemo(() => myMember(db), [db])
+  // Kệ của chính mình ở dạng chuẩn (mã cũ -> mã mới, bỏ trùng) — mọi thao tác gắn/gỡ đọc từ đây
+  const myShelf = useMemo(
+    () => cleanShelf(currentMember?.badge_shelf || currentMember?.badgeShelf),
+    [currentMember]
+  )
 
   // Thành viên đang được xem hồ sơ danh hiệu (mặc định là người dùng hiện tại, hoặc người đầu tiên)
   const [viewingMemberId, setViewingMemberId] = useState(null)
@@ -241,28 +243,7 @@ export default function Badges() {
   }, [memberBadges.all])
 
   // Xử lý mở modal chi tiết cho danh hiệu / họ danh hiệu
-  const handleSelectBadge = (b) => {
-    if (!b) {
-      setSelectedBadge(null)
-      return
-    }
-    if (b.isFamily && b.tiers) {
-      setSelectedBadge(b)
-      return
-    }
-    const fInfo = getBadgeFamily(b.id)
-    if (fInfo) {
-      const familyBadges = (memberBadges.all || []).filter((item) => (fInfo.badgeIds || []).includes(item.id))
-      if (familyBadges.length > 0) {
-        const grouped = groupBadgesByFamily(familyBadges)
-        if (grouped.length > 0) {
-          setSelectedBadge(grouped[0])
-          return
-        }
-      }
-    }
-    setSelectedBadge(b)
-  }
+  const handleSelectBadge = (b) => setSelectedBadge(familyViewOf(b, memberBadges.all) || null)
 
   // Thống kê số lượng danh hiệu chính thức (không tính tự phong)
   const officialUnlockedCount =
@@ -274,20 +255,11 @@ export default function Badges() {
   // Thao tác gắn danh hiệu lên kệ
   const handleToggleShelf = (badgeId) => {
     if (!badgeId || !currentMember?.id) return
-    const currentShelf = (currentMember.badge_shelf || currentMember.badgeShelf || []).slice()
-    const foundIdx = currentShelf.indexOf(badgeId)
-    if (foundIdx >= 0) {
-      currentShelf.splice(foundIdx, 1)
-    } else {
-      if (currentShelf.length >= (badgesConfig.shelfSlots || 3)) {
-        currentShelf.pop() // Thay ô cuối nếu đã đầy 3 ô
-      }
-      currentShelf.unshift(badgeId)
-    }
-
-    if (a && a.setMemberShelf) {
-      a.setMemberShelf(currentMember.id, currentShelf)
-    }
+    // Đã gắn -> gỡ; chưa -> gắn lên đầu. setMemberShelf lọc danh hiệu không còn giữ rồi cắt 3 ô
+    const next = myShelf.includes(badgeId)
+      ? myShelf.filter((x) => x !== badgeId)
+      : [badgeId, ...myShelf]
+    a?.setMemberShelf?.(currentMember.id, next)
   }
 
   // Lưu châm ngôn / chữ ký
@@ -412,25 +384,6 @@ export default function Badges() {
     return typeof document !== 'undefined' ? createPortal(modal, document.body) : modal
   }
 
-  const selectedBadgeId = selectedBadge?.id
-  const currentMemberId = currentMember?.id
-
-  // Dữ liệu cho Modal A2 Chi tiết danh hiệu (tối ưu tránh tính toán lại trong render)
-  const selectedBadgeOwners = useMemo(() => {
-    if (!selectedBadgeId || !db) return []
-    return getBadgeOwners(selectedBadgeId, db, currentSeason, preloadedSeasonMatches, preloadedClubStats)
-  }, [selectedBadgeId, db, currentSeason, preloadedSeasonMatches, preloadedClubStats])
-
-  const selectedBadgeChasers = useMemo(() => {
-    if (!selectedBadgeId || !db) return []
-    return getBadgeChasers(selectedBadgeId, currentMemberId, db, currentSeason, preloadedSeasonMatches, preloadedClubStats)
-  }, [selectedBadgeId, currentMemberId, db, currentSeason, preloadedSeasonMatches, preloadedClubStats])
-
-  const streakTimeline = useMemo(() => {
-    if (!selectedBadgeId || !currentMemberId || !db) return []
-    return getStreakTimeline(currentMemberId, db, 10)
-  }, [selectedBadgeId, currentMemberId, db])
-
   // Danh sách tabs phong cách Anime
   const TAB_LABEL_KEYS = {
     collection: 'badges.tabCollection',
@@ -442,24 +395,66 @@ export default function Badges() {
   // Hero Bounty Poster mục tiêu hot nhất
   const heroBounty = bounties.length > 0 ? bounties[0] : null
 
+  // Modal chi tiết (A2) + mở khoá (A4) — DÙNG CHUNG cho mobile và desktop
+  const badgeModals = (
+    <>
+      {/* ═══ MODAL A2: CHI TIẾT DANH HIỆU ═══ */}
+      {selectedBadge && (
+        <BadgeDetailModal
+          badge={selectedBadge}
+          db={db}
+          currentSeason={currentSeason}
+          preloadedSeasonMatches={preloadedSeasonMatches}
+          preloadedClubStats={preloadedClubStats}
+          currentMember={currentMember}
+          onClose={() => setSelectedBadge(null)}
+          onShowUnlock={(b) => setUnlockingBadge(b)}
+        />
+      )}
+
+      {/* ═══ MODAL A4: MỞ KHÓA DANH HIỆU ═══ */}
+      {unlockingBadge && (
+        <BadgeUnlockModal
+          badge={unlockingBadge}
+          isMobile={isMobile}
+          shelfCount={myShelf.length}
+          shelfIsFull={myShelf.length >= (badgesConfig.shelfSlots || 3)}
+          onEquipShelf={(b) => {
+            // Nút này chỉ GẮN — không đi qua toggle, kẻo bấm lúc đã có trên kệ lại thành gỡ
+            if (currentMember?.id) a?.setMemberShelf?.(currentMember.id, [b?.id || unlockingBadge.id, ...myShelf])
+            setUnlockingBadge(null)
+          }}
+          onViewCollection={(b) => {
+            const badgeId = b?.id || unlockingBadge?.id
+            setUnlockingBadge(null)
+            setSelectedBadge(null)
+            setShowShelfModal(false)
+            setActiveTab('collection')
+            setViewingMemberId(null)
+            if (badgeId) {
+              setHighlightedBadgeId(badgeId)
+              setTimeout(() => {
+                const el = document.getElementById(`badge-card-${badgeId}`)
+                if (el) el.scrollIntoView({ behavior: 'smooth', block: 'center' })
+              }, 120)
+              setTimeout(() => {
+                setHighlightedBadgeId(null)
+              }, 4500)
+            }
+          }}
+          onClose={() => setUnlockingBadge(null)}
+        />
+      )}
+    </>
+  )
+
   // ══════════════════════════════════════════════════════════════════
   // GIAO DIỆN BẢN ANIME MOBILE (3A: AM1, AM2)
   // ══════════════════════════════════════════════════════════════════
   if (isMobile) {
     return (
       <div style={{ padding: '0 0 30px', color: '#FFFFFF' }}>
-        {/* AM2: Nếu đang chọn xem chi tiết 1 danh hiệu -> Màn AM2 Chi tiết danh hiệu */}
-        {selectedBadge ? (
-          <AnimeMobileBadgeDetail
-            badge={selectedBadge}
-            currentMember={activeMember || currentMember}
-            db={db}
-            currentSeason={currentSeason}
-            preloadedSeasonMatches={preloadedSeasonMatches}
-            preloadedClubStats={preloadedClubStats}
-            onClose={() => setSelectedBadge(null)}
-          />
-        ) : activeTab === 'collection' ? (
+        {activeTab === 'collection' ? (
           /* AM1: Màn Bộ sưu tập Anime Mobile */
           <AnimeMobileCollection
             activeMember={activeMember}
@@ -596,6 +591,8 @@ export default function Badges() {
           </div>
         )}
 
+        {badgeModals}
+
         {/* Modal Sắp kệ dùng chung khi nhấn nút SẮP KỆ trên mobile */}
         {showShelfModal && (
           <div
@@ -651,9 +648,11 @@ export default function Badges() {
                 </div>
                 <div style={{ display: 'flex', flexDirection: 'column', gap: 8 }}>
                   {memberBadges.all
-                    .filter((b) => b.unlocked || b.tier === 'fun')
+                    .filter((b) => b.unlocked)
+                    // Đang gắn lên đầu danh sách cho dễ thấy mà gỡ
+                    .sort((x, y) => myShelf.includes(y.id) - myShelf.includes(x.id))
                     .map((badge) => {
-                      const isEquipped = (activeMember?.badge_shelf || activeMember?.badgeShelf || []).includes(badge.id)
+                      const isEquipped = myShelf.includes(badge.id)
                       const tierMeta = ANIME_TIERS[badge.tier] || ANIME_TIERS.rare
                       return (
                         <div
@@ -832,8 +831,8 @@ export default function Badges() {
             </select>
           </div>
 
-          {/* Nút Sắp lại kệ */}
-          <button
+          {/* Nút Sắp lại kệ — chỉ trên hồ sơ của chính mình */}
+          {isViewingSelf && <button
             type="button"
             onClick={() => setShowShelfModal(true)}
             style={{
@@ -852,7 +851,7 @@ export default function Badges() {
             onMouseLeave={(e) => (e.currentTarget.style.background = 'rgba(255,255,255,.06)')}
           >
             {t('badges.reorderShelf')}
-          </button>
+          </button>}
 
           {/* Nút Luật danh hiệu */}
           <button
@@ -1812,54 +1811,7 @@ export default function Badges() {
         />
       )}
 
-      {/* ═══ MODAL A2: CHI TIẾT DANH HIỆU ═══ */}
-      {selectedBadge && (
-        <BadgeDetailModal
-          badge={selectedBadge}
-          streakTimeline={streakTimeline}
-          owners={selectedBadgeOwners}
-          chasers={selectedBadgeChasers}
-          db={db}
-          currentSeason={currentSeason}
-          preloadedSeasonMatches={preloadedSeasonMatches}
-          preloadedClubStats={preloadedClubStats}
-          currentMember={currentMember}
-          onClose={() => setSelectedBadge(null)}
-          onShowUnlock={(b) => setUnlockingBadge(b)}
-        />
-      )}
-
-      {/* ═══ MODAL A4: MỞ KHÓA DANH HIỆU ═══ */}
-      {unlockingBadge && (
-        <BadgeUnlockModal
-          badge={unlockingBadge}
-          shelfCount={(currentMember?.badge_shelf || currentMember?.badgeShelf || []).length}
-          shelfIsFull={(currentMember?.badge_shelf || currentMember?.badgeShelf || []).length >= 3}
-          onEquipShelf={(b) => {
-            handleToggleShelf(b?.id || unlockingBadge.id)
-            setUnlockingBadge(null)
-          }}
-          onViewCollection={(b) => {
-            const badgeId = b?.id || unlockingBadge?.id
-            setUnlockingBadge(null)
-            setSelectedBadge(null)
-            setShowShelfModal(false)
-            setActiveTab('collection')
-            setViewingMemberId(null)
-            if (badgeId) {
-              setHighlightedBadgeId(badgeId)
-              setTimeout(() => {
-                const el = document.getElementById(`badge-card-${badgeId}`)
-                if (el) el.scrollIntoView({ behavior: 'smooth', block: 'center' })
-              }, 120)
-              setTimeout(() => {
-                setHighlightedBadgeId(null)
-              }, 4500)
-            }
-          }}
-          onClose={() => setUnlockingBadge(null)}
-        />
-      )}
+      {badgeModals}
 
       {/* ═══ MODAL SẮP LẠI KỆ (Shelf Reorder Modal) ═══ */}
       {showShelfModal && (
@@ -1929,9 +1881,11 @@ export default function Badges() {
               {/* Danh sách các danh hiệu đã mở của người dùng */}
               <div style={{ display: 'flex', flexDirection: 'column', gap: 10 }}>
                 {memberBadges.all
-                  .filter((b) => b.unlocked || b.tier === 'fun')
+                  .filter((b) => b.unlocked)
+                  // Đang gắn lên đầu danh sách cho dễ thấy mà gỡ
+                  .sort((x, y) => myShelf.includes(y.id) - myShelf.includes(x.id))
                   .map((badge) => {
-                    const isEquipped = (currentMember?.badge_shelf || currentMember?.badgeShelf || []).includes(badge.id)
+                    const isEquipped = myShelf.includes(badge.id)
                     const tierMeta = ANIME_TIERS[badge.tier] || ANIME_TIERS.rare
 
                     return (

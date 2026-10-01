@@ -137,13 +137,12 @@ test('Season Points Rank-Climbing Engine Tests', async (t) => {
   })
 
   // ── 5. Test Trạng thái Tạm nghỉ (Inactive sau 21 ngày) & Điều kiện 20 trận ──
-  await t.test('5. Inactive sau 21 ngày và Qualified >= 20 trận', () => {
+  await t.test('5. Inactive sau 21 ngày', () => {
     const fixedSeason = {
       id: 'test-season',
       startDate: '2026-07-01',
       endDate: '2026-09-30',
       referenceDate: '2026-08-30', // Cố định ngày đối chiếu
-      minMatchesOfficial: 20,
       inactiveDays: 21,
     }
 
@@ -166,7 +165,6 @@ test('Season Points Rank-Climbing Engine Tests', async (t) => {
     const m2 = leaderboard.find((r) => r.id === 'm2')
 
     assert.equal(m1.isInactive, true, 'm1 nghỉ 29 ngày > 21 ngày -> isInactive = true')
-    assert.equal(m1.isQualified, false, 'm1 mới đánh 1 trận < 20 -> isQualified = false')
     assert.equal(m1.totalSeasonPoints, START + 14, 'Điểm của m1 vẫn được bảo toàn nguyên vẹn 14 điểm')
 
     assert.equal(m2.isInactive, false, 'm2 mới đánh cách 10 ngày -> isInactive = false')
@@ -198,7 +196,7 @@ test('Season Points Rank-Climbing Engine Tests', async (t) => {
  * sai ở đây là bảng xếp hạng đổi số giữa các lần render mà không ai biết vì sao.
  * ========================================================================== */
 test('Season Rank Engine — Determinism & Config Suite', async (t) => {
-  const baseSeason = { startDate: '2026-07-01', endDate: '2026-09-30', minMatchesOfficial: 20, inactiveDays: 21 }
+  const baseSeason = { startDate: '2026-07-01', endDate: '2026-09-30', inactiveDays: 21 }
   const mkMatch = (id, at, winner, ra = 500, rb = 500) => ({
     id, at, sessionId: 's1', teamA: ['m1', 'm2'], teamB: ['m3', 'm4'],
     winnerTeam: winner, sets: [[21, 15]], initialRatingA: ra, initialRatingB: rb,
@@ -254,13 +252,14 @@ test('Season Rank Engine — Determinism & Config Suite', async (t) => {
     assert.equal(calcSeasonMatchDelta(500, 650, true, customScale).tier, 'underdog')
   })
 
-  await t.test('10. Người đủ 20 trận đứng trên người điểm cao hơn nhưng chưa đủ điều kiện', () => {
-    // Chống "ôm rank": thắng 3 trận rồi nghỉ không được đứng đầu bảng.
+  await t.test('10. BXH xếp thuần theo điểm: người điểm cao đứng trên dù đánh ít trận', () => {
+    // Cổng "đủ N trận mới xếp trên" (chống ôm rank) đã bỏ ngày 2026-09-28 theo quyết định chủ CLB.
+    // Còn giữ cổng đó thì m1 (21 trận, chạm sàn) sẽ đứng trên m5 (1 trận, điểm cao hơn).
     const matches = []
-    // m1 & m2: 20 trận toàn thua kèo cân (-8) -> chạm sàn 0 điểm, nhưng ĐỦ điều kiện
+    // m1 & m2: 20 trận toàn thua kèo cân (-8) -> chạm sàn 0 điểm
     for (let i = 0; i < 20; i++) matches.push(mkMatch(`lose_${String(i).padStart(2, '0')}`, 1000 + i, 'B'))
-    // m3 & m4 thắng cả 20 trận đó -> điểm cao và cũng đủ điều kiện
-    // Thêm m5 & m6: chỉ 2 trận thắng kèo cân = 28 điểm, CHƯA đủ 20 trận
+    // m3 & m4 thắng cả 20 trận đó -> điểm cao
+    // Thêm m5 & m6: chỉ 1 trận thắng
     matches.push({
       id: 'camp_1', at: 5000, sessionId: 's1', teamA: ['m5', 'm6'], teamB: ['m1', 'm2'],
       winnerTeam: 'A', sets: [[21, 10]], initialRatingA: 500, initialRatingB: 500,
@@ -275,10 +274,8 @@ test('Season Rank Engine — Determinism & Config Suite', async (t) => {
     const m1 = res.leaderboard.find((r) => r.id === 'm1')
     const m5 = res.leaderboard.find((r) => r.id === 'm5')
 
-    assert.equal(m1.isQualified, true, 'm1 đánh 21 trận -> đủ điều kiện')
-    assert.equal(m5.isQualified, false, 'm5 chỉ đánh 1 trận -> chưa đủ điều kiện')
     assert.ok(m5.totalSeasonPoints > m1.totalSeasonPoints, 'm5 điểm cao hơn m1 (m1 chạm sàn 0)')
-    assert.ok(m1.rank < m5.rank, 'Nhưng người đủ điều kiện vẫn phải xếp trên người đang thẩm định')
+    assert.ok(m5.rank < m1.rank, 'Điểm cao hơn thì đứng trên, không còn ưu tiên người đánh nhiều trận')
   })
 })
 
@@ -288,7 +285,7 @@ test('Season Rank Engine — Determinism & Config Suite', async (t) => {
  * Elo — cho nó sinh ±14 điểm rank là mâu thuẫn với chính cái cờ đã bật.
  * ========================================================================== */
 test('Season Rank Engine — Trận không tính rating', async (t) => {
-  const season = { startDate: '2026-07-01', endDate: '2026-09-30', minMatchesOfficial: 20, inactiveDays: 21 }
+  const season = { startDate: '2026-07-01', endDate: '2026-09-30', inactiveDays: 21 }
   const mk = (id, at, winner, ratingEnabled) => ({
     id, at, sessionId: 's1', teamA: ['m1', 'm2'], teamB: ['m3', 'm4'],
     winnerTeam: winner, sets: [[21, 15]], initialRatingA: 500, initialRatingB: 500,
@@ -334,7 +331,7 @@ test('Season Rank Engine — Trận không tính rating', async (t) => {
  * con số hiện TRƯỚC khi bấm Lưu phải đúng bằng con số engine trao SAU khi lưu.
  * ========================================================================== */
 test('Season Rank Engine — Dự báo trước trận khớp điểm thực trao', async (t) => {
-  const season = { startDate: '2026-07-01', endDate: '2026-09-30', minMatchesOfficial: 20, inactiveDays: 21 }
+  const season = { startDate: '2026-07-01', endDate: '2026-09-30', inactiveDays: 21 }
   const baseDb = {
     members: [{ id: 'm1', name: 'A' }, { id: 'm2', name: 'B' }, { id: 'm3', name: 'C' }, { id: 'm4', name: 'D' }],
     sessions: [{ id: 's1', date: '2026-07-05' }],

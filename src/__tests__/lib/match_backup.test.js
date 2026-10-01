@@ -120,6 +120,15 @@ test('Sao lưu lịch sử trận', async (t) => {
     assert.equal(validateMatchBackup(dup, okDb()).error, 'matchIo.errDuplicateId', 'Trùng id là ghi đè lẫn nhau lúc lưu')
   })
 
+  await t.test('7b. Trận đơn 2 người: mỗi đội một người, không dồn cả hai vào đội A', () => {
+    const db = srcDb()
+    db.matches = [{ id: 'mt3', sessionId: 's1', sets: [[19, 21]], winnerTeam: 'B', playerKeys: ['m1', 'g1'] }]
+    const res = validateMatchBackup(buildMatchBackup(db), okDb())
+    assert.equal(res.ok, true, res.error)
+    assert.deepEqual(res.matches[0].teamA, ['m1'])
+    assert.deepEqual(res.matches[0].teamB, ['g1'], 'Đội B rỗng là replay Elo bỏ qua trận — người thua giữ nguyên điểm như chưa đánh')
+  })
+
   await t.test('8. File rỗng hoặc không có mảng matches thì chặn', () => {
     assert.equal(validateMatchBackup({ schema: MATCH_BACKUP_SCHEMA, version: 1 }, okDb()).error, 'matchIo.errNoMatches')
     assert.equal(validateMatchBackup({ schema: MATCH_BACKUP_SCHEMA, version: 1, matches: [] }, okDb()).error, 'matchIo.errEmptyFile')
@@ -181,5 +190,42 @@ test('Lọc khoảng thời gian khi xuất', async (t) => {
     const res = validateMatchBackup(b, target)
     assert.equal(res.ok, true, res.error)
     assert.equal(res.matches.length, 2)
+  })
+
+  await t.test('13. Giữ dấu trận kèo và phiếu cược — thiếu là backtest mất ×2 và điểm cược', () => {
+    const d = db()
+    d.matches[0].challengeId = 'k1'   // buổi s1, ngoài khoảng
+    d.matches[1].challengeId = 'k2'
+    d.matches[1].sourceType = 'challenge'
+    d.challenges = [
+      { id: 'k1', sessionId: 's1', status: 'played' },
+      { id: 'k2', sessionId: null, status: 'played' },          // chưa gắn buổi, nhận ra qua trận
+      { id: 'k3', sessionId: 's3', status: 'expired' },         // trong khoảng, chưa bao giờ đánh
+    ]
+    d.challengePredictions = [
+      { id: 'p1', challengeId: 'k1', memberId: 'm1', stakePoints: 10, status: 'won', settledAt: '2026-06-10' },
+      { id: 'p2', challengeId: 'k2', memberId: 'm2', stakePoints: 20, status: 'lost', settledAt: '2026-08-15' },
+      { id: 'p3', challengeId: 'k3', memberId: 'm1', stakePoints: 5, status: 'refunded' },
+    ]
+    const b = buildMatchBackup(d, { from: '2026-08-01', to: '2026-09-30' })
+    const kept = b.matches.find((m) => m.id === 'b')
+    assert.equal(kept.challengeId, 'k2', 'Mất challengeId là trận kèo bị tính như trận thường, điểm mùa hụt một nửa')
+    assert.equal(kept.sourceType, 'challenge')
+    assert.equal(b.matches.find((m) => m.id === 'c').sourceType, 'session')
+    assert.deepEqual(b.ref.challenges.map((c) => c.id), ['k2', 'k3'], 'Kèo ngoài khoảng bị loại, kèo chưa đánh trong khoảng vẫn giữ')
+    assert.deepEqual(b.ref.challengePredictions.map((p) => p.id), ['p2', 'p3'], 'Phiếu đi theo kèo, không lọc theo trạng thái')
+    assert.equal(b.ref.challengePredictions[0].stakePoints, 20)
+  })
+
+  await t.test('14. Kèm cấu hình mùa và Elo đang lưu, KHÔNG kèm SĐT/tài khoản hội viên', () => {
+    const d = db()
+    d.members[0] = { ...d.members[0], phone: '0900000000', bankNo: '123', role: 'owner' }
+    d.seasons = [{ id: 'S3', startDate: '2026-07-01', endDate: '2026-09-30', challengeMultiplier: 2 }]
+    d.playerRatings = { m1: { rating: 612, gamesCount: 30, winsCount: 20, lossesCount: 10, confidence: 'high' }, x: { rating: 1 } }
+    const b = buildMatchBackup(d)
+    assert.equal(b.ref.seasons[0].challengeMultiplier, 2, 'Mùa giữ thang riêng — thiếu nó là không biết production tính bằng gì')
+    assert.deepEqual(b.ref.playerRatings, { m1: { rating: 612, gamesCount: 30, winsCount: 20, lossesCount: 10 } })
+    assert.equal(b.ref.members[0].role, 'owner')
+    assert.equal('phone' in b.ref.members[0] || 'bankNo' in b.ref.members[0], false, 'File phân tích đi khắp nơi — không được mang theo SĐT, số tài khoản')
   })
 })

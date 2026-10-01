@@ -1,19 +1,20 @@
 import { useState, useMemo } from 'react'
 import { createPortal } from 'react-dom'
 import BadgeHex from './BadgeHex.jsx'
-import { NOTCH_CLIP, NOTCH_S_CLIP, HEX_CLIP, ANIME_TIERS, getBadgeOwners, getBadgeChasers } from '#lib/badges.js'
+import { NOTCH_CLIP, NOTCH_S_CLIP, HEX_CLIP, ANIME_TIERS, getBadgeOwners, getBadgeChasers, getStreakTimeline } from '#lib/badges.js'
 import { t } from '#i18n'
 
 /**
  * Màn A2 · Chi tiết một danh hiệu · điều kiện · chuỗi hiện tại · ai đã có · ai đang đuổi.
  * Hỗ trợ Thanh hành trình cấp độ (Level Stepper / Tier Road) cho các họ danh hiệu có nhiều mốc.
  * Thiết kế phong cách Anime với conic rays, floating hex badge, dot grid, notch clips.
+ *
+ * Modal DUY NHẤT cho chi tiết danh hiệu (trang Danh hiệu desktop + mobile, hồ sơ thành viên).
+ * Người giữ / người đuổi / chuỗi hiện tại tự tính từ `db` — nơi gọi chỉ cần đưa badge (nên qua
+ * `familyViewOf` để có thanh hành trình mốc), db và thành viên đang xét.
  */
 export default function BadgeDetailModal({
   badge,
-  streakTimeline = [],
-  owners = [],
-  chasers = [],
   db = null,
   currentSeason = null,
   preloadedSeasonMatches = null,
@@ -60,20 +61,20 @@ export default function BadgeDetailModal({
 
   // Danh sách người đã có và người đang đuổi theo mốc đang chọn
   const currentOwners = useMemo(() => {
-    if (db && activeTierBadge && activeTierBadge.id) {
-      return getBadgeOwners(activeTierBadge.id, db, currentSeason, preloadedSeasonMatches, preloadedClubStats)
-    }
-    return owners
-  }, [db, activeTierBadge, currentSeason, preloadedSeasonMatches, preloadedClubStats, owners])
+    if (!db || !activeTierBadge?.id) return []
+    return getBadgeOwners(activeTierBadge.id, db, currentSeason, preloadedSeasonMatches, preloadedClubStats)
+  }, [db, activeTierBadge, currentSeason, preloadedSeasonMatches, preloadedClubStats])
 
   const currentChasers = useMemo(() => {
-    if (db && activeTierBadge && activeTierBadge.id) {
-      return getBadgeChasers(activeTierBadge.id, currentMember?.id, db, currentSeason, preloadedSeasonMatches, preloadedClubStats)
-    }
-    return chasers
-  }, [db, activeTierBadge, currentMember, currentSeason, preloadedSeasonMatches, preloadedClubStats, chasers])
+    if (!db || !activeTierBadge?.id) return []
+    return getBadgeChasers(activeTierBadge.id, currentMember?.id, db, currentSeason, preloadedSeasonMatches, preloadedClubStats)
+  }, [db, activeTierBadge, currentMember, currentSeason, preloadedSeasonMatches, preloadedClubStats])
 
-  if (!badge) return null
+  const memberId = currentMember?.id
+  const streakTimeline = useMemo(() => {
+    if (!db || !memberId) return []
+    return getStreakTimeline(memberId, db, 10)
+  }, [db, memberId])
 
   const isFun = activeTierBadge.tier === 'fun'
   const isStreakBadge = activeTierBadge.checkType === 'win_streak' || activeTierBadge.checkType === 'pair_streak'
@@ -100,6 +101,9 @@ export default function BadgeDetailModal({
     }
     return list
   }, [isFun, isStreakBadge, activeTierBadge.unlocked, badgeCond, activeTierBadge.progressStr, pct, isHolding])
+
+  // Mọi hook phải chạy TRƯỚC lần return sớm này (rules-of-hooks)
+  if (!badge) return null
 
   const modalContent = (
     <div
@@ -334,7 +338,7 @@ export default function BadgeDetailModal({
           style={{
             padding: '20px',
             display: 'grid',
-            gridTemplateColumns: 'repeat(auto-fit, minmax(300px, 1fr))',
+            gridTemplateColumns: 'repeat(auto-fit, minmax(min(300px, 100%), 1fr))',
             gap: 20,
             position: 'relative',
             alignContent: 'start',

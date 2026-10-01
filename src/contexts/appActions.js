@@ -15,13 +15,13 @@ import { modeToast, activeCourtIdxs, arrange, autoSplit, courtSlotIds, matchStat
 import { can, membersWithPerm, roleDesc, roleName, viewAsOptions } from '#lib/roles.js'
 import { applyScheduleEdit, planScheduleDelete, planScheduleEdit } from '#lib/schedules.js'
 import { teamRating, replayRatingCascade, DEFAULT_RATING, MIN_RATING, applyRatingDelta, calcPlayerDeltas, rankTierOf, initialRatingOf, computeClubCalibration, confidenceOf } from '#lib/rating.js'
-import { nextChallengeCode, isChallengeFullyAccepted, getChallengeSeriesProgress, canMemberPredict, availableSeasonPoints, settlePredictionsLocal, expiredChallenges, orphanedChallenges, abandonedChallenges, isChallengeAccepted, validateStakePoints } from '#lib/challenge.js'
+import { nextChallengeCode, isChallengeFullyAccepted, getChallengeSeriesProgress, canMemberPredict, availableSeasonPoints, stakeBaseOf, settlePredictionsLocal, expiredChallenges, orphanedChallenges, abandonedChallenges, isChallengeAccepted, validateStakePoints } from '#lib/challenge.js'
 import { pickBotChallenge, findBotMember, pickBotRemark, pickBotPredictions, pickBotPredictionForChallenge, getBotArcadeOffer, ARCADE_DAILY_CAP } from '#lib/bot.js'
 import { resolveVenue } from '#lib/forms.js'
 import { supabase, unwrap } from '#supabase'
 import { pathOf, buildPushUrl } from '#routes'
 import { t } from '#i18n'
-import { getMemberStreak } from '#lib/badges.js'
+import { getMemberStreak, cleanShelf, calculateMemberBadges, resolveBadgeId } from '#lib/badges.js'
 import { seasonMatchesOf, calculateSeasonLeaderboard } from '#lib/season.js'
 import { buildMatchBackup, validateMatchBackup } from '#lib/matchBackup.js'
 import cfgBadges from '#config/badges.json' with { type: 'json' }
@@ -62,15 +62,17 @@ const recentAttendanceEvents = new Map()
 const PUSH_EVENTS = new Set([
   'challenge_created',   // bị thách đấu — phải nhận/từ chối trước khi kèo hết hạn 60 phút
   'challenge_teammate',  // bị xếp đánh cặp — kèo không thành nếu thiếu chữ ký của họ
-  'challenge_cancelled', // kèo biến mất, và phiếu dự đoán được hoàn
+  'challenge_cancelled', // kèo biến mất với người đánh (người cược nhận 'prediction_settled', chỉ chuông)
   'session_rsvp_invite', // mở điểm danh — quản trò cần câu trả lời để xếp sân
 
   // ---- ĐÃ BỎ khỏi push (vẫn còn chuông trong app) ----
-  // 'challenge_accepted'  'challenge_declined'  'challenge_completed'
+  // 'challenge_accepted'  'challenge_completed'   ('challenge_declined' bỏ hẳn — xem respondChallenge)
   //      Không gấp: mở app là thấy. Một kèo sinh tới 4 thông báo cho cùng nhóm người,
   //      đánh 5 kèo một buổi là 20 lần rung máy.
   // 'bounty_broken'
   //      Tin vui, không phải việc cần làm.
+  // 'prediction_settled'
+  //      Kết quả phiếu cược (ăn / thua / hoàn) — báo tin, không cần phản hồi.
   // 'session_cancelled'
   //      Giữ chuông; người đã điểm danh sẽ thấy khi mở app.
   //
@@ -93,6 +95,13 @@ export function makeActions({ setDb, setUi, dbRef, uiRef, navRef, toast, reload,
    * dùng thấy màn "Lỗi khởi động ứng dụng". Bỏ qua patch là đúng: CLB cũ không còn trên màn.
    */
   const up = (fn) => setDb((d) => (d ? { ...d, ...fn(d) } : d))
+  // Ghi thẳng cột kệ / châm ngôn: UI đổi ngay, 1 request. Hai cột này nằm NGOÀI đường sync
+  // (xem `toRows` ở dbmap.js) nên không bao giờ bị upsert cả dòng. Hỏng mới nạp lại cho khớp DB.
+  const saveMemberCols = (mid, cols) => {
+    supabase.from('club_members').update(cols).eq('id', mid).then(({ error }) => {
+      if (error) { toast(error.message); reload() }
+    })
+  }
 
   /**
    * Ghi/đè một dòng đối chiếu buổi. Lần đầu chạm vào là LƯU con số hiện tại — từ đó sửa điểm
@@ -195,6 +204,21 @@ export function makeActions({ setDb, setUi, dbRef, uiRef, navRef, toast, reload,
     up((d) => ({
       challengePredictions: settlePredictionsLocal(d.challengePredictions, challengeId, winnerTeam || null, at),
     }))
+
+    // Báo từng người cược kết quả phiếu CỦA HỌ. Chỉ phiếu đổi trạng thái: sửa tỷ số mà đội thắng
+    // giữ nguyên thì hàm này vẫn chạy lại, không lọc là mỗi lần sửa bắn thêm một loạt chuông.
+    const code = (d0.challenges || []).find((c) => c.id === challengeId)?.code || ''
+    const before = new Map((d0.challengePredictions || []).map((p) => [p.id, p.status]))
+    settlePredictionsLocal(d0.challengePredictions, challengeId, winnerTeam || null, at)
+      .filter((p) => p.challengeId === challengeId && before.get(p.id) !== p.status)
+      .forEach((p) => emitEvent({
+        type: 'prediction_settled',
+        payload: { code, result: p.status, stake: Number(p.stakePoints) || 0 },
+        recipients: [p.memberId],
+        refType: 'challenge',
+        refId: challengeId,
+        skipActivity: true,
+      }))
 
     if (!supabase) return
     supabase
@@ -2314,7 +2338,7 @@ export function makeActions({ setDb, setUi, dbRef, uiRef, navRef, toast, reload,
       const url = URL.createObjectURL(blob)
       const aEl = document.createElement('a')
       // Tên file nói rõ trong đó là khoảng nào — sau này có chục file thì không phải mở ra đoán.
-      const tag = range?.label ? `_${String(range.label).replace(/[^w-]+/g, '-')}` : ''
+      const tag = range?.label ? `_${String(range.label).replace(/[^\w-]+/g, '-')}` : ''
       const fileName = `tran_dau_${d.club?.code || 'badmin'}${tag}_${new Date().toISOString().slice(0, 10)}.json`
       aEl.href = url
       aEl.download = fileName
@@ -2523,7 +2547,11 @@ export function makeActions({ setDb, setUi, dbRef, uiRef, navRef, toast, reload,
     },
 
     setMemberShelf: (mid, shelf) => {
-      const s = Array.isArray(shelf) ? shelf.slice(0, 3) : []
+      // Chỉ giữ danh hiệu đang có ở mùa hiện tại (lọc TRƯỚC khi cắt 3 ô) — danh hiệu mùa trước còn
+      // nằm trong badge_shelf nhưng đang ẩn thì rớt ra trước, không đẩy mất cái đang hiện.
+      const held = new Set(calculateMemberBadges(mid, db()).unlocked.map((b) => b.id))
+      const s = cleanShelf((shelf || []).map(resolveBadgeId).filter((id) => held.has(id)))
+      saveMemberCols(mid, { badge_shelf: s })
       up((d) => ({
         members: (d.members || []).map((m) =>
           m.id === mid ? { ...m, badgeShelf: s, badge_shelf: s } : m,
@@ -2534,6 +2562,7 @@ export function makeActions({ setDb, setUi, dbRef, uiRef, navRef, toast, reload,
 
     setMemberSignature: (mid, sig) => {
       const text = String(sig || '').trim().slice(0, 80)
+      saveMemberCols(mid, { signature: text })
       up((d) => ({
         members: (d.members || []).map((m) =>
           m.id === mid ? { ...m, signature: text } : m,
@@ -2851,10 +2880,9 @@ export function makeActions({ setDb, setUi, dbRef, uiRef, navRef, toast, reload,
         return
       }
       const code = nextChallengeCode(d0.challenges)
-      // Hạn NHẬN kèo. 60 phút cũ quá ngắn: gạ kèo buổi sáng cho buổi tối là kèo chết trước khi
-      // người ta kịp mở app. `defaultExpireMins` vẫn giữ trong config nhưng CHỈ còn dùng để suy
+      // Hạn NHẬN kèo (24h). `defaultExpireMins` vẫn giữ trong config nhưng CHỈ còn dùng để suy
       // cho dòng cũ thiếu `expiresAt` (xem `challengeExpiryAt`) — kèo tạo từ đây ghi thẳng mốc.
-      const expireDays = cfg.challenge?.pendingExpireDays ?? 7
+      const expireHours = cfg.challenge?.pendingExpireHours ?? ((cfg.challenge?.pendingExpireDays ?? 1) * 24)
       const allInMatch = [...(teamA || []), ...(teamB || [])]
       const acceptedPlayers = allInMatch.includes(myId) ? [myId] : []
       const newChalTemp = {
@@ -2874,7 +2902,7 @@ export function makeActions({ setDb, setUi, dbRef, uiRef, navRef, toast, reload,
         scheduledAt: scheduledAt || null,
         bestOf,
         ratingEnabled,
-        expiresAt: new Date(Date.now() + expireDays * 86400000).toISOString(),
+        expiresAt: new Date(Date.now() + expireHours * 3600000).toISOString(),
         matchId: null,
         acceptedPlayers,
         // Kèo tạo ra đã đủ chữ ký (người tạo đánh một mình cả hai đội thì không xảy ra, nhưng
@@ -3021,14 +3049,8 @@ export function makeActions({ setDb, setUi, dbRef, uiRef, navRef, toast, reload,
           challenges: (d.challenges || []).map((c) => (c.id === challengeId ? { ...c, status: 'declined' } : c)),
         }))
         settlePredictions(challengeId, null)
-        emitEvent({
-          type: 'challenge_declined',
-          payload: { chalId: chal.id, code: chal.code, declinedById: myMem?.id || null },
-          recipients: [chal.createdBy],
-          refType: 'challenge',
-          refId: chal.id,
-          actorId: myMem?.id || null,
-        })
+        // Từ chối âm thầm: không Bảng tin, không thông báo cho người tạo, không lưu ai từ chối.
+        // Kèo đơn chỉ có một đối thủ — báo "bị từ chối" là chỉ thẳng mặt người đó.
         toast(t('challenge.toastDeclined', { code: chal.code }))
         return
       }
@@ -3067,6 +3089,7 @@ export function makeActions({ setDb, setUi, dbRef, uiRef, navRef, toast, reload,
           refType: 'challenge',
           refId: chal.id,
           actorId: myMem?.id || null,
+          skipActivity: true,
         })
         toast(t('challenge.toastAccepted', { code: chal.code }))
       } else {
@@ -3129,7 +3152,7 @@ export function makeActions({ setDb, setUi, dbRef, uiRef, navRef, toast, reload,
         refType: 'challenge',
         refId: chal.id,
         actorId: myId,
-        skipActivity: !isFullyAccepted,
+        skipActivity: true,
       })
 
       // Người được rủ đánh cặp bị kéo thẳng vào `teamB` mà không ai báo — cùng lỗi với nhánh
@@ -3188,18 +3211,15 @@ export function makeActions({ setDb, setUi, dbRef, uiRef, navRef, toast, reload,
       up((d) => ({
         challenges: (d.challenges || []).map((c) => (c.id === challengeId ? { ...c, status: 'cancelled', predictionsLocked: true } : c)),
       }))
+      // Người đặt phiếu được báo hoàn điểm ngay trong `settlePredictions` ('prediction_settled'),
+      // nên KHÔNG gộp họ vào đây nữa — gộp là mỗi người nhận hai chuông cho cùng một việc.
       settlePredictions(challengeId, null)
       // `notification.challenge_cancelled` và icon của nó đã có sẵn từ lâu, chỉ thiếu đúng lời
-      // gọi này — nên huỷ kèo là đối thủ ĐÃ NHẬN KÈO thấy kèo biến mất mà không ai báo, và
-      // người đặt phiếu thì bị hoàn điểm im lặng. Lấy ID từ `d0` (ảnh chụp TRƯỚC khi hoàn phiếu),
-      // sau `settlePredictions` thì không còn phiếu 'pending' nào để dò.
-      const predictorIds = (d0.challengePredictions || [])
-        .filter((p) => p.challengeId === challengeId && p.status === 'pending')
-        .map((p) => p.memberId)
+      // gọi này — nên huỷ kèo là đối thủ ĐÃ NHẬN KÈO thấy kèo biến mất mà không ai báo.
       emitEvent({
         type: 'challenge_cancelled',
         payload: { code: chal.code },
-        recipients: [...(chal.teamA || []), ...(chal.teamB || []), chal.createdBy, ...predictorIds],
+        recipients: [...(chal.teamA || []), ...(chal.teamB || []), chal.createdBy],
         refType: 'challenge',
         refId: challengeId,
       })
@@ -3233,8 +3253,7 @@ export function makeActions({ setDb, setUi, dbRef, uiRef, navRef, toast, reload,
       // SP khả dụng phải tính ở client: server không dựng lại được điểm mùa (nó là hàm dẫn xuất
       // từ toàn bộ lịch sử trận, không có bảng nào lưu). Hết điểm là KHÔNG được cược — không có
       // cửa nợ điểm, và cũng không có cửa "thua quá sàn thì thua miễn phí" như trước.
-      const seasonRes = calculateSeasonLeaderboard(d0)
-      const totalSp = (seasonRes?.leaderboard || []).find((r) => r.id === myId)?.totalSeasonPoints || 0
+      const totalSp = stakeBaseOf(calculateSeasonLeaderboard(d0), myId)
       const available = availableSeasonPoints(totalSp, d0.challengePredictions, d0.challenges, d0.sessions, myId)
 
       // Mọi luật còn lại đọc từ MỘT chỗ: `canMemberPredict`. Trước đây luật này nằm rải ở ba nơi
@@ -4792,7 +4811,6 @@ export function makeActions({ setDb, setUi, dbRef, uiRef, navRef, toast, reload,
       endDate: newSeasonData.endDate,
       cycle: newSeasonData.cycle || 'quarter',
       totalSessionsExpected: Number(newSeasonData.totalSessionsExpected) || 14,
-      minMatchesOfficial: Number(newSeasonData.minMatchesOfficial) || 8,
       inactiveDays: Number(newSeasonData.inactiveDays) || 21,
       active: true,
       closedAt: null,

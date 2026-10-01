@@ -34,7 +34,9 @@
   ],
   "toastMs": 2600,
   "sync": {
-    "debounceMs": 500
+    "debounceMs": 500,
+    "_noteRefresh": "Quay lại app (tab/PWA hiện lên) thì nạp lại cả CLB, nhưng không quá 1 lần mỗi refreshMinMs. Có push mới thì nạp luôn, không chờ.",
+    "refreshMinMs": 20000
   },
   "clockTickMs": 10000,
   "money": {
@@ -63,7 +65,6 @@
     "cycle": "quarter",
     "totalSessionsExpected": 14,
     "startPoints": 100,
-    "minMatchesOfficial": 8,
     "inactiveDays": 21,
     "challengeMultiplier": 2,
     "bonusConfig": {
@@ -172,9 +173,12 @@
   "challenge": {
     "defaultBestOf": 3,
     "defaultExpireMins": 60,
-  "pendingExpireDays": 7,
-  "abandonedAcceptedDays": 14,
-    "maxStakePoints": 100,
+    "pendingExpireHours": 24,
+    "pendingExpireDays": 1,
+    "abandonedAcceptedDays": 14,
+    "maxStakePoints": 50,
+    "gamblerMinTickets": 5,
+    "gamblerMinStreak": 3,
     "stakeMaxLen": 120
   },
   "ui": {

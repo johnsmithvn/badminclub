@@ -4,7 +4,10 @@
 // Trận đấu KHÔNG ảnh hưởng tiền (xem FEATURES.md) — file này chỉ đụng trục thi đấu.
 
 export const MATCH_BACKUP_SCHEMA = 'badminclub_matches'
-export const MATCH_BACKUP_VERSION = 2
+// Bản 1: chỉ trận. Bản 2: + điểm danh, sân, khách theo buổi. Bản 3: + dấu trận kèo, danh sách kèo,
+// phiếu cược, cấu hình mùa, Elo đang lưu — thiếu kèo/cược thì backtest tính kèo như trận thường
+// (mất ×2) và bỏ sót điểm cược, mà nhìn file không phân biệt được "CLB không có kèo" với "xuất bị rơi".
+export const MATCH_BACKUP_VERSION = 3
 
 const keysOf = (m) => (m?.playerKeys?.length ? m.playerKeys : [...(m?.teamA || []), ...(m?.teamB || [])])
 
@@ -55,7 +58,18 @@ export function buildMatchBackup(db = {}, range = null) {
     initialRatingB: m.initialRatingB ?? null,
     eloDelta: m.eloDelta ?? null,
     playerKeys: keysOf(m),
+    sourceType: m.sourceType || 'session',
+    challengeId: m.challengeId || null,
+    matchPolicy: m.matchPolicy || 'official',
+    scoreText: m.scoreText || '',
+    bountyBroken: !!m.bountyBroken,
+    brokenStreak: m.brokenStreak || 0,
   }))
+  // Kèo thuộc khoảng: gắn với buổi trong khoảng, hoặc sinh ra trận trong file (kèo chưa gắn buổi).
+  const matchChallengeIds = new Set(matches.map((m) => m.challengeId).filter(Boolean))
+  const keptChallenges = (db.challenges || []).filter((c) => keptSessionIds.has(c.sessionId) || matchChallengeIds.has(c.id))
+  const keptChallengeIds = new Set([...keptChallenges.map((c) => c.id), ...matchChallengeIds])
+  const memberIds = new Set((db.members || []).map((x) => x.id))
 
   return {
     schema: MATCH_BACKUP_SCHEMA,
@@ -69,7 +83,11 @@ export function buildMatchBackup(db = {}, range = null) {
     matches,
     ref: {
       levels: db.levels || [],
-      members: (db.members || []).map((x) => ({ id: x.id, name: x.name, level: x.level, gender: x.gender, active: x.active !== false })),
+      // Liệt kê từng trường: bản ghi hội viên còn SĐT, email, số tài khoản — không có chỗ trong file phân tích.
+      members: (db.members || []).map((x) => ({
+        id: x.id, name: x.name, level: x.level, gender: x.gender, active: x.active !== false,
+        role: x.role || '', joined: x.joined || null,
+      })),
       guests: (db.guests || []).map((x) => ({ id: x.id, name: x.name, level: x.level, gender: x.gender })),
       // Sân của buổi: cần để biết TRẦN CỨNG số trận. 2 sân × 2 tiếng cho gấp đôi lượt so với
       // 1 sân, nên "trận/buổi" không so được giữa hai buổi nếu không biết buổi đó mấy sân.
@@ -90,6 +108,25 @@ export function buildMatchBackup(db = {}, range = null) {
         id: g.id, sessionId: g.sessionId, guestId: g.guestId || null, memberId: g.memberId || null,
         level: g.level || '', gender: g.gender || '',
       })),
+      // Cấu hình mùa THẬT của CLB (khung ngày, thang điểm, hệ số kèo, điểm khởi đầu). Mùa đã tạo
+      // giữ bản thang riêng của nó, nên sửa app.json không đổi điểm mùa đang chạy — phân tích cần
+      // biết production đang tính bằng thang nào. Backtest KHÔNG đọc cái này: nó gác công thức code.
+      seasons: db.seasons || [],
+      // Kèo cả vòng đời (chưa đánh, huỷ, hết hạn…) — đo được tỷ lệ kèo thành trận, ai gạ ai.
+      challenges: keptChallenges.map((c) => ({ ...c })),
+      // Phiếu cược cộng/trừ thẳng vào điểm mùa. Lấy mọi trạng thái; điểm mùa chỉ đọc won/lost.
+      challengePredictions: (db.challengePredictions || []).filter((p) => keptChallengeIds.has(p.challengeId)).map((p) => ({
+        id: p.id, challengeId: p.challengeId, memberId: p.memberId, team: p.team,
+        stakePoints: p.stakePoints ?? 0, payoutPoints: p.payoutPoints ?? 0,
+        status: p.status || '', settledAt: p.settledAt || null, createdAt: p.createdAt || null,
+      })),
+      // Elo ĐANG LƯU của từng hội viên — để so với Elo backtest tính lại. Lệch nhau là DB đã trôi
+      // khỏi công thức (sửa trận mà chưa replay…), chứ không phải backtest sai.
+      playerRatings: Object.fromEntries(
+        Object.entries(db.playerRatings || {}).filter(([id]) => memberIds.has(id)).map(([id, r]) => [id, {
+          rating: r.rating ?? null, gamesCount: r.gamesCount ?? 0, winsCount: r.winsCount ?? 0, lossesCount: r.lossesCount ?? 0,
+        }])
+      ),
     },
   }
 }
@@ -167,22 +204,27 @@ export function validateMatchBackup(data, db = {}) {
   const rated = matches.filter((m) => m.ratingEnabled !== false).length
   return {
     ok: true,
-    matches: matches.map((m) => ({
-      id: m.id,
-      sessionId: m.sessionId,
-      courtIdx: m.courtIdx ?? 0,
-      minutes: m.minutes ?? 0,
-      at: m.at ?? null,
-      sets: m.sets || [],
-      winnerTeam: m.winnerTeam ?? null,
-      ratingEnabled: m.ratingEnabled !== false,
-      initialRatingA: m.initialRatingA ?? null,
-      initialRatingB: m.initialRatingB ?? null,
-      eloDelta: m.eloDelta ?? null,
-      playerKeys: keysOf(m),
-      teamA: keysOf(m).slice(0, 2),
-      teamB: keysOf(m).slice(2, 4),
-    })),
+    matches: matches.map((m) => {
+      // Trận đơn chỉ có 2 ô: cắt cứng 0-2 / 2-4 thì cả hai người rơi vào đội A, đội B rỗng.
+      const pk = keysOf(m)
+      const half = pk.length <= 2 ? 1 : 2
+      return {
+        id: m.id,
+        sessionId: m.sessionId,
+        courtIdx: m.courtIdx ?? 0,
+        minutes: m.minutes ?? 0,
+        at: m.at ?? null,
+        sets: m.sets || [],
+        winnerTeam: m.winnerTeam ?? null,
+        ratingEnabled: m.ratingEnabled !== false,
+        initialRatingA: m.initialRatingA ?? null,
+        initialRatingB: m.initialRatingB ?? null,
+        eloDelta: m.eloDelta ?? null,
+        playerKeys: pk,
+        teamA: pk.slice(0, half),
+        teamB: pk.slice(half, half * 2),
+      }
+    }),
     stats: {
       total: matches.length,
       rated,

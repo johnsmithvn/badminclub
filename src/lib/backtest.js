@@ -10,7 +10,7 @@
 //
 // Hàm thuần: nhận dữ liệu, trả dữ liệu mới. Không đọc file, không Supabase, không React.
 
-import { initialRatingOf, calcPlayerDeltas, applyRatingDelta, kFactorOf } from '#lib/rating.js'
+import { initialRatingOf, calcPlayerDeltas, applyRatingDelta, kFactorOf, teamRating } from '#lib/rating.js'
 import { calculateSeasonLeaderboard } from '#lib/season.js'
 import { sessionFairnessRows } from '#lib/assign.js'
 import cfg from '#config/app.json' with { type: 'json' }
@@ -40,11 +40,17 @@ export function datasetToDb(backup = {}) {
     // File bản 1 không có điểm danh -> để rỗng. KHÔNG dựng bừa: đo công bằng trên điểm danh
     // tưởng tượng còn tệ hơn là không đo.
     attendance: ref.attendance || {},
-    matches: (backup.matches || []).map((m) => ({
-      ...m,
-      teamA: (m.playerKeys || []).slice(0, 2),
-      teamB: (m.playerKeys || []).slice(2, 4),
-    })),
+    // File bản 3 trở lên mới có kèo và phiếu cược; bản cũ để rỗng — điểm mùa khi đó thiếu phần cược.
+    // `ref.seasons` cố ý KHÔNG nạp: có nó thì điểm mùa đọc thang của CLB thay vì app.json, và
+    // backtest thôi gác công thức trong code.
+    challenges: ref.challenges || [],
+    challengePredictions: ref.challengePredictions || [],
+    // Trận đơn chỉ có 2 ô: cắt cứng 0-2 / 2-4 thì cả hai người rơi vào đội A, đội B rỗng.
+    matches: (backup.matches || []).map((m) => {
+      const pk = m.playerKeys || []
+      const half = pk.length <= 2 ? 1 : 2
+      return { ...m, teamA: pk.slice(0, half), teamB: pk.slice(half, half * 2) }
+    }),
   }
 }
 
@@ -93,12 +99,13 @@ export function runBacktest(backup = {}) {
   ms.forEach((m) => {
     const teamA = m.teamA || []
     const teamB = m.teamB || []
-    if (teamA.length < 2 || teamB.length < 2) return
+    if (!teamA.length || !teamB.length) return
 
-    pairGaps.push(Math.abs(rating[teamA[0]] - rating[teamA[1]]))
-    pairGaps.push(Math.abs(rating[teamB[0]] - rating[teamB[1]]))
-    const ra = Math.round((rating[teamA[0]] + rating[teamA[1]]) / 2)
-    const rb = Math.round((rating[teamB[0]] + rating[teamB[1]]) / 2)
+    // Chênh nội bộ đôi chỉ có nghĩa với trận đôi; trận đơn vẫn vào Elo và điểm mùa như production.
+    if (teamA.length === 2) pairGaps.push(Math.abs(rating[teamA[0]] - rating[teamA[1]]))
+    if (teamB.length === 2) pairGaps.push(Math.abs(rating[teamB[0]] - rating[teamB[1]]))
+    const ra = teamRating(teamA, rating)
+    const rb = teamRating(teamB, rating)
     teamGaps.push(Math.abs(ra - rb))
 
     if (m.ratingEnabled === false || !m.winnerTeam) return
@@ -118,7 +125,16 @@ export function runBacktest(backup = {}) {
     })
   })
 
-  const { leaderboard } = calculateSeasonLeaderboard(db)
+  // Luật tính lấy từ app.json (backtest gác CÔNG THỨC code), còn KHUNG NGÀY lấy theo dữ liệu:
+  // khoảng lúc xuất, không có thì từ buổi đầu tới buổi cuối có trận. Để nguyên khung trong
+  // app.json thì file của mùa khác ra điểm mùa rỗng mà không báo gì.
+  const dateOf = Object.fromEntries(db.sessions.map((x) => [x.id, x.date || '']))
+  const days = ms.map((m) => dateOf[m.sessionId]).filter(Boolean).sort()
+  const { leaderboard } = calculateSeasonLeaderboard(db, {
+    ...cfg.season,
+    startDate: backup.range?.from || days[0] || cfg.season.startDate,
+    endDate: backup.range?.to || days[days.length - 1] || cfg.season.endDate,
+  })
   const startPoints = cfg.season?.startPoints ?? 0
 
   // Sàn 0 kẹp sau MỖI trận, nên trận thua bị cắt rồi trận thắng sau lại cộng từ 0 -> điểm sinh ra
@@ -129,7 +145,8 @@ export function runBacktest(backup = {}) {
       const b = r.breakdown || {}
       // Cộng cả điểm khởi đầu vào "điểm thật", nếu không thì 100 điểm ai cũng có sẽ bị
       // `clampGain` đếm nhầm thành điểm ảo và chỉ số sức khoẻ báo động giả cho cả 22 người.
-      const raw = startPoints + (b.matchNetPts || 0) + (b.streakBonusPts || 0) + (b.upsetBonusPts || 0)
+      // Lãi/lỗ cược cũng vậy: file bản 3 có phiếu cược, thiếu nó thì tiền cược thắng bị đọc là "sàn 0 sinh điểm".
+      const raw = startPoints + (b.matchNetPts || 0) + (b.streakBonusPts || 0) + (b.upsetBonusPts || 0) + (b.predictionNetPoints || 0)
       return {
         id: r.id,
         name: r.name,

@@ -1,6 +1,6 @@
 # ARCHITECTURE.md — Quản lý CLB cầu lông
 
-**Version:** v1.2.0 · **Updated:** 2026-09-17
+**Version:** v2.0.0 · **Updated:** 2026-09-30
 
 Tài liệu này nói **codebase này được dựng thế nào**. Đặc tả nghiệp vụ gốc nằm trong bộ handoff
 (`design_handoff_clb_cau_long/01..06`) — không lặp lại ở đây; chỗ nào cần thì trỏ sang.
@@ -19,10 +19,11 @@ Tài liệu này nói **codebase này được dựng thế nào**. Đặc tả 
 | State | **không lib** — 1 Context + 2 `useState` | đúng hình dạng prototype (một cây state), không cần Redux/Zustand |
 | Chữ và hằng số | `src/i18n/vi.json` + `src/config/*.json` | xem `docs/RULES.md` §3 |
 | Dữ liệu | **Supabase** (Postgres + Auth + RLS), local qua Docker | không còn chế độ dữ liệu mẫu: thiếu `.env.local` là app không chạy. Xem §6 |
+| Push | **Web Push (VAPID) + Supabase Edge Functions** | PWA push notification nền qua hàm `push-send`, không tốn phí APNs/FCM |
 | Lint | ESLint 9 + `react-hooks` | bắt lỗi hook thật |
 | Test | `node --test` + `node:assert/strict`, không framework | runner sẵn có của Node, tự tìm `*.test.js`; xem `docs/RULES.md` §5 |
 
-**Dependency runtime: đúng 6** — `@supabase/supabase-js`, `jsqr`, `lucide-react`, `react`, `react-dom`, `react-router-dom`.
+**Dependency runtime: đúng 7** — `@lottielab/lottie-player`, `@supabase/supabase-js`, `jsqr`, `lucide-react`, `react`, `react-dom`, `react-router-dom`.
 Không thêm dependency UI nào khác (không Tailwind, không MUI, không styled-components).
 
 ---
@@ -31,29 +32,33 @@ Không thêm dependency UI nào khác (không Tailwind, không MUI, không style
 
 ```
 index.html            jsconfig.json (alias cho editor)   vercel.json
-public/favicon.svg
+public/favicon.svg    public/sw.js (Service Worker Web Push)
 src/
   main.jsx            mount React + BrowserRouter + AuthProvider + ThemeProvider + StoreProvider
   App.jsx             đăng ký route, gác quyền, đưa navigate cho actions
   components/
+    auth/             AuthLayout
+    badges/           BadgeCard · BadgeDetailModal · BadgeShelf · BadgeUnlockModal · BountyBoardTab · BountyHeroPoster · CollectorLeaderboardTab · GlobalBadgeUnlockHost · mobile/ (AnimeMobileCollection · AnimeMobileBadgeDetail)
+    challenge/        ArenaChallengeCard · CreateChallengeModal · ScoreModal · EditScoreModal · RatingLineChart · ChallengeDetailModal · MatchDetailModal · AttachVideoModal · VideoPlayerModal
     ds/               DESIGN SYSTEM TDMS — trích từ handoff, KHÔNG sửa tay (icons.js + index.js)
-    layout/           AppLayout · Sidebar · AppHeader · MobileFooterNav · MoreSheet · ToastHost · AuthLayout
-    challenge/        CreateChallengeModal · ScoreModal · EditScoreModal · RatingLineChart · ChallengeDetailModal · MatchDetailModal · AttachVideoModal · MatchVideoPlayerModal · VideoTimelineEditor
-    home/             HomeMatchTab · ActivityTab
-    notification/     NotificationBell · NotificationPanel · NotificationItem
+    home/             ActivityTab · HomeMatchTab · personal/ (HeroRankCard · MyOpponentsCard · RecentFormCard · SynergyBadgesCard · UpcomingSessionCard...)
+    layout/           AppLayout · Sidebar · AppHeader · MobileFooterNav · MoreSheet · ToastHost
     leaderboard/      SeasonRaceTab · CareerEloTab · PairsTab · PairH2HTab · MemberSeasonLedgerModal · PairDetailModal · PairH2HModal · RatingFormulaModal
+    notification/     NotificationBell · NotificationPanel · NotificationItem
     profile/          MemberProfileTab
     session/          CourtAssignmentTab · SessionMatchesTab · BalanceScore · CourtWaitingFilterSheet · EffectiveStrengthModal · SeasonSettingsModal · SessionStatsSheet · VoiceMatchModal · PlannerModal
     settings/         SettingsComponents.jsx · tabs/ (AccessTab · CourtsTab · GeneralTab · GroupsTab · MoneyTab · SchedulesTab)
+    tournament/       BracketBoard · EventBar · FlowCanvas · InfoTab · MatchDialogs · OverviewTab · PairingTab · PlayersTab · RecommendDialog · SpinDraw · TourBits · TourFormDialog · TourHero · TourModuleNav · TourStepper
     ui/               primitive của app: Mono, LevelChip, SessionPill, Empty, Bar, AvatarUpload, BankAccountSection, QrModal, SearchSelect · MyDebtPanel · PayDebtsDialog
   config/             app.json (hằng số, rating cfg) · permissions.json (ma trận quyền)
   contexts/
     AuthContext.jsx   phiên đăng nhập, profile, danh sách CLB của tôi, activeClubId
     AppContext.jsx    db + ui state của MỘT CLB, Context
     ThemeContext.jsx  quản lý Dark / Light / System theme chống nháy sáng FOUC
-    appActions.js     MỌI hành động ghi dữ liệu (thi đấu, chia sân, tiền, sổ quỹ, XP)
-    storage.js        ĐIỂM CHẠM MẠNG DUY NHẤT: load(clubId) / save(db)
-    dbmap.js          map thuần client ↔ 34+ bảng Postgres + diff()
+    appActions.js     MỌI hành động ghi dữ liệu (thi đấu, chia sân, tiền, sổ quỹ, XP, cược)
+    tournamentActions.js  hành động nghiệp vụ giải đấu qua RPC
+    storage.js        ĐIỂM CHẠM MẠNG DUY NHẤT cho state db: load(clubId) / save(db)
+    dbmap.js          map thuần client ↔ 34+ bảng Postgres + diff() + tourRows / toTour
   data/
     schema.js         mô tả schema để render trang Sơ đồ dữ liệu
     rankThemes.js     loader & helper cho 4 theme xếp hạng & kho biệt danh
@@ -65,38 +70,56 @@ src/
   lib/                LOGIC THUẦN — không React, không I/O, test bằng node
     activity.js       sự kiện mạng xã hội CLB (Social Activity), thông báo cá nhân, điểm nhấn cá nhân hoá (Personal Highlights), sắc thái trận đấu (Match Narratives)
     assign.js         chia sân: slot, 5 chế độ xếp, chia đều, số trận
-    badge.js          hệ thống huy hiệu, điều kiện mở khóa, tính toán badge shelf
-    challenge.js      kèo đấu: mã kèo, hướng xem (creator/teamA/teamB), độ cân, điều kiện nhận/đẩy sân
+    backtest.js       runner chạy lại dữ liệu lịch sử thật
+    badges.js         hệ thống danh hiệu anime, điều kiện mở khóa, tính toán badge shelf & bounty board
+    challenge.js      kèo đấu: mã kèo, hướng xem, độ cân, điều kiện nhận/đẩy sân, cược SP
     csv.js            đọc/sinh CSV thành viên, RFC 4180, validate, phát hiện cột
     forms.js          giá trị mặc định an toàn cho các dialog
+    homePersonal.js   tính toán phân tích cá nhân, phong độ, cạ cứng, đối thủ cho trang Tổng quan
     ledger.js         sổ quỹ (ledger, số dư, gộp dòng, tổng hợp ngày, hoàn tác)
+    matchBackup.js    xuất/nhập sao lưu dữ liệu trận đấu
     matchSearch.js    tìm kiếm trận đấu, lọc đối đầu/đồng đội, ma trận H2H, cặp chưa từng gặp
     members.js        lọc/tìm/sắp xếp thành viên, chọn trường ghép tài khoản (0009/0010)
     money.js          mọi công thức tiền + tra cứu + màu/nhãn trạng thái + đối chiếu
     planner.js        phân hệ lập dây trận: chia vòng (rounds), ưu tiên kèo, xử lý nguyện vọng, cân bằng lượt đấu
+    pushSubscription.js quản lý đăng ký Web Push VAPID, tương tác Edge Function push-send
     rating.js         Elo Engine: tính delta, win%, đánh giá độ cân, độ tin cậy R1-R5, hiệu chỉnh chéo giới, replay cascade, dynamic K, margin multiplier, rankPairs
     roles.js          tra cứu ma trận quyền 3 vai
     schedules.js      kế hoạch SỬA/XOÁ lịch cố định: buổi nào được đụng, tháng nào đổi đơn giá
     season.js         đua top mùa giải (Season Points): 5 dải delta, Floor 0, streak/upset bonus, qualified 20 trận, inactive 21 ngày, Bounty Player
     supabase.js       khởi tạo client Supabase từ biến môi trường
+    tournament/       17 file logic giải đấu: advance · bracket · bracketView · canvas · doubleElim · finance · flow · format · hub · links · pairing · recommend · roundRobin · scoreboard · scoring · standings · swiss
     xp.js             hệ thống XP, Cấp bậc và Sổ ghi đóng góp VĐV (Trục gắn bó: tham gia, ra sân, thâm niên, rủ khách; cấp 1-25+ và 6 danh xưng)
-  pages/              1 file 1 màn hình, chỉ render + gọi actions
+  pages/              1 file 1 màn hình, chỉ render + gọi actions (23 màn hình)
     Account.jsx       hồ sơ tài khoản (profiles, NGOÀI CLB)
+    Badges.jsx        bộ sưu tập danh hiệu anime, bảng săn thưởng, BXH sưu tầm
+    Calendar.jsx      lịch tháng buổi tập
     Clubs.jsx         danh sách CLB, tạo CLB, tham gia bằng mã
-    Login.jsx         đăng nhập (email / username / SĐT)
-    Register.jsx      đăng ký (email + mật khẩu, auto-username, tên gọi)
+    Debts.jsx         quản lý công nợ, đối chiếu buổi lẻ, duyệt khai nợ
     Dialogs.jsx       host toàn bộ dialog nhập liệu của app
-    Home.jsx · Calendar.jsx · Sessions.jsx · SessionDetail.jsx (hợp nhất Chia sân & Kèo) · Assign.jsx
-    Leaderboard.jsx   Bảng xếp hạng 5 tabs: SeasonRace · CareerElo · Pairs · PairH2H · Search/Matrix
+    Fund.jsx          sổ quỹ chi tiết, hóa đơn sân trọn tháng
+    Home.jsx          trang chủ CLB (Tổng quan, Hoạt động, Trận & Kèo, Sổ quỹ, Báo cáo)
+    Leaderboard.jsx   Bảng xếp hạng: SeasonRace · CareerElo · Pairs · PairH2H · Search/Matrix
+    Login.jsx         đăng nhập (email / username / SĐT)
     Matches.jsx       Sàn Đấu, Lịch sử trận & Video Replay, Ma trận H2H
-    Schedules.jsx · Members.jsx · Debts.jsx · Fund.jsx
-    Profile.jsx · Settings.jsx · Schema.jsx
-  routes/index.js     bảng route key ↔ URL (PUBLIC_PATHS + 13 in-club routes)
+    Members.jsx       danh sách thành viên, hàng chờ duyệt ghép
+    MyStats.jsx       thống kê phong độ & phân tích chỉ số cá nhân (/tong-quan)
+    Profile.jsx       hồ sơ thành viên trong CLB
+    Register.jsx      đăng ký (email + mật khẩu, auto-username, tên gọi)
+    Schema.jsx        trang hiển thị sơ đồ dữ liệu trong app (/so-do-du-lieu)
+    SessionDetail.jsx chi tiết buổi tập (Điểm danh & tiền, Chia sân & Kèo chờ, Trận đấu)
+    Sessions.jsx      danh sách các buổi tập CLB
+    Settings.jsx      cài đặt CLB (Chung, Sân, Nhóm, Lịch, Phí & Tiền, Tài khoản & Quyền)
+    TournamentBracket.jsx sơ đồ nhánh đấu trực quan cho từng nội dung giải
+    TournamentFlow.jsx    sơ đồ Canvas liên kết các giai đoạn giải đấu
+    TournamentHub.jsx     quản trị giải đấu, đăng ký, bốc thăm, xếp cặp
+    Tournaments.jsx   danh sách giải đấu của CLB (/giai-dau)
+  routes/index.js     bảng route key ↔ URL (PUBLIC_PATHS + 18 in-club routes)
   styles/             index.css + tokens/*.css (dark.css, base.css hỗ trợ utility classes responsive mobile)
   utils/              dates.js · image.js · vietqr.js · voiceMatchParser.js
-  __tests__/          60+ file test (355 tests pass 100%) cho components/ · lib/ · money/ · ledger/ · sync/ · smoke/ · backtest/
-supabase/migrations/   SQL cho bản chạy thật (0001..0035)
-docs/                  RULES · ARCHITECTURE · DATABASE · FEATURES · TASKS · BACKTEST · HE_THONG_RATING_VA_DIEM_MUA (+ DESIGN.md ở gốc)
+  __tests__/          test runner node:assert/strict bao phủ toàn bộ lib, money, sync, smoke, tournament, backtest
+supabase/migrations/  SQL cho bản chạy thật (0001..0063)
+docs/                 RULES · ARCHITECTURE · DATABASE · FEATURES · TASKS · BACKTEST · CHI_SO_VA_CONG_THUC · TOURNAMENT_PLAN
 ```
 
 ### Import alias
@@ -129,19 +152,22 @@ Lý do: mọi con số phải giải thích được nguồn gốc, tiền phả
 
 **`db`** — dữ liệu nghiệp vụ của MỘT CLB, đồng bộ ngầm xuống Supabase (không còn persist
 localStorage). Đúng những khoá `dbmap.toDb()` sinh ra:
-`club, levels, courts, groups, members, guests, schedules, sessions, attendance, sessionGuests,`
+`club, levels, seasons, courts, groups, members, guests, schedules, sessions, attendance, sessionGuests,`
 `lineups, courtGroups, groupMode, courtMin, matches, roster, locked, adjustments, guestPrices,`
 `dues, courtBills, manual, changes, users, joinRequests,`
+`challenges, challengePredictions, playerRatings, matchEdits, clubCalibration, notifications,`
 `playing`
 cộng `clubId, today, month` do `load()` gắn và `currentUserId, myRole, viewAs, sessionId` do
 `reload()` gắn.
 
-- `members[i]` có thêm `fullName`, `email`, `note`, `linkedAt`, `pendingLevel`, `pendingLevelFrom`, `badges`, `badgeShelf`.
-- `sessions[i]` có thêm `planner` (cấu hình & danh sách vòng đấu của bộ Lập dây trận).
+- `club` có thêm `seasons` (cấu hình các mùa giải CLB, podium snapshot), `debtBanner` (kiểu banner nhắc nợ), `hasMemberExtraDiscount`, `memberExtraDiscount`.
+- `members[i]` có thêm `fullName`, `email`, `note`, `linkedAt`, `pendingLevel`, `pendingLevelFrom`, `badges`, `badgeShelf` (tối đa 3 huy hiệu vinh danh), `signature` (châm ngôn cá nhân), `bankAccounts`, `avatarUrl`, `qrUrl`.
+- `member_groups[i]` có thêm `sortOrder` (thứ tự hiển thị tùy biến), `hasCustomPricing` (biểu phí riêng của nhóm).
+- `sessions[i]` có thêm `planner` (cấu hình & danh sách vòng đấu của bộ Lập dây trận), `rsvpInvitedAt` (mốc gửi lời mời điểm danh 1 chạm).
 - `matches[i]` có thêm `videoUrl`, `videoProvider`, `videoThumbnailUrl`, `videoViewsCount`, `videoTimeline`, `bountyBroken`.
-- `attendance[sessionId][memberId]` hỗ trợ 4 trạng thái: `true` (có mặt), `false` (vắng), `'extra'` (đi thêm), `'noshow'` (bùng kèo).
-- `challenges[i]` hỗ trợ `sessionId` liên kết buổi chơi.
-- `adjustments` thay cho `back_credits` (migration 0007).
+- `attendance[sessionId][memberId]` hỗ trợ 4 trạng thái: `true` (có mặt), `false` (vắng), `'extra'` (đi thêm), `'noshow'` (bùng kèo không đến).
+- `challenges[i]` hỗ trợ `sessionId` liên kết buổi chơi, `acceptedPlayers`, `acceptedAt`, `acceptedBy`, `deployedAt`, `stakeText`, `predictionsEnabled`, `predictionsLocked`. Bỏ trạng thái `oncourt` (migration 0043) — "đang đánh" suy từ số hiệp đã ghi.
+- `adjustments` thay cho `back_credits` (migration 0007); có thêm `settledSessions` thu/hoàn tiền và hoàn tác theo từng buổi lẻ (migration 0040).
 - `dues[i]` có `paidAmount` (migration 0009).
 
 Không có `clubStore` · `seq` · `backPaid` · `invites` — bốn khoá này đã bỏ: nhiều CLB trong bộ
@@ -192,11 +218,39 @@ Bên cạnh **Sổ quỹ**, hệ thống có **Thi đấu & Đẳng cấp** hoà
   - Trạng thái Tạm nghỉ (Inactive): 21 ngày không tham gia trận đấu nào.
   - Vua Lì Đòn (`getSeasonBountyPlayer`): Treo thưởng VĐV có chuỗi thắng đang chạy dài nhất ($\ge 3$ trận).
   - Reset về 0 mỗi quý; trận giao lưu (`ratingEnabled: false`) không sinh điểm mùa và không cắt chuỗi thắng.
-- **Trục Gắn bó & Cống hiến (`src/lib/xp.js` & `src/lib/badge.js`)**:
+- **Trục Gắn bó & Cống hiến (`src/lib/xp.js` & `src/lib/badges.js`)**:
   - Hệ thống XP và Cấp bậc: XP chỉ tăng, không phụ thuộc thắng thua, đo mức độ tham gia (50 XP/buổi, 10 XP/trận, 20 XP/tháng thâm niên, 25 XP/khách rủ).
   - Cấp độ = $\lfloor \text{totalXP} / 600 \rfloor + 1$; Danh xưng 6 bậc: Tân thủ → Tập sự → Quen sân → Thực chiến → Hảo thủ → Cao thủ.
-  - Kệ 3 huy hiệu danh dự (`badge_shelf`) cùng kho huy hiệu đa dạng đạt được qua các mốc thành tích thực chiến (`lib/badge.js`).
+  - Kệ 3 huy hiệu danh dự (`badge_shelf`), châm ngôn (`signature`) cùng kho danh hiệu anime đa dạng đạt được qua các mốc thành tích thực chiến (`lib/badges.js`).
   - Vĩnh viễn theo thời gian, không reset theo mùa giải.
+
+### Tầng D: Hệ thống Sòng Bạc & Dự Đoán Kèo (Match Predictions & Casino Hub)
+
+- **Cược bằng Điểm Mùa (Season Points - SP)**: Thành viên dùng số dư Điểm Mùa khả dụng để cược cho đội A hoặc đội B trước khi trận đấu lên sân.
+- **Cơ chế RPC-only**: Dữ liệu lưu ở `challenge_predictions`. CỐ Ý KHÔNG đưa vào mảng `TABLES` của `dbmap.js` để tránh lỗi quyền hạn Postgres `42501`. Mọi thao tác đặt cược (`place_challenge_prediction`), hủy cược (`cancel_challenge_prediction`) và quyết toán (`settle_challenge_predictions`) bắt buộc gọi qua RPC.
+- **An toàn & Chống lạm dụng**: Đấu thủ trong trận tuyệt đối không được cược chính trận của mình; trần cược tối đa 50 SP ở giao diện client (1..100 SP ở database). Quyết toán tự động tính tỷ lệ trả thưởng khi ghi kết quả trận, hoàn trả điểm khi kèo bị hủy.
+- **Giao kèo đời thật (`stake_text`)**: Ghi nhớ thỏa thuận vui ngoài sân (nước ngọt, bữa sáng), thuần trang trí, không ảnh hưởng số dư điểm.
+
+### Tầng E: Hệ thống Quản Lý Mùa Giải CLB (Seasons Engine)
+
+- **Đa mùa giải linh hoạt (`clubs.seasons jsonb`)**: Cho phép CLB tạo nhiều mùa giải nối tiếp nhau (hoặc các giải ngắn hạn), xác định mùa active, thời gian bắt đầu/kết thúc, số trận tiêu chuẩn.
+- **Lưu trữ bục vinh quang (Podium Snapshot)**: Khi đóng mùa giải, hệ thống chụp lại Top 1, Top 2, Top 3 cùng bảng xếp hạng chung cuộc lưu vào `podiumSnapshot`.
+- **Reset Điểm Mùa an toàn**: Chuyển mùa chỉ reset Điểm Mùa (Season Points) về điểm khởi tạo, hoàn toàn bảo toàn lịch sử trận đấu và điểm Elo Career.
+
+### Tầng F: Phân Hệ Giải Đấu Toàn Diện (Tournament System — 16 bảng `tournament_*`)
+
+- **Cách ly tuyệt đối với vận hành thường**:
+  - Trận đấu giải lưu ở `tournament_matches`, **không** ghi vào `matches` thường, **không** tính Elo và **không** tính Điểm Mùa.
+  - Phí tham gia và giải thưởng lưu ở `tournaments`, `tournament_prizes`, `tournament_budget_lines` chỉ mang tính chất dự trù hiển thị, không ghi sổ quỹ `transactions`.
+- **Kiến trúc Nạp & Ghi riêng biệt (Isolated Loaders & Atomic RPCs)**:
+  - 16 bảng giải đấu **không nạp vào state `db`** của `AppContext.jsx` và không đi qua `dbmap.diff()`.
+  - Từng màn hình giải đấu tự nạp dữ liệu độc lập; các thao tác bốc thăm, sinh lịch, ghi điểm, hoàn tác, sửa điểm, mở nhánh đều thực thi qua RPC nguyên tử phía server (`tournamentActions.js` gọi `tournament_generate_stage`, `tournament_commit_match`, `tournament_undo_match`, `tournament_edit_match`, `tournament_close_stage`, `tournament_add_swiss_round`).
+- **4 Thể thức thi đấu tiêu chuẩn**:
+  1. *Loại trực tiếp (Knockout)*: Hỗ trợ vòng 32, 16, tứ kết, bán kết, chung kết, tranh hạng 3.
+  2. *Vòng tròn (Round Robin)*: Chia bảng, thuật toán xoay vòng đối đầu Berger, tự động xếp hạng theo điểm, hiệu số set, hiệu số điểm và đối đầu trực tiếp.
+  3. *Hệ Thụy Sĩ (Swiss System)*: Mọi đội chung 1 bảng, sinh vòng đấu dần theo thứ hạng hiện tại, né gặp lại đối thủ cũ, hỗ trợ điểm miễn đấu (bye).
+  4. *Nhánh thắng / Nhánh thua (Double Elimination)*: Nhánh chính (Winners) + nhánh phụ (Losers), tự động kích hoạt trận Chung kết Tổng 2 (GF2) nếu đội nhánh thua thắng trận chung kết 1.
+- **Sơ đồ đồ thị Canvas**: Trực quan hóa liên kết giữa các giai đoạn giải đấu (Stage Links), chuyển tiếp các đội từ vòng bảng sang các nhánh loại trực tiếp.
 
 ---
 
@@ -225,37 +279,55 @@ Ba quy ước:
 - `/clb` (`Clubs` — chọn CLB, tạo CLB, nhập mã tham gia)
 - `/tai-khoan` (`Account` — quản lý hồ sơ tài khoản `profiles` dùng chung)
 
-**Route trong CLB (14 màn hình trong `AppLayout`):**
-Route key (xem `routes/index.js`) là một trong: `home calendar sessions session assign leaderboard matches schedules members debts fund profile settings schema`.
+**Route trong CLB (18 màn hình trong `AppLayout`):**
+Danh sách Route key và component render tương ứng (xem `src/routes/index.js` & `src/App.jsx`):
+1. `home`: `/` (render `MyStats.jsx`) — Trang chủ cá nhân của hội viên (Hero rank tier, Elo hiện tại, phong độ 5 trận, buổi tới kèm RSVP tự điểm danh 1 chạm, cạ cứng, đối thủ bám đuổi, tóm tắt kèo đấu và bảng tin hoạt động CLB).
+2. `overview`: `/tong-quan` (render `Home.jsx`) — Tổng quan vận hành CLB (Bàn cờ quản trị: 6 StatCard chỉ số quỹ & nợ, tiến độ thu quỹ tháng kèm chip từng người, mở điểm danh buổi tới, danh sách nợ, top đi nhiều, báo cáo chuyên cần).
+3. `calendar`: `/lich-thang` — Lịch tháng các buổi tập.
+4. `sessions`: `/buoi-tap` — Danh sách các buổi tập của CLB.
+5. `session`: `/buoi-tap/:id` — Chi tiết buổi tập (Điểm danh, Chia sân & Kèo chờ, Trận đấu).
+6. `matches`: `/tran-dau` — Sàn kèo thách đấu & Lịch sử trận đấu toàn CLB.
+7. `leaderboard`: `/bang-xep-hang` — Đua top mùa giải (Season Race), Elo sự nghiệp (Career Elo), BXH Cặp đôi (Pairs), Đối đầu H2H và Ma trận kết quả.
+8. `badges`: `/danh-hieu` — Kho danh hiệu anime, huy hiệu thành tích và tiêu chuẩn đạt được.
+9. `members`: `/thanh-vien` — Danh bạ thành viên chính thức & khách vãng lai.
+10. `debts`: `/cong-no` — Sổ công nợ, nhắc nợ, tự khai chuyển khoản và duyệt thanh toán.
+11. `fund`: `/so-quy` — Sổ quỹ thu chi, quỹ tiền mặt và lịch sử giao dịch CLB.
+12. `profile`: `/ca-nhan` — Hồ sơ thành viên trong CLB, kệ 3 huy hiệu danh dự (`badge_shelf`), châm ngôn (`signature`).
+13. `settings`: `/cai-dat` — Cài đặt CLB, nhóm hội viên, mùa giải thi đấu, xuất/nhập CSV và backup/restore.
+14. `schema`: `/so-do-du-lieu` — Sơ đồ trực quan hoá cấu trúc dữ liệu của hệ thống.
+15. `tournaments`: `/giai-dau` — Danh sách các giải đấu của CLB.
+16. `tournament`: `/giai-dau/:id` — Trung tâm điều hành giải đấu (TournamentHub).
+17. `tournamentBracket`: `/giai-dau/:id/nhanh/:eventId` — Cây nhánh thi đấu của từng nội dung.
+18. `tournamentFlow`: `/giai-dau/:id/so-do` — Sơ đồ luồng canvas chuyển tiếp giữa các giai đoạn (Stage Links).
 
-Quyền lấy từ `lib/roles.js` + `config/permissions.json` (3 vai: `owner`, `treasurer`, `member`):
+**Ma trận phân quyền (`src/lib/roles.js` + `src/config/permissions.json`):**
+- 3 vai trò chuẩn: `owner` (Chủ CLB), `treasurer` (Thủ quỹ), `member` (Thành viên).
+- Cả 18 routes đều mở cho mọi vai trò vào xem (`routes: null`).
+- Các quyền thao tác (action/edit) được kiểm tra qua các cờ (`flags`):
+  - `owner`: `money`, `members`, `sessions`, `assign`, `settings`, `viewAll`
+  - `treasurer`: `money`, `sessions`, `assign`, `viewAll`
+  - `member`: `viewAll`
+- **Quyền điều hành Giải đấu**: Toàn bộ màn hình giải đấu (`Tournaments.jsx`, `TournamentHub.jsx`, `TournamentBracket.jsx`, `TournamentFlow.jsx`) sử dụng cờ `sessions` (`can(role, 'sessions')`) để cấp quyền tạo giải, bốc thăm, sinh lịch, ghi/sửa điểm và đóng giai đoạn (Chủ CLB và Thủ quỹ có quyền; Thành viên thường chỉ xem read-only).
+- **Thanh điều hướng chân trang mobile (`MobileFooterNav.jsx`)**:
+  - Có cờ `money` (`owner`, `treasurer`): `home`, `matches`, `debts`, `leaderboard`, `more`.
+  - Không có cờ `money` (`member`): `home`, `matches`, `leaderboard`, `profile`, `more`.
 
-- Sidebar **ẩn** mục không được phép; section rỗng cũng ẩn.
-- Route không được phép → `effRoute()` fallback về `home`, **không** hiện trang lỗi.
-- Nút hành động ở header chỉ hiện khi có cờ `sessions`.
-
-`db.myRole` là vai THẬT, lấy từ `club_members.role` qua RPC `my_clubs`. `db.viewAs` là công cụ
-xem-như, chỉ cho chọn vai của mình hoặc **yếu hơn** (`viewAsOptions` trong `lib/roles.js`) — cho
-tự nâng quyền thì UI mở ra nhưng RLS ở Supabase vẫn chặn, người dùng chỉ nhận lỗi không hiểu.
-Ẩn UI luôn chỉ là lớp thứ hai; RLS là lớp thật.
+`db.myRole` là vai THẬT, lấy từ `club_members.role` qua RPC `my_clubs`. `db.viewAs` là công cụ xem-như, chỉ cho chọn vai của mình hoặc **yếu hơn** (`viewAsOptions` trong `lib/roles.js`) — cho tự nâng quyền thì UI mở ra nhưng RLS ở Supabase vẫn chặn. Ẩn UI luôn chỉ là lớp thứ hai; RLS là lớp bảo vệ thực sự.
 
 ---
 
 ## 6. Đồng bộ với Supabase
 
-`contexts/storage.js` là **điểm chạm mạng duy nhất** cho việc tải và lưu dữ liệu nền. Hai hàm:
+`src/contexts/storage.js` là **điểm chạm mạng duy nhất** cho việc tải và lưu dữ liệu nền của hệ thống. Hai hàm chính cho state `db`:
 
 | Hàm | Việc |
 | --- | --- |
-| `load(clubId)` | ~20 query song song (dùng embed của PostgREST cho bảng con) → `dbmap.toDb()` → state `db` |
+| `load(clubId)` | ~20 query song song (dùng embed của PostgREST cho bảng con) → `dbmap.toDb()` → nạp vào state `db` |
 | `save(db)` | hẹn giờ `sync.debounceMs` → `dbmap.toRows()` → `dbmap.diff()` so với ảnh chụp lần đồng bộ trước → ghi/xoá **đúng những dòng đã đổi** |
 
 Vì sao đồng bộ ngầm theo dòng, không phải mỗi action tự `await` Supabase:
-
-- 78 action giữ nguyên hình đồng bộ, UI phản hồi tức thì, 13 màn không phải thêm trạng thái
-   chờ/lỗi/rollback. Chỗ nào đúng sai chỉ nằm trong **một** file map, không rải ra 50 action.
-- Đơn vị ghi là **từng dòng**, nên hai người sửa hai buổi khác nhau không đè nhau. Đổi lại: hai
-   người sửa **cùng một dòng** thì người ghi sau thắng. Không có validate phía server ngoài RLS.
+- Gần 80 action giữ nguyên hình đồng bộ, UI phản hồi tức thì, các màn hình không phải thêm trạng thái chờ/lỗi/rollback. Chỗ nào đúng sai chỉ nằm trong **một** file map `src/contexts/dbmap.js`.
+- Đơn vị ghi là **từng dòng**, nên hai người sửa hai buổi khác nhau không đè nhau. Đổi lại: hai người sửa **cùng một dòng** thì người ghi sau thắng. Không có validate phía server ngoài RLS.
 
 Ba chế độ ghi, khai báo ở `TABLES` trong `dbmap.js`:
 
@@ -266,22 +338,26 @@ Ba chế độ ghi, khai báo ở `TABLES` trong `dbmap.js`:
 | `scope` | dòng con không có khoá ổn định, tập nhỏ (`schedule_slots`, `match_players`…) | scope nào đổi thì xoá sạch scope đó rồi ghi lại |
 
 Hai bất biến bắt buộc, có test khoá ở `src/__tests__/sync/dbmap.test.js`:
-
 1. **`db` không đổi ⇒ `diff()` rỗng.** Sai chỗ này là mỗi lần bấm phím ghi lại cả CLB.
-2. **Ảnh chụp dựng bằng chính `toRows()`**, không dựng từ dòng đọc về. Nhờ vậy `load` và `save`
-   luôn cùng một hàm map; lệch nhau thì lộ ngay ở lần save đầu chứ không âm thầm xoá dòng.
+2. **Ảnh chụp dựng bằng chính `toRows()`**, không dựng từ dòng đọc về. Nhờ vậy `load` và `save` luôn cùng một hàm map; lệch nhau thì lộ ngay ở lần save đầu chứ không âm thầm xoá dòng.
 
-**Các hành động đặc biệt ghi trực tiếp DB rồi `reload()`:**
-1. `approveJoin` và `rejectJoin`: người xin vào chưa phải thành viên nên client không có quyền ghi thẳng.
-2. `renameMe` (`a.renameMe`): thành viên tự đổi tên hiển thị / tên đầy đủ qua `.update()` trực tiếp với policy `cm_update_self_name` + trigger guard (0010), do sync ngầm dùng upsert đòi quyền INSERT mà thành viên thường không có.
-3. `incrementMatchVideoViews` (`a.incrementMatchVideoViews`): gọi RPC `increment_match_video_views` (0034) tăng lượt xem video trận đấu an toàn phía server.
-4. `attachMatchVideo` (`a.attachMatchVideo`): gọi RPC `attach_match_video` (0035) gắn link video, thumbnail, nhà cung cấp và timeline.
+**Các hành động đặc biệt ghi trực tiếp DB / gọi RPC rồi `reload()`:**
+1. `approveJoin` và `rejectJoin`: gọi RPC `approve_join_request` / `reject_join_request` (migration 0001) vì người xin vào chưa phải thành viên, client không có quyền ghi thẳng.
+2. `renameMe` (`a.renameMe`): thành viên tự đổi tên hiển thị / tên đầy đủ qua `.update()` trực tiếp với policy `cm_update_self_name` + trigger guard (migration 0010), do sync ngầm dùng upsert đòi quyền INSERT mà thành viên thường không có.
+3. `claimPayments` (`a.claimPayments`): gọi RPC `claim_payments` (migration 0018) để thành viên tự khai đã chuyển khoản trả nợ.
+4. `incrementMatchVideoViews` (`a.incrementMatchVideoViews`): gọi RPC `increment_match_video_views` (migration 0034) tăng lượt xem video trận đấu an toàn phía server.
+5. `attachMatchVideo` (`a.attachMatchVideo`): gọi RPC `attach_match_video` (migration 0035) gắn link video, thumbnail, nhà cung cấp và timeline.
+6. `memberSelfCheckin` (`a.memberSelfCheckin`): gọi RPC `member_self_checkin` (migration 0039) để thành viên tự điểm danh có mặt/báo vắng khi nhận thông báo mở buổi.
+7. **Dự đoán kèo & Cược SP (RPC-only)**:
+   - Các hàm `placePrediction`, `cancelPrediction`, `settlePredictions`, `unsettlePredictions` gọi trực tiếp RPC `place_challenge_prediction`, `cancel_challenge_prediction`, `settle_challenge_predictions`, `unsettle_challenge_predictions` (migrations 0041, 0042, 0044).
+   - Bảng `challenge_predictions` **CỐ Ý KHÔNG ĐƯỢC ĐƯA VÀO `dbmap.TABLES`** để tránh lỗi quyền hạn Postgres `42501`.
+8. **Web Push Notification**: Đăng ký và quản lý subscription qua bảng `push_subscriptions` (migration 0048); gửi thông báo đẩy qua Supabase Edge Function `push-send`.
+9. **Phân hệ Giải đấu (16 bảng `tournament_*`)**:
+   - Hoàn toàn tách biệt khỏi state `db` và không đi qua `dbmap.diff()`.
+   - Nạp độc lập qua `loadTournament` / `loadTournamentMatches`.
+   - Ghi dữ liệu trực tiếp từng dòng qua `tournamentWrite` và các RPC nguyên tử: `tournament_generate_stage`, `tournament_commit_match`, `tournament_undo_match`, `tournament_edit_match`, `tournament_close_stage`, `tournament_add_swiss_round` (migrations 0057..0063).
 
-Điều cần giữ: **tiền lưu `bigint` VND, không lưu số đã làm tròn**; ngày buổi lưu `date`, tháng
-lưu `char(7)`.
-
-Còn lại: RPC sinh `transactions` khi chốt buổi (hiện `lib/ledger.js` tính phía client), realtime
-theo `session_id` cho `session_lineups` + `matches`, trigger `audit_logs`.
+Điều cần giữ: **tiền lưu `bigint` VND, không lưu số đã làm tròn**; ngày buổi lưu `date`, tháng lưu `char(7)`.
 
 ---
 
@@ -307,7 +383,7 @@ theo `session_id` cho `session_lineups` + `matches`, trigger `audit_logs`.
 | Tự khai nợ & Duyệt chuyển khoản | ✅ **Đã làm** | Migration 0018: cột `claimed_at` cho `monthly_dues`, `member_adjustments`, `session_guests` + RPC `claim_payments` |
 | Banner nhắc nợ Trang chủ | ✅ **Đã làm** | Migration 0019: cấu hình kiểu banner nhắc công nợ (`clubs.debt_banner`) |
 | Giao diện Dark Mode & Responsive Mobile | ✅ **Đã làm** | `ThemeContext.jsx` (Dark/Light/System) + `MobileFooterNav.jsx` 5 slot + `MoreSheet.jsx` |
-| Huy hiệu & Kệ huy hiệu (Badges & Shelf) | ✅ **Đã làm** | Migration 0027 (`badges`, `badge_shelf`) + `src/lib/badge.js` + Kệ 3 huy hiệu vinh danh trên `MemberProfileTab` |
+| Huy hiệu & Kệ huy hiệu (Badges & Shelf) | ✅ **Đã làm** | Migration 0027 (`badges`, `badge_shelf`) + `src/lib/badges.js` + Kệ 3 huy hiệu vinh danh trên `MemberProfileTab` + Kho danh hiệu anime (`/danh-hieu`) |
 | Tiền thưởng Săn chuỗi thắng (Bounty Broken) | ✅ **Đã làm** | Migration 0028 (`bounty_broken`) ghi nhận phần thưởng khi lật đổ Vua Lì Đòn |
 | Video Replay & Lượt xem trận đấu | ✅ **Đã làm** | Migrations 0029, 0030, 0034, 0035 (`video_*`) + `AttachVideoModal`, `MatchVideoPlayerModal`, `VideoTimelineEditor` |
 | Điểm danh Bùng kèo (Attendance No-show) | ✅ **Đã làm** | Migrations 0031, 0032 (`noshow` enum state) + gác tự động trong Planner và chia sân |
@@ -315,10 +391,14 @@ theo `session_id` cho `session_lineups` + `matches`, trigger `audit_logs`.
 | Sàn Kèo & Gán kèo tự do vào buổi chơi | ✅ **Đã làm** | Sàn Kèo (`Matches.jsx`), liên kết kèo tự do `linkChallengeToSession`, chống đè slot 1v1->2v2, gác hết hạn kèo |
 | Framework Backtest & Baseline data | ✅ **Đã làm** | `src/__tests__/backtest/` runner kiểm thử công thức với lịch sử thật CLB, Rule §0 gác công thức Elo/Điểm mùa |
 | Thông báo (Notification), Bảng tin Hoạt động & Điểm nhấn | ✅ **Đã làm** | Migration 0038 (`notifications`, `activity_events`) + `src/lib/activity.js` + Chuông/Drawer (`NotificationBell`, `NotificationPanel`) + Tab Hoạt động Trang chủ (`ActivityTab`) + 5 Điểm nhấn cá nhân hoá |
+| Tự điểm danh 1 chạm & RSVP Mở buổi | ✅ **Đã làm** | Migration 0039 (`sessions.rsvp_invited_at` + RPC `member_self_checkin`) + `SelfAttendanceCard.jsx` |
+| Hệ thống Dự đoán Kèo & Sòng bạc Điểm Mùa (Predictions Hub) | ✅ **Đã làm** | Migrations 0041, 0042, 0044 (`challenge_predictions` + RPC-only cược/hủy/quyết toán SP) + Kèo cược vui đời thật (`stake_text`) |
+| Web Push Notifications (PWA Push) | ✅ **Đã làm** | Migration 0048 (`push_subscriptions`) + Service Worker + Supabase Edge Function `push-send` |
+| Quản lý Đa Mùa Giải & Lưu trữ Bục Vinh Quang | ✅ **Đã làm** | Migrations 0049, 0053 (`clubs.seasons jsonb` + `podiumSnapshot`) |
+| Trang Tổng quan phong độ cá nhân (MyStats) | ✅ **Đã làm** | Route `/tong-quan` (`MyStats.jsx`): Biểu đồ Radar kỹ năng, phân tích đối thủ/cạ cứng, lịch sử phong độ |
+| Phân Hệ Giải Đấu Toàn Diện 16 Bảng | ✅ **Đã làm** | Migrations 0057..0063 (16 bảng `tournament_*` + 6 RPC nguyên tử) + 4 thể thức (Knockout, Round Robin, Swiss, Double Elimination) + Canvas Stage Links & Graph Flow |
 | Mời vào CLB qua SĐT | **KHÔNG LÀM** (user chốt 2026-09-02) | Phần NHẬN phải gửi SMS thật — tốn tiền, không làm. Người mới vào bằng **mã CLB**. Bảng `club_invites` và cột `clubs.allow_invite` để nguyên dưới DB (xoá schema là việc riêng, phải xin phép), client không đọc |
-| Push notification / Zalo OA / `audit_logs` | Giai đoạn 2 | Mở rộng push notification qua Service Worker hoặc Zalo ZNS khi có nhu cầu |
-| Realtime cho chia sân | Giai đoạn 2 | Realtime channel theo `session_id` cho `session_lineups` + `matches` |
-| Màn Assign.jsx tách riêng | Tồn tại | Route `/chia-san` — chia sân độc lập ngoài buổi; logic trùng với Tab 2 SessionDetail |
+| Realtime cho chia sân & giải đấu | Giai đoạn 2 | Realtime channel theo `session_id` cho `session_lineups` + `matches` (giải đấu hiện dùng useTourPoll tiết kiệm lượt gọi) |
 
 ---
 

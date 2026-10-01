@@ -37,6 +37,12 @@ export default function NotificationItem({ item, onRead }) {
         return { icon: 'trophy', color: '#FFE24B' }
       case 'bounty_broken':
         return { icon: 'flame', color: '#FF2E7E' }
+      case 'prediction_settled':
+        return item.payload?.result === 'won'
+          ? { icon: 'trophy', color: '#10B981' }
+          : item.payload?.result === 'lost'
+            ? { icon: 'trending-down', color: '#EF4444' }
+            : { icon: 'banknote', color: '#8B5CF6' }
       case 'match_recorded':
       case 'match_edited':
         return { icon: 'activity', color: '#3B82F6' }
@@ -73,6 +79,8 @@ export default function NotificationItem({ item, onRead }) {
   const payload = resolveNotificationPayload(item, db)
   const notifKey = item.type === 'attendance_reported' && payload.status
     ? `notification.attendance_reported_${payload.status}`
+    : item.type === 'prediction_settled' && payload.result
+      ? `notification.prediction_settled_${payload.result}`
     : item.type === 'challenge_created' && !payload.creator
       ? 'notification.challenge_created_simple'
       : `notification.${item.type}`

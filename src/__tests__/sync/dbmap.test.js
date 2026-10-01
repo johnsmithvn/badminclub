@@ -421,6 +421,20 @@ assert.equal(rawMtBack.matches[0].initialRatingA, 1200)
 assert.equal(rawMtBack.matches[0].initialRatingB, 1150)
 assert.equal(rawMtBack.matches[0].eloDelta, 16)
 
+// Trận đơn: M2 phải ghi team 1. Ghi team 0 thì tải lại đội B rỗng và replay Elo bỏ qua trận.
+assert.deepEqual(ratingRows.match_players.filter((r) => r.match_id === 'MT_1').map((r) => r.team), [0, 1],
+  'trận đơn phải ghi mỗi người một đội')
+// Dòng cũ đã lưu hỏng (cả hai team 0) vẫn phải đọc ra 1 vs 1.
+const legacySingles = toDb({
+  club: {},
+  sessions: [{ id: 'S1', date: '2026-09-20', group_id: 'G1', matches: [{
+    id: 'MT_S', court_index: 0, minutes: 20, ended_at: '2026-09-20T13:00:00Z', winner_team: 'B',
+    match_players: [{ player_id: 'M1', team: 0 }, { player_id: 'G1', team: 0 }],
+  }] }],
+}, { clubId: 'CL1' }).matches[0]
+assert.deepEqual([legacySingles.teamA, legacySingles.teamB], [['M1'], ['G1']],
+  'trận đơn lưu hỏng trước 2026-09-29 phải tách lại được, không thì Elo của nó mất vĩnh viễn')
+
 /* ---------- S5: editMatchScore cascade không được sinh delIds cho player_ratings ---------- */
 const prevRatingsState = {
   ...db,

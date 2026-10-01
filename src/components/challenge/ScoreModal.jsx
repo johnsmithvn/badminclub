@@ -13,7 +13,7 @@ import {
   resolveSeason,
   seasonMatchesOf,
 } from '#lib/season.js'
-import { calculateMemberBadges, computeClubBadgeStats, getBadgeById, newlyUnlockedBadges } from '#lib/badges.js'
+import { calculateMemberBadges, computeClubBadgeStats, getBadgeById, newlyUnlockedBadges, cleanShelf } from '#lib/badges.js'
 import { seenBadgesKey, markBadgeSeen } from '#utils/seenBadges.js'
 import BadgeUnlockModal from '#components/badges/BadgeUnlockModal.jsx'
 import { t } from '#i18n'
@@ -734,18 +734,13 @@ export default function ScoreModal({ court, session, challenge, onClose, onSaved
         <BadgeUnlockModal
           badge={unlockedBadge}
           isMobile={isMobile}
-          shelfCount={(currentMember?.badge_shelf || currentMember?.badgeShelf || []).length}
-          shelfIsFull={(currentMember?.badge_shelf || currentMember?.badgeShelf || []).length >= 3}
+          shelfCount={cleanShelf(currentMember?.badge_shelf || currentMember?.badgeShelf).length}
+          shelfIsFull={cleanShelf(currentMember?.badge_shelf || currentMember?.badgeShelf).length >= 3}
           onEquipShelf={(b) => {
             const targetId = currentMember?.id || (b.winnerPlayerIds && b.winnerPlayerIds[0])
             if (targetId && a.setMemberShelf) {
               const targetMem = (db.members || []).find((m) => m.id === targetId) || currentMember
-              const cur = (targetMem?.badge_shelf || targetMem?.badgeShelf || []).slice()
-              if (!cur.includes(b.id)) {
-                if (cur.length >= 3) cur.pop()
-                cur.unshift(b.id)
-                a.setMemberShelf(targetId, cur)
-              }
+              a.setMemberShelf(targetId, [b.id, ...(targetMem?.badge_shelf || targetMem?.badgeShelf || [])])
             }
             handleFinishScore()
           }}

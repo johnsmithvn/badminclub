@@ -81,9 +81,12 @@ export default function MyStats() {
   const formStats = useMemo(() => getPlayerForm5(db, memberId), [db, memberId])
 
   // 3. Phân tích kình địch & mục tiêu
+  // Mặc định đua ĐIỂM MÙA — thứ cả CLB đang tranh. `targetRival` của thẻ Hero là người trên bảng
+  // Elo, nên chỉ truyền nó ở chế độ Elo.
+  const [goalMode, setGoalMode] = useState('season')
   const rivalAnalysis = useMemo(
-    () => getRivalAnalysis(db, memberId, heroStats.targetRival?.id),
-    [db, memberId, heroStats.targetRival?.id],
+    () => getRivalAnalysis(db, memberId, goalMode === 'elo' ? heroStats.targetRival?.id : null, goalMode),
+    [db, memberId, heroStats.targetRival?.id, goalMode],
   )
 
   // 4. Trận gần nhất (Hiển thị tối đa 3 trận cho cả Mobile và Desktop)
@@ -307,6 +310,8 @@ export default function MyStats() {
             {/* Thẻ 03: Rival Goal */}
             <RivalGoalCard
               rivalAnalysis={rivalAnalysis}
+              mode={goalMode}
+              onModeChange={setGoalMode}
               isMobile={true}
               onChallenge={handleLogMatch}
             />
@@ -454,6 +459,8 @@ export default function MyStats() {
               />
               <RivalGoalCard
                 rivalAnalysis={rivalAnalysis}
+                mode={goalMode}
+                onModeChange={setGoalMode}
                 isMobile={false}
                 onChallenge={handleLogMatch}
                 onH2HClick={handleLogMatch}

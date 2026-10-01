@@ -17,6 +17,7 @@ import SeasonRaceTab from '#components/leaderboard/SeasonRaceTab.jsx'
 import CareerEloTab from '#components/leaderboard/CareerEloTab.jsx'
 import PairsTab from '#components/leaderboard/PairsTab.jsx'
 import PairH2HTab from '#components/leaderboard/PairH2HTab.jsx'
+import GamblersTab from '#components/leaderboard/GamblersTab.jsx'
 import MemberSeasonLedgerModal from '#components/leaderboard/MemberSeasonLedgerModal.jsx'
 import EffectiveStrengthModal from '#components/session/EffectiveStrengthModal.jsx'
 import SeasonSettingsModal from '#components/session/SeasonSettingsModal.jsx'
@@ -30,8 +31,8 @@ export default function Leaderboard() {
   const isMobile = useMobile(900)
 
   const tabParam = searchParams.get('tab')
-  const initialTab = (tabParam === 'elo' || tabParam === 'pairs' || tabParam === 'h2h') ? tabParam : 'season'
-  const [activeTab, setActiveTab] = useState(initialTab) // 'season' | 'elo' | 'pairs' | 'h2h'
+  const initialTab = (tabParam === 'elo' || tabParam === 'pairs' || tabParam === 'h2h' || tabParam === 'gamblers') ? tabParam : 'season'
+  const [activeTab, setActiveTab] = useState(initialTab) // 'season' | 'elo' | 'pairs' | 'h2h' | 'gamblers'
   const [genderFilter, setGenderFilter] = useState('all') // 'all' | 'nam' | 'nu'
   const [rankTheme, setRankTheme] = useState(DEFAULT_RANK_THEME)
 
@@ -239,9 +240,9 @@ export default function Leaderboard() {
 
       <NotificationBell />
 
-      {/* Tab 'h2h' là màn so kè tương tác (chọn cặp A vs cặp B), không có bảng nào để xuất.
-          handleExportCsv rơi vào nhánh else -> xuất nhầm bảng Elo, nên ẩn nút ở tab này. */}
-      {activeTab !== 'h2h' && (
+      {/* Tab 'h2h' là màn so kè tương tác (chọn cặp A vs cặp B), 'gamblers' chưa có nhánh xuất.
+          handleExportCsv rơi vào nhánh else -> xuất nhầm bảng Elo, nên ẩn nút ở hai tab này. */}
+      {activeTab !== 'h2h' && activeTab !== 'gamblers' && (
         <button
           type="button"
           onClick={handleExportCsv}
@@ -397,6 +398,7 @@ export default function Leaderboard() {
           { key: 'elo', label: t('season.careerEloTab'), tone: 'primary' },
           { key: 'pairs', label: t('leaderboard.tabPairs'), tone: 'accent' },
           { key: 'h2h', label: t('leaderboard.tabH2H'), tone: 'violet' },
+          { key: 'gamblers', label: t('leaderboard.tabGamblers'), tone: 'violet' },
         ]}
       />
 
@@ -464,6 +466,11 @@ export default function Leaderboard() {
           membersMap={memberMap}
           ratingsMap={normalizedRatingsMap}
         />
+      )}
+
+      {/* ---------------- TAB 5: Sòng bạc — BXH cược kèo ---------------- */}
+      {activeTab === 'gamblers' && (
+        <GamblersTab seasonRes={seasonLeaderboardData} isMobile={isMobile} myId={myMem?.id} />
       )}
 
       {/* Modal tạo kèo / gạ kèo (K6) */}

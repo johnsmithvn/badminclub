@@ -1,6 +1,6 @@
 # TASKS.md
 
-**Version:** v1.6.0 · **Updated:** 2026-09-17
+**Version:** v2.0.0 · **Updated:** 2026-09-30
 
 Trạng thái thật của việc dựng app. Cập nhật file này khi xong một mục — đừng để nó nói dối.
 
@@ -1231,6 +1231,113 @@ Xây dựng toàn diện trung tâm thông báo cá nhân, bảng tin sự kiệ
   - Cập nhật test `undo.test.js` và `dbmap.test.js`.
   - Chạy `npm test`: **358/358 tests PASS 100%**.
   - Dọn dẹp dead code, sửa empty catch blocks và các lỗi react-compiler/react-hooks trong `PlannerGridCol.jsx`, `CourtAssignmentTab.jsx`, `AttachVideoModal.jsx`, `MemberProfileTab.jsx`, `AnimeMobileBadgeDetail.jsx`, `SessionMatchesTab.jsx`, `season.js`, `Matches.jsx`.
+
+---
+
+## Đợt 19 — Hệ thống Dự Đoán Kèo & Sòng Bạc Điểm Mùa (Match Predictions & Casino Hub) · **XONG 2026-09-20**
+
+Mở rộng tính năng giải trí và kích thích tương tác bằng cơ chế dự đoán kết quả kèo đấu qua Điểm Mùa (Season Points):
+
+- [x] **Cơ sở dữ liệu & RPCs (`0041`, `0042`, `0044`)**:
+  - Bảng `public.challenge_predictions`: Lưu trữ các phiếu cược (`challenge_id`, `club_id`, `member_id`, `team`, `stake_points`, `payout_points`, `status`). Index và ràng buộc UNIQUE `(challenge_id, member_id)`.
+  - RPC `place_challenge_prediction`: Đặt cược an toàn, trừ điểm mùa khả dụng, ON CONFLICT DO UPDATE để hỗ trợ đặt lại phiếu cũ.
+  - RPC `cancel_challenge_prediction`: Cho phép thành viên huỷ cược nhận lại 100% điểm mùa trước khi trận đấu bắt đầu.
+  - RPC `settle_challenge_predictions` / `unsettle_challenge_predictions`: Quyết toán trả thưởng khi ghi kết quả trận hoặc hoàn lại điểm khi huỷ kết quả trận.
+  - Gotcha kiến trúc: Bảng này **CỐ Ý KHÔNG ĐƯỢC ĐƯA VÀO `dbmap.TABLES`** để tránh lỗi quyền hạn Postgres `42501`. Mọi thao tác bắt buộc gọi qua RPC.
+- [x] **Giao diện & Tương tác Cược (`ChallengeDetailModal.jsx`)**:
+  - Tự động tính Điểm Mùa khả dụng (`availableSeasonPoints = totalSp - pendingStakes`).
+  - Gác chặn đấu thủ trong trận không được cược chính trận mình; khách ngoài CLB không có điểm mùa; trần cược UI 50 SP (DB kẹp 1..100 SP).
+  - Tự động khoá cược khi trận đã lên sân hoặc đã kết thúc.
+  - Giao kèo thỏa thuận ngoài đời thực (`stake_text`).
+- [x] **Kiểm thử tự động**:
+  - Viết suite test `src/__tests__/challenge/prediction.test.js` kiểm tra tỷ lệ cược, hoàn cược, chống gian lận và tính toán điểm mùa khả dụng.
+
+---
+
+## Đợt 20 — Quản Lý Đa Mùa Giải & Lưu Trữ Bục Vinh Quang (Seasons Engine & Podium Snapshots) · **XONG 2026-09-22**
+
+Cho phép CLB tổ chức nhiều mùa giải thi đấu kế tiếp nhau và lưu trữ bục vinh danh qua các mùa:
+
+- [x] **Cơ sở dữ liệu (Migrations 0049, 0053)**:
+  - Cột `clubs.seasons jsonb`: Lưu trữ danh sách các mùa giải thi đấu (`id`, `name`, `startDate`, `endDate`, `status`, `targetMatches`).
+  - Cấu trúc `podiumSnapshot`: Đóng băng Top 1 (Vàng), Top 2 (Bạc), Top 3 (Đồng) cùng toàn bộ BXH chung cuộc khi đóng mùa giải.
+- [x] **Nghiệp vụ Chuyển Mùa & Reset An Toàn**:
+  - Chuyển mùa giải chỉ reset Điểm Mùa (Season Points) về điểm khởi tạo và reset chuỗi thắng/thua mùa.
+  - **Bảo toàn 100% Lịch sử trận đấu và Điểm Elo Career**: Điểm Elo không bị mất hay reset khi sang mùa mới.
+  - Hỗ trợ xem lại lịch sử bục vinh quang các mùa trước trên giao diện Bảng xếp hạng.
+
+---
+
+## Đợt 21 — Web Push Notifications PWA & Thông Báo Đẩy Nền · **XONG 2026-09-23**
+
+Hỗ trợ thông báo đẩy trực tiếp tới điện thoại và máy tính thành viên qua công nghệ Web Push:
+
+- [x] **Cơ sở dữ liệu & Thư viện client (`0048_push_subscriptions.sql`, `src/lib/pushSubscription.js`)**:
+  - Bảng `public.push_subscriptions`: Lưu trữ `endpoint`, `keys` (`p256dh`, `auth`) và `club_id`.
+  - Service Worker đăng ký push manager trên trình duyệt/PWA.
+- [x] **Edge Function `push-send`**:
+  - Gửi thông báo đẩy nền VAPID khi phát sinh các sự kiện cá nhân quan trọng: Thách đấu mới, Nhận kèo, Lời mời điểm danh mở buổi (`session_rsvp_invite`), Quyết toán kết quả cược.
+
+---
+
+## Đợt 22 — Trang Tổng Quan Phong Độ Cá Nhân MyStats (Route `/tong-quan`) · **XONG 2026-09-25**
+
+Tách biệt trải nghiệm cá nhân hoá của hội viên ra khỏi Bàn cờ quản trị CLB, tạo trang trung tâm đẳng cấp cá nhân:
+
+- [x] **Route & Trang (`src/pages/MyStats.jsx`, Route `overview`)**:
+  - Route `/tong-quan`: Trang cá nhân hoá của người đang đăng nhập.
+  - 3 Subtabs: Cá nhân (`personal`), Trận đấu CLB (`match`), Hoạt động CLB (`activity`).
+- [x] **10 Component Card phân tích chuyên sâu (`src/components/home/personal/`)**:
+  - `HeroRankCard`: Card vinh danh Elo, Rank tier, winrate, XP, Kệ 3 huy hiệu danh dự (`badge_shelf`), châm ngôn cá nhân (`signature`).
+  - `UpcomingSessionCard`: Nhắc buổi tập sắp tới kèm nút RSVP tự điểm danh 1 chạm.
+  - `SeasonRaceCard`: Tiến trình cày điểm mùa giải, khoảng cách bám đuổi thứ hạng.
+  - `RecentFormCard`: Dải phong độ 5 trận gần nhất (W/L badges) và biến động Elo.
+  - `RivalGoalCard`: Mục tiêu đối thủ xếp ngay trên mình cần vượt qua.
+  - `SynergyBadgesCard`: Cạ cứng ăn ý nhất (Best Partner) và các huy hiệu lối chơi.
+  - `MyOpponentsCard`: Danh sách các đối thủ thường xuyên chạm trán kèm tỷ số đối đầu.
+  - `NearbyStandingsCard`: BXH mini cục bộ hiển thị người trên, mình, người dưới.
+  - `RecentMatchesCard`: Danh sách trận đấu gần đây kèm tỷ số set và link video replay.
+  - `ClubFeedCard`: Tóm tắt các sự kiện nổi bật hôm nay của CLB.
+
+---
+
+## Đợt 23 — Kho Danh Hiệu & Huy Hiệu Anime Thành Tích (Route `/danh-hieu`) · **XONG 2026-09-26**
+
+Xây dựng hệ thống danh hiệu anime và bảng treo thưởng thành tích thực chiến:
+
+- [x] **Hệ thống Danh hiệu Anime (`src/lib/badges.js`, Route `badges`)**:
+  - Trang `/danh-hieu` (`src/pages/Badges.jsx`) với 3 tabs: Bộ sưu tập (`collection`), Bảng treo thưởng (`bounty`), BXH Người sưu tập (`leaderboard`).
+  - Danh sách huy hiệu phong cách anime thể thao kinh điển, tự động tính toán mở khóa theo mốc thành tích thực chiến (`calculateMemberBadges`).
+  - Kệ 3 huy hiệu vinh danh (`badge_shelf`) hiển thị trên hồ sơ cá nhân (`MemberProfileTab.jsx`) cùng châm ngôn (`signature`).
+  - Bảng truy nã Wanted Poster săn Vua Lì Đòn (`bounty_broken`).
+
+---
+
+## Đợt 24 — Phân Hệ Giải Đấu Toàn Diện 16 Bảng & 4 Thể Thức Tiêu Chuẩn · **XONG 2026-09-29**
+
+Xây dựng phân hệ tổ chức giải đấu thể thao độc lập hoàn chỉnh với 16 bảng dữ liệu, 4 thể thức thi đấu và sơ đồ Canvas trực quan:
+
+- [x] **Cơ sở dữ liệu & 6 RPCs Nguyên Tử (`0057..0063`)**:
+  - 16 bảng `tournament_*`: `tournaments`, `tournament_events`, `tournament_stages`, `tournament_stage_links`, `tournament_registrations`, `tournament_event_entries`, `tournament_teams`, `tournament_team_players`, `tournament_groups`, `tournament_group_teams`, `tournament_matches`, `tournament_match_games`, `tournament_prizes`, `tournament_budget_lines`, `tournament_templates`, `tournament_guests`.
+  - 6 RPC nguyên tử: `tournament_generate_stage`, `tournament_commit_match`, `tournament_undo_match`, `tournament_edit_match`, `tournament_close_stage`, `tournament_add_swiss_round`.
+  - Nguyên tắc cách ly: Trận giải không tính Elo/SP, không ghi sổ quỹ `transactions`.
+- [x] **4 Màn hình giải đấu & Routes**:
+  - `/giai-dau` (`Tournaments.jsx`): Danh sách giải đấu của CLB.
+  - `/giai-dau/:id` (`TournamentHub.jsx`): Trung tâm điều hành giải với 4 tab (`overview`, `info`, `players`, `pairing`).
+  - `/giai-dau/:id/nhanh/:eventId` (`TournamentBracket.jsx`): Cây nhánh thi đấu của từng nội dung, điều phối trận lên sân, nhập điểm set linh hoạt (1x21 cách 2 trần 30, 3x15, 1x30...).
+  - `/giai-dau/:id/so-do` (`TournamentFlow.jsx`): Sơ đồ Canvas đồ thị liên kết chuyển tiếp các giai đoạn (Stage Links).
+- [x] **4 Thể thức thi đấu tiêu chuẩn**:
+  - Loại trực tiếp (Knockout) với nhánh phụ tranh hạng 3 hoặc nhánh phụ Plate.
+  - Vòng tròn chia bảng (Round Robin theo Berger): Xếp hạng tự động theo điểm, hiệu số và đối đầu trực tiếp (H2H).
+  - Hệ Thụy Sĩ (Swiss System): Ghép vòng theo thứ hạng hiện tại, né gặp lại, điểm miễn đấu (bye).
+  - Nhánh thắng / Nhánh thua (Double Elimination): Nhánh Winners + Losers, tự động sinh trận Chung kết Tổng 2 (GF2) nếu đội nhánh thua thắng trận Chung kết 1.
+- [x] **Kiến trúc Nạp & Ghi Riêng Biệt (`src/contexts/tournamentActions.js`)**:
+  - Tách ly khỏi state `db` của `AppContext.jsx` và không qua `diff()`.
+  - Nạp độc lập qua `loadTournament` / `loadTournamentMatches`, ghi qua `tournamentWrite` và các RPC nguyên tử.
+  - Polling nền tiết kiệm tài nguyên qua hook `useTourPoll`.
+- [x] **Mở rộng Bộ Kiểm Thử Tự Động (647 tests PASS 100%)**:
+  - Bổ sung toàn diện các suite test giải đấu: `advance.test.js`, `bracket.test.js`, `canvas.test.js`, `doubleElim.test.js`, `finance.test.js`, `format.test.js`, `hub.test.js`, `links.test.js`, `pairing.test.js`, `recommend.test.js`, `roundRobin.test.js`, `scoring.test.js`, `standings.test.js`, `swiss.test.js`, `tournament_map.test.js`.
+  - Toàn bộ **647/647 tests PASS 100%** trên toàn dự án!
 
 ---
 

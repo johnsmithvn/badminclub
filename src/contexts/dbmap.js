@@ -149,6 +149,12 @@ export function toDb(raw, ctx) {
 
     ;(s.matches || []).forEach((mt) => {
       const players = (mt.match_players || []).slice().sort((a, b) => a.team - b.team)
+      const teamA = players.filter((p) => p.team === 0).map((p) => p.player_id)
+      const teamB = players.filter((p) => p.team === 1).map((p) => p.player_id)
+      // Trận đơn ghi trước 2026-09-29 bị lưu cả 2 người team 0 (xem match_players trong toRows).
+      // ponytail: hai dòng cùng team 0 thì thứ tự là thứ tự Postgres trả về, không có ORDER BY —
+      // thực tế là thứ tự insert; lệch thì phải sửa tay dòng đó trong DB.
+      if (teamA.length === 2 && !teamB.length) teamB.push(teamA.pop())
       matches.push({
         id: mt.id, sessionId: s.id, courtIdx: mt.court_index, minutes: mt.minutes,
         at: mt.ended_at ? new Date(mt.ended_at).getTime() : 0,
@@ -170,8 +176,8 @@ export function toDb(raw, ctx) {
         videoNote: mt.video_note || null,
         videoViews: Number(mt.video_views || 0),
         videoViewers: (typeof mt.video_viewers === 'object' && mt.video_viewers) ? mt.video_viewers : {},
-        teamA: players.filter((p) => p.team === 0).map((p) => p.player_id),
-        teamB: players.filter((p) => p.team === 1).map((p) => p.player_id),
+        teamA,
+        teamB,
         playerKeys: players.map((p) => p.player_id),
       })
     })
@@ -407,8 +413,10 @@ export function toRows(db, ctx) {
       avatar_url: m.avatarUrl || null, qr_url: m.qrUrl || null,
       bank_holder: m.bankHolder || null, bank_no: m.bankNo || null, bank_name: m.bankName || null,
       bank_accounts: m.bankAccounts && m.bankAccounts.length ? m.bankAccounts : null,
-      badge_shelf: m.badgeShelf || m.badge_shelf || [],
-      signature: m.signature || '',
+      // `badge_shelf` / `signature` CỐ Ý không có ở đây: chỉ ghi thẳng qua `setMemberShelf` /
+      // `setMemberSignature` (appActions). Để trong đường sync thì một lượt đồng bộ đang chạy dở
+      // ghi đè ảnh chụp, lượt sau upsert CẢ DÒNG — mà dòng này không khứ hồi nguyên vẹn
+      // (`linked_at` bị cắt còn ngày) nên trigger `guard_member_self_update` chặn thành viên thường.
       pending_level: m.pendingLevel || null, pending_level_from: m.pendingLevelFrom || null,
       joined_at: m.joined, active: m.active !== false, linked_at: m.linkedAt || null,
       note: m.note || null,
@@ -538,10 +546,14 @@ export function toRows(db, ctx) {
       video_views: Number(mt.videoViews || 0),
       video_viewers: (typeof mt.videoViewers === 'object' && mt.videoViewers) ? mt.videoViewers : {},
     })
-    // Ô 0,1 là một bên lưới; 2,3 là bên kia (xem courtSlotIds trong lib/assign.js).
-    ;(mt.playerKeys || []).forEach((key, i) => put('match_players', {
+    // playerKeys = [...teamA, ...teamB]: `half` người đầu là một bên lưới. Trận đơn chỉ có 2 ô —
+    // cắt cứng theo cặp (0,1 | 2,3) là cả hai rơi vào team 0, tải lại thì đội B rỗng và mọi lần
+    // replay Elo bỏ qua trận đó.
+    const keys = mt.playerKeys || []
+    const half = mt.teamA?.length || (keys.length <= 2 ? 1 : 2)
+    keys.forEach((key, i) => put('match_players', {
       match_id: mt.id, player_type: kindOf(ctx, key), player_id: key,
-      team: Math.min(1, Math.floor(i / 2)),
+      team: i < half ? 0 : 1,
     }))
   })
 

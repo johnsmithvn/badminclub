@@ -4,7 +4,7 @@ import { useApp } from '#contexts/AppContext.jsx'
 import { useMobile } from '#hooks/useMobile.js'
 import { courtOf, myMember, playerName, playerOf, shortName } from '#lib/money.js'
 import { expectedScore, getPlayerRating, matchCodeOf } from '#lib/rating.js'
-import { getChallengeAcceptanceProgress, canMemberAcceptChallenge, canAdminForceAcceptChallenge, challengeCloserOf, validateStakePoints, getPredictionStats, getMemberPrediction, canMemberPredict, availableSeasonPoints, isChallengeExpired, challengeExpiryAt, isChallengeAccepted } from '#lib/challenge.js'
+import { getChallengeAcceptanceProgress, canMemberAcceptChallenge, canAdminForceAcceptChallenge, challengeCloserOf, validateStakePoints, getPredictionStats, getMemberPrediction, canMemberPredict, availableSeasonPoints, stakeBaseOf, isChallengeExpired, challengeExpiryAt, isChallengeAccepted } from '#lib/challenge.js'
 import { botLineKey, getBotMatchReaction, getBotBetLine } from '#lib/bot.js'
 import { calculateSeasonLeaderboard, calcSeasonMatchDeltaFinal, challengeMultiplierOf } from '#lib/season.js'
 import cfg from '#config/app.json'
@@ -97,7 +97,10 @@ export default function ChallengeDetailModal({ challenge, session, onClose, onSc
     const multiplier = challengeMultiplierOf(db)
     const win = calcSeasonMatchDeltaFinal(ratA, ratB, true, { isChallenge: true, multiplier })
     const lose = calcSeasonMatchDeltaFinal(ratA, ratB, false, { isChallenge: true, multiplier })
-    return { multiplier, aWin: win.delta, aLose: lose.delta, baseWin: win.baseDelta }
+    // Hai đội đứng ở hai dải khác nhau (cửa trên / cửa dưới) nên điểm của B KHÔNG phải số đối của A.
+    const bWin = calcSeasonMatchDeltaFinal(ratB, ratA, true, { isChallenge: true, multiplier })
+    const bLose = calcSeasonMatchDeltaFinal(ratB, ratA, false, { isChallenge: true, multiplier })
+    return { multiplier, aWin: win.delta, aLose: lose.delta, bWin: bWin.delta, bLose: bLose.delta, baseWin: win.baseDelta }
   }, [isPlayed, c.ratingEnabled, teamA.length, resolvedTeamB.length, ratA, ratB, db])
 
   const gap = Math.abs(ratA - ratB)
@@ -175,15 +178,17 @@ export default function ChallengeDetailModal({ challenge, session, onClose, onSc
     [db.matches, db.members, db.challengePredictions, db.levels],
   )
   const myLbRow = useMemo(() => (seasonRes?.leaderboard || []).find((r) => r.id === myId), [seasonRes, myId])
-  const totalSp = myLbRow?.totalSeasonPoints || 0
+  const totalSp = stakeBaseOf(seasonRes, myId)
+  // Lãi/lỗ cược cả mùa — cộng thẳng vào điểm mùa, không kẹp.
+  const predNet = myLbRow?.breakdown?.predictionNetPoints || 0
   // SP bị giam KHÔNG tính phiếu nằm trên kèo đã chết (huỷ / từ chối / quá hạn) — kèo quá hạn mà
   // không ai bấm vào thì `status` không bao giờ đổi, và điểm của người đặt bị giam vĩnh viễn.
   const availableSp = useMemo(
     () => availableSeasonPoints(totalSp, predictions, db.challenges, db.sessions, myId),
     [totalSp, predictions, db.challenges, db.sessions, myId],
   )
-  // Trần tuyệt đối của một phiếu. Trùng số với CHECK trong migration 0047 — SQL không đọc được
-  // JSON nên hai chỗ phải tự giữ khớp nhau.
+  // Trần một phiếu (50, quyết định chủ CLB 2026-09-28). CỐ Ý chặt hơn CHECK 1..100 của migration
+  // 0047: chỉ chặn ở client, server giữ 100 làm lá chắn chống gọi thẳng RPC.
   const maxStake = cfg.challenge?.maxStakePoints ?? 100
   // Ô nhập để rỗng được lúc đang gõ, nên `predStake` có thể là ''. Mọi so sánh phải qua số.
   // Luật hợp lệ đọc từ `validateStakePoints` — CHUNG với `a.placePrediction`, không chép lại.
@@ -379,10 +384,12 @@ export default function ChallengeDetailModal({ challenge, session, onClose, onSc
   // Lúc CÒN CHỜ thì tên phải là người thật sự chưa ký, không phải `acceptorName`. teamB[0] có thể
   // đã bấm nhận rồi mà người thiếu là đồng đội họ (hoặc ai đó bên đội A) — đọc "Chờ X nhận kèo"
   // với X đã nhận xong là sai. `+n` cho số người còn lại thay vì nối chuỗi tên (tên CLB dài).
-  // Kèo chưa đủ người thì không có ai để chờ đích danh, giữ nguyên `acceptorName`.
-  const pendingName = (prog.isFullTeam && prog.pendingPlayerIds.length)
+  // Chỉ admin được biết ai chưa ký (riêng tư nhận/từ chối kèo). Còn lại trả null → timeline nói
+  // chung "Chờ đấu thủ nhận kèo" — KHÔNG rơi về teamB[0], người đó có thể đã nhận rồi. Đội B còn
+  // trống (kèo mở chưa ai vào) thì giữ `acceptorName`.
+  const pendingName = (isAdmin && prog.isFullTeam && prog.pendingPlayerIds.length)
     ? playerName(db, prog.pendingPlayerIds[0]) + (prog.pendingPlayerIds.length > 1 ? ` +${prog.pendingPlayerIds.length - 1}` : '')
-    : acceptorName
+    : (teamB.length ? null : acceptorName)
 
   // Người chốt kèo chỉ đáng nhắc khi KHÔNG phải đội B — tức admin duyệt hộ hoặc người đội A bấm
   // cuối. Đội B tự nhận là chuyện đương nhiên, nói ra chỉ thừa.
@@ -1015,9 +1022,15 @@ export default function ChallengeDetailModal({ challenge, session, onClose, onSc
         <div style={S.boxCard}>
           {isPending && !isExpired && (
             <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', paddingBottom: 6, borderBottom: '1px solid var(--border-subtle)', marginBottom: 2 }}>
-              <span style={{ fontSize: 12, color: 'var(--text-muted)', fontFamily: 'var(--font-mono)', fontWeight: 600 }}>
-                {t('challenge.acceptedProgress', { count: prog.acceptedCount, total: prog.totalCount })}
-              </span>
+              {isAdmin ? (
+                <span style={{ fontSize: 12, color: 'var(--text-muted)', fontFamily: 'var(--font-mono)', fontWeight: 600 }}>
+                  {t('challenge.acceptedProgress', { count: prog.acceptedCount, total: prog.totalCount })}
+                </span>
+              ) : (
+                <span style={{ fontSize: 12, color: 'var(--text-muted)', fontFamily: 'var(--font-mono)', fontWeight: 600 }}>
+                  {t('challenge.status.pending')}
+                </span>
+              )}
               {Boolean(myId && (c.acceptedPlayers || []).includes(myId)) && !prog.isFullyAccepted && (
                 <span style={{ fontSize: 12, color: 'var(--status-delivered-fg)', display: 'inline-flex', alignItems: 'center', gap: 4 }}>
                   <Icon name="check" size={12} />
@@ -1036,11 +1049,12 @@ export default function ChallengeDetailModal({ challenge, session, onClose, onSc
                     key={id}
                     name={playerName(db, id)}
                     team="A"
-                    isAccepted={isPending && (c.acceptedPlayers || []).includes(id)}
+                    isAccepted={isPending && (c.acceptedPlayers || []).includes(id) && Boolean(isAdmin || (myId && id === myId))}
                     isWinner={isPlayed && c.winner === 'A'}
                     isMobile={isMobile}
                     maxLines={3}
                     align="left"
+                    style={{ color: isPlayed && c.winner === 'A' ? 'var(--status-delivered-fg)' : 'var(--text-primary)' }}
                   />
                 ))}
               </div>
@@ -1059,11 +1073,12 @@ export default function ChallengeDetailModal({ challenge, session, onClose, onSc
                     key={id}
                     name={playerName(db, id)}
                     team="B"
-                    isAccepted={isPending && (c.acceptedPlayers || []).includes(id)}
+                    isAccepted={isPending && (c.acceptedPlayers || []).includes(id) && Boolean(isAdmin || (myId && id === myId))}
                     isWinner={isPlayed && c.winner === 'B'}
                     isMobile={isMobile}
                     maxLines={3}
                     align="right"
+                    style={{ color: isPlayed && c.winner === 'B' ? 'var(--status-delivered-fg)' : 'var(--text-primary)' }}
                   />
                 )) : (
                   <span style={{ fontSize: 13, color: 'var(--text-muted)', fontStyle: 'italic' }}>
@@ -1096,11 +1111,8 @@ export default function ChallengeDetailModal({ challenge, session, onClose, onSc
               không thể nói ba con số khác nhau. Kèo tắt xếp hạng thì không có điểm nào để khoe. */}
           {seasonPreview && (
             <div style={{
-              display: 'flex',
-              alignItems: 'center',
-              justifyContent: 'space-between',
+              display: 'grid',
               gap: 8,
-              flexWrap: 'wrap',
               marginTop: 6,
               paddingTop: 8,
               borderTop: '1px solid var(--border-subtle)',
@@ -1122,11 +1134,30 @@ export default function ChallengeDetailModal({ challenge, session, onClose, onSc
                   </span>
                 )}
               </div>
-              <span style={{ font: '700 12.5px/1.2 var(--font-mono)' }}>
-                <span style={{ color: 'var(--status-delivered-fg)' }}>+{seasonPreview.aWin}</span>
-                <span style={{ color: 'var(--text-disabled)' }}> / </span>
-                <span style={{ color: '#FF8585' }}>{seasonPreview.aLose}</span>
-              </span>
+              {/* Hai cột soi gương thẻ đối đầu ở trên: A bên trái, B bên phải */}
+              <div style={{ display: 'grid', gridTemplateColumns: 'repeat(2, minmax(0, 1fr))', gap: 10 }}>
+                {[
+                  { team: 'A', label: t('challenge.teamA'), color: 'var(--status-transit-fg)', win: seasonPreview.aWin, lose: seasonPreview.aLose },
+                  { team: 'B', label: t('challenge.teamB'), color: '#FF7A59', win: seasonPreview.bWin, lose: seasonPreview.bLose },
+                ].map((row) => (
+                  <div key={row.team} style={{ display: 'grid', gap: 5, justifyItems: row.team === 'A' ? 'start' : 'end' }}>
+                    <span style={{ font: '600 11px/1.2 var(--font-sans)', color: row.color }}>{row.label}</span>
+                    <div style={{ display: 'flex', gap: 14 }}>
+                      {[
+                        { key: 'win', label: t('challenge.seasonPreviewWin'), value: `+${row.win}`, color: 'var(--status-delivered-fg)' },
+                        { key: 'lose', label: t('challenge.seasonPreviewLose'), value: row.lose, color: 'var(--status-incident-fg)' },
+                      ].map((cell) => (
+                        <div key={cell.key} style={{ display: 'grid', gap: 3, justifyItems: row.team === 'A' ? 'start' : 'end' }}>
+                          <span style={{ font: '600 10px/1 var(--font-sans)', letterSpacing: '.06em', textTransform: 'uppercase', color: 'var(--text-muted)' }}>
+                            {cell.label}
+                          </span>
+                          <span style={{ font: '700 16px/1 var(--font-mono)', color: cell.color }}>{cell.value}</span>
+                        </div>
+                      ))}
+                    </div>
+                  </div>
+                ))}
+              </div>
             </div>
           )}
         </div>
@@ -1356,6 +1387,10 @@ export default function ChallengeDetailModal({ challenge, session, onClose, onSc
                   </span>
                 </div>
 
+                <div style={{ fontSize: 11.5, lineHeight: 1.4, color: 'var(--text-muted)' }}>
+                  {t('challenge.predictionNetSoFar', { net: predNet > 0 ? `+${predNet}` : predNet })}
+                </div>
+
                 {/* Nút gửi dự đoán */}
                 <button
                   type="button"
@@ -1545,14 +1580,14 @@ export default function ChallengeDetailModal({ challenge, session, onClose, onSc
                 // hiện "Hùng nhận kèo" dù Hùng chưa đụng vào, đọc y như đã nhận rồi.
                 title: (isAccepted || isPlayed)
                   ? t('challenge.step2Accept', { name: acceptorName || t('challenge.teamB') })
-                  : t('challenge.step2AcceptPending', { name: pendingName || t('challenge.teamB') }),
+                  : (pendingName ? t('challenge.step2AcceptPending', { name: pendingName }) : t('challenge.step2AcceptPendingAny')),
                 sub: (isAccepted || isPlayed)
                   ? (closerName
                     ? t('challenge.step2SubBy', { time: acceptedTimeStr, name: closerName })
                     : t('challenge.step2Sub', { time: acceptedTimeStr }))
                   : (c.status === 'declined'
                     ? t('challenge.toastDeclined', { code: c.code })
-                    : (prog.totalCount > 0 ? t('challenge.acceptedProgress', { count: prog.acceptedCount, total: prog.totalCount }) : t('challenge.status.pending'))),
+                    : (isAdmin && prog.totalCount > 0 ? t('challenge.acceptedProgress', { count: prog.acceptedCount, total: prog.totalCount }) : t('challenge.status.pending'))),
                 status: (isAccepted || isPlayed) ? 'done' : (isPending ? 'current' : 'pending'),
               },
               {
