@@ -455,8 +455,17 @@ export default function ScoreModal({ court, session, challenge, onClose, onSaved
                 ...(winnerTeam === 'A' ? S.teamChoiceCardWon : {}),
               }}
             >
-              <div style={{ flex: 1, minWidth: 0 }}>
-                <div style={{ font: '600 15px/1.25 "IBM Plex Sans", sans-serif', color: winnerTeam === 'A' ? 'var(--text-primary)' : 'var(--text-secondary)' }}>
+              <div style={{ flex: 1, minWidth: 0, overflow: 'hidden' }}>
+                <div
+                  style={{
+                    font: '600 15px/1.25 "IBM Plex Sans", sans-serif',
+                    color: winnerTeam === 'A' ? 'var(--text-primary)' : 'var(--text-secondary)',
+                    whiteSpace: isMobile ? 'nowrap' : 'normal',
+                    overflow: 'hidden',
+                    textOverflow: 'ellipsis',
+                  }}
+                  title={teamA.map((k) => playerName(db, k)).join(' · ')}
+                >
                   {teamA.map((k) => playerName(db, k)).join(' · ')}
                 </div>
                 <div style={{ font: '400 12px/1.3 "IBM Plex Mono", monospace', color: winnerTeam === 'A' ? 'var(--status-transit-fg)' : 'var(--text-muted)' }}>
@@ -486,8 +495,17 @@ export default function ScoreModal({ court, session, challenge, onClose, onSaved
                 ...(winnerTeam === 'B' ? S.teamChoiceCardWon : {}),
               }}
             >
-              <div style={{ flex: 1, minWidth: 0 }}>
-                <div style={{ font: '600 15px/1.25 "IBM Plex Sans", sans-serif', color: winnerTeam === 'B' ? 'var(--text-primary)' : 'var(--text-secondary)' }}>
+              <div style={{ flex: 1, minWidth: 0, overflow: 'hidden' }}>
+                <div
+                  style={{
+                    font: '600 15px/1.25 "IBM Plex Sans", sans-serif',
+                    color: winnerTeam === 'B' ? 'var(--text-primary)' : 'var(--text-secondary)',
+                    whiteSpace: isMobile ? 'nowrap' : 'normal',
+                    overflow: 'hidden',
+                    textOverflow: 'ellipsis',
+                  }}
+                  title={teamB.map((k) => playerName(db, k)).join(' · ')}
+                >
                   {teamB.map((k) => playerName(db, k)).join(' · ')}
                 </div>
                 <div style={{ font: '400 12px/1.3 "IBM Plex Mono", monospace', color: winnerTeam === 'B' ? 'var(--status-transit-fg)' : 'var(--text-muted)' }}>
@@ -539,7 +557,7 @@ export default function ScoreModal({ court, session, challenge, onClose, onSaved
 
           {/* Bộ nhập tỷ số tùy chỉnh khi bấm "Khác" hoặc bấm ô điểm */}
           {presetScore === 'custom' && (
-            <div style={S.customScoreBox}>
+            <div style={{ ...S.customScoreBox, padding: isMobile ? '10px 8px' : '12px' }}>
               <div style={S.customScoreHeader}>
                 <span style={{ font: '600 12px/1 "IBM Plex Sans", sans-serif', color: 'var(--text-secondary)' }}>
                   {t('scoreModal.customScoreTitle')}
@@ -551,17 +569,20 @@ export default function ScoreModal({ court, session, challenge, onClose, onSaved
                 )}
               </div>
 
-              <div style={S.customScoreRow}>
+              <div style={{ ...S.customScoreRow, gap: isMobile ? 6 : 12 }}>
                 {/* Cột điểm Đội A */}
                 <div style={S.customTeamCol}>
-                  <span style={S.customTeamName}>
+                  <span
+                    style={{ ...S.customTeamName, fontSize: isMobile ? 12 : 13 }}
+                    title={teamA.map((k) => playerName(db, k)).join(' · ')}
+                  >
                     {teamA.map((k) => playerName(db, k)).join(' · ')}
                   </span>
                   <div style={S.stepperBox}>
                     <button
                       type="button"
                       onClick={() => updateCustomScore('A', -1)}
-                      style={S.stepBtn}
+                      style={{ ...S.stepBtn, ...(isMobile ? S.stepBtnMobile : {}) }}
                       title="-1"
                     >−</button>
                     <input
@@ -572,6 +593,7 @@ export default function ScoreModal({ court, session, challenge, onClose, onSaved
                       onChange={(e) => setCustomScoreDirect('A', e.target.value)}
                       style={{
                         ...S.scoreBox,
+                        ...(isMobile ? S.scoreBoxMobile : {}),
                         borderColor: winnerTeam === 'A' ? 'var(--teal-700)' : 'var(--border-default)',
                         color: winnerTeam === 'A' ? 'var(--status-transit-fg)' : 'var(--text-primary)',
                       }}
@@ -579,7 +601,7 @@ export default function ScoreModal({ court, session, challenge, onClose, onSaved
                     <button
                       type="button"
                       onClick={() => updateCustomScore('A', 1)}
-                      style={S.stepBtn}
+                      style={{ ...S.stepBtn, ...(isMobile ? S.stepBtnMobile : {}) }}
                       title="+1"
                     >+</button>
                   </div>
@@ -590,21 +612,24 @@ export default function ScoreModal({ court, session, challenge, onClose, onSaved
                   type="button"
                   title={t('scoreModal.swapScore')}
                   onClick={handleSwapCustomScore}
-                  style={S.swapBtn}
+                  style={{ ...S.swapBtn, ...(isMobile ? S.swapBtnMobile : {}) }}
                 >
                   ⇄
                 </button>
 
                 {/* Cột điểm Đội B */}
                 <div style={S.customTeamCol}>
-                  <span style={S.customTeamName}>
+                  <span
+                    style={{ ...S.customTeamName, fontSize: isMobile ? 12 : 13 }}
+                    title={teamB.map((k) => playerName(db, k)).join(' · ')}
+                  >
                     {teamB.map((k) => playerName(db, k)).join(' · ')}
                   </span>
                   <div style={S.stepperBox}>
                     <button
                       type="button"
                       onClick={() => updateCustomScore('B', -1)}
-                      style={S.stepBtn}
+                      style={{ ...S.stepBtn, ...(isMobile ? S.stepBtnMobile : {}) }}
                       title="-1"
                     >−</button>
                     <input
@@ -615,6 +640,7 @@ export default function ScoreModal({ court, session, challenge, onClose, onSaved
                       onChange={(e) => setCustomScoreDirect('B', e.target.value)}
                       style={{
                         ...S.scoreBox,
+                        ...(isMobile ? S.scoreBoxMobile : {}),
                         borderColor: winnerTeam === 'B' ? 'var(--teal-700)' : 'var(--border-default)',
                         color: winnerTeam === 'B' ? 'var(--status-transit-fg)' : 'var(--text-primary)',
                       }}
@@ -622,7 +648,7 @@ export default function ScoreModal({ court, session, challenge, onClose, onSaved
                     <button
                       type="button"
                       onClick={() => updateCustomScore('B', 1)}
-                      style={S.stepBtn}
+                      style={{ ...S.stepBtn, ...(isMobile ? S.stepBtnMobile : {}) }}
                       title="+1"
                     >+</button>
                   </div>
@@ -869,6 +895,7 @@ const S = {
     display: 'flex',
     flexDirection: 'column',
     gap: 10,
+    overflow: 'hidden',
   },
   customScoreHeader: {
     display: 'flex',
@@ -882,6 +909,8 @@ const S = {
     alignItems: 'center',
     justifyContent: 'center',
     gap: 12,
+    width: '100%',
+    minWidth: 0,
   },
   customTeamCol: {
     display: 'flex',
@@ -890,6 +919,8 @@ const S = {
     gap: 6,
     flex: 1,
     minWidth: 0,
+    maxWidth: '100%',
+    overflow: 'hidden',
   },
   customTeamName: {
     font: '600 13px/1.2 "IBM Plex Sans", sans-serif',
@@ -899,6 +930,8 @@ const S = {
     overflow: 'hidden',
     textOverflow: 'ellipsis',
     maxWidth: '100%',
+    width: '100%',
+    display: 'block',
   },
   stepperBox: {
     display: 'flex',
@@ -924,6 +957,11 @@ const S = {
     cursor: 'pointer',
     borderRadius: 'var(--radius-sm)',
   },
+  stepBtnMobile: {
+    width: 32,
+    height: 34,
+    fontSize: 16,
+  },
   scoreBox: {
     width: 52,
     height: 38,
@@ -936,6 +974,11 @@ const S = {
     textAlign: 'center',
     padding: 0,
     outline: 'none',
+  },
+  scoreBoxMobile: {
+    width: 40,
+    height: 34,
+    fontSize: 18,
   },
   swapBtn: {
     display: 'inline-flex',
@@ -951,6 +994,12 @@ const S = {
     cursor: 'pointer',
     flexShrink: 0,
     marginTop: 20,
+  },
+  swapBtnMobile: {
+    width: 30,
+    height: 30,
+    fontSize: 13,
+    marginTop: 18,
   },
   subPresetRow: {
     display: 'flex',
