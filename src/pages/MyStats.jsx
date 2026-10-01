@@ -130,6 +130,8 @@ export default function MyStats() {
 
   // 7. Buổi tập sắp tới
   const upcomingSession = useMemo(() => getNextUpcomingSession(db, memberId), [db, memberId])
+  // "tối nay" / "ngày mai" / "buổi tới"… theo giờ buổi tới thật, cho các câu {{when}}
+  const when = t('home.personal.when.' + (upcomingSession?.when || 'next'))
 
   // Seed ngẫu nhiên đúng MỘT lần khi mount trang: F5 đổi câu chào, nhưng mọi lần db sync lại
   // vẫn ra cùng một câu nên chữ không nhảy trước mắt người đang đọc.
@@ -189,7 +191,7 @@ export default function MyStats() {
             </h1>
             {personalGreeting?.subKey ? (
               <div style={S.mobileSubQuote}>
-                “{t(personalGreeting.subKey, personalGreeting.subParams)}”
+                “{t(personalGreeting.subKey, { ...personalGreeting.subParams, when })}”
               </div>
             ) : null}
           </div>
@@ -232,7 +234,7 @@ export default function MyStats() {
             <HeroRankCard hero={heroStats} isMobile={true} />
 
             {/* Thẻ 02: Recent Form */}
-            <RecentFormCard form={formStats} isMobile={true} />
+            <RecentFormCard form={formStats} isMobile={true} when={when} />
 
             {/* Thẻ 03: Rival Goal */}
             <RivalGoalCard
@@ -240,6 +242,7 @@ export default function MyStats() {
               mode={goalMode}
               onModeChange={setGoalMode}
               isMobile={true}
+              when={when}
               onChallenge={handleLogMatch}
             />
 
@@ -316,7 +319,7 @@ export default function MyStats() {
           </h1>
           {personalGreeting?.subKey ? (
             <div style={S.desktopSubQuote}>
-              “{t(personalGreeting.subKey, personalGreeting.subParams)}”
+              “{t(personalGreeting.subKey, { ...personalGreeting.subParams, when })}”
             </div>
           ) : null}
         </div>
@@ -372,12 +375,14 @@ export default function MyStats() {
               <RecentFormCard
                 form={formStats}
                 isMobile={false}
+                when={when}
               />
               <RivalGoalCard
                 rivalAnalysis={rivalAnalysis}
                 mode={goalMode}
                 onModeChange={setGoalMode}
                 isMobile={false}
+                when={when}
                 onChallenge={handleLogMatch}
                 onH2HClick={handleLogMatch}
               />

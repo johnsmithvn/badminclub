@@ -14,6 +14,7 @@ import {
 } from '#lib/season.js'
 import { memberOf, courtTxt, timeTxt, isPresent } from '#lib/money.js'
 import { formatScoreString } from '#lib/activity.js'
+import { isoOf } from '#utils/dates.js'
 
 /**
  * Hàm băm xác định (Deterministic PRNG) để chọn biến thể giao diện ổn định trong phiên
@@ -1290,6 +1291,32 @@ export function getSessionTimeRange(s) {
   }
 }
 
+const hhmmOf = (d) => String(d.getHours()).padStart(2, '0') + ':' + String(d.getMinutes()).padStart(2, '0')
+
+/**
+ * Chọn buổi cho thẻ "Buổi tới" — dùng chung cho tab Thành tích và tab Sân đấu.
+ * Hôm nay có buổi thì giữ buổi hôm nay TỚI HẾT NGÀY (kể cả đã chốt, đã qua giờ sân), sang 0h mới
+ * nhảy buổi sau. Nhiều buổi trong ngày: ưu tiên buổi chưa xong, xong hết thì giữ buổi cuối.
+ * Không còn buổi nào phía trước thì lấy buổi vừa qua cho thẻ khỏi trống. Bỏ buổi huỷ.
+ * @param {Array} sessions
+ * @param {string} todayStr 'YYYY-MM-DD' theo giờ địa phương
+ * @param {Date} [now]
+ */
+export function pickNextSession(sessions, todayStr, now = new Date()) {
+  const hhmm = hhmmOf(now)
+  const valid = (sessions || []).filter((s) => s && s.date && s.status !== 'cancelled')
+  const asc = (a, b) => {
+    const ra = getSessionTimeRange(a)
+    const rb = getSessionTimeRange(b)
+    return a.date.localeCompare(b.date) || ra.from.localeCompare(rb.from) || ra.to.localeCompare(rb.to)
+  }
+  const today = valid.filter((s) => s.date === todayStr).sort(asc)
+  if (today.length) return today.find((s) => hhmm <= getSessionTimeRange(s).to) || today[today.length - 1]
+  const future = valid.filter((s) => s.date > todayStr).sort(asc)
+  const past = valid.filter((s) => s.date < todayStr).sort((a, b) => asc(b, a))
+  return future[0] || past[0] || null
+}
+
 /**
  * 07. Thông tin buổi tập sắp tới gần nhất (hoặc đang diễn ra)
  * @param {Object} db
@@ -1299,57 +1326,10 @@ export function getSessionTimeRange(s) {
 export function getNextUpcomingSession(db, memberId, nowTime = new Date()) {
   if (!db || !Array.isArray(db.sessions) || db.sessions.length === 0) return null
   const now = nowTime instanceof Date ? nowTime : new Date(nowTime)
-  const currentHHMM = String(now.getHours()).padStart(2, '0') + ':' + String(now.getMinutes()).padStart(2, '0')
-  const todayStr = db.today || (
-    now.getFullYear() + '-' + String(now.getMonth() + 1).padStart(2, '0') + '-' + String(now.getDate()).padStart(2, '0')
-  )
+  const currentHHMM = hhmmOf(now)
+  const todayStr = db.today || isoOf(now)
 
-  // Lọc các buổi hợp lệ (kể cả đã chốt, đang mở hay chưa mở; bỏ qua buổi đã huỷ)
-  const validSessions = db.sessions.filter((s) => s && s.status !== 'cancelled')
-  if (!validSessions.length) return null
-
-  // 1. Các buổi chưa kết thúc:
-  // - Hoặc ở ngày tương lai (s.date > todayStr)
-  // - Hoặc ở ngày hôm nay (s.date === todayStr) và giờ kết thúc chưa qua (currentHHMM <= to)
-  //   -> Trong khoảng thời gian buổi tập (từ 'from' đến 'to'), buổi vẫn được hiển thị là buổi hiện tại.
-  //      Chỉ khi đã qua giờ kết thúc ('to') thì mới chuyển sang buổi tiếp theo.
-  const activeAndFuture = validSessions
-    .filter((s) => {
-      if (s.date > todayStr) return true
-      if (s.date === todayStr) {
-        const { to } = getSessionTimeRange(s)
-        return currentHHMM <= to
-      }
-      return false
-    })
-    .sort((a, b) => {
-      const cmp = a.date.localeCompare(b.date)
-      if (cmp !== 0) return cmp
-      const rangeA = getSessionTimeRange(a)
-      const rangeB = getSessionTimeRange(b)
-      return rangeA.from.localeCompare(rangeB.from) || rangeA.to.localeCompare(rangeB.to)
-    })
-
-  // 2. Nếu tất cả các buổi đều đã kết thúc (trong ngày hôm nay đã qua giờ hoặc toàn bộ buổi ở quá khứ),
-  // lấy buổi vừa kết thúc gần nhất để thẻ không bị trống.
-  const endedSessions = validSessions
-    .filter((s) => {
-      if (s.date < todayStr) return true
-      if (s.date === todayStr) {
-        const { to } = getSessionTimeRange(s)
-        return currentHHMM > to
-      }
-      return false
-    })
-    .sort((a, b) => {
-      const cmp = b.date.localeCompare(a.date)
-      if (cmp !== 0) return cmp
-      const rangeA = getSessionTimeRange(a)
-      const rangeB = getSessionTimeRange(b)
-      return rangeB.to.localeCompare(rangeA.to) || rangeB.from.localeCompare(rangeA.from)
-    })
-
-  const s = activeAndFuture[0] || endedSessions[0] || null
+  const s = pickNextSession(db.sessions, todayStr, now)
   if (!s) return null
 
   const att = db.attendance?.[s.id] || {}
@@ -1371,6 +1351,15 @@ export function getNextUpcomingSession(db, memberId, nowTime = new Date()) {
   const isToday = s.date === todayStr
   const { from: sFrom, to: sTo } = getSessionTimeRange(s)
   const isHappeningNow = isToday && sFrom <= currentHHMM && currentHHMM <= sTo
+  const isEnded = s.date < todayStr || (isToday && currentHHMM > sTo)
+
+  // Nhãn cho các câu "… tối nay" (key con của home.personal.when): theo giờ sân thật của buổi,
+  // buổi đã xong thì nói "buổi tới" — không cứng "tối nay".
+  const [y, mo, d] = todayStr.split('-').map(Number)
+  const startH = Number(sFrom.slice(0, 2))
+  const when = isEnded ? 'next'
+    : isToday ? (sFrom === '00:00' ? 'today' : startH < 12 ? 'morning' : startH < 18 ? 'afternoon' : 'tonight')
+      : s.date === isoOf(new Date(y, mo - 1, d + 1)) ? 'tomorrow' : 'next'
 
   let dateFormatted = ''
   if (s.date) {
@@ -1424,6 +1413,8 @@ export function getNextUpcomingSession(db, memberId, nowTime = new Date()) {
     dateFormatted,
     isToday,
     isHappeningNow,
+    isEnded,
+    when,
     time,
     venue,
     courtsCount,
@@ -1923,7 +1914,8 @@ export function getPersonalGreeting(currentMember, heroStats, formStats, recentM
   const streak = formStats?.streak || 0
   const lastMatch = recentMatches?.[0]
   const justRankedUp = lastMatch?.rankImpact?.type === 'up'
-  const isTodaySession = upcomingSession?.dateKey === 'today' || (upcomingSession?.date && upcomingSession.date === todayKey)
+  // Buổi hôm nay đã xong thì thôi giục "chuẩn bị lên sân" (thẻ vẫn giữ buổi đó tới hết ngày).
+  const isTodaySession = Boolean(upcomingSession?.isToday && !upcomingSession.isEnded)
   const isLoseStreak = formStats?.matches?.length >= 2 && formStats.matches.slice(-2).every((x) => !x.won)
 
   // 3. Random 2 tầng cho Subtitle tương tác

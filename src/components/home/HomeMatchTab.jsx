@@ -4,12 +4,13 @@ import { LevelChip } from '#ui'
 import { useApp } from '#contexts/AppContext.jsx'
 import { useTheme } from '#contexts/ThemeContext.jsx'
 import { useMobile } from '#hooks/useMobile.js'
-import { dd, wd } from '#utils/dates.js'
+import { dd, wd, todayISO } from '#utils/dates.js'
 import { pathOf } from '#routes'
 
 import { playerName, isPresent, shortName } from '#lib/money.js'
 import { getPlayerRating } from '#lib/rating.js'
 import { neverMetPairs, neverMetWithSessionCount } from '#lib/matchSearch.js'
+import { pickNextSession } from '#lib/homePersonal.js'
 import { t } from '#i18n'
 
 export default function HomeMatchTab() {
@@ -68,12 +69,8 @@ export default function HomeMatchTab() {
 
   // 2. Buổi tiếp theo & Histogram 9 cột
   const nextSessionData = useMemo(() => {
-    const todayStr = new Date().toISOString().slice(0, 10)
-    const upcoming = sessions
-      .filter((s) => s.status !== 'closed' && (s.date >= todayStr || s.status === 'open'))
-      .sort((s1, s2) => (s1.date || '').localeCompare(s2.date || ''))
-
-    const next = upcoming[0] || sessions[0] || null
+    // Cùng một luật chọn buổi với thẻ Buổi tới ở tab Thành tích
+    const next = pickNextSession(sessions, db.today || todayISO())
     if (!next) return null
 
     const group = (db.groups || []).find((g) => g.id === next.groupId)
@@ -132,7 +129,7 @@ export default function HomeMatchTab() {
       lowCount: lowCount || 2,
       diffDays,
     }
-  }, [sessions, db.groups, db.attendance, db.members, db.playerRatings, db.levels])
+  }, [sessions, db.today, db.groups, db.attendance, db.members, db.playerRatings, db.levels])
 
   // 3. Người của tháng (Top Elo gainer trong tháng)
   const topGainers = useMemo(() => {

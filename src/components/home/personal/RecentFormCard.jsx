@@ -1,6 +1,6 @@
 import { t } from '#i18n'
 
-export default function RecentFormCard({ form, formData, isMobile }) {
+export default function RecentFormCard({ form, formData, isMobile, when }) {
   const activeForm = form || formData || {}
   const {
     matches = [],
@@ -62,7 +62,7 @@ export default function RecentFormCard({ form, formData, isMobile }) {
             })}
           </span>
         ) : (
-          <span>{t('home.personal.streakNew')}</span>
+          <span>{t('home.personal.streakNew', { when })}</span>
         )}
       </div>
     </div>

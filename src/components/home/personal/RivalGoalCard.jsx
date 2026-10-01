@@ -2,7 +2,7 @@ import { Avatar } from '#ds'
 import { t } from '#i18n'
 import { shortName } from '#lib/money.js'
 
-export default function RivalGoalCard({ rivalData, rivalAnalysis, isMobile, onH2HClick, onChallenge, mode = 'elo', onModeChange }) {
+export default function RivalGoalCard({ rivalData, rivalAnalysis, isMobile, onH2HClick, onChallenge, mode = 'elo', onModeChange, when }) {
   const activeRivalData = rivalData || rivalAnalysis
   const handleH2H = onH2HClick || onChallenge
 
@@ -71,8 +71,8 @@ export default function RivalGoalCard({ rivalData, rivalAnalysis, isMobile, onH2
       <div style={S.insightBox}>
         <span>
           {rival.tacticalInsight?.key
-            ? t(`home.personal.${rival.tacticalInsight.key}`, rival.tacticalInsight.params)
-            : t('home.personal.rivalTacticalInsight', { n: rival.neededWins || 2, name: rival.name })}
+            ? t(`home.personal.${rival.tacticalInsight.key}`, { ...rival.tacticalInsight.params, when })
+            : t('home.personal.rivalTacticalInsight', { n: rival.neededWins || 2, name: rival.name, when })}
         </span>
       </div>
 

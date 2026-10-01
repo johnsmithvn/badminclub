@@ -313,9 +313,12 @@ test('Home Personal Dashboard Logic Suite', async (t) => {
     assert.ok(g7.subKey.startsWith('home.personal.subLoseStreak'))
 
     // Tối nay có lịch
-    const todaySession = { dateKey: 'today' }
+    const todaySession = { isToday: true, isEnded: false }
     const g8 = getPersonalGreeting(loseMem, heroStatsMid, { streak: 0 }, [], todaySession, null)
     assert.ok(g8.subKey.startsWith('home.personal.subSessionToday'))
+    // Buổi hôm nay đã xong thì thôi giục lên sân
+    const g9 = getPersonalGreeting(loseMem, heroStatsMid, { streak: 0 }, [], { isToday: true, isEnded: true }, null)
+    assert.ok(!g9.subKey?.startsWith('home.personal.subSessionToday'))
   })
 
   await t.test('14. getClubTodayHighlights returns only sports feeds (matches, challenges, streaks, top 1)', () => {
@@ -472,11 +475,20 @@ test('Home Personal Dashboard Logic Suite', async (t) => {
     assert.equal(resDuring?.id, 's-session-18-20', 'Đang trong giờ 18-20h vẫn phải hiện buổi đó')
     assert.equal(resDuring?.isHappeningNow, true, 'isHappeningNow phải là true')
 
-    // 5.3 Lúc 20:05 (đã qua 20h) -> tự động chuyển sang buổi tiếp theo (26/09)
+    assert.equal(resBefore?.when, 'tonight', 'Buổi 18h hôm nay -> "tối nay"')
+
+    // 5.3 Lúc 20:05 (đã qua 20h) -> VẪN giữ buổi hôm nay tới hết ngày, sang 0h mới nhảy buổi 26/09
     const timeAfter = new Date('2026-09-25T20:05:00')
     const resAfter = getNextUpcomingSession(dbTimeWindow, 'm1', timeAfter)
-    assert.equal(resAfter?.id, 's-session-next', 'Sau 20h phải chuyển sang buổi tiếp theo')
+    assert.equal(resAfter?.id, 's-session-18-20', 'Qua giờ sân vẫn giữ buổi hôm nay tới hết ngày')
     assert.equal(resAfter?.isHappeningNow, false)
+    assert.equal(resAfter?.isEnded, true)
+    assert.equal(resAfter?.when, 'next', 'Buổi đã xong -> câu chữ nói "buổi tới", không "tối nay"')
+
+    // 5.4 Hôm trước buổi tập, 21h -> buổi ngày mai, nhãn "ngày mai"
+    const resEve = getNextUpcomingSession({ ...dbTimeWindow, today: '2026-09-24' }, 'm1', new Date('2026-09-24T21:00:00'))
+    assert.equal(resEve?.id, 's-session-18-20')
+    assert.equal(resEve?.when, 'tomorrow')
   })
 })
 
