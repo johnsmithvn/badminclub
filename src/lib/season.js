@@ -730,10 +730,10 @@ export function calculateSeasonLeaderboard(db = {}, customSeason = null) {
     || (b.winRate - a.winRate)
   ))
 
-  // Ẩn bot khỏi BXH (Cài đặt → Chung → Bot CLB, cờ `leaderboard`; thiếu cờ = hiện): bot đứng ngoài
-  // bảng nên không chiếm hạng của ai. Dòng của nó vẫn ở `allRows` — số dư arcade / cược của bot
-  // đọc từ đó. Điểm của MỌI người không đổi, chỉ đổi số hạng.
-  const hideBot = db.club?.botFeatures?.leaderboard === false
+  // Bot CHỈ đứng trên BXH khi chủ CLB bật (Cài đặt → Chung → Bot CLB, cờ `leaderboard`; mặc định
+  // TẮT). Ẩn thì bot đứng ngoài bảng nên không chiếm hạng của ai. Dòng của nó vẫn ở `allRows` — số
+  // dư arcade / cược của bot đọc từ đó. Điểm của MỌI người không đổi, chỉ đổi số hạng.
+  const hideBot = db.club?.botFeatures?.leaderboard !== true
   const ranked = hideBot ? rows.filter((r) => !r.member?.isBot) : rows
 
   // Đánh số thứ hạng 1..N

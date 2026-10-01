@@ -273,7 +273,7 @@ State `db` của client dùng shape gọn của prototype. Cài đặt tại `sr
 | `0062_member_groups_has_custom_pricing.sql` | Thêm cột `has_custom_pricing boolean NOT NULL DEFAULT false` vào bảng `member_groups` (false = áp dụng biểu phí CLB, true = mức thu riêng của nhóm). |
 | `0063_tournament_swiss_double.sql` | Mở rộng thể thức giải đấu: Hệ Thụy Sĩ (`swiss`) sinh vòng dần qua RPC `tournament_add_swiss_round`; Nhánh thắng/nhánh thua (`double elimination`) kèm cơ chế chung kết tổng 2 (GF2). |
 | `0064_bot_member_and_challenge.sql` | Bot CLB: cờ `club_members.is_bot`, cột `challenges.bot_reason`, bảng `arcade_rounds`; RPC `create_bot_challenge`, `post_bot_remark`, `post_bot_reaction`, `place_bot_prediction`, `play_arcade_round`, `set_club_bot`. |
-| `0065_bot_features.sql` | Cột `clubs.bot_features jsonb` (thiếu khoá = bật; `paused` tắt hết) + hàm `bot_feature_on`. Chép lại 5 RPC của bot từ 0064, thêm cổng kiểm cờ ở dòng tìm bot (đánh dấu `★ 0065`). Cột ghi thẳng bằng `A.setBotFeatures`, không đi `clubRow`. |
+| `0065_bot_features.sql` | Cột `clubs.bot_features jsonb` (MẶC ĐỊNH TẮT: chỉ `true` mới bật, thiếu khoá = tắt; `paused` tắt hết) + hàm `bot_feature_on`. Chép lại 5 RPC của bot từ 0064, thêm cổng kiểm cờ ở dòng tìm bot (đánh dấu `★ 0065`). Cột ghi thẳng bằng `A.setBotFeatures`, không đi `clubRow`. |
 
 ---
 

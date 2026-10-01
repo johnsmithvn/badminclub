@@ -14,6 +14,8 @@ const rating = (id, r, gamesCount = 10) => ({ memberId: id, rating: r, gamesCoun
 
 const mockDb = () => ({
   clubId: 'club_flow_test',
+  // Bot mặc định TẮT mọi hành động — luồng này kiểm cược, nên bật cược.
+  club: { botFeatures: { bet: true } },
   members: [
     mem('bot', { isBot: true, name: 'Cầu Thủ Ảo' }),
     mem('u1', { name: 'Nam' }),

@@ -1,8 +1,9 @@
 -- 0065_bot_features.sql
 -- BẬT / TẮT TỪNG HÀNH ĐỘNG CỦA BOT (Cài đặt → Chung → Bot CLB).
 --
--- `clubs.bot_features` là một túi cờ: THIẾU KHOÁ = BẬT. Mặc định `{}` nên chạy migration xong bot
--- vẫn làm y như trước — không ai phải vào bật lại từng cái.
+-- `clubs.bot_features` là một túi cờ: MẶC ĐỊNH TẮT — chỉ `true` mới bật, thiếu khoá = tắt (theo
+-- quyết định chủ CLB). Chạy migration xong bot ĐỨNG IM ở mọi CLB, kể cả CLB đang có bot chạy, cho
+-- tới khi admin vào Cài đặt bật từng hành động. Bật là chạy cho cả CLB: cờ nằm trên dòng `clubs`.
 --   paused      true = tạm dừng TẤT CẢ hành động, đè lên mọi khoá bên dưới
 --   challenge   tự gạ kèo đôi          → create_bot_challenge
 --   bet         đặt cược vào kèo        → place_bot_prediction
@@ -29,7 +30,7 @@ ALTER TABLE public.clubs
   ADD COLUMN IF NOT EXISTS bot_features jsonb NOT NULL DEFAULT '{}'::jsonb;
 
 COMMENT ON COLUMN public.clubs.bot_features IS
-  'Cờ bật/tắt từng hành động của bot. Thiếu khoá = bật; paused = true tắt hết. Khoá: paused, challenge, bet, remark, reaction, arcade, taunt, encounter, leaderboard.';
+  'Cờ bật/tắt từng hành động của bot. Chỉ true mới bật, thiếu khoá = tắt; paused = true tắt hết. Khoá: paused, challenge, bet, remark, reaction, arcade, taunt, encounter, leaderboard.';
 
 -- Hành động `p_feature` của bot CLB này có đang bật không. CLB không tồn tại = tắt.
 CREATE OR REPLACE FUNCTION public.bot_feature_on(p_club uuid, p_feature text)
@@ -40,7 +41,7 @@ SECURITY DEFINER SET search_path = public
 AS $fn$
   SELECT COALESCE((
     SELECT NOT COALESCE((bot_features->>'paused')::boolean, false)
-       AND COALESCE((bot_features->>p_feature)::boolean, true)
+       AND COALESCE((bot_features->>p_feature)::boolean, false)
       FROM clubs WHERE id = p_club
   ), false);
 $fn$;

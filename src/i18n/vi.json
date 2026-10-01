@@ -2765,7 +2765,7 @@
     "botLabel": "Thành viên làm bot",
     "botNone": "Không dùng bot",
     "botNote": "Lưu ngay khi chọn. Đổi bot giữa mùa thì điểm và phiếu cược cũ ở lại tài khoản cũ, bot mới bắt đầu từ 100 SP.",
-    "botSaved": "Đã chọn {{name}} làm bot. Từ lần mở app tới, bot gạ kèo, nhận cược và chơi Arcade dưới tên này.",
+    "botSaved": "Đã chọn {{name}} làm bot. Bot đứng im cho tới khi bạn bật từng hành động bên dưới.",
     "botOff": "Đã tắt bot. Kèo và phiếu cược cũ của bot vẫn giữ nguyên.",
     "botFailed": "Không đổi được bot. Chỉ chủ CLB mới chọn được.",
     "botLeaderboard": "Hiện bot trên BXH mùa",

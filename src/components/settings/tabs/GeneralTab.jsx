@@ -592,12 +592,13 @@ export default function GeneralTab({
           />
         </FormRow>
 
-        {/* Công tắc lưu ngay khi gạt (giống ô chọn bot), không chờ thanh "Lưu". Thiếu khoá = bật. */}
+        {/* Công tắc lưu ngay khi gạt (giống ô chọn bot), không chờ thanh "Lưu". Mặc định TẮT hết:
+            chỉ cờ `true` mới bật, và bật là chạy cho cả CLB (cờ nằm trên dòng `clubs`). */}
         {botId && (
           <>
             <FormRow isToggle label={t('settings.botLeaderboard')} note={t('settings.botLeaderboardNote')}>
               <ToggleSwitch
-                checked={botFeat.leaderboard !== false}
+                checked={botFeat.leaderboard === true}
                 disabled={!canEdit}
                 aria-label={t('settings.botLeaderboard')}
                 onChange={(on) => a.setBotFeatures({ leaderboard: on })}
@@ -622,7 +623,7 @@ export default function GeneralTab({
                 last={i === BOT_FEATURES.length - 1}
               >
                 <ToggleSwitch
-                  checked={botFeat[k] !== false}
+                  checked={botFeat[k] === true}
                   disabled={!canEdit || Boolean(botFeat.paused)}
                   aria-label={t('settings.botFeat.' + k)}
                   onChange={(on) => a.setBotFeatures({ [k]: on })}

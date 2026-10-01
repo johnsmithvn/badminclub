@@ -7,7 +7,7 @@ import {
   botBetStreak, pickBotPredictions, pickBotPredictionForChallenge, getBotBetLine,
   getBotArcadeOffer, getArcadeResultLine, arcadeRoundsToday,
   spendableSeasonPoints, ARCADE_GAMES, ARCADE_CHOICES, ARCADE_DAILY_CAP,
-  getPlayerRelationships, getBotState, botFeatureOn,
+  getPlayerRelationships, getBotState, botFeatureOn, BOT_FEATURES,
 } from '#lib/bot.js'
 
 const NOW = Date.parse('2026-09-21T12:00:00.000Z')
@@ -18,9 +18,14 @@ const mem = (id, extra = {}) => ({
 })
 const rating = (id, r, gamesCount = 10) => ({ memberId: id, rating: r, gamesCount })
 
+// Bot mặc định TẮT mọi hành động (Cài đặt → Chung → Bot CLB). Test hành vi của bot thì bật hết —
+// kể cả `leaderboard` (đứng trên BXH mùa). Mặc định tắt có khối kiểm riêng ở cuối file.
+const ALL_ON = Object.fromEntries([...BOT_FEATURES, 'leaderboard'].map((k) => [k, true]))
+
 /** CLB đủ người: 1 bot + 5 người thật, Elo cách đều nhau. */
 const baseDb = () => ({
   clubId: 'club1',
+  club: { botFeatures: ALL_ON },
   levels: [],
   matches: [],
   challenges: [],
@@ -540,11 +545,25 @@ assert.ok(state.clubRivalries.length > 0, 'Phát hiện được rivalry m1-m2 t
 
 /* ---------- BẬT / TẮT TỪNG HÀNH ĐỘNG (Cài đặt → Chung → Bot CLB) ---------- */
 
-const withFeat = (d, botFeatures) => ({ ...d, club: { ...(d.club || {}), botFeatures } })
+// Gộp đè lên cờ đang có (baseDb bật hết), giống `A.setBotFeatures` gộp patch vào cờ cũ.
+const withFeat = (d, patch) => ({ ...d, club: { ...(d.club || {}), botFeatures: { ...(d.club?.botFeatures || {}), ...patch } } })
 const off = (k) => ({ [k]: false })
+const noFlags = (d) => ({ ...d, club: { botFeatures: {} } })
 
-// Thiếu khoá = bật: cột mặc định `{}`, CLB chưa từng mở trang cài đặt phải chạy y như trước.
-assert.equal(botFeatureOn(baseDb(), 'bet'), true, 'Chưa có cờ nào mà bot đã tắt là cả CLB mất bot sau khi chạy migration')
+// MẶC ĐỊNH TẮT (quyết định chủ CLB): cột mặc định `{}` = chọn bot xong mà chưa bật gì thì bot đứng
+// im. Bot tự chạy khi chưa ai bật là gửi push, tiêu điểm mùa của cả CLB mà admin không hề đồng ý.
+BOT_FEATURES.forEach((k) => assert.equal(botFeatureOn(noFlags(baseDb()), k), false, `Chưa bật thì "${k}" phải tắt`))
+assert.equal(botFeatureOn(withFeat(noFlags(baseDb()), { bet: 'true' }), 'bet'), false, 'Chỉ đúng boolean true mới bật — chuỗi rác không mở cửa')
+assert.equal(pickBotChallenge(noFlags(baseDb()), NOW), null, 'Chưa bật gạ kèo thì bot không dựng kèo')
+assert.deepEqual(pickBotPredictions(noFlags(dbBets), NOW), [], 'Chưa bật cược thì bot không đặt phiếu')
+assert.equal(getBotArcadeOffer(noFlags(dbArcade()), 'm1', NOW), null, 'Chưa bật arcade thì không có sòng')
+assert.equal(
+  calculateSeasonLeaderboard(noFlags(dbArcade())).leaderboard.some((r) => r.id === 'bot'),
+  false,
+  'Chưa bật "Hiện bot trên BXH" thì bot không chiếm hạng của ai',
+)
+
+assert.equal(botFeatureOn(baseDb(), 'bet'), true, 'Bật thì hành động chạy')
 assert.equal(botFeatureOn(withFeat(baseDb(), off('bet')), 'bet'), false, 'Tắt đúng khoá thì hành động đó tắt')
 assert.equal(botFeatureOn(withFeat(baseDb(), off('bet')), 'arcade'), true, 'Tắt một khoá không được kéo theo khoá khác')
 assert.equal(

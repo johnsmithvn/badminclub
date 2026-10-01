@@ -91,10 +91,13 @@ export function findBotMember(db) {
  */
 export const BOT_FEATURES = ['challenge', 'bet', 'remark', 'reaction', 'arcade', 'taunt', 'encounter']
 
-/** Hành động `key` của bot có đang bật không. Thiếu khoá = bật; `paused` tắt hết. */
+/**
+ * Hành động `key` của bot có đang bật không. MẶC ĐỊNH TẮT (theo quyết định chủ CLB): chỉ `true` mới
+ * bật, thiếu khoá = tắt — chọn bot xong mà chưa bật gì thì bot đứng im. `paused` tắt hết.
+ */
 export function botFeatureOn(db, key) {
   const f = db?.club?.botFeatures || {}
-  return !f.paused && f[key] !== false
+  return !f.paused && f[key] === true
 }
 
 const BOT_CHALLENGE_COOLDOWN_MS = 24 * 60 * 60 * 1000
