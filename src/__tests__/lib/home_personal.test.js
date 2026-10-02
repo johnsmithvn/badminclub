@@ -490,5 +490,45 @@ test('Home Personal Dashboard Logic Suite', async (t) => {
     assert.equal(resEve?.id, 's-session-18-20')
     assert.equal(resEve?.when, 'tomorrow')
   })
+
+  await t.test('18. getNextUpcomingSession dựng "vé vào sân": kèo của mình lên đầu, đếm đúng người đi', () => {
+    const now = new Date('2026-10-02T17:00:00')
+    const future = new Date(now.getTime() + 3600000).toISOString()
+    const db = {
+      today: '2026-10-02',
+      members: [{ id: 'me', name: 'Canh lá ngón' }, { id: 'kuro', name: 'Kuro' }, { id: 'thien', name: 'Thiện' }, { id: 'tuan', name: 'Anh Tuấn' }],
+      guests: [{ id: 'g1', name: 'Nam giao lưu' }],
+      courts: [{ id: 'ct1', name: 'Trường THCS Thanh Xuân Trung', mapUrl: 'https://maps.example/x' }],
+      sessions: [{ id: 's1', date: '2026-10-02', status: 'open', courts: [{ courtId: 'ct1', from: '20:30', to: '22:30' }, { courtId: 'ct1', from: '20:30', to: '22:30' }] }],
+      // vắng (false) và 'noshow' KHÔNG phải người đi
+      attendance: { s1: { me: true, kuro: true, thien: 'extra', tuan: false, x: 'noshow' } },
+      challenges: [
+        { id: 'c-other', sessionId: 's1', status: 'accepted', teamA: ['thien', 'tuan'], teamB: ['g1', 'kuro'] },
+        { id: 'c-mine-pending', sessionId: 's1', status: 'pending', teamA: ['kuro', 'tuan'], teamB: ['me', 'g1'], expiresAt: future },
+        { id: 'c-mine', sessionId: 's1', status: 'accepted', teamA: ['me', 'kuro'], teamB: ['thien', 'tuan'] },
+        { id: 'c-expired', sessionId: 's1', status: 'pending', teamA: ['me'], teamB: ['kuro'], expiresAt: '2026-01-01T00:00:00Z' },
+        { id: 'c-declined', sessionId: 's1', status: 'declined', teamA: ['me'], teamB: ['thien'] },
+        { id: 'c-open', sessionId: 's1', status: 'pending', teamA: ['thien', 'kuro'], teamB: [], expiresAt: future },
+      ],
+    }
+    const s = getNextUpcomingSession(db, 'me', now)
+
+    assert.equal(s.goingCount, 3, 'chỉ đếm người đi: true / extra')
+    assert.equal(s.isRegistered, true)
+    assert.equal(s.attendees[0].id, 'me', 'mình đứng đầu dãy avatar')
+    assert.equal(s.timeFrom, '20:30')
+    assert.equal(s.timeTo, '22:30')
+    assert.equal(s.venueName, 'Trường THCS Thanh Xuân Trung', 'tên sân đủ, không lặp, không kèm số sân')
+    assert.equal(s.mapUrl, 'https://maps.example/x')
+
+    // Kèo của mình: đã nhận trước kèo chờ; đội MÌNH luôn ở dòng trên
+    assert.deepEqual(s.myChallenges.map((c) => c.id), ['c-mine', 'c-mine-pending'])
+    assert.equal(s.myChallenges[1].top.names, 'Canh lá ngón & Nam giao lưu', 'mình ở đội B vẫn đứng trên; tên khách đọc đúng')
+    assert.equal(s.myChallenges[1].bottom.names, 'Kuro & Anh Tuấn')
+    // Kèo người khác ở dưới; kèo hết hạn / từ chối bị loại dù status chưa đổi
+    assert.deepEqual(s.otherChallenges.map((c) => c.id), ['c-other', 'c-open'])
+    assert.equal(s.otherChallenges[1].bottom, null, 'kèo mở chưa có đối thủ')
+    assert.equal(s.moreChallenges, 0)
+  })
 })
 

@@ -6,7 +6,8 @@ import { getPlayerPartnersAndMatchups } from '#lib/rating.js'
 import { getMemberStreak } from '#lib/badges.js'
 import { seasonMatchesOf } from '#lib/season.js'
 import { isChallengeExpired } from '#lib/challenge.js'
-import { buildPushUrl, pathOf } from '#routes'
+import { buildPushUrl } from '#routes'
+import { matchPairsPath } from '#lib/matchSearch.js'
 import { dd, isoOf } from '#utils/dates.js'
 import { t } from '#i18n'
 
@@ -1080,18 +1081,7 @@ export function activityLinkOf(event, db) {
     // Trận → tab Lịch sử, lọc đúng hai cặp của trận (xem `pairs` trong `filterMatches`).
     // Trận đã huỷ thì không còn trong db → không bấm được.
     const mt = (db?.matches || []).find((m) => m.id === refId)
-    if (!mt?.teamA?.length || !mt?.teamB?.length) return null
-    // Ô Người A/B chỉ liệt kê thành viên, nên mỗi cặp đưa thành viên lên đầu — đứng đầu là khách
-    // thì ô hiện trống dù danh sách đã lọc.
-    const isMember = (id) => (db?.members || []).some((m) => m.id === id)
-    const lead = (team) => [...team].sort((x, y) => isMember(y) - isMember(x))
-    const [w, l] = mt.winnerTeam === 'B' ? [mt.teamB, mt.teamA] : [mt.teamA, mt.teamB]
-    const pairA = lead(w)
-    const pairB = lead(l)
-    const q = new URLSearchParams({
-      tab: 'search', playerA: pairA[0], playerB: pairB[0], pairA: pairA.join(','), pairB: pairB.join(','),
-    })
-    return `${pathOf('matches')}?${q}`
+    return mt ? matchPairsPath(mt, db?.members) : null
   }
   return null
 }

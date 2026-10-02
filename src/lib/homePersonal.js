@@ -12,9 +12,10 @@ import {
   calcSeasonMatchDeltaFinal,
   isChallengeMatch,
 } from '#lib/season.js'
-import { memberOf, courtTxt, timeTxt, isPresent } from '#lib/money.js'
-import { formatScoreString } from '#lib/activity.js'
-import { isoOf } from '#utils/dates.js'
+import { memberOf, playerName, courtTxt, timeTxt, isPresent } from '#lib/money.js'
+import { formatScoreString, getPlayerProfile } from '#lib/activity.js'
+import { isChallengeDead } from '#lib/challenge.js'
+import { isoOf, wd } from '#utils/dates.js'
 
 /**
  * Hàm băm xác định (Deterministic PRNG) để chọn biến thể giao diện ổn định trong phiên
@@ -1091,14 +1092,16 @@ export function getRecentPlayerMatches(db, memberId, limit = 3) {
     const myTeamIds = inA ? (m.teamA || []) : (m.teamB || [])
     const oppTeamIds = inA ? (m.teamB || []) : (m.teamA || [])
 
+    // `playerName`, không phải `memberOf`: `memberOf` chỉ tra thành viên và trả "—" cho khách giao
+    // lưu — trận có khách thành "Canh lá ngón · — ⚔ — · —".
     const myTeamPlayers = myTeamIds.map((id) => ({
       id,
-      name: memberOf(db, id)?.name || id,
+      name: playerName(db, id),
       isMe: id === memberId,
     }))
     const oppTeamPlayers = oppTeamIds.map((id) => ({
       id,
-      name: memberOf(db, id)?.name || id,
+      name: playerName(db, id),
       isMe: false,
     }))
 
@@ -1333,10 +1336,13 @@ export function getNextUpcomingSession(db, memberId, nowTime = new Date()) {
   if (!s) return null
 
   const att = db.attendance?.[s.id] || {}
-  const isRegistered = Boolean(att[memberId]) || (s.attendees || []).some((a) => (typeof a === 'string' ? a === memberId : a?.memberId === memberId))
+  // Chỉ người ĐI (`isPresent`): vắng (`false`) và 'noshow' cũng là một khoá trong `att` — đếm số
+  // khoá là đếm cả người đã báo nghỉ.
+  const goingIds = Object.keys(att).filter((id) => isPresent(att[id]))
+  const isRegistered = isPresent(att[memberId]) || (s.attendees || []).some((a) => (typeof a === 'string' ? a === memberId : a?.memberId === memberId))
 
   const courtsCount = (s.courts || []).length || 1
-  const goingCount = Object.keys(att).length || 0
+  const goingCount = goingIds.length
   const expectedMatches = Math.max(1, Math.round(goingCount * 0.35))
 
   let venue = courtTxt(db, s) || s.courtTxt || s.venue || ''
@@ -1369,43 +1375,47 @@ export function getNextUpcomingSession(db, memberId, nowTime = new Date()) {
     }
   }
 
-  // Lọc các kèo của buổi tập này hoặc các kèo đang mở sắp tới
-  const allChallenges = db.challenges || []
-  const sessionChallenges = allChallenges.filter(
-    (c) =>
-      c &&
-      (c.sessionId === s.id || (!c.sessionId && (c.status === 'pending' || c.status === 'accepted'))) &&
-      c.status !== 'cancelled' &&
-      c.status !== 'completed' &&
-      c.status !== 'played',
-  )
+  // Kèo của buổi này, cộng kèo chưa gắn buổi nào mà còn sống (sẽ được xếp vào buổi gần nhất).
+  // `isChallengeDead` gác cả kèo hết hạn / bị từ chối mà `status` chưa kịp đổi — trước đây chỉ lọc
+  // cancelled/played nên kèo hết hạn vẫn nằm ở "Sắp đấu".
+  const sessionChallenges = (db.challenges || []).filter((c) => (
+    c
+    && (c.sessionId === s.id || (!c.sessionId && (c.status === 'pending' || c.status === 'accepted')))
+    && c.status !== 'played'
+    && !isChallengeDead(c, c.sessionId ? s : null, now.getTime()) // cùng mốc `now` với cả hàm
+  ))
+  const inChal = (c) => (c.teamA || []).includes(memberId) || (c.teamB || []).includes(memberId)
+  // Kèo đã nhận (chắc chắn đánh) trước kèo còn chờ — người ta cần biết tối nay đấu với ai trước.
+  const byStatus = (a, b) => (a.status === 'pending') - (b.status === 'pending')
 
-  // Sắp xếp: Kèo của bản thân lên đầu, tiếp theo là kèo pending, rồi accepted
-  sessionChallenges.sort((a, b) => {
-    const aIsMine = (a.teamA || []).includes(memberId) || (a.teamB || []).includes(memberId)
-    const bIsMine = (b.teamA || []).includes(memberId) || (b.teamB || []).includes(memberId)
-    if (aIsMine && !bIsMine) return -1
-    if (!aIsMine && bIsMine) return 1
-    if (a.status === 'pending' && b.status !== 'pending') return -1
-    if (a.status !== 'pending' && b.status === 'pending') return 1
-    return 0
-  })
-
-  const challengesList = sessionChallenges.slice(0, 3).map((c) => {
-    const isMine = (c.teamA || []).includes(memberId) || (c.teamB || []).includes(memberId)
-    const teamANames = (c.teamA || []).map((id) => memberOf(db, id)?.name || id).join(' · ')
-    const teamBNames = (c.teamB || []).length > 0
-      ? (c.teamB || []).map((id) => memberOf(db, id)?.name || id).join(' · ')
-      : ''
+  // Một dòng của kèo: hai đội, mỗi đội là danh sách hồ sơ (tên + avatar) để vẽ "vé".
+  // Kèo của mình: đội MÌNH ở trên. Kèo người khác: đội gạ (A) ở trên.
+  const teamOf = (ids) => ({ list: (ids || []).map((id) => getPlayerProfile(db, id)), names: (ids || []).map((id) => playerName(db, id)).join(' & ') })
+  const toRow = (c, isMine) => {
+    const meInB = isMine && (c.teamB || []).includes(memberId)
+    const [top, bottom] = meInB ? [c.teamB, c.teamA] : [c.teamA, c.teamB]
     return {
       id: c.id,
       code: c.code || '',
       isMine,
       status: c.status,
-      teamANames,
-      teamBNames,
+      top: teamOf(top),
+      bottom: (bottom || []).length ? teamOf(bottom) : null, // null = kèo mở, đang chờ đối thủ
     }
-  })
+  }
+  const myChallenges = sessionChallenges.filter(inChal).sort(byStatus).map((c) => toRow(c, true))
+  const otherAll = sessionChallenges.filter((c) => !inChal(c)).sort(byStatus)
+  const otherChallenges = otherAll.slice(0, 3).map((c) => toRow(c, false))
+
+  // Tên sân để in lên "vé" — tên đầy đủ, không kèm số sân; ghim bản đồ lấy link của sân đầu tiên có.
+  const sessionCourts = [...new Map((s.courts || []).map((c) => [c.courtId, (db.courts || []).find((x) => x.id === c.courtId)])).values()].filter(Boolean)
+  const venueName = [...new Set(sessionCourts.map((c) => c.name).filter(Boolean))].join(', ')
+  const mapUrl = sessionCourts.find((c) => c.mapUrl)?.mapUrl || ''
+  // Avatar người đi: mình đứng đầu (thấy ngay "có bạn"), còn lại theo thứ tự điểm danh.
+  const attendees = [...goingIds.filter((id) => id === memberId), ...goingIds.filter((id) => id !== memberId)]
+    .map((id) => getPlayerProfile(db, id))
+  // Không có giờ sân thật (getSessionTimeRange trả mặc định cả ngày) thì đừng in "00:00".
+  const hasTime = !(sFrom === '00:00' && sTo === '23:59')
 
   return {
     id: s.id,
@@ -1421,7 +1431,15 @@ export function getNextUpcomingSession(db, memberId, nowTime = new Date()) {
     goingCount,
     isRegistered,
     expectedMatches,
-    challenges: challengesList,
+    timeFrom: hasTime ? sFrom : '',
+    timeTo: hasTime ? sTo : '',
+    weekday: s.date ? wd(s.date) : '',
+    venueName,
+    mapUrl,
+    attendees,
+    myChallenges,
+    otherChallenges,
+    moreChallenges: Math.max(0, otherAll.length - otherChallenges.length),
     status: s.status,
   }
 }

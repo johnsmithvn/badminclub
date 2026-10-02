@@ -22,7 +22,15 @@ function formatSeasonPoints(val, won) {
   return str
 }
 
-export default function RecentMatchesCard({ matches = [], isMobile, onViewAll }) {
+export default function RecentMatchesCard({ matches = [], isMobile, onViewAll, onOpenMatch }) {
+  // Bấm một trận → Lịch sử lọc đúng hai cặp của trận đó (cùng đích với Bảng tin).
+  const rowProps = (m) => (onOpenMatch ? {
+    role: 'link',
+    tabIndex: 0,
+    onClick: () => onOpenMatch(m.id),
+    onKeyDown: (ev) => { if (ev.key === 'Enter') onOpenMatch(m.id) },
+  } : {})
+  const clickable = onOpenMatch ? { cursor: 'pointer' } : null
   if (!matches.length) {
     return (
       <div style={S.card}>
@@ -56,7 +64,11 @@ export default function RecentMatchesCard({ matches = [], isMobile, onViewAll })
               : [{ id: 'opp', name: m.oppTeamNames, isMe: false }]
 
             return (
-              <div key={m.id || idx} style={idx > 0 ? S.mobileMatchItemWithDivider : S.mobileMatchItem}>
+              <div
+                key={m.id || idx}
+                style={{ ...(idx > 0 ? S.mobileMatchItemWithDivider : S.mobileMatchItem), ...clickable }}
+                {...rowProps(m)}
+              >
                 <div style={S.mobileItemHeader}>
                   <div style={{ display: 'flex', alignItems: 'center', gap: 6 }}>
                     {m.isChallenge && (
@@ -177,7 +189,11 @@ export default function RecentMatchesCard({ matches = [], isMobile, onViewAll })
             : [{ id: 'opp', name: m.oppTeamNames, isMe: false }]
 
           return (
-            <div key={m.id} style={m.isChallenge ? S.desktopRowChallenge : S.desktopRow}>
+            <div
+              key={m.id}
+              style={{ ...(m.isChallenge ? S.desktopRowChallenge : S.desktopRow), ...clickable }}
+              {...rowProps(m)}
+            >
               {/* Cột 1: Ngày + Giờ biến động */}
               <span style={S.desktopDateCol}>
                 <span style={S.dateLabelText}>{dateLabel}</span>

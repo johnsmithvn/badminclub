@@ -1,7 +1,7 @@
 import test from 'node:test'
 import assert from 'node:assert/strict'
 import { computeClubCalibration, confidenceOf } from '../../lib/rating.js'
-import { headToHeadMatrix, searchMatches } from '../../lib/matchSearch.js'
+import { headToHeadMatrix, searchMatches, matchPairsPath } from '../../lib/matchSearch.js'
 
 test('Phase 3 Leaderboard Logic Verification', async (t) => {
   const members = [
@@ -65,6 +65,19 @@ test('Phase 3 Leaderboard Logic Verification', async (t) => {
     assert.deepEqual(res.map((m) => m.id), ['d1', 'd2'])
     // Không truyền `pairs` thì lọc 2 người như cũ — d3 vẫn lọt
     assert.equal(searchMatches(doubles, { playerA: 'kuro', playerB: 'hang', mode: 'vs' }).length, 3)
+  })
+
+  await t.test('matchPairsPath: đội thắng đứng A, thành viên đứng đầu cặp', () => {
+    const url = new URL(matchPairsPath(
+      { teamA: ['khach', 'hang'], teamB: ['kuro', 'hoa'], winnerTeam: 'B' },
+      [{ id: 'kuro' }, { id: 'hoa' }, { id: 'hang' }],
+    ), 'http://x')
+    assert.equal(url.pathname, '/tran-dau')
+    assert.equal(url.searchParams.get('tab'), 'search')
+    assert.equal(url.searchParams.get('pairA'), 'kuro,hoa')
+    assert.equal(url.searchParams.get('pairB'), 'hang,khach')
+    assert.equal(url.searchParams.get('playerB'), 'hang')
+    assert.equal(matchPairsPath({ teamA: ['a'], teamB: [] }), null)
   })
 
   await t.test('Cross-gender calibration calculates correctly', () => {
