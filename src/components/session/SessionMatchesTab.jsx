@@ -538,22 +538,22 @@ export default function SessionMatchesTab({ s, onSwitchTab }) {
                             type="button"
                             onClick={() => setRematch(rematchOf(m))}
                             title={t('matchSearch.btnRematchHint')}
+                            aria-label={t('matchSearch.btnRematch')}
                             style={{
-                              height: 32,
+                              width: 24,
+                              height: 24,
                               display: 'inline-flex',
                               alignItems: 'center',
-                              gap: 5,
-                              padding: '0 12px',
-                              borderRadius: 999,
+                              justifyContent: 'center',
+                              borderRadius: 6,
                               background: 'var(--surface-accent-soft)',
                               border: '1px solid var(--teal-500)',
-                              font: "600 12px/1 'IBM Plex Sans', sans-serif",
                               color: 'var(--status-transit-fg)',
                               cursor: 'pointer',
+                              padding: 0,
                             }}
                           >
-                            <Icon name="repeat" size={13} />
-                            <span>{t('matchSearch.btnRematch')}</span>
+                            <Icon name="repeat" size={12} />
                           </button>
                         )}
                       </div>

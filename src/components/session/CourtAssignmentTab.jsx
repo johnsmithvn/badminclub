@@ -1712,10 +1712,11 @@ export default function CourtAssignmentTab({ s, preset }) {
                               style={{
                                 ...S.cs1PlayerCard,
                                 borderColor: isFemale ? 'rgba(232,107,168,.45)' : '#2E3E5C',
+                                ...(onCourtPlayerMap[p.key] ? S.cs1PlayerQueued : {}),
                               }}
                               role="button"
                               tabIndex={0}
-                              title={p.name}
+                              title={onCourtPlayerMap[p.key] ? `${p.name} · ${onCourtPlayerMap[p.key]}` : p.name}
                             >
                               <div style={{ flex: 1, minWidth: 0 }}>
                                 <div style={S.cs1PlayerName} title={p.name}>{p.name}</div>
@@ -1723,23 +1724,7 @@ export default function CourtAssignmentTab({ s, preset }) {
                                   {genderTxt(p.gender)} · {p.level || 'TB'}
                                   {p.guest && <span style={S.cs1GuestBadge}>{t('home.tagGuest')}</span>}
                                   {onCourtPlayerMap[p.key] && (
-                                    <span
-                                      style={{
-                                        display: 'inline-flex',
-                                        alignItems: 'center',
-                                        gap: 3,
-                                        padding: '1px 5px',
-                                        borderRadius: 4,
-                                        background: 'rgba(0, 178, 169, 0.18)',
-                                        color: 'var(--action-accent-fg, #00B2A9)',
-                                        border: '1px solid rgba(0, 178, 169, 0.35)',
-                                        fontSize: 10.5,
-                                        fontWeight: 600,
-                                        marginLeft: 4,
-                                      }}
-                                    >
-                                      🎾 {onCourtPlayerMap[p.key]}
-                                    </span>
+                                    <span style={S.cs1QueuedIcon}><Icon name="play" size={10} /></span>
                                   )}
                                 </div>
                               </div>
@@ -1833,10 +1818,11 @@ export default function CourtAssignmentTab({ s, preset }) {
                           style={{
                             ...S.cs1PlayerCard,
                             borderColor: isFemale ? 'rgba(232,107,168,.45)' : '#2E3E5C',
+                            ...(onCourtPlayerMap[p.key] ? S.cs1PlayerQueued : {}),
                           }}
                           role="button"
                           tabIndex={0}
-                          title={p.name}
+                          title={onCourtPlayerMap[p.key] ? `${p.name} · ${onCourtPlayerMap[p.key]}` : p.name}
                         >
                           <div style={{ flex: 1, minWidth: 0 }}>
                             <div style={S.cs1PlayerName} title={p.name}>{p.name}</div>
@@ -1846,6 +1832,9 @@ export default function CourtAssignmentTab({ s, preset }) {
                                 <> · {t('assign.waitingMinutes', { m: Math.round((playerWaitTimeMap[p.key] || 0) / 60000) })}</>
                               )}
                               {p.guest && <span style={S.cs1GuestBadge}>{t('home.tagGuest')}</span>}
+                              {onCourtPlayerMap[p.key] && (
+                                <span style={S.cs1QueuedIcon}><Icon name="play" size={10} /></span>
+                              )}
                             </div>
                           </div>
                           {canManage && (
@@ -3550,6 +3539,18 @@ const S = {
   cs1MatchCount: {
     font: '700 18px/1 Barlow, sans-serif',
     flex: '0 0 auto',
+  },
+  // Người đã có trận xếp sẵn (bấm ▶): mờ đi + icon ▶, không dùng chữ để thẻ không vỡ trên điện
+  // thoại. Vẫn bấm được — một người có thể nằm trong 2 trận xếp sẵn liên tiếp.
+  cs1PlayerQueued: {
+    opacity: 0.45,
+    borderStyle: 'dashed',
+  },
+  cs1QueuedIcon: {
+    display: 'inline-flex',
+    verticalAlign: 'middle',
+    marginLeft: 4,
+    color: 'var(--status-transit-fg)',
   },
   slotActiveHighlight: {
     minHeight: 56,

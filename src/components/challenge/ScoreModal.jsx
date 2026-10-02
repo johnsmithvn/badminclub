@@ -3,6 +3,7 @@ import { useNavigate } from 'react-router-dom'
 import { Dialog, Icon } from '#ds'
 import { useApp } from '#contexts/AppContext.jsx'
 import { useMobile } from '#hooks/useMobile.js'
+import { elapsedMin } from '#hooks/useClock.js'
 import { teamRating, calcPlayerDeltas, getPlayerRating } from '#lib/rating.js'
 import { playerName, playerOf, myMember } from '#lib/money.js'
 import { getChallengeSeriesProgress } from '#lib/challenge.js'
@@ -286,7 +287,11 @@ export default function ScoreModal({ court, session, challenge, onClose, onSaved
         teamB,
         sets: playedSets,
         winnerTeam,
-        minutes: court?.minutes || (court?.startedAt ? Math.max(1, Math.round((Date.now() - court.startedAt) / 60000)) : cfg.match?.defaultMinutes || 20),
+        // Trận xếp sẵn bấm ▶ từ sớm nhưng thường đánh xong mới ghi một loạt — khoảng từ lúc bấm ▶
+        // tới lúc ghi không phải thời lượng trận. Vượt số phút mặc định thì lấy số mặc định.
+        minutes: court?.minutes || (court?.startedAt
+          ? Math.min(elapsedMin(court.startedAt), cfg.match?.defaultMinutes || 20)
+          : cfg.match?.defaultMinutes || 20),
       })
 
       const { nextPlayerRatings = null, ...savedMatch } = res || {}
