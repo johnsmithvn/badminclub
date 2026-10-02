@@ -1,24 +1,342 @@
 // src/components/home/ActivityTab.jsx
-import React, { useState, useEffect } from 'react'
+import React, { useState, useEffect, useMemo } from 'react'
+import { useNavigate } from 'react-router-dom'
 import { Button, Icon } from '#ds'
 import { useApp } from '#contexts/AppContext.jsx'
 import { supabase } from '#supabase'
-import { resolveActivityPayload } from '#lib/activity.js'
+import { groupActivities2a } from '#lib/activity.js'
 import { t } from '#i18n'
 
-function formatActivityTime(rawTs) {
-  if (!rawTs) return ''
-  const d = new Date(rawTs)
-  if (isNaN(d.getTime())) return String(rawTs)
-  const hours = String(d.getHours()).padStart(2, '0')
-  const minutes = String(d.getMinutes()).padStart(2, '0')
-  const day = String(d.getDate()).padStart(2, '0')
-  const month = String(d.getMonth() + 1).padStart(2, '0')
-  return `${hours}:${minutes} · ${day}/${month}`
+function renderTeam(team, color = 'var(--text-primary)', fontWeight = 600) {
+  if (!team || !team.list || team.list.length === 0) return team?.names || ''
+  return team.list.map((p) => (
+    <React.Fragment key={p.id || p.name}>
+      <span style={{ color, fontWeight }}>{p.name}</span>
+      {p.sep && (
+        <span style={{ color: 'var(--text-disabled)', fontWeight: 400, padding: '0 5px' }}>
+          &amp;
+        </span>
+      )}
+    </React.Fragment>
+  ))
+}
+
+function renderLeadAvatar(e) {
+  if (e.hasLeadAv && e.lead1) {
+    if (e.lead2) {
+      return (
+        <div style={{ width: 34, height: 34, position: 'relative', flexShrink: 0 }}>
+          <span
+            style={{
+              position: 'absolute',
+              left: 0,
+              top: 0,
+              width: 26,
+              height: 26,
+              borderRadius: '50%',
+              background: e.lead1.bg,
+              color: '#fff',
+              display: 'flex',
+              alignItems: 'center',
+              justifyContent: 'center',
+              font: '600 9px/1 var(--font-sans)',
+              overflow: 'hidden',
+            }}
+          >
+            {e.lead1.avatarUrl ? (
+              <img
+                src={e.lead1.avatarUrl}
+                alt={e.lead1.name}
+                style={{ width: '100%', height: '100%', objectFit: 'cover' }}
+              />
+            ) : (
+              e.lead1.ini
+            )}
+          </span>
+          <span
+            style={{
+              position: 'absolute',
+              right: -4,
+              bottom: -4,
+              width: 18,
+              height: 18,
+              borderRadius: '50%',
+              background: e.lead2.bg,
+              color: '#fff',
+              display: 'flex',
+              alignItems: 'center',
+              justifyContent: 'center',
+              font: '600 8px/1 var(--font-sans)',
+              border: '2px solid var(--surface-card)',
+              overflow: 'hidden',
+            }}
+          >
+            {e.lead2.avatarUrl ? (
+              <img
+                src={e.lead2.avatarUrl}
+                alt={e.lead2.name}
+                style={{ width: '100%', height: '100%', objectFit: 'cover' }}
+              />
+            ) : (
+              e.lead2.ini
+            )}
+          </span>
+        </div>
+      )
+    }
+
+    return (
+      <div style={{ width: 34, height: 34, display: 'flex', alignItems: 'center', justifyContent: 'center', flexShrink: 0 }}>
+        <span
+          style={{
+            width: 30,
+            height: 30,
+            borderRadius: '50%',
+            background: e.lead1.bg,
+            color: '#fff',
+            display: 'flex',
+            alignItems: 'center',
+            justifyContent: 'center',
+            font: '600 11px/1 var(--font-sans)',
+            overflow: 'hidden',
+          }}
+        >
+          {e.lead1.avatarUrl ? (
+            <img
+              src={e.lead1.avatarUrl}
+              alt={e.lead1.name}
+              style={{ width: '100%', height: '100%', objectFit: 'cover' }}
+            />
+          ) : (
+            e.lead1.ini
+          )}
+        </span>
+      </div>
+    )
+  }
+
+  if (e.hasLeadIcon) {
+    return (
+      <span
+        style={{
+          width: 34,
+          height: 34,
+          borderRadius: 10,
+          background: e.iconBg,
+          color: e.iconFg,
+          display: 'flex',
+          alignItems: 'center',
+          justifyContent: 'center',
+          font: '600 14px/1 var(--font-sans)',
+          flexShrink: 0,
+        }}
+      >
+        {e.icon}
+      </span>
+    )
+  }
+
+  return (
+    <span
+      style={{
+        width: 34,
+        height: 34,
+        borderRadius: 10,
+        background: 'var(--surface-sunken)',
+        color: 'var(--text-muted)',
+        display: 'flex',
+        alignItems: 'center',
+        justifyContent: 'center',
+        font: '600 14px/1 var(--font-sans)',
+        flexShrink: 0,
+      }}
+    >
+      •
+    </span>
+  )
+}
+
+function renderCenterContent(e) {
+  if (e.isMatch) {
+    return (
+      <>
+        <span>
+          <span style={{ color: 'var(--status-transit-fg)', fontWeight: 600 }}>
+            {renderTeam(e.W, 'var(--status-transit-fg)', 600)}
+          </span>
+          {' '}{e.verb}{' '}
+          <span style={{ color: 'var(--text-primary)', fontWeight: 500 }}>
+            {renderTeam(e.L, 'var(--text-primary)', 500)}
+          </span>
+        </span>
+        <span style={{ font: '500 12px/1.4 var(--font-sans)', fontStyle: 'italic', color: e.capColor }}>
+          {e.caption}
+        </span>
+        {e.hasStreak && (
+          <span
+            style={{
+              alignSelf: 'flex-start',
+              font: '500 12px/1.3 var(--font-sans)',
+              color: 'var(--status-incident-fg)',
+              background: 'var(--status-incident-bg)',
+              padding: '5px 8px',
+              borderRadius: 6,
+            }}
+          >
+            🔥 {e.streakText}
+          </span>
+        )}
+      </>
+    )
+  }
+
+  if (e.isResolved) {
+    return (
+      <>
+        <span style={{ font: '600 11px/1 var(--font-mono)', color: 'var(--status-delayed-fg)', letterSpacing: '.05em' }}>
+          {t('activity.resolvedTag', { code: e.code })}
+        </span>
+        <span>
+          <span style={{ color: 'var(--status-delayed-fg)', fontWeight: 600 }}>
+            {renderTeam(e.W, 'var(--status-delayed-fg)', 600)}
+          </span>
+          {' '}{t('activity.resolvedDefeated')}{' '}
+          <span style={{ color: 'var(--text-primary)', fontWeight: 500 }}>
+            {renderTeam(e.L, 'var(--text-primary)', 500)}
+          </span>
+          {' '}{t('activity.resolvedFinal')}
+        </span>
+      </>
+    )
+  }
+
+  if (e.isKeo) {
+    return (
+      <>
+        <span>
+          <span style={{ color: 'var(--text-primary)', fontWeight: 600 }}>
+            {renderTeam(e.A, 'var(--text-primary)', 600)}
+          </span>
+          {' '}{t('activity.challengeVs')}{' '}
+          <span style={{ color: 'var(--text-primary)', fontWeight: 600 }}>
+            {renderTeam(e.B, 'var(--text-primary)', 600)}
+          </span>
+        </span>
+        <span style={{ display: 'flex', alignItems: 'center', gap: 8, font: '400 12px/1 var(--font-sans)' }}>
+          <span style={{ font: '600 12px/1 var(--font-mono)', color: 'var(--text-accent)' }}>
+            ⚔️ {e.code}
+          </span>
+          {e.keoStatus && (
+            <>
+              <span style={{ color: 'var(--text-disabled)' }}>·</span>
+              <span>{e.keoStatus}</span>
+            </>
+          )}
+        </span>
+      </>
+    )
+  }
+
+  if (e.singleAccept) {
+    return (
+      <span>
+        <span style={{ color: 'var(--text-primary)', fontWeight: 600 }}>
+          {t('activity.keoAcceptedHead', { code: e.code })}
+        </span>{' '}
+        {t('activity.keoAcceptedTail')}
+      </span>
+    )
+  }
+
+  if (e.isSession) {
+    return (
+      <>
+        <span>
+          <span style={{ color: 'var(--text-primary)', fontWeight: 600 }}>{e.title}</span>{' '}
+          {t('activity.sessionOpenedTail')}
+        </span>
+        {/* Chỉ là chữ nhấn — bấm đâu trên dòng cũng tới trang buổi (xem `link`). */}
+        {e.canRsvp && (
+          <span style={{ font: '600 12px/1 var(--font-sans)', color: 'var(--text-link)' }}>
+            {t('activity.rsvpNow')}
+          </span>
+        )}
+      </>
+    )
+  }
+
+  if (e.isCancel) {
+    return (
+      <span style={{ color: 'var(--text-muted)' }}>
+        {t('activity.keoCancelledPre')}{' '}
+        <span style={{ fontFamily: 'var(--font-mono)', textDecoration: 'line-through' }}>
+          {e.code}
+        </span>{' '}
+        {t('activity.keoCancelledPost')}
+      </span>
+    )
+  }
+
+  if (e.isBounty) {
+    return (
+      <span>
+        🔥{' '}
+        <span style={{ color: 'var(--status-transit-fg)', fontWeight: 600 }}>
+          {renderTeam(e.breakers, 'var(--status-transit-fg)', 600)}
+        </span>{' '}
+        {t('activity.bountyTail', { streak: e.streak, victim: e.victims?.names || '' })}
+      </span>
+    )
+  }
+
+  if (e.isMemberJoined) {
+    return (
+      <span>
+        👋 {t('activity.memberJoinedPre')}{' '}
+        <span style={{ color: 'var(--text-primary)', fontWeight: 600 }}>{e.name}</span>{' '}
+        {t('activity.memberJoinedPost')}
+      </span>
+    )
+  }
+
+  if (e.isSessionState) {
+    return (
+      <span>
+        <span style={{ color: 'var(--text-primary)', fontWeight: 600 }}>{e.title}</span>{' '}
+        {e.isClosed ? t('activity.sessionClosedTail') : t('activity.sessionCancelledTail')}
+      </span>
+    )
+  }
+
+  return <span>{e.text}</span>
+}
+
+function renderRightColumn(e) {
+  return (
+    <div style={{ display: 'flex', flexDirection: 'column', alignItems: 'flex-end', gap: 6, minWidth: 52, flexShrink: 0 }}>
+      {e.isMatch && (
+        <span style={{ font: '600 16px/1 var(--font-mono)', color: 'var(--status-transit-fg)', whiteSpace: 'nowrap' }}>
+          {e.ws}
+          {e.ls !== '' && <span style={{ color: 'var(--text-disabled)' }}>–{e.ls}</span>}
+        </span>
+      )}
+      {e.isResolved && (
+        <span style={{ font: '600 16px/1 var(--font-mono)', color: 'var(--status-delayed-fg)', whiteSpace: 'nowrap' }}>
+          {e.ws}
+          {e.ls !== '' && <span style={{ color: 'var(--text-disabled)' }}>–{e.ls}</span>}
+        </span>
+      )}
+      <span style={{ font: '400 11px/1 var(--font-mono)', color: 'var(--text-muted)' }}>
+        {e.t}
+      </span>
+    </div>
+  )
 }
 
 export default function ActivityTab() {
   const { db } = useApp()
+  const navigate = useNavigate()
+  const [hoverId, setHoverId] = useState(null)
   const [events, setEvents] = useState([])
   const [loading, setLoading] = useState(true)
   const [page, setPage] = useState(1)
@@ -92,45 +410,12 @@ export default function ActivityTab() {
     }
   }
 
-  const getEventMeta = (item) => {
-    if (item.type === 'match_recorded') {
-      const narrative = item.payload?.narrativeType || 'normal'
-      switch (narrative) {
-        case 'clutch':
-          return { icon: 'zap', color: '#00F5D4', key: 'match_clutch', badgeColor: 'rgba(0, 245, 212, 0.15)' }
-        case 'blowout':
-          return { icon: 'flame', color: '#A855F7', key: 'match_blowout', badgeColor: 'rgba(168, 85, 247, 0.15)' }
-        case 'comeback':
-          return { icon: 'repeat', color: '#10B981', key: 'match_comeback', badgeColor: 'rgba(16, 185, 129, 0.15)' }
-        default:
-          return { icon: 'activity', color: '#3B82F6', key: 'match_normal', badgeColor: 'rgba(59, 130, 246, 0.15)' }
-      }
-    }
-
-    switch (item.type) {
-      case 'bounty_broken':
-        return { icon: 'flame', color: '#FF2E7E', key: 'bounty_broken', badgeColor: 'rgba(255, 46, 126, 0.15)' }
-      case 'challenge_completed':
-        return { icon: 'trophy', color: '#FFE24B', key: 'challenge_completed', badgeColor: 'rgba(255, 226, 75, 0.15)' }
-      case 'challenge_created':
-        return { icon: 'swords', color: '#00F5D4', key: 'challenge_created', badgeColor: 'rgba(0, 245, 212, 0.15)' }
-      case 'challenge_cancelled':
-      case 'session_cancelled':
-        return { icon: 'x', color: '#EF4444', key: item.type, badgeColor: 'rgba(239, 68, 68, 0.15)' }
-      case 'session_opened':
-        return { icon: 'calendar', color: '#3B82F6', key: 'session_opened', badgeColor: 'rgba(59, 130, 246, 0.15)' }
-      case 'session_closed':
-        return { icon: 'check', color: '#10B981', key: 'session_closed', badgeColor: 'rgba(16, 185, 129, 0.15)' }
-      case 'member_joined':
-        return { icon: 'user', color: '#EC4899', key: 'member_joined', badgeColor: 'rgba(236, 72, 153, 0.15)' }
-      default:
-        return { icon: 'activity', color: 'var(--text-accent, #00B2A9)', key: item.type, badgeColor: 'var(--surface-sunken)' }
-    }
-  }
+  const days = useMemo(() => groupActivities2a(events, db), [events, db])
+  // Đếm DÒNG đang hiện, không đếm sự kiện: dòng chặn chuỗi gộp vào trận nên hai số khác nhau.
+  const rowCount = days.reduce((n, d) => n + d.items.length, 0)
 
   return (
     <div style={S.container}>
-      {/* Danh sách các sự kiện */}
       {events.length === 0 && !loading ? (
         <div style={S.card}>
           <div style={S.emptyState}>
@@ -142,29 +427,42 @@ export default function ActivityTab() {
         <div style={S.card}>
           <div style={S.headerRow}>
             <span style={S.headerTitle}>{t('activity.tabName')}</span>
-            <span style={S.countBadge}>{events.length}</span>
+            <span style={S.countBadge}>{rowCount}</span>
           </div>
-          <div style={S.eventsList}>
-            {events.map((item) => {
-              const meta = getEventMeta(item)
-              const resolvedPayload = resolveActivityPayload(item, db)
-              const text = t('activity.' + meta.key, resolvedPayload)
-
-              return (
-                <div key={item.id} style={S.eventRow}>
-                  <span style={{ ...S.dot, background: meta.color }} />
-                  <div style={S.eventContent}>
-                    <div style={S.eventTitle}>{text}</div>
-                    <div style={S.eventTime}>{formatActivityTime(item.created_at)}</div>
+          <div>
+            {days.map((d) => (
+              <React.Fragment key={d.dateKey}>
+                <div style={S.dayHeader}>{d.labelUpper}</div>
+                {d.items.map((e) => (
+                  <div
+                    key={e.id}
+                    style={{
+                      ...S.eventRow(e.align),
+                      ...(e.link ? { cursor: 'pointer' } : null),
+                      ...(e.link && hoverId === e.id ? { background: 'var(--action-ghost-bg-hover)' } : null),
+                    }}
+                    {...(e.link ? {
+                      role: 'link',
+                      tabIndex: 0,
+                      onClick: () => navigate(e.link),
+                      onKeyDown: (ev) => { if (ev.key === 'Enter') navigate(e.link) },
+                      onMouseEnter: () => setHoverId(e.id),
+                      onMouseLeave: () => setHoverId(null),
+                    } : null)}
+                  >
+                    {renderLeadAvatar(e)}
+                    <div style={S.centerCol}>
+                      {renderCenterContent(e)}
+                    </div>
+                    {renderRightColumn(e)}
                   </div>
-                </div>
-              )
-            })}
+                ))}
+              </React.Fragment>
+            ))}
           </div>
         </div>
       )}
 
-      {/* Nút xem thêm */}
       {hasMore && !loading && (
         <div style={S.loadMoreBox}>
           <Button variant="secondary" onClick={handleLoadMore}>
@@ -184,7 +482,7 @@ export default function ActivityTab() {
 
 const S = {
   container: {
-    maxWidth: 680,
+    maxWidth: 560,
     margin: '0 auto',
     padding: '16px 0 32px',
     display: 'flex',
@@ -194,66 +492,59 @@ const S = {
     boxSizing: 'border-box',
   },
   card: {
-    padding: '16px 18px',
     borderRadius: 14,
     background: 'var(--surface-card)',
     border: '1px solid var(--border-subtle)',
     boxShadow: 'var(--shadow-sm)',
+    overflow: 'hidden',
     display: 'flex',
     flexDirection: 'column',
-    gap: 12,
   },
   headerRow: {
     display: 'flex',
     alignItems: 'center',
     justifyContent: 'space-between',
-    paddingBottom: 8,
+    padding: '16px 18px',
     borderBottom: '1px solid var(--border-subtle)',
   },
   headerTitle: {
-    font: '600 11px/1 var(--font-sans)',
-    letterSpacing: '0.1em',
-    textTransform: 'uppercase',
+    font: '600 12px/1 var(--font-sans)',
+    letterSpacing: '0.08em',
     color: 'var(--text-muted)',
+    textTransform: 'uppercase',
   },
   countBadge: {
     font: '500 11px/1 var(--font-mono)',
-    color: 'var(--text-muted)',
+    color: 'var(--text-secondary)',
     background: 'var(--surface-sunken)',
-    padding: '3px 7px',
-    borderRadius: 999,
+    padding: '4px 8px',
+    borderRadius: 10,
   },
-  eventsList: {
+  dayHeader: {
+    padding: '14px 18px 6px',
+    font: '600 11px/1 var(--font-sans)',
+    letterSpacing: '0.08em',
+    color: 'var(--text-muted)',
+    background: 'var(--surface-inset)',
+    borderTop: '1px solid var(--border-subtle)',
+  },
+  eventRow: (align = 'start') => ({
+    display: 'grid',
+    gridTemplateColumns: '34px minmax(0, 1fr) auto',
+    gap: 12,
+    alignItems: align,
+    padding: '12px 18px',
+    borderTop: '1px solid var(--border-subtle)',
+    transition: 'background 140ms ease',
+  }),
+  centerCol: {
     display: 'flex',
     flexDirection: 'column',
-    gap: 12,
-  },
-  eventRow: {
-    display: 'flex',
-    alignItems: 'flex-start',
-    gap: 10,
-    padding: '2px 0',
-  },
-  dot: {
-    width: 7,
-    height: 7,
-    borderRadius: '50%',
-    flexShrink: 0,
-    marginTop: 6,
-  },
-  eventContent: {
-    flex: 1,
+    gap: 5,
     minWidth: 0,
-  },
-  eventTitle: {
-    font: '500 13px/1.4 var(--font-sans)',
-    color: 'var(--text-primary)',
+    font: '400 14px/1.45 var(--font-sans)',
+    color: 'var(--text-secondary)',
     wordBreak: 'break-word',
-  },
-  eventTime: {
-    font: '400 11px/1.2 var(--font-sans)',
-    color: 'var(--text-muted)',
-    marginTop: 3,
   },
   emptyState: {
     padding: '48px 20px',

@@ -302,6 +302,15 @@ export default function Matches() {
     return myChallenges.filter((c) => !ACTIVE_STATUS.has(c.status))
   }, [myChallenges])
 
+  // Kèo được trỏ tới (từ thông báo / Bảng tin) nằm trong mục "Đã kết thúc" — mục này mặc định
+  // THU GỌN — thì phải mở ra. Không thì banner "Đang làm nổi bật kèo…" hiện mà thẻ kèo không có
+  // trên màn hình: dính mọi thông báo huỷ kèo / kèo ngã ngũ gửi cho chính người trong kèo.
+  useEffect(() => {
+    if (highlightedChallengeId && myEndedChallenges.some((c) => c.id === highlightedChallengeId)) {
+      setMyEndedCollapsed(false)
+    }
+  }, [highlightedChallengeId, myEndedChallenges])
+
   const pendingChallenges = useMemo(() => {
     return allChallenges.filter((c) => c.status === 'pending')
   }, [allChallenges])
@@ -994,8 +1003,9 @@ export default function Matches() {
               </div>
             </div>
 
-            {/* BANNER KÈO ĐƯỢC HIGHLIGHT / CHỌN */}
-            {highlightedChallengeId && (
+            {/* BANNER KÈO ĐƯỢC HIGHLIGHT / CHỌN — kèo không còn trong db thì không có gì để
+                làm nổi bật; hiện banner là treo mã ID thô trên một danh sách không có nó. */}
+            {highlightedChallengeId && allChallenges.some((c) => c.id === highlightedChallengeId) && (
               <div
                 style={{
                   display: 'flex',

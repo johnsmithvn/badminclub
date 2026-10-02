@@ -5,7 +5,9 @@
 import { getPlayerPartnersAndMatchups } from '#lib/rating.js'
 import { getMemberStreak } from '#lib/badges.js'
 import { seasonMatchesOf } from '#lib/season.js'
-import { dd } from '#utils/dates.js'
+import { isChallengeExpired } from '#lib/challenge.js'
+import { buildPushUrl } from '#routes'
+import { dd, isoOf } from '#utils/dates.js'
 import { t } from '#i18n'
 
 /**
@@ -378,22 +380,30 @@ export function resolveActivityPayload(item, db) {
     res.losers = formatTeamNames(db, loseIds)
     res.score = p.score || mt?.scoreText || ''
     res.matchCode = p.matchCode || mt?.code || ''
+    res.winnerIds = winIds
+    res.loserIds = loseIds
   }
 
   if (item?.type === 'bounty_broken') {
     const victimIds = resolveBountyVictimIds(p.victimIds, item, db)
     res.breakers = p.breakers || formatTeamNames(db, p.breakerIds)
     res.victims = p.victims || formatTeamNames(db, victimIds)
+    res.breakerIds = p.breakerIds || []
+    res.victimIds = victimIds
   }
 
   if (item?.type === 'challenge_created') {
     res.challengers = p.challengers || formatTeamNames(db, p.challengerIds)
     res.opponents = p.opponents || formatTeamNames(db, p.opponentIds)
+    res.challengerIds = p.challengerIds || []
+    res.opponentIds = p.opponentIds || []
   }
 
   if (item?.type === 'challenge_completed') {
     res.winners = p.winners || formatTeamNames(db, p.winnerIds)
     res.losers = p.losers || formatTeamNames(db, p.loserIds)
+    res.winnerIds = p.winnerIds || []
+    res.loserIds = p.loserIds || []
     if (res.seriesScore) {
       res.seriesScore = formatWinnerSeriesScore(res.seriesScore)
     }
@@ -495,6 +505,483 @@ export function resolveNotificationPayload(item, db) {
   }
 
   return res
+}
+
+/**
+ * Tách tỷ số trận đấu / kèo thành điểm đội thắng (ws) và đội thua (ls)
+ * Ví dụ: "21-19" -> { ws: '21', ls: '19', diff: 2 }
+ * "21-15, 18-21, 22-20" -> { ws: '22', ls: '20', diff: 2 }
+ */
+export function parseScoreWinningLosing(scoreStr) {
+  if (!scoreStr) return { ws: '', ls: '', diff: 0 }
+  const str = String(scoreStr).trim()
+  const parts = str.split(',').map((x) => x.trim()).filter(Boolean)
+  const target = parts.length > 0 ? parts[parts.length - 1] : str
+  const match = target.match(/^(\d+)\s*[-–]\s*(\d+)$/)
+  if (match) {
+    const s1 = parseInt(match[1], 10)
+    const s2 = parseInt(match[2], 10)
+    const ws = Math.max(s1, s2)
+    const ls = Math.min(s1, s2)
+    return { ws: String(ws), ls: String(ls), diff: ws - ls }
+  }
+  return { ws: str, ls: '', diff: 0 }
+}
+
+export const AVATAR_PALETTE = [
+  '#2B6F6A', '#5B4B8A', '#8A5A2B', '#2E5C8A', '#8A3B5C', '#4E7A3A',
+  '#3B6E8F', '#7A4A3A', '#3A6E5A', '#8A4A7A', '#6A5A9A', '#9A5A4A',
+  '#41607E', '#4A587E', '#4A6E7E', '#6A7A3A',
+]
+
+export function getAvatarBg(id = '', name = '') {
+  const str = id || name || ''
+  let hash = 0
+  for (let i = 0; i < str.length; i++) {
+    hash = (hash << 5) - hash + str.charCodeAt(i)
+    hash |= 0
+  }
+  return AVATAR_PALETTE[Math.abs(hash) % AVATAR_PALETTE.length]
+}
+
+export function getPlayerInitials(name = '') {
+  const parts = String(name || '').trim().split(/\s+/).filter(Boolean)
+  if (parts.length === 0) return '?'
+  // `Array.from` tách theo ký tự thật — `word[0]` cắt đôi emoji đầu tên thành ký tự hỏng.
+  const first = (word) => Array.from(word)[0]
+  if (parts.length === 1) return first(parts[0]).toUpperCase()
+  return (first(parts[0]) + first(parts[parts.length - 1])).toUpperCase()
+}
+
+export function getPlayerProfile(db, id) {
+  if (!id) return { id: '', name: '', ini: '?', bg: '#4A587E', avatarUrl: '' }
+  const m = (db?.members || []).find((x) => x.id === id)
+  if (m) {
+    return {
+      id: m.id,
+      name: m.name,
+      ini: getPlayerInitials(m.name),
+      bg: getAvatarBg(m.id, m.name),
+      avatarUrl: m.avatarUrl || m.avatar_url || '',
+    }
+  }
+  const g = (db?.guests || []).find((x) => x.id === id)
+  if (g) {
+    return {
+      id: g.id,
+      name: g.name,
+      ini: getPlayerInitials(g.name),
+      bg: getAvatarBg(g.id, g.name),
+      avatarUrl: g.avatarUrl || g.avatar_url || '',
+    }
+  }
+  return {
+    id,
+    name: id,
+    ini: getPlayerInitials(id),
+    bg: getAvatarBg(id, id),
+    avatarUrl: '',
+  }
+}
+
+export function resolveTeamProfiles(db, ids = []) {
+  const list = (ids || []).map((id, idx) => {
+    const p = getPlayerProfile(db, id)
+    return {
+      ...p,
+      sep: idx < ids.length - 1,
+    }
+  })
+  return {
+    list,
+    names: list.map((p) => p.name).join(' & '),
+    lead1: list[0] || null,
+    lead2: list[1] || null,
+  }
+}
+
+export function formatDateLabelUpper(dateObj, todayIso, yesterdayIso) {
+  if (!dateObj || isNaN(dateObj.getTime())) return ''
+  const iso = isoOf(dateObj)
+  const dNum = dateObj.getDate()
+  const mNum = dateObj.getMonth() + 1
+  const monthWord = t('activity.monthName')
+  const dateStr = `${dNum} ${monthWord} ${mNum}`.toUpperCase()
+
+  if (todayIso && iso === todayIso) {
+    return `${t('activity.today')} · ${dateStr}`.toUpperCase()
+  }
+  if (yesterdayIso && iso === yesterdayIso) {
+    return `${t('activity.yesterday')} · ${dateStr}`.toUpperCase()
+  }
+  return dateStr
+}
+
+export function formatEventTime(dateObj) {
+  if (!dateObj || isNaN(dateObj.getTime())) return ''
+  const hh = String(dateObj.getHours()).padStart(2, '0')
+  const mm = String(dateObj.getMinutes()).padStart(2, '0')
+  return `${hh}:${mm}`
+}
+
+export function resolveActivityRow2a(event, db, attachedStreak = null) {
+  const p = resolveActivityPayload(event, db)
+  const rawTs = event?.created_at || event?.createdAt
+  const d = rawTs ? new Date(rawTs) : new Date()
+  const tStr = formatEventTime(d)
+
+  // 1. match_recorded
+  if (event?.type === 'match_recorded') {
+    const winIds = p.winnerIds || []
+    const loseIds = p.loserIds || []
+    const W = resolveTeamProfiles(db, winIds)
+    const L = resolveTeamProfiles(db, loseIds)
+    // `p.score` là `scoreText` của trận: một set thì là ĐIỂM ("21 – 19"), nhiều set thì là SỐ
+    // SET THẮNG ("2 – 1"). Cột phải hiện nguyên như vậy, nhưng "cách N điểm" phải lấy điểm thật
+    // từ các set — lấy từ "2 – 1" là ra "hơn đúng 1 điểm".
+    const { ws, ls } = parseScoreWinningLosing(p.score)
+    const mt = (db?.matches || []).find((m) => m.id === p.matchId)
+    const setDiffs = (mt?.sets || [])
+      .filter((s) => Array.isArray(s) && s.length >= 2)
+      .map((s) => Math.abs(Number(s[0]) - Number(s[1])))
+    const narrativeType = p.narrativeType || (mt ? detectMatchNarrative(mt) : 'normal')
+    // Xét đúng set mà `detectMatchNarrative` dựa vào: áp đảo là set chênh nhất, còn lại là set cuối.
+    const diff = setDiffs.length === 0 ? 0
+      : narrativeType === 'blowout' ? Math.max(...setDiffs) : setDiffs[setDiffs.length - 1]
+    const verb = t('activity.verb_' + narrativeType)
+    // Không có điểm từng set (trận đã xoá) thì bỏ con số chứ không in "cách 0 điểm".
+    const caption = diff > 0 || narrativeType === 'comeback'
+      ? t('activity.cap_' + narrativeType, { diff })
+      : t('activity.cap_' + narrativeType + '_plain')
+    const capColor = narrativeType === 'clutch' ? 'var(--status-delayed-fg)'
+      : narrativeType === 'blowout' ? 'var(--action-violet-bg)'
+      : narrativeType === 'comeback' ? 'var(--status-delivered-fg)'
+      : 'var(--text-muted)'
+
+    const streak = attachedStreak?.streak || p.streak
+    const victim = attachedStreak?.victimName || p.victim || (L.lead1?.name || '')
+    const hasStreak = Boolean(streak)
+    const streakText = hasStreak ? t('activity.streakText', { streak, victim }) : ''
+
+    return {
+      id: event.id,
+      type: event.type,
+      rawTs,
+      t: tStr,
+      align: 'start',
+      hasLeadAv: winIds.length > 0,
+      lead1: W.lead1,
+      lead2: W.lead2,
+      hasLeadIcon: false,
+      isMatch: true,
+      W,
+      L,
+      verb,
+      caption,
+      capColor,
+      hasStreak,
+      streakText,
+      ws,
+      ls,
+    }
+  }
+
+  // 2. challenge_completed
+  if (event?.type === 'challenge_completed') {
+    const winIds = p.winnerIds || []
+    const loseIds = p.loserIds || []
+    const W = resolveTeamProfiles(db, winIds)
+    const L = resolveTeamProfiles(db, loseIds)
+    const { ws, ls } = parseScoreWinningLosing(p.seriesScore || '1-0')
+    const code = p.code || ''
+
+    return {
+      id: event.id,
+      type: event.type,
+      rawTs,
+      t: tStr,
+      align: 'start',
+      hasLeadAv: winIds.length > 0,
+      lead1: W.lead1,
+      lead2: W.lead2,
+      hasLeadIcon: false,
+      isResolved: true,
+      code,
+      W,
+      L,
+      ws,
+      ls,
+    }
+  }
+
+  // 3. challenge_created
+  if (event?.type === 'challenge_created') {
+    const code = p.code || ''
+    const chalId = event.ref_id || event.refId || p.chalId
+    const chal = (db?.challenges || []).find((c) => c.id === chalId || (code && c.code === code))
+    const challengerIds = p.challengerIds || chal?.teamA || []
+    const opponentIds = p.opponentIds || chal?.teamB || []
+    const A = resolveTeamProfiles(db, challengerIds)
+    const B = resolveTeamProfiles(db, opponentIds)
+    // Nhãn dùng chung bộ `challenge.status.*` với Sàn kèo — hai nơi phải nói cùng một chữ.
+    // Không còn thấy kèo thì để trống: đoán "Chờ nhận" là nói sai về một kèo đã xong từ lâu.
+    //
+    // Từ chối và hết hạn CHUNG một nhãn "Không thành". Bảng tin là cả CLB đọc: tách riêng
+    // "Từ chối" là chỉ ra đội B đã từ chối — ngược với từ chối âm thầm ở `respondChallenge`.
+    // `isChallengeExpired` bắt luôn kèo 'pending' đã quá hạn nhận mà chưa ai quét sang 'expired'.
+    const keoStatus = !chal ? ''
+      : chal.status === 'declined' || isChallengeExpired(chal) ? t('activity.statusVoid')
+      : chal.status === 'accepted' ? t('activity.statusAccepted')
+      : ['pending', 'oncourt', 'played', 'cancelled'].includes(chal.status)
+        ? t('challenge.status.' + chal.status)
+        : ''
+
+    return {
+      id: event.id,
+      type: event.type,
+      rawTs,
+      t: tStr,
+      align: 'start',
+      hasLeadAv: challengerIds.length > 0,
+      lead1: A.lead1,
+      lead2: A.lead2,
+      hasLeadIcon: false,
+      isKeo: true,
+      code,
+      A,
+      B,
+      keoStatus,
+    }
+  }
+
+  // 4. challenge_accepted
+  if (event?.type === 'challenge_accepted') {
+    const code = p.code || ''
+    return {
+      id: event.id,
+      type: event.type,
+      rawTs,
+      t: tStr,
+      align: 'center',
+      hasLeadAv: false,
+      hasLeadIcon: true,
+      icon: '✓',
+      iconBg: 'var(--status-transit-bg)',
+      iconFg: 'var(--status-transit-fg)',
+      singleAccept: true,
+      code,
+    }
+  }
+
+  // 5. session_opened
+  if (event?.type === 'session_opened') {
+    const dateStr = p.date || ''
+    const title = dateStr ? t('activity.sessionTitle', { date: dateStr }) : t('activity.sessionDefault')
+    const sessionId = p.sessionId || event.ref_id || event.refId
+    const sess = (db?.sessions || []).find((s) => s.id === sessionId)
+    return {
+      id: event.id,
+      type: event.type,
+      rawTs,
+      t: tStr,
+      align: 'start',
+      hasLeadAv: false,
+      hasLeadIcon: true,
+      icon: '📋',
+      iconBg: 'var(--status-scheduled-bg)',
+      iconFg: 'var(--status-scheduled-fg)',
+      isSession: true,
+      title,
+      sessionId,
+      // Chỉ mời điểm danh khi buổi CÒN mở — buổi đã chốt/huỷ mà vẫn "Điểm danh ngay" là nói dối.
+      canRsvp: sess?.status === 'open',
+    }
+  }
+
+  // 6. challenge_cancelled / challenge_declined
+  if (event?.type === 'challenge_cancelled' || event?.type === 'challenge_declined') {
+    const code = p.code || ''
+    return {
+      id: event.id,
+      type: event.type,
+      rawTs,
+      t: tStr,
+      align: 'center',
+      hasLeadAv: false,
+      hasLeadIcon: true,
+      icon: '✕',
+      iconBg: 'var(--status-incident-bg)',
+      iconFg: 'var(--status-incident-fg)',
+      isCancel: true,
+      code,
+    }
+  }
+
+  // 7. bounty_broken (standalone)
+  if (event?.type === 'bounty_broken') {
+    const breakerIds = p.breakerIds || []
+    const victimIds = p.victimIds || []
+    const breakers = resolveTeamProfiles(db, breakerIds)
+    const victims = resolveTeamProfiles(db, victimIds)
+    return {
+      id: event.id,
+      type: event.type,
+      rawTs,
+      t: tStr,
+      align: 'start',
+      hasLeadAv: false,
+      hasLeadIcon: true,
+      icon: '🔥',
+      iconBg: 'var(--status-incident-bg)',
+      iconFg: 'var(--status-incident-fg)',
+      isBounty: true,
+      breakers,
+      victims,
+      streak: p.streak || 0,
+    }
+  }
+
+  // 8. member_joined
+  if (event?.type === 'member_joined') {
+    const name = p.name || getEntityName(db, p.memberId)
+    return {
+      id: event.id,
+      type: event.type,
+      rawTs,
+      t: tStr,
+      align: 'center',
+      hasLeadAv: false,
+      hasLeadIcon: true,
+      icon: '👋',
+      iconBg: 'var(--surface-brand-soft)',
+      iconFg: 'var(--text-link)',
+      isMemberJoined: true,
+      name,
+    }
+  }
+
+  // 9. session_closed / session_cancelled
+  if (event?.type === 'session_closed' || event?.type === 'session_cancelled') {
+    const isClosed = event.type === 'session_closed'
+    const dateStr = p.date || ''
+    const title = dateStr ? t('activity.sessionTitle', { date: dateStr }) : t('activity.sessionDefault')
+    return {
+      id: event.id,
+      type: event.type,
+      rawTs,
+      t: tStr,
+      align: 'center',
+      hasLeadAv: false,
+      hasLeadIcon: true,
+      icon: isClosed ? '✅' : '✕',
+      iconBg: isClosed ? 'var(--status-delivered-bg)' : 'var(--status-incident-bg)',
+      iconFg: isClosed ? 'var(--status-delivered-fg)' : 'var(--status-incident-fg)',
+      isSessionState: true,
+      isClosed,
+      title,
+    }
+  }
+
+  // Fallback
+  return {
+    id: event.id,
+    type: event.type,
+    rawTs,
+    t: tStr,
+    align: 'center',
+    hasLeadAv: false,
+    hasLeadIcon: true,
+    icon: '⚡',
+    iconBg: 'var(--surface-sunken)',
+    iconFg: 'var(--text-accent)',
+    isFallback: true,
+    text: t('activity.' + event.type, p),
+  }
+}
+
+/**
+ * Đích khi bấm một dòng Bảng tin: kèo → Sàn kèo (làm nổi bật đúng kèo), buổi → trang buổi.
+ * URL dựng bằng `buildPushUrl` để Bảng tin và thông báo đẩy luôn đi cùng một chỗ.
+ *
+ * `null` (dòng không bấm được) khi:
+ *   - Thứ đó không còn trong db — đưa người ta tới một màn trống là tệ hơn không đưa.
+ *   - Kèo "Không thành" (từ chối / hết hạn). Thẻ kèo trên Sàn kèo ghi rõ "Từ chối", mở nó cho
+ *     cả CLB là lộ lại đúng điều Bảng tin vừa giấu. Hết hạn cũng khoá theo — khoá riêng từ chối
+ *     thì dòng bấm được hay không lại thành dấu hiệu để đoán.
+ */
+export function activityLinkOf(event, db) {
+  const refType = event?.ref_type || event?.refType
+  const refId = event?.ref_id || event?.refId
+  if (!refId) return null
+  if (refType === 'challenge') {
+    const chal = (db?.challenges || []).find((c) => c.id === refId)
+    if (!chal || chal.status === 'declined' || isChallengeExpired(chal)) return null
+    return buildPushUrl({ refType, refId })
+  }
+  if (refType === 'session') {
+    return (db?.sessions || []).some((s) => s.id === refId) ? buildPushUrl({ refType, refId }) : null
+  }
+  return null
+}
+
+export function groupActivities2a(events = [], db = {}) {
+  if (!Array.isArray(events) || events.length === 0) return []
+
+  const bountyMap = new Map()
+  for (const ev of events) {
+    if (ev.type === 'bounty_broken') {
+      const mId = ev.payload?.matchId || ev.ref_id || ev.refId
+      if (mId) bountyMap.set(mId, ev)
+    }
+  }
+
+  const matchIds = new Set(
+    events
+      .filter((e) => e.type === 'match_recorded')
+      .map((e) => e.payload?.matchId || e.ref_id || e.refId)
+      .filter(Boolean)
+  )
+
+  const effectiveEvents = events.filter((ev) => {
+    if (ev.type === 'bounty_broken') {
+      const mId = ev.payload?.matchId || ev.ref_id || ev.refId
+      if (mId && matchIds.has(mId)) return false
+    }
+    return true
+  })
+
+  const todayIso = isoOf(new Date())
+  const yesterday = new Date()
+  yesterday.setDate(yesterday.getDate() - 1)
+  const yesterdayIso = isoOf(yesterday)
+
+  const dayMap = new Map()
+  for (const ev of effectiveEvents) {
+    const rawTs = ev.created_at || ev.createdAt
+    const d = rawTs ? new Date(rawTs) : new Date()
+    const dateKey = !isNaN(d.getTime()) ? isoOf(d) : 'unknown'
+    const mId = ev.payload?.matchId || ev.ref_id || ev.refId
+    const attachedBounty = ev.type === 'match_recorded' && mId ? bountyMap.get(mId) : null
+    const attachedStreak = attachedBounty
+      ? {
+          streak: attachedBounty.payload?.streak,
+          victimName: formatTeamNames(db, resolveBountyVictimIds(attachedBounty.payload?.victimIds, attachedBounty, db)),
+        }
+      : null
+
+    const row = { ...resolveActivityRow2a(ev, db, attachedStreak), link: activityLinkOf(ev, db) }
+    if (!dayMap.has(dateKey)) {
+      dayMap.set(dateKey, {
+        dateKey,
+        dateObj: d,
+        labelUpper: formatDateLabelUpper(d, todayIso, yesterdayIso),
+        items: [],
+      })
+    }
+    dayMap.get(dateKey).items.push(row)
+  }
+
+  return Array.from(dayMap.values())
 }
 
 

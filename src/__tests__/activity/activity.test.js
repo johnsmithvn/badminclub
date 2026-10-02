@@ -15,6 +15,14 @@ import {
   resolveNotificationPayload,
   notifyRecipients,
   notifiableMemberIds,
+  parseScoreWinningLosing,
+  getPlayerInitials,
+  getAvatarBg,
+  getPlayerProfile,
+  resolveTeamProfiles,
+  resolveActivityRow2a,
+  groupActivities2a,
+  activityLinkOf,
 } from '#lib/activity.js'
 
 console.log('--- Testing detectMatchNarrative ---')
@@ -428,3 +436,166 @@ assert.equal(actOld.losers, 'Kuro')
 assert.equal(actOld.matchCode, 'M-09')
 
 console.log('match_recorded payload: OK')
+
+console.log('--- Testing Option 2a helper functions ---')
+
+// 1. parseScoreWinningLosing
+assert.deepEqual(
+  parseScoreWinningLosing('21-19'),
+  { ws: '21', ls: '19', diff: 2 },
+  '21-19 should parse to ws: 21, ls: 19, diff: 2'
+)
+assert.deepEqual(
+  parseScoreWinningLosing('21-15, 18-21, 22-20'),
+  { ws: '22', ls: '20', diff: 2 },
+  'deciding set 22-20 should be parsed'
+)
+assert.deepEqual(
+  parseScoreWinningLosing('15-21'),
+  { ws: '21', ls: '15', diff: 6 },
+  'inverted 15-21 should still place higher score as ws'
+)
+assert.deepEqual(
+  parseScoreWinningLosing('1-0'),
+  { ws: '1', ls: '0', diff: 1 },
+  '1-0 series score should parse'
+)
+
+// 2. getPlayerInitials & getAvatarBg
+assert.equal(getPlayerInitials('Kuro'), 'K')
+assert.equal(getPlayerInitials('Vân Anh'), 'VA')
+assert.equal(getPlayerInitials('Nguyễn Thị Thúy'), 'NT')
+assert.ok(typeof getAvatarBg('m1', 'Quân') === 'string')
+
+// 3. resolveActivityRow2a & groupActivities2a
+const sampleEvents = [
+  {
+    id: 'ev-1',
+    type: 'match_recorded',
+    created_at: '2026-09-29T14:48:00.000Z',
+    payload: {
+      matchId: 'm-101',
+      winnerIds: ['m1', 'm2'],
+      loserIds: ['m3', 'g1'],
+      score: '22-20',
+      narrativeType: 'clutch',
+    },
+  },
+  {
+    id: 'ev-2',
+    type: 'bounty_broken',
+    created_at: '2026-09-29T14:48:00.000Z',
+    payload: {
+      matchId: 'm-101',
+      streak: 5,
+      victimIds: ['m3'],
+      breakerIds: ['m1', 'm2'],
+    },
+  },
+  {
+    id: 'ev-3',
+    type: 'challenge_completed',
+    created_at: '2026-09-29T10:00:00.000Z',
+    payload: {
+      code: 'C-0121',
+      winnerIds: ['m1'],
+      loserIds: ['m2'],
+      seriesScore: '1-0',
+    },
+  },
+]
+
+const grouped = groupActivities2a(sampleEvents, mockDb)
+assert.equal(grouped.length, 1, 'Both events are on same day 2026-09-29')
+assert.equal(grouped[0].items.length, 2, 'bounty_broken should be absorbed into match_recorded')
+
+const rowMatch = grouped[0].items[0]
+assert.equal(rowMatch.isMatch, true)
+assert.equal(rowMatch.ws, '22')
+assert.equal(rowMatch.ls, '20')
+assert.equal(rowMatch.hasLeadAv, true)
+assert.equal(rowMatch.hasStreak, true, 'Streak should be attached from bounty event')
+assert.ok(rowMatch.streakText.includes('5'), 'Streak text should mention 5')
+
+const rowResolved = grouped[0].items[1]
+assert.equal(rowResolved.isResolved, true)
+assert.equal(rowResolved.code, 'C-0121')
+assert.equal(rowResolved.ws, '1')
+assert.equal(rowResolved.ls, '0')
+
+// 4. Trận nhiều set: `scoreText` là SỐ SET ("2 – 1", gạch ngang dài như appActions ghi), còn
+// "cách N điểm" phải lấy điểm thật từ set của trận — không được ra "hơn đúng 1 điểm".
+assert.deepEqual(parseScoreWinningLosing('2 – 1'), { ws: '2', ls: '1', diff: 1 })
+const multiSetDb = {
+  members: mockMembers,
+  matches: [
+    { id: 'bo3-clutch', sets: [[21, 15], [18, 21], [22, 20]], winnerTeam: 'A' },
+    { id: 'bo3-blowout', sets: [[21, 8], [21, 17]], winnerTeam: 'A' },
+  ],
+}
+const matchRow = (matchId, score, narrativeType) => resolveActivityRow2a({
+  id: matchId, type: 'match_recorded', created_at: '2026-09-29T10:00:00.000Z',
+  payload: { matchId, score, narrativeType, winnerIds: ['m1'], loserIds: ['m2'] },
+}, multiSetDb)
+
+const clutchRow = matchRow('bo3-clutch', '2 – 1', 'clutch')
+assert.equal(clutchRow.ws, '2', 'cột phải vẫn hiện số set')
+assert.equal(clutchRow.ls, '1')
+assert.ok(clutchRow.caption.includes('2 điểm'), 'nghẹt thở lấy chênh lệch set cuối 22-20: ' + clutchRow.caption)
+
+const blowoutRow = matchRow('bo3-blowout', '2 – 0', 'blowout')
+assert.ok(blowoutRow.caption.includes('13 điểm'), 'áp đảo lấy set chênh nhất 21-8: ' + blowoutRow.caption)
+
+const unknownRow = matchRow('da-xoa', '2 – 0', 'normal')
+assert.ok(!/\d/.test(unknownRow.caption), 'không có set thì không in con số: ' + unknownRow.caption)
+
+// 5. Trạng thái kèo theo đúng `status` mà appActions ghi — không phải cái gì cũng "Chờ nhận".
+const keoRow = (status, extra = {}) => resolveActivityRow2a({
+  id: 'k', type: 'challenge_created', ref_id: 'c1', created_at: '2026-09-29T10:00:00.000Z',
+  payload: { chalId: 'c1', code: 'C-01', challengerIds: ['m1', 'm3'], opponentIds: ['m2', 'm4'] },
+}, status ? { members: mockMembers, challenges: [{ id: 'c1', code: 'C-01', status, ...extra }] } : { members: mockMembers })
+const inOneHour = new Date(Date.now() + 3600000).toISOString()
+assert.equal(keoRow('pending', { expiresAt: inOneHour }).keoStatus, 'Chờ nhận')
+assert.equal(keoRow('accepted').keoStatus, 'Đã nhận · chờ đấu')
+assert.equal(keoRow('oncourt').keoStatus, 'Đang trên sân')
+assert.equal(keoRow('played').keoStatus, 'Đã đấu')
+assert.equal(keoRow('cancelled').keoStatus, 'Đã hủy')
+assert.equal(keoRow(null).keoStatus, '', 'không còn thấy kèo thì để trống, không đoán')
+
+// Từ chối là âm thầm: Bảng tin cả CLB đọc, nên "bị từ chối" và "hết hạn" phải KHÔNG phân biệt
+// được — tách nhãn là lộ ra đội B đã từ chối.
+assert.equal(keoRow('declined').keoStatus, 'Không thành')
+assert.equal(keoRow('expired').keoStatus, 'Không thành')
+assert.equal(
+  keoRow('pending', { expiresAt: '2026-01-01T00:00:00.000Z' }).keoStatus,
+  'Không thành',
+  'pending đã quá hạn nhận mà chưa ai quét sang expired cũng là kèo không thành'
+)
+
+// 7. Bấm dòng: kèo → Sàn kèo, buổi → trang buổi; thứ không còn / kèo "Không thành" thì không bấm
+const linkDb = {
+  challenges: [
+    { id: 'c-live', status: 'accepted' },
+    { id: 'c-dec', status: 'declined' },
+    { id: 'c-exp', status: 'expired' },
+  ],
+  sessions: [{ id: 's1', status: 'open' }, { id: 's2', status: 'closed' }],
+}
+const linkOfRef = (ref_type, ref_id) => activityLinkOf({ ref_type, ref_id }, linkDb)
+assert.equal(linkOfRef('challenge', 'c-live'), '/tran-dau?tab=challenges&challengeId=c-live')
+assert.equal(linkOfRef('session', 's1'), '/buoi-tap/s1')
+assert.equal(linkOfRef('challenge', 'c-gone'), null, 'kèo không còn thì không đưa tới màn trống')
+assert.equal(linkOfRef('challenge', 'c-dec'), null, 'kèo từ chối: mở ra là thẻ kèo ghi "Từ chối"')
+assert.equal(linkOfRef('challenge', 'c-exp'), null, 'hết hạn khoá cùng từ chối để không đoán được')
+
+const sessionRow = (sessionId) => resolveActivityRow2a({
+  id: 'so', type: 'session_opened', ref_id: sessionId, created_at: '2026-09-29T10:00:00.000Z',
+  payload: { sessionId, date: '2026-10-02' },
+}, linkDb)
+assert.equal(sessionRow('s1').canRsvp, true)
+assert.equal(sessionRow('s2').canRsvp, false, 'buổi đã chốt thì không mời điểm danh nữa')
+
+// 6. Tên bắt đầu bằng emoji không bị cắt đôi cặp surrogate
+assert.equal(getPlayerInitials('🐔 Gà'), '🐔G')
+
+console.log('Option 2a helpers: OK')
