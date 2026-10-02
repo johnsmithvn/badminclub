@@ -4713,7 +4713,7 @@
         "cond": "Đấu ≥ 15 trận trước đối thủ kém mình ≥ 50 Elo với tỷ lệ thắng ≥ 90%"
       },
       "sao_ma_do_duoc": {
-        "name": "Sao mà đỡ được",
+        "name": "Lãnh chúa nông thôn",
         "cond": "Chễm chệ ngôi vị Top 1 Elo trên Bảng Xếp Hạng Nam"
       },
       "nu_hoang_san_cau": {
