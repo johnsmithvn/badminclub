@@ -1968,11 +1968,12 @@ const S = {
   pinnedTop: { display: 'grid', gap: 16, minWidth: 0 },
   // Ghim vào <main> của AppLayout (khung cuộn duy nhất). Các số 14 = padding của main mobile
   // (AppLayout S.mainMobile): margin âm kéo khối sát mép main, padding trả lại đúng 14px — nên nền
-  // phủ kín cả dải padding quanh header (nội dung trôi bên dưới không lộ ra), và top: 0 giữ khối
-  // đứng yên đúng vị trí lúc chưa cuộn.
+  // phủ kín cả dải padding quanh header, nội dung trôi bên dưới không lộ ra.
+  // top PHẢI là -14, không phải 0: trình duyệt tính vạch dính từ mép NỘI DUNG của main (đã trừ
+  // padding 14px), nên top: 0 dính ở vạch 14px và để hở một dải cho nội dung lộ lên trên header.
   pinnedTopMobile: {
     position: 'sticky',
-    top: 0,
+    top: -14,
     zIndex: 20,
     display: 'grid',
     gap: 12,
