@@ -14,6 +14,8 @@ import BadgeUnlockModal from '#components/badges/BadgeUnlockModal.jsx'
 import CollectorLeaderboardTab from '#components/badges/CollectorLeaderboardTab.jsx'
 import { useMobile } from '#hooks/useMobile.js'
 import AnimeMobileCollection from '#components/badges/mobile/AnimeMobileCollection.jsx'
+import TierBackdrop from '#components/badges/TierBackdrop.jsx'
+import { TIER_FX, levelTier } from '#components/badges/tierFx.js'
 import {
   calculateMemberBadges,
   computeClubBadgeStats,
@@ -27,6 +29,7 @@ import {
   ANIME_TIERS,
   NOTCH_CLIP,
   NOTCH_S_CLIP,
+  HEX_CLIP,
 } from '#lib/badges.js'
 import { calculateMemberXp } from '#lib/xp.js'
 import { getSeasonRankLeaderboard, seasonMatchesOf, resolveSeason } from '#lib/season.js'
@@ -251,6 +254,11 @@ export default function Badges() {
     (memberBadges.unlocked || []).filter((b) => b.tier !== 'fun').length
   const inProgressCount = memberBadges.inProgress?.length || 0
   const totalOfficialCount = (memberBadges.all || []).filter((b) => b.tier !== 'fun').length
+
+  // Màu + nền hiệu ứng của thẻ hồ sơ desktop theo cấp (cùng hệ với bản mobile)
+  const levelTierKey = levelTier(memberXpData.level)
+  const levelFx = TIER_FX[levelTierKey]
+  const levelRing = `linear-gradient(160deg,${levelFx.light},${levelFx.acc} 55%,${levelFx.mid})`
 
   // Thao tác gắn danh hiệu lên kệ
   const handleToggleShelf = (badgeId) => {
@@ -992,228 +1000,227 @@ export default function Badges() {
               alignItems: 'stretch',
             }}
           >
-            {/* CỘT TRÁI: THẺ HỒ SƠ NHÀ SƯU TẬP (Collector Profile Card) */}
+            {/* CỘT TRÁI: THẺ HỒ SƠ — nền hiệu ứng theo cấp ở nửa trên, chữ và chỉ số trên nền tối ở
+                nửa dưới (cùng hệ với AnimeMobileCollection, thiết kế "Bộ sưu tập mobile (hiệu ứng mới)") */}
             <div
               style={{
                 position: 'relative',
-                padding: 1,
-                clipPath: NOTCH_CLIP,
-                background: 'linear-gradient(120deg, #6D14FF, #2EE9FF 80%)',
+                borderRadius: 16,
+                overflow: 'hidden',
+                border: `1px solid rgba(${levelFx.rgb},.55)`,
+                background: '#080615',
+                display: 'flex',
+                flexDirection: 'column',
               }}
             >
-              <div
-                style={{
-                  position: 'relative',
-                  overflow: 'hidden',
-                  clipPath: NOTCH_CLIP,
-                  background: 'linear-gradient(150deg, #1A0B35, #0B0518)',
-                  padding: '18px 20px',
-                  display: 'flex',
-                  flexDirection: 'column',
-                  gap: 15,
-                  height: '100%',
-                }}
-              >
-                {/* Vòng xoay tia sáng background */}
+              <TierBackdrop tier={levelTierKey} compact />
+
+              {/* Dòng 1: Avatar + Tên + Cấp + Kệ + Huy hiệu đã mở */}
+              <div style={{ position: 'relative', padding: '18px 20px 0', display: 'flex', alignItems: 'center', gap: 15 }}>
                 <div
                   style={{
-                    position: 'absolute',
-                    top: '-140%',
-                    left: '-12%',
-                    width: 520,
-                    height: 520,
-                    background: 'repeating-conic-gradient(from 0deg, rgba(109,20,255,.2) 0deg 5deg, transparent 5deg 15deg)',
-                    animation: 'aSpinBack 30s linear infinite',
-                    pointerEvents: 'none',
+                    position: 'relative',
+                    width: 66,
+                    height: 72,
+                    flex: '0 0 auto',
+                    filter: `drop-shadow(0 0 16px rgba(${levelFx.rgb},.5))`,
                   }}
-                />
-
-                {/* Dòng 1: Avatar thật + Tên + Cấp + Chữ ký + Huy hiệu đã mở */}
-                <div style={{ position: 'relative', display: 'flex', alignItems: 'center', gap: 15 }}>
-                  {/* AVATAR THẬT TRONG KHUNG LỤC GIÁC CONIC XANH LAM */}
-                  <div style={{ position: 'relative', width: 64, height: 64, flex: '0 0 auto' }}>
-                    <div
-                      style={{
-                        position: 'absolute',
-                        inset: '-22%',
-                        background: 'radial-gradient(50% 50% at 50% 50%, rgba(46,233,255,.4), transparent 70%)',
-                        animation: 'aPulse 4s ease-in-out infinite',
-                        pointerEvents: 'none',
-                      }}
+                >
+                  <div style={{ position: 'absolute', inset: 0, clipPath: HEX_CLIP, background: levelRing }} />
+                  <div
+                    style={{
+                      position: 'absolute',
+                      inset: 2.5,
+                      clipPath: HEX_CLIP,
+                      background: levelFx.well,
+                      display: 'grid',
+                      placeItems: 'center',
+                      overflow: 'hidden',
+                    }}
+                  >
+                    <Avatar
+                      name={activeMember.name}
+                      src={activeMember.avatar_url || activeMember.avatarUrl}
+                      size={62}
                     />
-                    <div
-                      style={{
-                        position: 'absolute',
-                        inset: 0,
-                        clipPath: 'polygon(50% 0%, 95% 25%, 95% 75%, 50% 100%, 5% 75%, 5% 25%)',
-                        background: 'conic-gradient(from 200deg, #0B63FF, #2EE9FF, #D6FEFF, #FFFFFF, #2EE9FF, #0B63FF)',
-                      }}
-                    />
-                    <div
-                      style={{
-                        position: 'absolute',
-                        inset: 3,
-                        clipPath: 'polygon(50% 0%, 95% 25%, 95% 75%, 50% 100%, 5% 75%, 5% 25%)',
-                        background: 'radial-gradient(120% 120% at 50% 8%, #032C5E, #01101F 72%)',
-                        display: 'grid',
-                        placeItems: 'center',
-                        overflow: 'hidden',
-                      }}
-                    >
-                      <Avatar
-                        name={activeMember.name}
-                        src={activeMember.avatar_url || activeMember.avatarUrl}
-                        size={58}
-                      />
-                    </div>
-                  </div>
-
-                  <div style={{ flex: '1 1 0%', minWidth: 0, display: 'flex', flexDirection: 'column', gap: 5 }}>
-                    <div style={{ display: 'flex', alignItems: 'center', gap: 9, flexWrap: 'wrap' }}>
-                      <span
-                        style={{
-                          font: '700 22px/1 Oswald, sans-serif',
-                          letterSpacing: '.04em',
-                          textTransform: 'uppercase',
-                          color: '#FFFFFF',
-                        }}
-                      >
-                        {activeMember.name} {isViewingSelf ? `· ${t('season.youBadge')}` : ''}
-                      </span>
-                      <span
-                        style={{
-                          font: '700 10px/1 Oswald, sans-serif',
-                          letterSpacing: '.16em',
-                          padding: '5px 9px',
-                          clipPath: 'polygon(6px 0, 100% 0, 100% calc(100% - 6px), calc(100% - 6px) 100%, 0 100%, 0 6px)',
-                          background: 'linear-gradient(135deg, #0B63FF, #2EE9FF)',
-                          color: '#01101F',
-                        }}
-                      >
-                        {t('badges.collectorProfile.level', { level: memberXpData.level })}
-                      </span>
-                    </div>
-
-                    <div style={{ display: 'flex', alignItems: 'center', gap: 8, flexWrap: 'wrap', marginTop: 4 }}>
-                      <button
-                        type="button"
-                        onClick={() => {
-                          if (isViewingSelf) {
-                            setSignatureDraft(currentMember.signature || '')
-                            setIsEditingSignature(true)
-                          }
-                        }}
-                        disabled={!isViewingSelf}
-                        title={isViewingSelf ? t('badges.signatureModal.title') : undefined}
-                        style={{
-                          display: 'inline-flex',
-                          alignItems: 'center',
-                          gap: 6,
-                          padding: '3px 10px',
-                          borderRadius: 6,
-                          background: isViewingSelf ? 'rgba(255, 226, 75, 0.12)' : 'rgba(255, 255, 255, 0.04)',
-                          border: isViewingSelf ? '1px solid rgba(255, 226, 75, 0.35)' : '1px solid rgba(255, 255, 255, 0.08)',
-                          color: '#FFE24B',
-                          cursor: isViewingSelf ? 'pointer' : 'default',
-                          fontSize: 12,
-                          fontFamily: "'IBM Plex Sans', sans-serif",
-                          transition: 'all 0.15s ease',
-                        }}
-                      >
-                        <span style={{ fontStyle: 'italic', color: activeMember.signature ? '#FFE24B' : '#A899C5' }}>
-                          “{activeMember.signature || t('badges.collectorProfile.notSelected')}”
-                        </span>
-                        {isViewingSelf && (
-                          <span style={{ fontSize: 11, fontWeight: 600, display: 'inline-flex', alignItems: 'center', gap: 3, color: '#FFE24B' }}>
-                            ✎ {t('common.edit')}
-                          </span>
-                        )}
-                      </button>
-                      <span style={{ font: "400 11.5px/1 'IBM Plex Mono', monospace", color: '#7E6FA0' }}>
-                        · {t('badges.collectorProfile.shelfSlotsLabel', {
-                          shelf: memberBadges.shelfBadges?.length || 0,
-                          max: badgesConfig.shelfSlots || 3,
-                        })}
-                      </span>
-                    </div>
-                  </div>
-
-                  <div style={{ flex: '0 0 auto', display: 'flex', flexDirection: 'column', gap: 4, alignItems: 'flex-end' }}>
-                    <span style={{ font: '700 26px/1 Oswald, sans-serif', color: '#7FE7FF' }}>
-                      {officialUnlockedCount} / {totalOfficialCount}
-                    </span>
-                    <span style={{ font: '600 9.5px/1 Oswald, sans-serif', letterSpacing: '.16em', color: '#7E6FA0' }}>
-                      {t('badges.collectorProfile.unlockedLabel')}
-                    </span>
                   </div>
                 </div>
 
-                {/* Dòng 2: Thanh tiến độ lên cấp XP thật từ DB */}
-                <div style={{ position: 'relative', display: 'flex', flexDirection: 'column', gap: 7 }}>
-                  <div style={{ display: 'flex', alignItems: 'baseline', gap: 10 }}>
-                    <span style={{ font: '600 10px/1 Oswald, sans-serif', letterSpacing: '.16em', color: '#7FE7FF' }}>
-                      {t('badges.collectorProfile.nextLevelTitle', { nextLevel: memberXpData.level + 1 })}
-                    </span>
-                    <div style={{ flex: '1 1 0%' }} />
-                    <span style={{ font: "600 12px/1 'IBM Plex Mono', monospace", color: '#C9B8E6' }}>
-                      {t('badges.collectorProfile.nextLevelProgress', {
-                        current: (memberXpData.totalXp - memberXpData.currentLevelBaseXp).toLocaleString('vi-VN'),
-                        target: (memberXpData.nextLevelXp - memberXpData.currentLevelBaseXp).toLocaleString('vi-VN'),
-                      })}
-                    </span>
-                  </div>
-                  <div style={{ height: 10, clipPath: NOTCH_S_CLIP, background: 'rgba(255,255,255,.09)' }}>
-                    <div
+                <div style={{ flex: '1 1 0%', minWidth: 0, display: 'flex', flexDirection: 'column', gap: 6 }}>
+                  <div style={{ display: 'flex', alignItems: 'center', gap: 9, flexWrap: 'wrap' }}>
+                    <span
                       style={{
-                        height: '100%',
-                        width: `${memberXpData.levelProgressPct}%`,
-                        background: 'linear-gradient(90deg, #0B63FF, #2EE9FF)',
-                        transition: 'width 0.3s ease',
+                        font: "700 24px/1.1 'Oswald', sans-serif",
+                        letterSpacing: '.04em',
+                        textTransform: 'uppercase',
+                        color: '#FFFFFF',
                       }}
-                    />
+                    >
+                      {activeMember.name} {isViewingSelf ? `· ${t('season.youBadge')}` : ''}
+                    </span>
+                    <span
+                      style={{
+                        font: "700 11px/1 'Oswald', sans-serif",
+                        letterSpacing: '.14em',
+                        padding: '5px 9px',
+                        borderRadius: 4,
+                        background: levelRing,
+                        color: '#04101A',
+                      }}
+                    >
+                      {t('badges.collectorProfile.level', { level: memberXpData.level })}
+                    </span>
                   </div>
-                  <span style={{ font: "400 11px/1.4 'IBM Plex Mono', monospace", color: '#7E6FA0' }}>
-                    {t('badges.collectorProfile.nextLevelHint', {
-                      remain: Math.max(0, memberXpData.nextLevelXp - memberXpData.totalXp).toLocaleString('vi-VN'),
+                  <span style={{ font: '400 12px/1 var(--font-mono)', color: '#9A90AD' }}>
+                    {t('badges.collectorProfile.shelfSlotsLabel', {
+                      shelf: memberBadges.shelfBadges?.length || 0,
+                      max: badgesConfig.shelfSlots || 3,
                     })}
                   </span>
                 </div>
 
-                {/* Dòng 3: 3 Ô chỉ số THẬT từ DB (XP Tích luỹ · Điểm mùa · Điểm sưu tập) */}
-                <div style={{ position: 'relative', display: 'grid', gridTemplateColumns: 'repeat(3, minmax(0, 1fr))', gap: 10 }}>
-                  <div style={{ padding: '11px 13px', clipPath: NOTCH_S_CLIP, background: 'rgba(255,122,24,.1)', borderTop: '1px solid #FF7A18', display: 'flex', flexDirection: 'column', gap: 5 }}>
-                    <span style={{ font: '600 9.5px/1 Oswald, sans-serif', letterSpacing: '.16em', color: '#FFC46B' }}>
-                      {t('badges.collectorProfile.xpAccumulated')}
-                    </span>
-                    <span style={{ font: '700 20px/1 Oswald, sans-serif', color: '#FFFFFF' }}>
-                      {memberXpData.totalXp.toLocaleString('vi-VN')}
-                    </span>
-                    <span style={{ font: "400 10px/1 'IBM Plex Mono', monospace", color: '#7E6FA0' }}>
-                      {t('badges.collectorProfile.xpNote')}
-                    </span>
-                  </div>
-                  <div style={{ padding: '11px 13px', clipPath: NOTCH_S_CLIP, background: 'rgba(46,233,192,.1)', borderTop: '1px solid #0E9F8E', display: 'flex', flexDirection: 'column', gap: 5 }}>
-                    <span style={{ font: '600 9.5px/1 Oswald, sans-serif', letterSpacing: '.16em', color: '#5FEBD0' }}>
-                      {t('badges.collectorProfile.seasonPoints')}
-                    </span>
-                    <span style={{ font: '700 20px/1 Oswald, sans-serif', color: '#FFFFFF' }}>
-                      {memberSeasonData.seasonPoints}
-                    </span>
-                    <span style={{ font: "400 10px/1 'IBM Plex Mono', monospace", color: '#7E6FA0' }}>
-                      {t('badges.collectorProfile.seasonPointsNote', { rank: memberSeasonData.rank })}
-                    </span>
-                  </div>
-                  <div style={{ padding: '11px 13px', clipPath: NOTCH_S_CLIP, background: 'rgba(255,46,126,.1)', borderTop: '1px solid #FF2E7E', display: 'flex', flexDirection: 'column', gap: 5 }}>
-                    <span style={{ font: '600 9.5px/1 Oswald, sans-serif', letterSpacing: '.16em', color: '#FFC46B' }}>
-                      {t('badges.collectorProfile.collectionPoints')}
-                    </span>
-                    <span style={{ font: '700 20px/1 Oswald, sans-serif', color: '#FFFFFF' }}>
-                      {memberBadges.collectionScore}
-                    </span>
-                    <span style={{ font: "400 10px/1 'IBM Plex Mono', monospace", color: '#7E6FA0' }}>
-                      {t('badges.collectorProfile.collectionPointsNote', { rank: memberCollectorRank })}
-                    </span>
-                  </div>
+                <div style={{ flex: '0 0 auto', display: 'flex', flexDirection: 'column', gap: 5, alignItems: 'flex-end' }}>
+                  <span style={{ font: "700 28px/1 'Oswald', sans-serif", color: '#FFFFFF' }}>
+                    {officialUnlockedCount} / {totalOfficialCount}
+                  </span>
+                  <span style={{ font: "600 10px/1 'Oswald', sans-serif", letterSpacing: '.14em', color: '#8E83A8' }}>
+                    {t('badges.collectorProfile.unlockedLabel')}
+                  </span>
+                </div>
+              </div>
+
+              {/* Nửa dưới trên nền tối: chữ ký · tiến độ cấp · 3 chỉ số */}
+              <div
+                style={{
+                  position: 'relative',
+                  flex: '1 1 auto',
+                  marginTop: 6,
+                  padding: '14px 20px 20px',
+                  display: 'flex',
+                  flexDirection: 'column',
+                  gap: 12,
+                  background: 'linear-gradient(180deg,transparent,rgba(6,4,16,.92) 30%)',
+                }}
+              >
+                <button
+                  type="button"
+                  onClick={() => {
+                    if (isViewingSelf) {
+                      setSignatureDraft(currentMember.signature || '')
+                      setIsEditingSignature(true)
+                    }
+                  }}
+                  disabled={!isViewingSelf}
+                  title={isViewingSelf ? t('badges.signatureModal.title') : undefined}
+                  style={{
+                    alignSelf: 'flex-start',
+                    maxWidth: '100%',
+                    display: 'inline-flex',
+                    alignItems: 'center',
+                    gap: 8,
+                    padding: '9px 14px',
+                    borderRadius: 999,
+                    border: '1px solid rgba(246,201,69,.45)',
+                    background: 'transparent',
+                    font: 'italic 400 14px/1.2 var(--font-sans)',
+                    color: activeMember.signature ? '#F6C945' : '#A899C5',
+                    cursor: isViewingSelf ? 'pointer' : 'default',
+                    textAlign: 'left',
+                  }}
+                >
+                  <span style={{ minWidth: 0, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>
+                    “{activeMember.signature || t('badges.collectorProfile.notSelected')}”
+                  </span>
+                  {isViewingSelf && <span style={{ fontStyle: 'normal', color: '#F6C945' }}>✎</span>}
+                </button>
+
+                <div style={{ display: 'flex', alignItems: 'baseline', gap: 10 }}>
+                  <span
+                    style={{
+                      flex: '1 1 0%',
+                      minWidth: 0,
+                      font: "700 11px/1.2 'Oswald', sans-serif",
+                      letterSpacing: '.16em',
+                      color: levelFx.acc,
+                    }}
+                  >
+                    {t('badges.collectorProfile.nextLevelTitle', { nextLevel: memberXpData.level + 1 })}
+                  </span>
+                  <span style={{ flex: '0 0 auto', font: '500 12px/1 var(--font-mono)', color: '#C9BFDC' }}>
+                    {t('badges.collectorProfile.nextLevelProgress', {
+                      current: (memberXpData.totalXp - memberXpData.currentLevelBaseXp).toLocaleString('vi-VN'),
+                      target: (memberXpData.nextLevelXp - memberXpData.currentLevelBaseXp).toLocaleString('vi-VN'),
+                    })}
+                  </span>
+                </div>
+                <div style={{ height: 8, borderRadius: 999, background: 'rgba(255,255,255,.1)', overflow: 'hidden' }}>
+                  <div
+                    style={{
+                      width: `${memberXpData.levelProgressPct}%`,
+                      height: '100%',
+                      borderRadius: 999,
+                      background: `linear-gradient(90deg,${levelFx.mid},${levelFx.acc})`,
+                      transition: 'width 320ms cubic-bezier(.2,.8,.2,1)',
+                    }}
+                  />
+                </div>
+                <span style={{ font: '400 11px/1.4 var(--font-mono)', color: '#8E83A8' }}>
+                  {t('badges.collectorProfile.nextLevelHint', {
+                    remain: Math.max(0, memberXpData.nextLevelXp - memberXpData.totalXp).toLocaleString('vi-VN'),
+                  })}
+                </span>
+
+                {/* 3 ô chỉ số thật từ DB (XP tích luỹ · Điểm mùa · Điểm sưu tập) */}
+                <div style={{ display: 'grid', gridTemplateColumns: 'repeat(3, minmax(0, 1fr))', gap: 10, marginTop: 2 }}>
+                  {[
+                    {
+                      key: 'xp',
+                      label: t('badges.collectorProfile.xpAccumulated'),
+                      value: memberXpData.totalXp.toLocaleString('vi-VN'),
+                      note: t('badges.collectorProfile.xpNote'),
+                      color: '#F6A03C',
+                      ink: '#F6A03C',
+                      bg: 'rgba(246,160,60,.08)',
+                    },
+                    {
+                      key: 'season',
+                      label: t('badges.collectorProfile.seasonPoints'),
+                      value: memberSeasonData.seasonPoints,
+                      note: t('badges.collectorProfile.seasonPointsNote', { rank: memberSeasonData.rank }),
+                      color: '#5FDBD3',
+                      ink: '#5FDBD3',
+                      bg: 'rgba(95,219,211,.08)',
+                    },
+                    {
+                      key: 'collection',
+                      label: t('badges.collectorProfile.collectionPoints'),
+                      value: memberBadges.collectionScore,
+                      note: t('badges.collectorProfile.collectionPointsNote', { rank: memberCollectorRank }),
+                      color: '#FF3D77',
+                      ink: '#FF6A95',
+                      bg: 'rgba(255,61,119,.08)',
+                    },
+                  ].map((s) => (
+                    <div
+                      key={s.key}
+                      style={{
+                        minWidth: 0,
+                        padding: '11px 13px',
+                        borderRadius: 8,
+                        background: s.bg,
+                        borderTop: `2px solid ${s.color}`,
+                        display: 'flex',
+                        flexDirection: 'column',
+                        gap: 6,
+                      }}
+                    >
+                      <span style={{ font: "700 10px/1.2 'Oswald', sans-serif", letterSpacing: '.14em', color: s.ink }}>
+                        {s.label}
+                      </span>
+                      <span style={{ font: "700 22px/1 'Oswald', sans-serif", color: '#FFFFFF' }}>{s.value}</span>
+                      <span style={{ font: '400 10px/1.3 var(--font-mono)', color: '#8E83A8' }}>{s.note}</span>
+                    </div>
+                  ))}
                 </div>
               </div>
             </div>

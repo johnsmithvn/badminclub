@@ -65,6 +65,14 @@ test('Season Race — Hiển thị đủ tên trên màn lớn và CSS ellipsis 
       !code.includes('gridTemplateColumns: "1fr 1fr"'),
       'Không được dùng gridTemplateColumns: "1fr 1fr"!'
     )
+    // Cột đơn mobile cũng vậy: '1fr' = minmax(auto, 1fr), tên dài nowrap vẫn đẩy phình cả tab
+    for (const file of ['SeasonRaceTab.jsx', 'CareerEloTab.jsx']) {
+      const src = await fs.readFile(path.resolve('src/components/leaderboard', file), 'utf8')
+      assert.ok(
+        !src.includes("isMobile ? '1fr'"),
+        `${file}: cột mobile phải là minmax(0, 1fr), không phải '1fr'`
+      )
+    }
     assert.ok(
       code.includes("gridTemplateColumns: 'repeat(2, minmax(0, 1fr))'"),
       'Mobile 2-column podium phải dùng repeat(2, minmax(0, 1fr))'

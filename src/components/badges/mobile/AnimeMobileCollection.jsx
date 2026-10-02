@@ -1,7 +1,7 @@
 import { useState, useMemo } from 'react'
 import BadgeHex from '../BadgeHex.jsx'
 import TierBackdrop from '../TierBackdrop.jsx'
-import { TIER_FX } from '../tierFx.js'
+import { TIER_FX, levelTier } from '../tierFx.js'
 import { HEX_CLIP, sortBadgesByRarity } from '#lib/badges.js'
 import { t } from '#i18n'
 import { shortName } from '#lib/money.js'
@@ -29,14 +29,6 @@ const SELECT = {
   cursor: 'pointer',
 }
 const OPTION = { background: '#0B0820', color: '#FFFFFF' }
-
-/**
- * Thẻ hồ sơ đổi hiệu ứng theo CẤP người chơi: hai nấc dưới chùm sáng, hai nấc trên cực quang.
- * Bản thiết kế chỉ vẽ cấp 1–4, còn cấp thật chạy tới 25+ (600 XP một cấp) — chia đúng 1–4 thì
- * gần như cả CLB rơi vào cùng một nấc. Nên chia theo các mốc danh xưng của `titleOfLevel`
- * (xp.js): dưới 10 · 10 Quen sân · 15 Thực chiến · 20 Hảo thủ trở lên.
- */
-const levelTier = (level) => (level >= 20 ? 'legend' : level >= 15 ? 'epic' : level >= 10 ? 'elite' : 'rare')
 
 /**
  * AM1 · Bộ sưu tập (mobile) — thiết kế "Danh hiệu · Bộ sưu tập mobile (hiệu ứng mới)".

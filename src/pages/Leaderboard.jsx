@@ -331,7 +331,7 @@ export default function Leaderboard() {
   )
 
   return (
-    <div style={{ display: 'grid', gap: 16 }}>
+    <div style={{ display: 'grid', gridTemplateColumns: 'minmax(0, 1fr)', gap: 16 }}>
       {/* ---------------- Header trang Bảng xếp hạng (Duy nhất) ---------------- */}
       <div
         style={{

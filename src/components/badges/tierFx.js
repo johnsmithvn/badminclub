@@ -34,3 +34,11 @@ export const TIER_FX = {
     well: 'linear-gradient(160deg,#1B1030,#0A0514)', effect: null,
   },
 }
+
+/**
+ * Thẻ hồ sơ ở màn Danh hiệu (mobile lẫn desktop) đổi hiệu ứng theo CẤP người chơi: hai nấc
+ * dưới chùm sáng, hai nấc trên cực quang. Bản thiết kế chỉ vẽ cấp 1–4, còn cấp thật chạy tới 25+ (600 XP một cấp) — chia đúng 1–4 thì
+ * gần như cả CLB rơi vào cùng một nấc. Nên chia theo các mốc danh xưng của `titleOfLevel`
+ * (xp.js): dưới 10 · 10 Quen sân · 15 Thực chiến · 20 Hảo thủ trở lên.
+ */
+export const levelTier = (level) => (level >= 20 ? 'legend' : level >= 15 ? 'epic' : level >= 10 ? 'elite' : 'rare')
