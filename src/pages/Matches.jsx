@@ -1,4 +1,4 @@
-import { useState, useMemo, useCallback, useEffect } from 'react'
+import { useState, useMemo, useCallback, useEffect, useRef } from 'react'
 import { useNavigate, useSearchParams } from 'react-router-dom'
 import { Alert, Avatar, Button, Card, Dialog, Icon, IconButton, Input, Select, StatCard } from '#ds'
 import { LevelChip, Mono, Overline, PageHeader, SearchSelect, TabBar, TabTrack } from '#ui'
@@ -141,6 +141,8 @@ export default function Matches() {
   const cidParam = searchParams.get('challengeId')
   const matchIdParam = searchParams.get('matchId')
   const [highlightedChallengeId, setHighlightedChallengeId] = useState(() => cidParam || null)
+  const focusedCidRef = useRef(null) // cid đã chuyển sang Sàn kèo + làm nổi bật
+  const subTabCidRef = useRef(null) // cid đã chọn xong tab con
 
   // Đồng bộ tab và challengeId / matchId từ URL searchParams khi được điều hướng từ ngoài vào
   useEffect(() => {
@@ -161,31 +163,47 @@ export default function Matches() {
       }
     }
 
-    if (cidParam) {
+    // Mỗi `challengeId` chỉ được TRỎ TỚI MỘT LẦN. Param vẫn nằm lại trên URL, mà effect này chạy
+    // lại mỗi khi URL đổi (bấm sang tab Lịch sử) hay `db.challenges` nạp lại — trước đây lần nào
+    // cũng setActiveTab('challenges') + đặt lại tab con, giật người dùng về Sàn kèo.
+    if (!cidParam) {
+      focusedCidRef.current = null
+      subTabCidRef.current = null
+      return
+    }
+    if (focusedCidRef.current !== cidParam) {
+      focusedCidRef.current = cidParam
       setHighlightedChallengeId(cidParam)
       setActiveTab('challenges')
+    }
+    if (subTabCidRef.current === cidParam) return
 
-      const targetChal = (db.challenges || []).find((c) => c.id === cidParam)
-      if (targetChal) {
-        const isMine = myId && (
-          (targetChal.teamA || []).includes(myId) ||
-          (targetChal.teamB || []).includes(myId) ||
-          targetChal.createdBy === myId
-        )
-        if (isMine) {
-          setChallengeSubTab('my')
-        } else if (targetChal.status === 'pending') {
-          setChallengeSubTab('pending')
-        } else if (targetChal.status === 'played') {
-          setChallengeSubTab('played')
-        } else if (isChallengeAccepted(targetChal)) {
-          setChallengeSubTab('accepted')
-        } else {
-          setChallengeSubTab('pending')
-        }
-      } else {
+    const targetChal = (db.challenges || []).find((c) => c.id === cidParam)
+    if (!targetChal) {
+      // Chưa nạp xong kèo thì chờ lượt sau — chốt luôn là chọn nhầm tab con mà không sửa lại được.
+      // Đã có danh sách mà không thấy thì kèo không còn: chốt 'pending' như cũ.
+      if ((db.challenges || []).length) {
+        subTabCidRef.current = cidParam
         setChallengeSubTab('pending')
       }
+      return
+    }
+    subTabCidRef.current = cidParam
+    const isMine = myId && (
+      (targetChal.teamA || []).includes(myId) ||
+      (targetChal.teamB || []).includes(myId) ||
+      targetChal.createdBy === myId
+    )
+    if (isMine) {
+      setChallengeSubTab('my')
+    } else if (targetChal.status === 'pending') {
+      setChallengeSubTab('pending')
+    } else if (targetChal.status === 'played') {
+      setChallengeSubTab('played')
+    } else if (isChallengeAccepted(targetChal)) {
+      setChallengeSubTab('accepted')
+    } else {
+      setChallengeSubTab('pending')
     }
   }, [searchParams, cidParam, matchIdParam, db.challenges, db.matches, myId])
 

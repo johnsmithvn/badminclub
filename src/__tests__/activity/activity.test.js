@@ -705,6 +705,25 @@ assert.equal(sessionRow('s2').canRsvp, false, 'buổi đã chốt thì không m�
   assert.equal(same.badge, null)
 }
 
+// 10. Huỷ kèo: dòng gạ kèo đã hiện "Đã hủy" thì bỏ dòng huỷ riêng; gạ kèo ở trang chưa tải thì giữ
+{
+  const created = {
+    id: 'g1', type: 'challenge_created', ref_type: 'challenge', ref_id: 'c129', created_at: '2026-10-02T06:10:00.000Z',
+    payload: { chalId: 'c129', code: 'C-0129', challengerIds: ['m1', 'm2'], opponentIds: ['m3', 'm4'] },
+  }
+  const cancelled = {
+    id: 'x1', type: 'challenge_cancelled', ref_type: 'challenge', ref_id: 'c129', created_at: '2026-10-02T06:18:00.000Z',
+    payload: { code: 'C-0129' },
+  }
+  const db = { members: mockMembers, challenges: [{ id: 'c129', code: 'C-0129', status: 'cancelled' }] }
+  const both = groupActivities2a([cancelled, created], db).flatMap((d) => d.items)
+  assert.deepEqual(both.map((r) => r.id), ['g1'], 'chỉ còn dòng gạ kèo')
+  assert.equal(both[0].keoStatus, 'Đã hủy')
+
+  const onlyCancel = groupActivities2a([cancelled], db).flatMap((d) => d.items)
+  assert.deepEqual(onlyCancel.map((r) => r.id), ['x1'], 'gạ kèo chưa tải thì dòng huỷ là tin duy nhất')
+}
+
 // 6. Tên bắt đầu bằng emoji không bị cắt đôi cặp surrogate
 assert.equal(getPlayerInitials('🐔 Gà'), '🐔G')
 

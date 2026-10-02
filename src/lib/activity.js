@@ -1138,6 +1138,10 @@ export function groupActivities2a(events = [], db = {}) {
     }
   }
   const chalIdOf = (ev) => ev.payload?.chalId || ev.ref_id || ev.refId
+  // Kèo đã có dòng gạ kèo trên trang thì dòng đó tự hiện "Đã hủy" — dòng "Kèo X đã bị huỷ" riêng
+  // là kể lại lần hai. Chỉ giữ dòng huỷ khi dòng gạ kèo nằm ở trang chưa tải (thì nó là tin duy
+  // nhất). Huỷ luôn MỚI hơn gạ, nên hễ dòng gạ đã tải là dòng huỷ cũng đã tải.
+  const createdChalIds = new Set(events.filter((e) => e.type === 'challenge_created').map(chalIdOf).filter(Boolean))
 
   // Bản trước / sau cho một dòng báo sửa / huỷ trận.
   const versionsOf = (ev) => {
@@ -1177,6 +1181,7 @@ export function groupActivities2a(events = [], db = {}) {
       const list = completedByChal.get(chalIdOf(ev))
       if (list && list[0] !== ev) return false
     }
+    if (ev.type === 'challenge_cancelled' && createdChalIds.has(chalIdOf(ev))) return false
     return true
   })
 
