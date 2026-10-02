@@ -213,6 +213,19 @@ export default function Matches() {
   const [playerA, setPlayerA] = useState(() => searchParams.get('playerA') || '')
   const [playerB, setPlayerB] = useState(() => searchParams.get('playerB') || '')
   const [searchMode, setSearchMode] = useState('vs') // 'vs' | 'team'
+  // Bấm một dòng trận trên Bảng tin: lọc ĐÚNG hai cặp của trận đó (`pairA`/`pairB` = "id,id").
+  // Không có ô riêng trên giao diện — hai ô Người A/B hiện người đứng đầu mỗi cặp, và ràng buộc
+  // cặp chỉ còn hiệu lực khi hai ô đó vẫn đúng hai người ấy. Đổi người / đổi chế độ / xoá lọc là
+  // nó tự rơi, không cần nút gỡ.
+  const [pairFilter] = useState(() => {
+    const a = (searchParams.get('pairA') || '').split(',').filter(Boolean)
+    const b = (searchParams.get('pairB') || '').split(',').filter(Boolean)
+    return a.length && b.length ? [a, b] : null
+  })
+  const activePairs = pairFilter && searchMode === 'vs'
+    && playerA === pairFilter[0][0] && playerB === pairFilter[1][0]
+    ? pairFilter
+    : null
   const [qualityFilter, setQualityFilter] = useState('all') // 'all' | 'close' | 'threeSets' | 'upset'
   const [showMoreFilters, setShowMoreFilters] = useState(false)
   const [seasonFilter, setSeasonFilter] = useState('all')
@@ -382,6 +395,7 @@ export default function Matches() {
       mode: searchMode,
       quality: qualityFilter,
       ratingsMap,
+      pairs: activePairs,
     })
 
     if (onlyVideoFilter) {
@@ -423,7 +437,7 @@ export default function Matches() {
     }
 
     return list
-  }, [db.matches, playerA, playerB, searchMode, qualityFilter, onlyVideoFilter, viewerFilter, courtFilter, sourceFilter, sortOption, db.playerRatings, activeMembers, db.levels, db.sessions])
+  }, [db.matches, playerA, playerB, searchMode, activePairs, qualityFilter, onlyVideoFilter, viewerFilter, courtFilter, sourceFilter, sortOption, db.playerRatings, activeMembers, db.levels, db.sessions])
 
   const dayGroups = useMemo(() => {
     const groups = []

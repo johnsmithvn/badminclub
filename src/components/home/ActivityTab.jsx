@@ -156,13 +156,65 @@ function renderLeadAvatar(e) {
   )
 }
 
-function renderCenterContent(e) {
+/** Nút "Xem lịch sử thay đổi" + danh sách các bản, cũ → mới. Bản cuối là bản đang có hiệu lực. */
+function renderHistory(e, isOpen, onToggle) {
+  if (!e.history?.length) return null
+  // Nút nằm TRONG một dòng bấm được: chặn cả click lẫn Enter, không thì mở lịch sử là bị đưa
+  // sang trang khác.
+  const stop = (ev) => ev.stopPropagation()
+  return (
+    <>
+      <button
+        type="button"
+        onClick={(ev) => { stop(ev); onToggle(e.id) }}
+        onKeyDown={stop}
+        style={S.historyToggle}
+      >
+        {isOpen ? t('activity.historyHide') : t('activity.historyShow', { n: e.history.length })}
+      </button>
+      {isOpen && (
+        <div style={S.historyList} onClick={stop}>
+          {e.history.map((h, i) => {
+            const isLast = i === e.history.length - 1
+            return (
+              <div key={i} style={{ display: 'flex', flexDirection: 'column', gap: 2 }}>
+                <span style={{ font: '600 12px/1.35 var(--font-sans)', color: 'var(--text-secondary)' }}>
+                  {h.t && (
+                    <span style={{ fontFamily: 'var(--font-mono)', fontWeight: 400, color: 'var(--text-muted)' }}>
+                      {h.t} ·{' '}
+                    </span>
+                  )}
+                  {t('activity.hist_' + h.kind)}
+                  {h.by && <span style={{ fontWeight: 400, color: 'var(--text-muted)' }}> · {h.by}</span>}
+                </span>
+                {(h.winners || h.raw) && (
+                  <span style={{ font: '400 12px/1.35 var(--font-sans)', color: isLast ? 'var(--text-primary)' : 'var(--text-muted)' }}>
+                    {h.winners ? t('activity.versionWin', { winners: h.winners, score: h.score }) : h.raw}
+                  </span>
+                )}
+                {h.reason && (
+                  <span style={{ font: 'italic 400 12px/1.35 var(--font-sans)', color: 'var(--text-muted)' }}>
+                    “{h.reason}”
+                  </span>
+                )}
+              </div>
+            )
+          })}
+        </div>
+      )}
+    </>
+  )
+}
+
+function renderCenterContent(e, isHistoryOpen, onToggleHistory) {
   if (e.isMatch) {
+    // Trận đã huỷ: không còn ai "thắng" — tên đội thắng thôi tô màu nhấn.
+    const winColor = e.isCancelled ? 'var(--text-secondary)' : 'var(--status-transit-fg)'
     return (
       <>
         <span>
-          <span style={{ color: 'var(--status-transit-fg)', fontWeight: 600 }}>
-            {renderTeam(e.W, 'var(--status-transit-fg)', 600)}
+          <span style={{ color: winColor, fontWeight: 600 }}>
+            {renderTeam(e.W, winColor, 600)}
           </span>
           {' '}{e.verb}{' '}
           <span style={{ color: 'var(--text-primary)', fontWeight: 500 }}>
@@ -186,19 +238,21 @@ function renderCenterContent(e) {
             🔥 {e.streakText}
           </span>
         )}
+        {renderHistory(e, isHistoryOpen, onToggleHistory)}
       </>
     )
   }
 
   if (e.isResolved) {
+    const winColor = e.isVoid ? 'var(--text-secondary)' : 'var(--status-delayed-fg)'
     return (
       <>
-        <span style={{ font: '600 11px/1 var(--font-mono)', color: 'var(--status-delayed-fg)', letterSpacing: '.05em' }}>
+        <span style={{ font: '600 11px/1 var(--font-mono)', color: winColor, letterSpacing: '.05em' }}>
           {t('activity.resolvedTag', { code: e.code })}
         </span>
         <span>
-          <span style={{ color: 'var(--status-delayed-fg)', fontWeight: 600 }}>
-            {renderTeam(e.W, 'var(--status-delayed-fg)', 600)}
+          <span style={{ color: winColor, fontWeight: 600 }}>
+            {renderTeam(e.W, winColor, 600)}
           </span>
           {' '}{t('activity.resolvedDefeated')}{' '}
           <span style={{ color: 'var(--text-primary)', fontWeight: 500 }}>
@@ -206,6 +260,40 @@ function renderCenterContent(e) {
           </span>
           {' '}{t('activity.resolvedFinal')}
         </span>
+        {e.isVoid && (
+          <span style={{ font: '500 12px/1.4 var(--font-sans)', fontStyle: 'italic', color: 'var(--status-incident-fg)' }}>
+            {t('activity.resultVoid')}
+          </span>
+        )}
+        {renderHistory(e, isHistoryOpen, onToggleHistory)}
+      </>
+    )
+  }
+
+  if (e.isMatchChange) {
+    return (
+      <>
+        <span>
+          {e.actor && <span style={{ color: 'var(--text-primary)', fontWeight: 600 }}>{e.actor} </span>}
+          {e.head}
+        </span>
+        {(e.before || e.after) && (
+          <span style={{ font: '400 13px/1.4 var(--font-sans)' }}>
+            {e.before && (
+              <span style={{ color: 'var(--text-muted)', textDecoration: 'line-through' }}>{e.before}</span>
+            )}
+            {e.before && e.after && <span style={{ color: 'var(--text-disabled)' }}> → </span>}
+            {e.after && <span style={{ color: 'var(--text-primary)' }}>{e.after}</span>}
+          </span>
+        )}
+        {e.isCancelChange && (
+          <span style={{ font: '500 12px/1.4 var(--font-sans)', fontStyle: 'italic', color: 'var(--status-incident-fg)' }}>
+            {t('activity.recalcNote')}
+          </span>
+        )}
+        {e.reason && (
+          <span style={{ font: 'italic 400 12px/1.35 var(--font-sans)', color: 'var(--text-muted)' }}>“{e.reason}”</span>
+        )}
       </>
     )
   }
@@ -312,16 +400,24 @@ function renderCenterContent(e) {
 }
 
 function renderRightColumn(e) {
+  // Trận / kết quả kèo đã bị huỷ: tỉ số gạch ngang, mờ đi — vẫn để đó cho biết cái gì bị huỷ.
+  const struck = e.isCancelled || e.isVoid
+  const scoreStyle = (color) => ({
+    font: '600 16px/1 var(--font-mono)',
+    color: struck ? 'var(--text-disabled)' : color,
+    textDecoration: struck ? 'line-through' : 'none',
+    whiteSpace: 'nowrap',
+  })
   return (
     <div style={{ display: 'flex', flexDirection: 'column', alignItems: 'flex-end', gap: 6, minWidth: 52, flexShrink: 0 }}>
       {e.isMatch && (
-        <span style={{ font: '600 16px/1 var(--font-mono)', color: 'var(--status-transit-fg)', whiteSpace: 'nowrap' }}>
+        <span style={scoreStyle('var(--status-transit-fg)')}>
           {e.ws}
           {e.ls !== '' && <span style={{ color: 'var(--text-disabled)' }}>–{e.ls}</span>}
         </span>
       )}
       {e.isResolved && (
-        <span style={{ font: '600 16px/1 var(--font-mono)', color: 'var(--status-delayed-fg)', whiteSpace: 'nowrap' }}>
+        <span style={scoreStyle('var(--status-delayed-fg)')}>
           {e.ws}
           {e.ls !== '' && <span style={{ color: 'var(--text-disabled)' }}>–{e.ls}</span>}
         </span>
@@ -329,6 +425,7 @@ function renderRightColumn(e) {
       <span style={{ font: '400 11px/1 var(--font-mono)', color: 'var(--text-muted)' }}>
         {e.t}
       </span>
+      {e.badge && <span style={S.badge(e.badge.tone)}>{e.badge.text}</span>}
     </div>
   )
 }
@@ -337,6 +434,13 @@ export default function ActivityTab() {
   const { db } = useApp()
   const navigate = useNavigate()
   const [hoverId, setHoverId] = useState(null)
+  const [openHistory, setOpenHistory] = useState(() => new Set())
+  const toggleHistory = (id) => setOpenHistory((prev) => {
+    const next = new Set(prev)
+    if (next.has(id)) next.delete(id)
+    else next.add(id)
+    return next
+  })
   const [events, setEvents] = useState([])
   const [loading, setLoading] = useState(true)
   const [page, setPage] = useState(1)
@@ -452,7 +556,7 @@ export default function ActivityTab() {
                   >
                     {renderLeadAvatar(e)}
                     <div style={S.centerCol}>
-                      {renderCenterContent(e)}
+                      {renderCenterContent(e, openHistory.has(e.id), toggleHistory)}
                     </div>
                     {renderRightColumn(e)}
                   </div>
@@ -545,6 +649,32 @@ const S = {
     font: '400 14px/1.45 var(--font-sans)',
     color: 'var(--text-secondary)',
     wordBreak: 'break-word',
+  },
+  badge: (tone) => ({
+    font: '600 10px/1 var(--font-sans)',
+    padding: '3px 6px',
+    borderRadius: 4,
+    whiteSpace: 'nowrap',
+    background: tone === 'danger' ? 'var(--status-incident-bg)' : 'var(--status-delayed-bg)',
+    color: tone === 'danger' ? 'var(--status-incident-fg)' : 'var(--status-delayed-fg)',
+  }),
+  historyToggle: {
+    alignSelf: 'flex-start',
+    padding: 0,
+    border: 'none',
+    background: 'none',
+    cursor: 'pointer',
+    font: '600 12px/1.3 var(--font-sans)',
+    color: 'var(--text-link)',
+  },
+  historyList: {
+    display: 'flex',
+    flexDirection: 'column',
+    gap: 8,
+    marginTop: 2,
+    paddingLeft: 10,
+    borderLeft: '2px solid var(--border-subtle)',
+    cursor: 'default',
   },
   emptyState: {
     padding: '48px 20px',

@@ -33,8 +33,12 @@ export function isUpsetMatch(m) {
 /**
  * Lọc danh sách trận đấu theo các tiêu chí đa chiều.
  */
-export function filterMatches(matches, { playerA, playerB, mode = 'h2h', quality = 'all', fromDate, toDate } = {}) {
+export function filterMatches(matches, { playerA, playerB, mode = 'h2h', quality = 'all', fromDate, toDate, pairs } = {}) {
   const normMode = mode === 'vs' ? 'h2h' : mode === 'team' ? 'teammate' : mode
+  // `pairs`: [[cặp 1], [cặp 2]] — chỉ giữ trận ĐÚNG hai cặp này gặp nhau, bên nào đứng A cũng
+  // được. Lọc 2 người (playerA/playerB) không làm được việc này: Kuro gặp Hằng khi đánh với
+  // đồng đội khác vẫn lọt.
+  const isPair = (team, pair) => team.length === pair.length && pair.every((id) => team.includes(id))
 
   return (matches || []).filter((m) => {
     const teamA = m.teamA || (m.playerKeys ? m.playerKeys.slice(0, 2) : [])
@@ -63,6 +67,11 @@ export function filterMatches(matches, { playerA, playerB, mode = 'h2h', quality
       if (!players.includes(playerA)) return false
     } else if (playerB) {
       if (!players.includes(playerB)) return false
+    }
+
+    if (pairs) {
+      const [p1, p2] = pairs
+      if (!(isPair(teamA, p1) && isPair(teamB, p2)) && !(isPair(teamA, p2) && isPair(teamB, p1))) return false
     }
 
     // Lọc theo chất lượng trận đấu — dùng đúng predicate mà UI dùng để gắn nhãn

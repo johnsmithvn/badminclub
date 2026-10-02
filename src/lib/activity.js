@@ -6,7 +6,7 @@ import { getPlayerPartnersAndMatchups } from '#lib/rating.js'
 import { getMemberStreak } from '#lib/badges.js'
 import { seasonMatchesOf } from '#lib/season.js'
 import { isChallengeExpired } from '#lib/challenge.js'
-import { buildPushUrl } from '#routes'
+import { buildPushUrl, pathOf } from '#routes'
 import { dd, isoOf } from '#utils/dates.js'
 import { t } from '#i18n'
 
@@ -624,7 +624,76 @@ export function formatEventTime(dateObj) {
   return `${hh}:${mm}`
 }
 
-export function resolveActivityRow2a(event, db, attachedStreak = null) {
+/** Mốc giờ của một dòng lịch sử thay đổi: "19:40 · 27/09". */
+function stampOf(rawTs) {
+  const d = rawTs ? new Date(rawTs) : null
+  return d && !isNaN(d.getTime()) ? `${formatEventTime(d)} · ${dd(isoOf(d))}` : ''
+}
+
+/** "21-19, 18-21" (điểm đội A đứng trước, như `match_edited.newScore`) → [[21, 19], [18, 21]] */
+function parseSetsText(text) {
+  return String(text || '').split(',')
+    .map((x) => x.trim().split(/\s*[-–]\s*/).map(Number))
+    .filter((s) => s.length === 2 && s.every(Number.isFinite))
+}
+
+/**
+ * Một bản kết quả của trận, đội thắng đứng trước. `ws`/`ls` theo đúng quy ước `scoreText`: một
+ * set là ĐIỂM, nhiều set là SỐ SET. `score` là đủ từng set, cho dòng lịch sử.
+ */
+function resultOfSets(sets, teamA, teamB) {
+  const played = (sets || []).filter((s) => Array.isArray(s) && Number(s[0]) + Number(s[1]) > 0)
+  if (!played.length) return null
+  const aWins = played.filter((s) => +s[0] > +s[1]).length
+  const bWins = played.filter((s) => +s[1] > +s[0]).length
+  const bWon = bWins > aWins
+  const [ws, ls] = played.length > 1
+    ? [Math.max(aWins, bWins), Math.min(aWins, bWins)]
+    : (bWon ? [played[0][1], played[0][0]] : [played[0][0], played[0][1]])
+  return {
+    winIds: bWon ? teamB : teamA,
+    loseIds: bWon ? teamA : teamB,
+    ws: String(ws),
+    ls: String(ls),
+    score: played.map((s) => (bWon ? `${s[1]}–${s[0]}` : `${s[0]}–${s[1]}`)).join(', '),
+  }
+}
+
+/** Bản kết quả lúc GHI trận, đọc từ payload `match_recorded` đã giải mã. */
+function recordedResultOf(p) {
+  const { ws, ls } = parseScoreWinningLosing(p.score)
+  return { winIds: p.winnerIds || [], loseIds: p.loserIds || [], ws, ls, score: ls !== '' ? `${ws}–${ls}` : ws }
+}
+
+/** Đội A / B của trận: db là đúng nhất; trận đã huỷ thì dựng lại từ payload lúc ghi. */
+function matchTeamsOf(mt, recordedPayload) {
+  if (mt?.teamA?.length && mt?.teamB?.length) return [mt.teamA, mt.teamB]
+  const p = recordedPayload || {}
+  if (!p.winnerIds?.length || !p.loserIds?.length) return null
+  return p.winnerTeam === 'B' ? [p.loserIds, p.winnerIds] : [p.winnerIds, p.loserIds]
+}
+
+/** Lý do người ta thực sự gõ — bỏ chữ mặc định "Sửa" / "Xóa" mà app tự điền khi để trống. */
+function reasonOf(ev) {
+  const r = String(ev?.payload?.reason || '').trim()
+  return r && r !== t('common.edit') && r !== t('common.delete') ? r : ''
+}
+
+const actorOf = (ev, db) => {
+  const id = ev?.actor_id || ev?.actorId
+  return id ? getEntityName(db, id) : ''
+}
+const sameIds = (x = [], y = []) => x.length === y.length && x.every((id) => y.includes(id))
+const versionLabel = (db, v) => (v ? t('activity.versionWin', { winners: formatTeamNames(db, v.winIds), score: v.score }) : '')
+
+/**
+ * @param ctx  ngữ cảnh `groupActivities2a` dựng từ các sự kiện khác cùng trang:
+ *   streak       — dòng chặn chuỗi gộp vào trận này
+ *   changes      — các lần sửa / huỷ của trận này, cũ → mới
+ *   olderResults — các lần ngã ngũ TRƯỚC của cùng kèo (huỷ ván rồi đánh lại), cũ → mới
+ *   versions     — { before, after } cho dòng báo sửa / huỷ
+ */
+export function resolveActivityRow2a(event, db, ctx = {}) {
   const p = resolveActivityPayload(event, db)
   const rawTs = event?.created_at || event?.createdAt
   const d = rawTs ? new Date(rawTs) : new Date()
@@ -632,36 +701,60 @@ export function resolveActivityRow2a(event, db, attachedStreak = null) {
 
   // 1. match_recorded
   if (event?.type === 'match_recorded') {
-    const winIds = p.winnerIds || []
-    const loseIds = p.loserIds || []
-    const W = resolveTeamProfiles(db, winIds)
-    const L = resolveTeamProfiles(db, loseIds)
-    // `p.score` là `scoreText` của trận: một set thì là ĐIỂM ("21 – 19"), nhiều set thì là SỐ
-    // SET THẮNG ("2 – 1"). Cột phải hiện nguyên như vậy, nhưng "cách N điểm" phải lấy điểm thật
-    // từ các set — lấy từ "2 – 1" là ra "hơn đúng 1 điểm".
-    const { ws, ls } = parseScoreWinningLosing(p.score)
-    const mt = (db?.matches || []).find((m) => m.id === p.matchId)
+    // Dòng gốc luôn kể kết quả HIỆN TẠI, kèm nhãn và lịch sử nếu đã bị sửa / huỷ. Chuyện "vừa có
+    // người sửa" thì dòng báo riêng ở đầu Bảng tin lo — dòng gốc nằm dưới, không ai cuộn xuống.
+    const changes = ctx.changes || []
+    const isCancelled = changes.some((c) => c.type === 'match_cancelled')
+    const isEdited = changes.some((c) => c.type === 'match_edited')
+    const mt = isCancelled ? null : (db?.matches || []).find((m) => m.id === p.matchId)
+    const teams = matchTeamsOf(mt, p)
+    // `p.score` là `scoreText`: một set là ĐIỂM ("21 – 19"), nhiều set là SỐ SET ("2 – 1").
+    const orig = recordedResultOf(p)
+    // Đã sửa thì đọc từ set của trận — `scoreText` KHÔNG được cập nhật khi sửa tỷ số.
+    const cur = (isEdited && mt && teams && resultOfSets(mt.sets, teams[0], teams[1])) || orig
+    const W = resolveTeamProfiles(db, cur.winIds)
+    const L = resolveTeamProfiles(db, cur.loseIds)
+    const { ws, ls } = cur
+    // "cách N điểm" phải lấy điểm thật từ các set — lấy từ "2 – 1" là ra "hơn đúng 1 điểm".
     const setDiffs = (mt?.sets || [])
       .filter((s) => Array.isArray(s) && s.length >= 2)
       .map((s) => Math.abs(Number(s[0]) - Number(s[1])))
-    const narrativeType = p.narrativeType || (mt ? detectMatchNarrative(mt) : 'normal')
+    const narrativeType = (isEdited && mt ? detectMatchNarrative(mt) : p.narrativeType)
+      || (mt ? detectMatchNarrative(mt) : 'normal')
     // Xét đúng set mà `detectMatchNarrative` dựa vào: áp đảo là set chênh nhất, còn lại là set cuối.
     const diff = setDiffs.length === 0 ? 0
       : narrativeType === 'blowout' ? Math.max(...setDiffs) : setDiffs[setDiffs.length - 1]
     const verb = t('activity.verb_' + narrativeType)
     // Không có điểm từng set (trận đã xoá) thì bỏ con số chứ không in "cách 0 điểm".
-    const caption = diff > 0 || narrativeType === 'comeback'
-      ? t('activity.cap_' + narrativeType, { diff })
-      : t('activity.cap_' + narrativeType + '_plain')
-    const capColor = narrativeType === 'clutch' ? 'var(--status-delayed-fg)'
+    const caption = isCancelled ? t('activity.cap_cancelled')
+      : diff > 0 || narrativeType === 'comeback'
+        ? t('activity.cap_' + narrativeType, { diff })
+        : t('activity.cap_' + narrativeType + '_plain')
+    const capColor = isCancelled ? 'var(--status-incident-fg)'
+      : narrativeType === 'clutch' ? 'var(--status-delayed-fg)'
       : narrativeType === 'blowout' ? 'var(--action-violet-bg)'
       : narrativeType === 'comeback' ? 'var(--status-delivered-fg)'
       : 'var(--text-muted)'
 
-    const streak = attachedStreak?.streak || p.streak
-    const victim = attachedStreak?.victimName || p.victim || (L.lead1?.name || '')
+    // Chặn chuỗi chỉ còn đúng khi trận còn và vẫn đúng đội thắng ấy — huỷ hay lật kết quả là
+    // Elo được tính lại từ đầu, chuỗi kia không còn bị ai chặn nữa.
+    const streakValid = !isCancelled && sameIds(cur.winIds, orig.winIds)
+    const streak = streakValid ? (ctx.streak?.streak || p.streak) : 0
+    const victim = ctx.streak?.victimName || p.victim || (L.lead1?.name || '')
     const hasStreak = Boolean(streak)
     const streakText = hasStreak ? t('activity.streakText', { streak, victim }) : ''
+
+    const history = changes.length === 0 ? [] : [
+      { kind: 'recorded', t: stampOf(rawTs), winners: formatTeamNames(db, orig.winIds), score: orig.score },
+      ...changes.map((c) => {
+        const base = { t: stampOf(c.created_at || c.createdAt), by: actorOf(c, db), reason: reasonOf(c) }
+        if (c.type === 'match_cancelled') return { ...base, kind: 'cancelled' }
+        const v = teams && resultOfSets(parseSetsText(c.payload?.newScore), teams[0], teams[1])
+        return v
+          ? { ...base, kind: 'edited', winners: formatTeamNames(db, v.winIds), score: v.score }
+          : { ...base, kind: 'edited', raw: c.payload?.newScore || '' }
+      }),
+    ]
 
     return {
       id: event.id,
@@ -669,11 +762,12 @@ export function resolveActivityRow2a(event, db, attachedStreak = null) {
       rawTs,
       t: tStr,
       align: 'start',
-      hasLeadAv: winIds.length > 0,
+      hasLeadAv: cur.winIds.length > 0,
       lead1: W.lead1,
       lead2: W.lead2,
       hasLeadIcon: false,
       isMatch: true,
+      isCancelled,
       W,
       L,
       verb,
@@ -683,17 +777,44 @@ export function resolveActivityRow2a(event, db, attachedStreak = null) {
       streakText,
       ws,
       ls,
+      history,
+      badge: isCancelled ? { text: t('activity.cancelledBadge'), tone: 'danger' }
+        : isEdited ? { text: t('activity.editedBadge'), tone: 'warn' }
+        : null,
     }
   }
 
   // 2. challenge_completed
   if (event?.type === 'challenge_completed') {
-    const winIds = p.winnerIds || []
-    const loseIds = p.loserIds || []
-    const W = resolveTeamProfiles(db, winIds)
-    const L = resolveTeamProfiles(db, loseIds)
-    const { ws, ls } = parseScoreWinningLosing(p.seriesScore || '1-0')
     const code = p.code || ''
+    const origWin = p.winnerIds || []
+    const origLose = p.loserIds || []
+    const origSeries = p.seriesScore || '1-0'
+    // Kết quả HIỆN TẠI đọc từ kèo: sửa / huỷ một ván có thể lật đội thắng hoặc xoá luôn kết quả
+    // (kèo quay về 'accepted'), mà sự kiện này chỉ chụp lại đúng lúc ngã ngũ.
+    const chal = (db?.challenges || []).find((c) => c.id === (p.chalId || event.ref_id || event.refId))
+    const isVoid = Boolean(chal) && chal.status !== 'played'
+    const live = chal?.status === 'played' && (chal.winnerTeam === 'A' || chal.winnerTeam === 'B')
+    const curWin = live ? ((chal.winnerTeam === 'A' ? chal.teamA : chal.teamB) || origWin) : origWin
+    const curLose = live ? ((chal.winnerTeam === 'A' ? chal.teamB : chal.teamA) || origLose) : origLose
+    const curSeries = live ? formatWinnerSeriesScore(chal.seriesScore) : origSeries
+    const changed = live && (!sameIds(curWin, origWin) || curSeries !== origSeries)
+    const W = resolveTeamProfiles(db, curWin)
+    const L = resolveTeamProfiles(db, curLose)
+    const { ws, ls } = parseScoreWinningLosing(curSeries)
+
+    const dash = (s) => String(s).replace('-', '–')
+    const older = ctx.olderResults || []
+    const history = (older.length || changed || isVoid) ? [
+      ...older.map((o) => {
+        const q = resolveActivityPayload(o, db)
+        return { kind: 'resolved', t: stampOf(o.created_at || o.createdAt), winners: formatTeamNames(db, q.winnerIds), score: dash(q.seriesScore || '1-0') }
+      }),
+      { kind: 'resolved', t: stampOf(rawTs), winners: formatTeamNames(db, origWin), score: dash(origSeries) },
+      ...(isVoid ? [{ kind: 'void' }]
+        : changed ? [{ kind: 'current', winners: formatTeamNames(db, curWin), score: dash(curSeries) }]
+        : []),
+    ] : []
 
     return {
       id: event.id,
@@ -701,16 +822,49 @@ export function resolveActivityRow2a(event, db, attachedStreak = null) {
       rawTs,
       t: tStr,
       align: 'start',
-      hasLeadAv: winIds.length > 0,
+      hasLeadAv: curWin.length > 0,
       lead1: W.lead1,
       lead2: W.lead2,
       hasLeadIcon: false,
       isResolved: true,
+      isVoid,
       code,
       W,
       L,
       ws,
       ls,
+      history,
+      badge: isVoid ? { text: t('activity.cancelledBadge'), tone: 'danger' }
+        : history.length ? { text: t('activity.editedBadge'), tone: 'warn' }
+        : null,
+    }
+  }
+
+  // 2b. match_edited / match_cancelled — dòng MỚI ở đầu Bảng tin để ai cũng thấy vừa có thay
+  // đổi, kèm ai làm. Dòng trận gốc ở dưới chỉ đổi nhãn, không ai cuộn xuống đó mà biết.
+  if (event?.type === 'match_edited' || event?.type === 'match_cancelled') {
+    const isCancelChange = event.type === 'match_cancelled'
+    const actor = actorOf(event, db)
+    const code = p.matchCode || ''
+    const keyBase = isCancelChange ? 'activity.cancelHead' : 'activity.editHead'
+    return {
+      id: event.id,
+      type: event.type,
+      rawTs,
+      t: tStr,
+      align: 'start',
+      hasLeadAv: false,
+      hasLeadIcon: true,
+      icon: isCancelChange ? '✕' : '✎',
+      iconBg: isCancelChange ? 'var(--status-incident-bg)' : 'var(--status-delayed-bg)',
+      iconFg: isCancelChange ? 'var(--status-incident-fg)' : 'var(--status-delayed-fg)',
+      isMatchChange: true,
+      isCancelChange,
+      actor,
+      head: actor ? t(keyBase, { code }) : t(keyBase + 'Anon', { code }),
+      before: ctx.versions?.before || '',
+      after: isCancelChange ? '' : (ctx.versions?.after || ''),
+      reason: reasonOf(event),
     }
   }
 
@@ -900,8 +1054,9 @@ export function resolveActivityRow2a(event, db, attachedStreak = null) {
 }
 
 /**
- * Đích khi bấm một dòng Bảng tin: kèo → Sàn kèo (làm nổi bật đúng kèo), buổi → trang buổi.
- * URL dựng bằng `buildPushUrl` để Bảng tin và thông báo đẩy luôn đi cùng một chỗ.
+ * Đích khi bấm một dòng Bảng tin: kèo → Sàn kèo (làm nổi bật đúng kèo), buổi → trang buổi,
+ * trận → Lịch sử lọc đúng hai cặp. Kèo / buổi dựng bằng `buildPushUrl` để Bảng tin và thông
+ * báo đẩy luôn đi cùng một chỗ.
  *
  * `null` (dòng không bấm được) khi:
  *   - Thứ đó không còn trong db — đưa người ta tới một màn trống là tệ hơn không đưa.
@@ -920,6 +1075,23 @@ export function activityLinkOf(event, db) {
   }
   if (refType === 'session') {
     return (db?.sessions || []).some((s) => s.id === refId) ? buildPushUrl({ refType, refId }) : null
+  }
+  if (refType === 'match') {
+    // Trận → tab Lịch sử, lọc đúng hai cặp của trận (xem `pairs` trong `filterMatches`).
+    // Trận đã huỷ thì không còn trong db → không bấm được.
+    const mt = (db?.matches || []).find((m) => m.id === refId)
+    if (!mt?.teamA?.length || !mt?.teamB?.length) return null
+    // Ô Người A/B chỉ liệt kê thành viên, nên mỗi cặp đưa thành viên lên đầu — đứng đầu là khách
+    // thì ô hiện trống dù danh sách đã lọc.
+    const isMember = (id) => (db?.members || []).some((m) => m.id === id)
+    const lead = (team) => [...team].sort((x, y) => isMember(y) - isMember(x))
+    const [w, l] = mt.winnerTeam === 'B' ? [mt.teamB, mt.teamA] : [mt.teamA, mt.teamB]
+    const pairA = lead(w)
+    const pairB = lead(l)
+    const q = new URLSearchParams({
+      tab: 'search', playerA: pairA[0], playerB: pairB[0], pairA: pairA.join(','), pairB: pairB.join(','),
+    })
+    return `${pathOf('matches')}?${q}`
   }
   return null
 }
@@ -942,10 +1114,68 @@ export function groupActivities2a(events = [], db = {}) {
       .filter(Boolean)
   )
 
+  // Chuỗi thay đổi của từng trận (cũ → mới). Lấy từ chính Bảng tin, KHÔNG từ `db.matchEdits`:
+  // khoá ngoại `match_edits.match_id ... ON DELETE CASCADE` xoá sạch log sửa khi trận bị huỷ.
+  // Sửa / huỷ luôn MỚI hơn lúc ghi, nên hễ dòng trận đã tải là chuỗi thay đổi của nó cũng đã tải.
+  const recordedByMatch = new Map()
+  const changesByMatch = new Map()
+  // Kèo ngã ngũ lại (huỷ một ván rồi đánh lại) đẻ thêm `challenge_completed`. Dòng MỚI NHẤT là
+  // dòng sống, các dòng cũ thành lịch sử của nó — hai dòng cùng kể một kết quả hiện tại là thừa.
+  const completedByChal = new Map()
+  for (const ev of events) {
+    const mId = ev.payload?.matchId || ev.ref_id || ev.refId
+    if (ev.type === 'match_recorded' && mId) recordedByMatch.set(mId, ev)
+    if ((ev.type === 'match_edited' || ev.type === 'match_cancelled') && mId) {
+      if (!changesByMatch.has(mId)) changesByMatch.set(mId, [])
+      changesByMatch.get(mId).unshift(ev) // `events` mới → cũ; unshift cho ra cũ → mới
+    }
+    if (ev.type === 'challenge_completed') {
+      const cId = ev.payload?.chalId || ev.ref_id || ev.refId
+      if (cId) {
+        if (!completedByChal.has(cId)) completedByChal.set(cId, [])
+        completedByChal.get(cId).push(ev) // mới → cũ: phần tử đầu là dòng sống
+      }
+    }
+  }
+  const chalIdOf = (ev) => ev.payload?.chalId || ev.ref_id || ev.refId
+
+  // Bản trước / sau cho một dòng báo sửa / huỷ trận.
+  const versionsOf = (ev) => {
+    const mId = ev.payload?.matchId || ev.ref_id || ev.refId
+    const chain = changesByMatch.get(mId) || []
+    const rec = recordedByMatch.get(mId)
+    const recP = rec ? resolveActivityPayload(rec, db) : null
+    const mt = (db?.matches || []).find((m) => m.id === mId)
+    const teams = matchTeamsOf(mt, recP)
+    const fromEdit = (c) => teams && resultOfSets(parseSetsText(c.payload?.newScore), teams[0], teams[1])
+    const prevEdit = chain.slice(0, chain.indexOf(ev)).reverse().find((c) => c.type === 'match_edited')
+    let before = prevEdit ? fromEdit(prevEdit) : recP ? recordedResultOf(recP) : null
+    // Dòng ghi trận nằm ở trang chưa tải: log sửa còn giữ đúng bản cũ (trận chưa bị huỷ thì log
+    // chưa bị CASCADE xoá) — lấy lần sửa gần giờ sự kiện này nhất.
+    if (!before && teams && ev.type === 'match_edited') {
+      const at = new Date(ev.created_at || ev.createdAt).getTime()
+      const log = (db?.matchEdits || [])
+        .filter((e) => e.matchId === mId && e.fieldChanged === 'sets')
+        .sort((x, y) => Math.abs(new Date(x.editedAt).getTime() - at) - Math.abs(new Date(y.editedAt).getTime() - at))[0]
+      if (log) {
+        try { before = resultOfSets(JSON.parse(log.oldValue)?.sets, teams[0], teams[1]) } catch { before = null }
+      }
+    }
+    const after = ev.type === 'match_edited' ? fromEdit(ev) : null
+    return {
+      before: versionLabel(db, before),
+      after: after ? versionLabel(db, after) : (ev.payload?.newScore || ''),
+    }
+  }
+
   const effectiveEvents = events.filter((ev) => {
     if (ev.type === 'bounty_broken') {
       const mId = ev.payload?.matchId || ev.ref_id || ev.refId
       if (mId && matchIds.has(mId)) return false
+    }
+    if (ev.type === 'challenge_completed') {
+      const list = completedByChal.get(chalIdOf(ev))
+      if (list && list[0] !== ev) return false
     }
     return true
   })
@@ -962,14 +1192,19 @@ export function groupActivities2a(events = [], db = {}) {
     const dateKey = !isNaN(d.getTime()) ? isoOf(d) : 'unknown'
     const mId = ev.payload?.matchId || ev.ref_id || ev.refId
     const attachedBounty = ev.type === 'match_recorded' && mId ? bountyMap.get(mId) : null
-    const attachedStreak = attachedBounty
-      ? {
-          streak: attachedBounty.payload?.streak,
-          victimName: formatTeamNames(db, resolveBountyVictimIds(attachedBounty.payload?.victimIds, attachedBounty, db)),
-        }
-      : null
+    const ctx = {
+      streak: attachedBounty
+        ? {
+            streak: attachedBounty.payload?.streak,
+            victimName: formatTeamNames(db, resolveBountyVictimIds(attachedBounty.payload?.victimIds, attachedBounty, db)),
+          }
+        : null,
+      changes: ev.type === 'match_recorded' && mId ? changesByMatch.get(mId) || [] : [],
+      olderResults: ev.type === 'challenge_completed' ? (completedByChal.get(chalIdOf(ev)) || []).slice(1).reverse() : [],
+      versions: ev.type === 'match_edited' || ev.type === 'match_cancelled' ? versionsOf(ev) : null,
+    }
 
-    const row = { ...resolveActivityRow2a(ev, db, attachedStreak), link: activityLinkOf(ev, db) }
+    const row = { ...resolveActivityRow2a(ev, db, ctx), link: activityLinkOf(ev, db) }
     if (!dayMap.has(dateKey)) {
       dayMap.set(dateKey, {
         dateKey,
