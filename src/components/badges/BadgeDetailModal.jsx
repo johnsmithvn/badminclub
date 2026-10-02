@@ -1,30 +1,13 @@
 import { useState, useMemo } from 'react'
 import { createPortal } from 'react-dom'
 import { HEX_CLIP, ANIME_TIERS, getBadgeOwners, getBadgeChasers, getStreakTimeline } from '#lib/badges.js'
-import BadgeHex, { TIER_FX } from './BadgeHex.jsx'
+import BadgeHex from './BadgeHex.jsx'
+import TierBackdrop from './TierBackdrop.jsx'
+import { TIER_FX } from './tierFx.js'
 import { useMobile } from '#hooks/useMobile.js'
 import { t } from '#i18n'
 
 const GOLD = '#F6C945'
-
-// Vị trí (left %) và bề rộng (px) bốn dải cực quang, theo đúng bản thiết kế.
-const CURTAIN_POS = [[18, 90], [40, 120], [64, 100], [86, 80]]
-
-// Bụi sao rải tất định — cùng công thức với bản thiết kế, không random để khỏi nhảy mỗi lần render.
-const DUST = Array.from({ length: 24 }, (_, i) => ({
-  x: `${(i * 83) % 97}%`,
-  y: `${(i * 47) % 48}%`,
-  size: 1 + (i % 3),
-  glow: 2 + (i % 3) * 3,
-  twinkle: 3 + (i % 5),
-  drift: 5 + (i % 4) * 2,
-  delay: (i % 7) * 0.4,
-}))
-
-const SHOOTING_STARS = [
-  { w: 90, dur: 7, delay: 1 },
-  { w: 70, dur: 9, delay: 4.5 },
-]
 
 const CARD = {
   borderRadius: 14,
@@ -184,7 +167,6 @@ export default function BadgeDetailModal({
   /* ── Thẻ huy hiệu chính với nền hiệu ứng ───────────────────────────────── */
   const hero = (
     <div
-      data-badge-fx
       style={{
         position: 'relative',
         minHeight: 560,
@@ -197,110 +179,7 @@ export default function BadgeDetailModal({
         minWidth: 0,
       }}
     >
-      {DUST.map((s, i) => (
-        <span
-          key={i}
-          style={{
-            position: 'absolute',
-            left: s.x,
-            top: s.y,
-            width: s.size,
-            height: s.size,
-            borderRadius: 999,
-            background: '#FFFFFF',
-            opacity: 0.3,
-            boxShadow: `0 0 ${s.glow}px rgba(255,255,255,.8)`,
-            animation: `bdTwinkle ${s.twinkle}s ease-in-out ${s.delay}s infinite, bdDrift ${s.drift}s ease-in-out ${s.delay}s infinite`,
-            pointerEvents: 'none',
-          }}
-        />
-      ))}
-      {SHOOTING_STARS.map((s, i) => (
-        <span
-          key={i}
-          style={{
-            position: 'absolute',
-            left: 0,
-            top: 0,
-            width: s.w,
-            height: 1.5,
-            background: 'linear-gradient(90deg,transparent,#FFFFFF)',
-            transform: 'rotate(28deg)',
-            opacity: 0,
-            animation: `bdShoot ${s.dur}s ease-in ${s.delay}s infinite`,
-            pointerEvents: 'none',
-          }}
-        />
-      ))}
-
-      {fx.effect === 'beam' && (
-        <>
-          <div
-            style={{
-              position: 'absolute',
-              left: '50%',
-              top: 0,
-              width: 270,
-              height: 300,
-              marginLeft: -135,
-              background: `linear-gradient(180deg,${rgba(0.3)},${rgba(0.08)} 72%,transparent)`,
-              clipPath: 'polygon(40% 0,60% 0,100% 100%,0 100%)',
-              animation: 'bdBeam 6s ease-in-out infinite',
-              pointerEvents: 'none',
-            }}
-          />
-          <div
-            style={{
-              position: 'absolute',
-              left: '50%',
-              top: 120,
-              width: 230,
-              height: 70,
-              marginLeft: -115,
-              background: `radial-gradient(50% 50% at 50% 50%,${rgba(0.3)},transparent 70%)`,
-              pointerEvents: 'none',
-            }}
-          />
-        </>
-      )}
-
-      {fx.effect === 'aurora' && (
-        <>
-          {fx.curtains.map(([c1, c2], i) => {
-            const [left, w] = CURTAIN_POS[i]
-            return (
-              <div
-                key={i}
-                style={{
-                  position: 'absolute',
-                  left: `${left}%`,
-                  top: -40,
-                  width: w,
-                  height: 400,
-                  marginLeft: -w / 2,
-                  background: `linear-gradient(180deg,transparent,rgba(${c1},.5) 30%,rgba(${c2},.45) 62%,transparent)`,
-                  filter: 'blur(22px)',
-                  transformOrigin: 'top',
-                  mixBlendMode: 'screen',
-                  animation: `bdSway ${9 + i * 1.5}s ease-in-out ${-i * 2}s infinite`,
-                  pointerEvents: 'none',
-                }}
-              />
-            )
-          })}
-          <div
-            style={{
-              position: 'absolute',
-              left: 0,
-              right: 0,
-              top: 230,
-              height: 140,
-              background: 'linear-gradient(180deg,transparent,#06080C)',
-              pointerEvents: 'none',
-            }}
-          />
-        </>
-      )}
+      <TierBackdrop tier={activeTierBadge.tier} />
 
       <div
         style={{
@@ -314,22 +193,15 @@ export default function BadgeDetailModal({
           textAlign: 'center',
         }}
       >
-        <div style={{ marginTop: 140, marginBottom: 6, filter: `drop-shadow(0 0 22px ${rgba(0.45)})` }}>
-          <Hex width={128} height={140} inset={3} ring={tierRing} well={fx.well}>
-            {isHidden ? (
-              <span style={{ font: "700 48px/1 'Oswald', sans-serif", color: fx.acc }}>?</span>
-            ) : (
-              <span
-                style={{
-                  width: 54,
-                  height: 48,
-                  clipPath: glyphClip(activeTierBadge.glyph),
-                  background: `linear-gradient(180deg,${fx.light},${fx.acc})`,
-                }}
-              />
-            )}
-          </Hex>
-        </div>
+        {/* Mốc chưa mở vẫn khoe hình huy hiệu để biết mình đang đuổi theo gì, nhưng đứng yên */}
+        <BadgeHex
+          tier={activeTierBadge.tier}
+          glyph={activeTierBadge.glyph}
+          size={140}
+          dim={isHidden}
+          still={!isUnlocked}
+          style={{ marginTop: 140, marginBottom: 6 }}
+        />
 
         <span
           style={{
@@ -470,8 +342,7 @@ export default function BadgeDetailModal({
   )
 
   /* ── Thanh hành trình cấp độ ───────────────────────────────────────────── */
-  const pipW = isMobile ? 26 : 34
-  const pipH = isMobile ? 28 : 36
+  const pipSize = isMobile ? 28 : 36
   const journey = isFamily && (
     <div
       style={
@@ -542,20 +413,7 @@ export default function BadgeDetailModal({
                 transition: 'background 140ms cubic-bezier(.2,.8,.2,1), border-color 140ms cubic-bezier(.2,.8,.2,1)',
               }}
             >
-              <Hex width={pipW} height={pipH} inset={2} ring={trFx.pip} well={trFx.pipWell}>
-                {isOpen ? (
-                  <span
-                    style={{
-                      width: Math.round(pipW * 0.46),
-                      height: Math.round(pipW * 0.42),
-                      clipPath: glyphClip(tr.glyph),
-                      background: trFx.pip,
-                    }}
-                  />
-                ) : (
-                  <span style={{ font: `700 ${isMobile ? 10 : 12}px/1 var(--font-display)`, color: trFx.pip }}>?</span>
-                )}
-              </Hex>
+              <BadgeHex tier={tr.tier} glyph={tr.glyph} size={pipSize} dim={!isOpen} />
               <span
                 style={{
                   font: `700 ${isMobile ? 10 : 11}px/1 'Oswald', sans-serif`,
