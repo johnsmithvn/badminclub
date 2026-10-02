@@ -2,7 +2,7 @@
 
 **Version:** v2.0.0 · **Updated:** 2026-09-30
 
-Schema đầy đủ: [`supabase/migrations/0001_init.sql`](../supabase/migrations/0001_init.sql) kèm các migration bổ sung `0002..0063`.
+Schema đầy đủ: [`supabase/migrations/0001_init.sql`](../supabase/migrations/0001_init.sql) kèm các migration bổ sung `0002..0064`.
 Đặc tả gốc: handoff `03-data-model.md`. File này nói **luật bất di bất dịch** và **chỗ shape
 localStorage khác shape Postgres** — để lúc nối Supabase không đoán.
 
@@ -191,7 +191,7 @@ State `db` của client dùng shape gọn của prototype. Cài đặt tại `sr
 | `challenges[].stakeText` | `challenges.stake_text text` | Giao kèo đời thật tự gõ (tối đa 120 ký tự), thuần trang trí (0048) |
 | `challenges[].predictionsEnabled` · `predictionsLocked` | `challenges.predictions_enabled` · `predictions_locked` | Cờ đóng/mở cổng dự đoán bằng Điểm Mùa (0041) |
 | `challenges[].status` | `challenges.status` | Bỏ trạng thái `oncourt` (0043): "đang đánh" suy từ số hiệp đã ghi, không lưu vào status |
-| `challengePredictions` (RPC-only, không nạp state `db`) | `challenge_predictions` | Phiếu cược Điểm Mùa: đặt cược, huỷ cược, quyết toán qua RPC (`place_challenge_prediction`, `cancel_challenge_prediction`, `settle_challenge_predictions`). CỐ Ý KHÔNG CÓ trong `dbmap.TABLES` để tránh lỗi 42501 (0041, 0042, 0047) |
+| `challengePredictions` (RPC-only, không nạp state `db`) | `challenge_predictions` | Phiếu cược Điểm Mùa: đặt cược, huỷ cược, quyết toán qua RPC (`place_challenge_prediction`, `cancel_challenge_prediction`, `settle_challenge_predictions`). CỐ Ý KHÔNG CÓ trong `dbmap.TABLES` để tránh lỗi 42501 (0041, 0042, 0047, 0064) |
 | `push_subscriptions` (Quản lý riêng, không nạp state `db`) | `push_subscriptions` | Token Web Push (VAPID endpoint, p256dh, auth) cho thiết bị PWA/Mobile (0049, 0050) |
 | `sessions[].rsvpInvitedAt` | `sessions.rsvp_invited_at` | Mốc thời gian gửi lời mời điểm danh RSVP 1 chạm, chống spam khi mở lại buổi (0051) |
 | `club.seasons` | `clubs.seasons jsonb` | Cấu hình danh sách các mùa giải CLB, mùa active và snapshot bục vinh quang (0055) |
@@ -272,6 +272,7 @@ State `db` của client dùng shape gọn của prototype. Cài đặt tại `sr
 | `0061_tournament_free_scores.sql` | Bỏ ràng buộc điểm cứng trong giải đấu: cho phép nhập điểm tự do (0..99) và linh hoạt số set qua `tournament_valid_sets`. |
 | `0062_member_groups_has_custom_pricing.sql` | Thêm cột `has_custom_pricing boolean NOT NULL DEFAULT false` vào bảng `member_groups` (false = áp dụng biểu phí CLB, true = mức thu riêng của nhóm). |
 | `0063_tournament_swiss_double.sql` | Mở rộng thể thức giải đấu: Hệ Thụy Sĩ (`swiss`) sinh vòng dần qua RPC `tournament_add_swiss_round`; Nhánh thắng/nhánh thua (`double elimination`) kèm cơ chế chung kết tổng 2 (GF2). |
+| `0064_prediction_stake_cap_10.sql` | Hạ trần một phiếu cược trong `place_challenge_prediction` từ 100 xuống 10 SP (≤ một trận thắng). Cố ý giữ CHECK bảng 1..100 vì còn phiếu chờ 20/30/50 đặt theo luật cũ. |
 
 ---
 
@@ -282,7 +283,7 @@ State `db` của client dùng shape gọn của prototype. Cài đặt tại `sr
 - [x] Kiểm tra công thức xếp hạng với dữ liệu lịch sử CLB qua runner Backtest (`src/__tests__/backtest/`).
 - [x] Web Push Notifications qua Supabase Edge Function (`push-send`, 0049, 0050).
 - [x] Phân hệ Giải đấu (16 bảng, RPCs, 4 thể thức: KO, RR, Swiss, Double Elim - 0057..0063).
-- [x] Hệ thống Dự đoán kèo & Sòng bạc Điểm Mùa (0041, 0042, 0047).
+- [x] Hệ thống Dự đoán kèo & Sòng bạc Điểm Mùa (0041, 0042, 0047, 0064).
 - [ ] Kiểm cờ quyền **server-side** theo `role_permissions` — hiện `has_club_perm` đã có.
 - [ ] Trigger ghi `audit_logs` cho mọi bảng dính tiền (hiện mới có `match_edits`).
 - [ ] Trigger/RPC sinh `transactions` khi chốt buổi, để không phụ thuộc client.
