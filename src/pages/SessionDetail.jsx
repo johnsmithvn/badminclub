@@ -531,12 +531,69 @@ export default function SessionDetail() {
     )
   }
 
+  // Menu ⋯ của header mobile: gom Nguyện vọng · Copy Zalo · Mở/Chốt/Mở lại · Xóa để header chỉ
+  // còn một dòng. Điều kiện hiện từng mục giữ đúng như các nút ở header desktop.
+  const mobileMenuItems = [
+    me && !isClosed && {
+      key: 'wish',
+      icon: 'sparkles',
+      label: myWish ? t('session.myWishEditMenu') : t('session.myWishBtn'),
+      onClick: () => setShowMyWishDialog(true),
+    },
+    { key: 'zalo', icon: 'send', label: t('session.copyZalo'), onClick: () => a.copyZalo(s.id) },
+    canEdit && s.status === 'draft' && {
+      key: 'open',
+      icon: 'user-round-check',
+      label: t('session.doOpen'),
+      onClick: () => a.setSessionStatus(s.id, 'open'),
+    },
+    canEdit && s.status === 'open' && {
+      key: 'close',
+      icon: 'circle-check',
+      label: t('session.doClose'),
+      disabled: !canMoney,
+      onClick: () => a.confirm({
+        title: t('session.closeTitle'),
+        message: t('session.closeMsg'),
+        tone: 'info',
+        confirmText: t('session.closeOk'),
+        onConfirm: () => a.setSessionStatus(s.id, 'closed'),
+      }),
+    },
+    canEdit && (s.status === 'cancelled' || s.status === 'closed') && {
+      key: 'reopen',
+      icon: 'rotate-ccw',
+      label: t('session.doReopen'),
+      disabled: !canMoney,
+      onClick: () => a.confirm({
+        title: t('session.reopenTitle'),
+        message: t('session.reopenMsg'),
+        tone: 'warning',
+        confirmText: t('session.reopenOk'),
+        onConfirm: () => a.setSessionStatus(s.id, 'open'),
+      }),
+    },
+    canEdit && s.status !== 'closed' && {
+      key: 'delete',
+      icon: 'trash-2',
+      label: t('session.doDeleteMenu'),
+      danger: true,
+      onClick: () => a.confirm({
+        title: t('session.delTitle'),
+        message: t('session.delMsg', { date: ddmy(s.date) }),
+        tone: 'danger',
+        confirmText: t('session.doDelete'),
+        onConfirm: () => a.deleteSession(s.id),
+      }),
+    },
+  ].filter(Boolean)
+
   return (
     <>
       {/* ---------------- Unified Session Top Header (Mockup 01 / K1 / W1) ---------------- */}
       {isMobile ? (
         <div style={S.sessionHeaderBarMobile}>
-          {/* Tầng 1: Nút back + Tiêu đề & Subtitle + Badge trạng thái + Xóa */}
+          {/* Một dòng: Nút back + Tiêu đề & Subtitle + Badge trạng thái + Chuông + Menu ⋯ */}
           <div style={{ display: 'flex', alignItems: 'center', gap: 10, minWidth: 0, width: '100%' }}>
             <button
               type="button"
@@ -563,117 +620,7 @@ export default function SessionDetail() {
               </span>
             </div>
             <NotificationBell />
-            {canEdit && s.status !== 'closed' && (
-              <IconButton
-                icon="trash-2"
-                size="sm"
-                variant="ghost"
-                label={t('session.doDelete')}
-                onClick={() => a.confirm({
-                  title: t('session.delTitle'),
-                  message: t('session.delMsg', { date: ddmy(s.date) }),
-                  tone: 'danger',
-                  confirmText: t('session.doDelete'),
-                  onConfirm: () => a.deleteSession(s.id),
-                })}
-              />
-            )}
-          </div>
-
-          {/* Tầng 2: Action Bar (Copy Zalo + Nút hành động chính Mở / Chốt / Mở lại) */}
-          <div style={{ display: 'flex', gap: 8, width: '100%', paddingTop: 4 }}>
-            <Button
-              variant="secondary"
-              size="sm"
-              icon="send"
-              onClick={() => a.copyZalo(s.id)}
-              style={{
-                flex: 1,
-                height: 34,
-                background: 'var(--surface-inset)',
-                border: '1px solid var(--border-default)',
-                color: 'var(--text-primary)',
-                fontSize: 12,
-                fontWeight: 600,
-                justifyContent: 'center',
-              }}
-            >
-              {t('session.copyZalo')}
-            </Button>
-            {canEdit && (
-              <>
-                {s.status === 'draft' && (
-                  <Button
-                    variant="primary"
-                    size="sm"
-                    icon="user-round-check"
-                    onClick={() => a.setSessionStatus(s.id, 'open')}
-                    style={{
-                      height: 34,
-                      flex: '0 0 auto',
-                      background: 'var(--teal-600)',
-                      color: '#FFFFFF',
-                      fontSize: 12,
-                      fontWeight: 700,
-                    }}
-                  >
-                    {t('session.doOpen')}
-                  </Button>
-                )}
-                {s.status === 'open' && (
-                  <Button
-                    variant="primary"
-                    size="sm"
-                    icon="circle-check"
-                    disabled={!canMoney}
-                    onClick={() => a.confirm({
-                      title: t('session.closeTitle'),
-                      message: t('session.closeMsg'),
-                      tone: 'info',
-                      confirmText: t('session.closeOk'),
-                      onConfirm: () => a.setSessionStatus(s.id, 'closed'),
-                    })}
-                    style={{
-                      height: 34,
-                      flex: '0 0 auto',
-                      background: '#0D5E3A',
-                      border: '1px solid #00875A',
-                      color: '#FFFFFF',
-                      fontSize: 12,
-                      fontWeight: 700,
-                    }}
-                  >
-                    {t('session.doClose')}
-                  </Button>
-                )}
-                {(s.status === 'cancelled' || s.status === 'closed') && (
-                  <Button
-                    variant="secondary"
-                    size="sm"
-                    icon="rotate-ccw"
-                    disabled={!canMoney}
-                    onClick={() => a.confirm({
-                      title: t('session.reopenTitle'),
-                      message: t('session.reopenMsg'),
-                      tone: 'warning',
-                      confirmText: t('session.reopenOk'),
-                      onConfirm: () => a.setSessionStatus(s.id, 'open'),
-                    })}
-                    style={{
-                      height: 34,
-                      flex: '0 0 auto',
-                      background: 'var(--surface-inset)',
-                      border: '1px solid var(--border-default)',
-                      color: 'var(--text-primary)',
-                      fontSize: 12,
-                      fontWeight: 600,
-                    }}
-                  >
-                    {t('session.doReopen')}
-                  </Button>
-                )}
-              </>
-            )}
+            <SessionMoreMenu items={mobileMenuItems} />
           </div>
         </div>
       ) : (
@@ -785,7 +732,8 @@ export default function SessionDetail() {
       )}
 
       {/* ---------------- Segmented Tab Bar (Handoff 02 / 05) ---------------- */}
-      <TabTrack style={{ ...S.tabBarWrap, margin: isMobile ? '10px 0 6px' : '14px 0 8px', width: isMobile ? '100%' : 'auto' }}>
+      {/* Mobile: khung trang đã có gap 12px giữa các khối — thêm margin nữa là hở gấp đôi */}
+      <TabTrack style={{ ...S.tabBarWrap, margin: isMobile ? '0 0 6px' : '14px 0 8px', width: isMobile ? '100%' : 'auto' }}>
         <div style={{ ...S.tabTrack, width: isMobile ? '100%' : 'auto' }}>
           <button
             type="button"
@@ -863,8 +811,8 @@ export default function SessionDetail() {
         </div>
       )}
 
-      {/* Khối nguyện vọng thành viên */}
-      {me && !isClosed && (
+      {/* Khối nguyện vọng thành viên — mobile đã chuyển vào menu ⋯ ở header */}
+      {me && !isClosed && !isMobile && (
         <div style={{
           margin: '0 0 16px',
           padding: '12px 16px',
@@ -1564,6 +1512,61 @@ export default function SessionDetail() {
   )
 }
 
+/* ---------------- menu ⋯ header mobile ---------------- */
+
+/**
+ * Panel dùng position fixed neo theo nút, KHÔNG absolute: header mobile để overflow hidden nên
+ * panel absolute bị cắt mất. Lớp phủ trong suốt phía sau để chạm ra ngoài là đóng.
+ */
+function SessionMoreMenu({ items }) {
+  const [anchor, setAnchor] = useState(null)
+  if (!items.length) return null
+
+  return (
+    <>
+      <IconButton
+        icon="ellipsis"
+        size="sm"
+        variant="ghost"
+        label={t('common.more')}
+        active={Boolean(anchor)}
+        onClick={(e) => {
+          const r = e.currentTarget.getBoundingClientRect()
+          setAnchor(anchor ? null : { top: r.bottom + 6, right: document.documentElement.clientWidth - r.right })
+        }}
+      />
+      {anchor && (
+        <>
+          <div onClick={() => setAnchor(null)} style={{ position: 'fixed', inset: 0, zIndex: 40 }} />
+          <div role="menu" style={{ ...S.moreMenu, top: anchor.top, right: anchor.right }}>
+            {items.map((it) => (
+              <button
+                key={it.key}
+                type="button"
+                role="menuitem"
+                disabled={it.disabled}
+                onClick={() => {
+                  setAnchor(null)
+                  it.onClick()
+                }}
+                style={{
+                  ...S.moreMenuItem,
+                  color: it.danger ? 'var(--status-incident-fg)' : 'var(--text-primary)',
+                  opacity: it.disabled ? 0.45 : 1,
+                  cursor: it.disabled ? 'not-allowed' : 'pointer',
+                }}
+              >
+                <Icon name={it.icon} size={16} />
+                <span>{it.label}</span>
+              </button>
+            ))}
+          </div>
+        </>
+      )}
+    </>
+  )
+}
+
 /* ---------------- thêm người đi thêm ---------------- */
 
 /**
@@ -1953,10 +1956,35 @@ const S = {
     background: '#080F1C',
     border: '1px solid var(--border-subtle)',
     borderRadius: 10,
-    margin: '0 0 12px',
+    margin: 0,
     maxWidth: '100%',
     boxSizing: 'border-box',
     overflow: 'hidden',
+  },
+  moreMenu: {
+    position: 'fixed',
+    zIndex: 50,
+    minWidth: 200,
+    padding: 4,
+    display: 'grid',
+    gap: 2,
+    background: 'var(--surface-card)',
+    border: '1px solid var(--border-default)',
+    borderRadius: 10,
+    boxShadow: '0 8px 24px rgba(0,0,0,.35)',
+  },
+  moreMenuItem: {
+    display: 'flex',
+    alignItems: 'center',
+    gap: 10,
+    width: '100%',
+    minHeight: 44,
+    padding: '0 12px',
+    borderRadius: 8,
+    border: 'none',
+    background: 'none',
+    font: '500 14px/1.2 "IBM Plex Sans", sans-serif',
+    textAlign: 'left',
   },
   sessionHeaderSubRowMobile: {
     display: 'flex',
