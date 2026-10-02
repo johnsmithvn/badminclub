@@ -4,6 +4,7 @@ import { useApp } from '#contexts/AppContext.jsx'
 import { courtOf, myMember, playerName, playerOf, shortName } from '#lib/money.js'
 import { expectedScore, getPlayerRating, matchCodeOf } from '#lib/rating.js'
 import { searchMatches } from '#lib/matchSearch.js'
+import { can } from '#lib/roles.js'
 
 import { useMobile } from '#hooks/useMobile.js'
 import { Icon } from '#ds'
@@ -42,6 +43,9 @@ export default function SessionMatchesTab({ s, onSwitchTab }) {
   const [challengeSearch, setChallengeSearch] = useState('')
   const [selectedChallenge, setSelectedChallenge] = useState(null)
   const [scoringChallenge, setScoringChallenge] = useState(null)
+  const [rematch, setRematch] = useState(null)
+  // Cùng cờ với saveMatchScore — vai không ghi được trận thì không thấy nút Đấu lại.
+  const canRematch = can(role, 'assign')
 
   // Danh sách các trận trong buổi này
   const matches = useMemo(() => {
@@ -146,6 +150,24 @@ export default function SessionMatchesTab({ s, onSwitchTab }) {
   const shortNameOf = (id) => shortName(playerName(db, id))
 
   const getRating = (mid) => getPlayerRating(db.playerRatings, mid, playerOf(db, mid), db.levels).rating
+
+  // Đấu lại: đúng 4 người, giữ nguyên bên A/B và sân của trận cũ. Không mang kèo theo — trận
+  // lặp lại là trận chia sân thường (chuỗi BO3 của kèo đã có luồng riêng), nên luôn tính Elo
+  // trừ khi trận gốc là trận chia sân để giao lưu.
+  const rematchOf = (m) => {
+    const courtIdx = m.courtIdx ?? 0
+    const fromChallenge = Boolean(m.challengeId || m.sourceType === 'challenge')
+    return {
+      courtIdx,
+      courtLabel: (s.courts || [])[courtIdx]?.label || t('session.courtNum', { n: courtIdx + 1 }),
+      teamA: [...(m.teamA || [])],
+      teamB: [...(m.teamB || [])],
+      mode: (m.teamA || []).length > 1 ? 'doubles' : 'singles',
+      ratingEnabled: fromChallenge || m.ratingEnabled !== false,
+    }
+  }
+  // Cột 2 của bảng desktop chứa nút Sửa, thêm nút Đấu lại thì phải rộng ra.
+  const tableCols = `52px ${canRematch ? 60 : 46}px 64px 68px minmax(0,1fr) 88px minmax(0,1fr) 84px 94px 64px`
 
   // Đếm số trận từ nguồn
   const fromSessionCount = matches.filter((m) => m.sourceType === 'session' || (!m.sourceType && !m.challengeId)).length
@@ -511,6 +533,29 @@ export default function SessionMatchesTab({ s, onSwitchTab }) {
                         >
                           <Icon name="pencil" size={12} />
                         </button>
+                        {canRematch && (
+                          <button
+                            type="button"
+                            onClick={() => setRematch(rematchOf(m))}
+                            title={t('matchSearch.btnRematchHint')}
+                            style={{
+                              height: 32,
+                              display: 'inline-flex',
+                              alignItems: 'center',
+                              gap: 5,
+                              padding: '0 12px',
+                              borderRadius: 999,
+                              background: 'var(--surface-accent-soft)',
+                              border: '1px solid var(--teal-500)',
+                              font: "600 12px/1 'IBM Plex Sans', sans-serif",
+                              color: 'var(--status-transit-fg)',
+                              cursor: 'pointer',
+                            }}
+                          >
+                            <Icon name="repeat" size={13} />
+                            <span>{t('matchSearch.btnRematch')}</span>
+                          </button>
+                        )}
                       </div>
                     </div>
 
@@ -701,7 +746,7 @@ export default function SessionMatchesTab({ s, onSwitchTab }) {
                 <div
                   style={{
                     display: 'grid',
-                    gridTemplateColumns: '52px 46px 64px 68px minmax(0,1fr) 88px minmax(0,1fr) 84px 94px 64px',
+                    gridTemplateColumns: tableCols,
                     background: 'var(--surface-inset)',
                     borderBottom: '1px solid var(--border-subtle)',
                     font: "600 10.5px/1.2 'IBM Plex Sans', sans-serif",
@@ -794,7 +839,7 @@ export default function SessionMatchesTab({ s, onSwitchTab }) {
                           style={{
                             position: 'relative',
                             display: 'grid',
-                            gridTemplateColumns: '52px 46px 64px 68px minmax(0,1fr) 88px minmax(0,1fr) 84px 94px 64px',
+                            gridTemplateColumns: tableCols,
                             alignItems: 'center',
                             minHeight: 50,
                             borderBottom: '1px solid var(--border-subtle)',
@@ -821,8 +866,8 @@ export default function SessionMatchesTab({ s, onSwitchTab }) {
                             </span>
                           </div>
 
-                          {/* Cột 2: Sửa */}
-                          <div style={{ padding: '0 2px' }}>
+                          {/* Cột 2: Sửa · Đấu lại */}
+                          <div style={{ padding: '0 2px', display: 'flex', gap: 4 }}>
                             <button
                               type="button"
                               onClick={() => setEditingMatch(m)}
@@ -844,6 +889,29 @@ export default function SessionMatchesTab({ s, onSwitchTab }) {
                             >
                               <Icon name="pencil" size={12} />
                             </button>
+                            {canRematch && (
+                              <button
+                                type="button"
+                                onClick={() => setRematch(rematchOf(m))}
+                                title={t('matchSearch.btnRematchHint')}
+                                aria-label={t('matchSearch.btnRematch')}
+                                style={{
+                                  width: 24,
+                                  height: 24,
+                                  display: 'inline-flex',
+                                  alignItems: 'center',
+                                  justifyContent: 'center',
+                                  borderRadius: 5,
+                                  background: 'var(--surface-accent-soft)',
+                                  border: '1px solid var(--teal-500)',
+                                  color: 'var(--status-transit-fg)',
+                                  cursor: 'pointer',
+                                  padding: 0,
+                                }}
+                              >
+                                <Icon name="repeat" size={12} />
+                              </button>
+                            )}
                           </div>
 
                           {/* Cột 3: Giờ + khoảng cách */}
@@ -1713,6 +1781,17 @@ export default function SessionMatchesTab({ s, onSwitchTab }) {
             setSelectedChallenge(null)
             setEditingMatch(m)
           }}
+        />
+      )}
+
+      {/* Modal ghi điểm cho trận Đấu lại — "Nạp vào mặt sân" mang 4 người sang tab Chia sân */}
+      {rematch && (
+        <ScoreModal
+          court={rematch}
+          session={s}
+          onClose={() => setRematch(null)}
+          onSaved={() => setRematch(null)}
+          onLoadToCourt={onSwitchTab ? () => onSwitchTab('courts', rematch) : undefined}
         />
       )}
 

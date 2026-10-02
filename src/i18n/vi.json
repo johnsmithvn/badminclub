@@ -3620,6 +3620,8 @@
     "colSource": "Nguồn",
     "colAction": "Thao tác",
     "btnEdit": "Sửa",
+    "btnRematch": "Đấu lại",
+    "btnRematchHint": "Ghi tỉ số trận mới của đúng 4 người này, giữ nguyên hai đội",
     "cancelMatchTitle": "Xóa trận đấu này?",
     "cancelMatchMsg": "Trận đấu sẽ bị hủy và hệ thống sẽ tự động tính toán lại điểm rating (Elo) cho các trận sau.",
     "cancelMatchOk": "Xóa trận",

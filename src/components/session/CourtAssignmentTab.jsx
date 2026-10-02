@@ -23,19 +23,21 @@ import BalanceScore from '#components/session/BalanceScore.jsx'
 import VoiceMatchModal from '#components/session/VoiceMatchModal.jsx'
 import ScoreModal from '#components/challenge/ScoreModal.jsx'
 
-export default function CourtAssignmentTab({ s }) {
+// `preset`: đội hình nạp sẵn khi bấm "Nạp vào mặt sân" từ nút Đấu lại ở tab Trận. Chỉ đọc lúc
+// mount — SessionDetail xoá nó ở lần đổi tab kế tiếp.
+export default function CourtAssignmentTab({ s, preset }) {
   const { db, a } = useApp()
   const isMobile = useMobile(768)
   const role = db.viewAs || 'owner'
   const canManage = can(role, 'assign')
 
   // Mode: 'doubles' (2 vs 2) hoặc 'singles' (1 vs 1)
-  const [mode, setMode] = useState('doubles')
+  const [mode, setMode] = useState(preset?.mode || 'doubles')
   const maxPerTeam = mode === 'doubles' ? 2 : 1
 
   // Đội A & Đội B (mảng id/key các đấu thủ)
-  const [teamA, setTeamA] = useState([])
-  const [teamB, setTeamB] = useState([])
+  const [teamA, setTeamA] = useState(() => preset?.teamA || [])
+  const [teamB, setTeamB] = useState(() => preset?.teamB || [])
 
   // Quản lý các trận đang diễn ra trên sân (chờ ghi điểm)
   const ongoingStorageKey = `badmin_ongoing_${s?.id}`
@@ -61,8 +63,8 @@ export default function CourtAssignmentTab({ s }) {
   const [voiceTargetMatch, setVoiceTargetMatch] = useState(null)
 
   // Cài đặt sân & Elo
-  const [courtIdx, setCourtIdx] = useState(0)
-  const [ratingEnabled, setRatingEnabled] = useState(true)
+  const [courtIdx, setCourtIdx] = useState(preset?.courtIdx ?? 0)
+  const [ratingEnabled, setRatingEnabled] = useState(preset?.ratingEnabled ?? true)
   const [selectedChallengeId, setSelectedChallengeId] = useState(null)
 
   // Kèo đang được nạp vào form và tiến độ chuỗi BO3

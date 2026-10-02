@@ -183,8 +183,12 @@ export default function SessionDetail() {
   const tabFromUrl = searchParams.get('tab')
   const [tabState, setTabState] = useState(tabFromUrl || 'attend')
   const activeTab = tabFromUrl || tabState
-  const setActiveTab = (tab) => {
+  // Đội hình nạp sẵn cho tab Chia sân (nút Đấu lại ở tab Trận). Đổi tab nào khác cũng xoá nó,
+  // nên quay lại Chia sân sau đó không bị nạp lại đội hình cũ.
+  const [courtPreset, setCourtPreset] = useState(null)
+  const setActiveTab = (tab, preset = null) => {
     setTabState(tab)
+    setCourtPreset(preset)
     setSearchParams({ tab }, { replace: true })
   }
   const [editingGuest, setEditingGuest] = useState(null)
@@ -1512,7 +1516,7 @@ export default function SessionDetail() {
       )}
 
       {activeTab === 'planner' && <SessionPlannerTab s={s} />}
-      {activeTab === 'courts' && <CourtAssignmentTab s={s} />}
+      {activeTab === 'courts' && <CourtAssignmentTab s={s} preset={courtPreset} />}
       {activeTab === 'matches' && <SessionMatchesTab s={s} onSwitchTab={setActiveTab} />}
 
       {editingGuest && (
