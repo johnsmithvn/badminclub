@@ -1,13 +1,56 @@
 import { useState, useMemo } from 'react'
 import { createPortal } from 'react-dom'
-import BadgeHex from './BadgeHex.jsx'
-import { NOTCH_CLIP, NOTCH_S_CLIP, HEX_CLIP, ANIME_TIERS, getBadgeOwners, getBadgeChasers, getStreakTimeline } from '#lib/badges.js'
+import { HEX_CLIP, ANIME_TIERS, getBadgeOwners, getBadgeChasers, getStreakTimeline } from '#lib/badges.js'
+import BadgeHex, { TIER_FX } from './BadgeHex.jsx'
+import { useMobile } from '#hooks/useMobile.js'
 import { t } from '#i18n'
+
+const GOLD = '#F6C945'
+
+// Vị trí (left %) và bề rộng (px) bốn dải cực quang, theo đúng bản thiết kế.
+const CURTAIN_POS = [[18, 90], [40, 120], [64, 100], [86, 80]]
+
+// Bụi sao rải tất định — cùng công thức với bản thiết kế, không random để khỏi nhảy mỗi lần render.
+const DUST = Array.from({ length: 24 }, (_, i) => ({
+  x: `${(i * 83) % 97}%`,
+  y: `${(i * 47) % 48}%`,
+  size: 1 + (i % 3),
+  glow: 2 + (i % 3) * 3,
+  twinkle: 3 + (i % 5),
+  drift: 5 + (i % 4) * 2,
+  delay: (i % 7) * 0.4,
+}))
+
+const SHOOTING_STARS = [
+  { w: 90, dur: 7, delay: 1 },
+  { w: 70, dur: 9, delay: 4.5 },
+]
+
+const CARD = {
+  borderRadius: 14,
+  background: 'linear-gradient(150deg,rgba(255,255,255,.045),rgba(255,255,255,.015))',
+  border: '1px solid #221A3A',
+  display: 'flex',
+  flexDirection: 'column',
+  gap: 12,
+  minWidth: 0,
+}
+
+const SCROLL_LIST = {
+  maxHeight: 210,
+  overflowY: 'auto',
+  display: 'flex',
+  flexDirection: 'column',
+  paddingRight: 4,
+  scrollbarWidth: 'thin',
+  scrollbarColor: 'rgba(255,255,255,0.2) transparent',
+}
 
 /**
  * Màn A2 · Chi tiết một danh hiệu · điều kiện · chuỗi hiện tại · ai đã có · ai đang đuổi.
- * Hỗ trợ Thanh hành trình cấp độ (Level Stepper / Tier Road) cho các họ danh hiệu có nhiều mốc.
- * Thiết kế phong cách Anime với conic rays, floating hex badge, dot grid, notch clips.
+ * Họ danh hiệu nhiều mốc có thêm thanh Hành trình cấp độ để chọn mốc.
+ * Thẻ huy hiệu chính có nền hiệu ứng đổi theo bậc: bụi sao + sao băng, chùm sáng (bậc thấp)
+ * hoặc cực quang (Sử thi / Huyền thoại).
  *
  * Modal DUY NHẤT cho chi tiết danh hiệu (trang Danh hiệu desktop + mobile, hồ sơ thành viên).
  * Người giữ / người đuổi / chuỗi hiện tại tự tính từ `db` — nơi gọi chỉ cần đưa badge (nên qua
@@ -23,6 +66,8 @@ export default function BadgeDetailModal({
   onClose,
   onShowUnlock,
 }) {
+  const isMobile = useMobile(768)
+
   // Chuỗi các mốc cấp độ (nếu là họ danh hiệu Evolving Badge)
   const tiers = useMemo(() => {
     return Array.isArray(badge?.tiers) && badge.tiers.length > 0 ? badge.tiers : (badge ? [badge] : [])
@@ -49,6 +94,8 @@ export default function BadgeDetailModal({
   }, [tiers, selectedTierIdx, badge])
 
   const meta = activeTierBadge.tierMeta || ANIME_TIERS[activeTierBadge.tier] || ANIME_TIERS.rare
+  const fx = TIER_FX[activeTierBadge.tier] || TIER_FX.rare
+  const rgba = (a) => `rgba(${fx.rgb},${a})`
   const isHidden = activeTierBadge.tier === 'hidden' && !activeTierBadge.unlocked
   const badgeName = t(`badges.items.${activeTierBadge.id}.name`, { defaultValue: activeTierBadge.name || '???' })
   const badgeCond = t(`badges.items.${activeTierBadge.id}.cond`, { defaultValue: activeTierBadge.cond || '' })
@@ -56,6 +103,8 @@ export default function BadgeDetailModal({
   // `pct` vắng mặt khi modal được mở bằng bản ĐỊNH NGHĨA danh hiệu (getBadgeById) thay vì bản
   // đã tính tiến độ cho một người — không chặn thì in thẳng ra chữ "undefined%".
   const pct = Number(activeTierBadge.pct) || 0
+  const isUnlocked = !!activeTierBadge.unlocked
+  const barPct = isUnlocked ? 100 : pct
   const isWinStreak = activeTierBadge.checkType === 'win_streak'
   const isHolding = isWinStreak ? Number(activeTierBadge.currentVal) > 0 : activeTierBadge.pct > 0
 
@@ -105,6 +154,691 @@ export default function BadgeDetailModal({
   // Mọi hook phải chạy TRƯỚC lần return sớm này (rules-of-hooks)
   if (!badge) return null
 
+  const familyName = isFamily ? t(`badges.families.${badge.familyKey}.name`, { defaultValue: badgeName }) : badgeName
+  const progressText = isUnlocked ? t('badges.detail.statusAchieved') : (activeTierBadge.progressStr || `${pct}%`)
+  const progressColor = isUnlocked ? fx.acc : GOLD
+  const progressHint = isUnlocked
+    ? t('badges.detail.completedDesc')
+    : isWinStreak && Number(activeTierBadge.currentVal) === 0
+      ? t('badges.detail.streakResetHint')
+      : isWinStreak && Number(activeTierBadge.currentVal) > 0
+        ? t('badges.detail.remainingStreakHint', {
+            current: activeTierBadge.currentVal,
+            remain: Math.max(1, (activeTierBadge.threshold || 10) - Number(activeTierBadge.currentVal)),
+          })
+        : t('badges.detail.remainingHint', {
+            remain: Math.max(1, (activeTierBadge.threshold || 10) - (activeTierBadge.currentVal || 0)),
+          })
+
+  const cardPad = isMobile ? '15px 16px' : '16px 18px'
+  const cardTitle = {
+    font: `700 ${isMobile ? 13 : 14}px/1.2 'Oswald', sans-serif`,
+    letterSpacing: '.14em',
+    textTransform: 'uppercase',
+    color: '#FFFFFF',
+  }
+  const emptyText = { font: `400 ${isMobile ? 12 : 12.5}px/1.4 var(--font-sans)`, color: '#8E83A8' }
+  const tierRing = `linear-gradient(160deg,${fx.light},${fx.acc} 55%,${fx.mid})`
+  const tierBar = `linear-gradient(90deg,${fx.mid},${fx.acc})`
+
+  /* ── Thẻ huy hiệu chính với nền hiệu ứng ───────────────────────────────── */
+  const hero = (
+    <div
+      data-badge-fx
+      style={{
+        position: 'relative',
+        minHeight: 560,
+        borderRadius: 16,
+        overflow: 'hidden',
+        border: `1px solid ${rgba(0.45)}`,
+        background: '#06080C',
+        display: 'flex',
+        flexDirection: 'column',
+        minWidth: 0,
+      }}
+    >
+      {DUST.map((s, i) => (
+        <span
+          key={i}
+          style={{
+            position: 'absolute',
+            left: s.x,
+            top: s.y,
+            width: s.size,
+            height: s.size,
+            borderRadius: 999,
+            background: '#FFFFFF',
+            opacity: 0.3,
+            boxShadow: `0 0 ${s.glow}px rgba(255,255,255,.8)`,
+            animation: `bdTwinkle ${s.twinkle}s ease-in-out ${s.delay}s infinite, bdDrift ${s.drift}s ease-in-out ${s.delay}s infinite`,
+            pointerEvents: 'none',
+          }}
+        />
+      ))}
+      {SHOOTING_STARS.map((s, i) => (
+        <span
+          key={i}
+          style={{
+            position: 'absolute',
+            left: 0,
+            top: 0,
+            width: s.w,
+            height: 1.5,
+            background: 'linear-gradient(90deg,transparent,#FFFFFF)',
+            transform: 'rotate(28deg)',
+            opacity: 0,
+            animation: `bdShoot ${s.dur}s ease-in ${s.delay}s infinite`,
+            pointerEvents: 'none',
+          }}
+        />
+      ))}
+
+      {fx.effect === 'beam' && (
+        <>
+          <div
+            style={{
+              position: 'absolute',
+              left: '50%',
+              top: 0,
+              width: 270,
+              height: 300,
+              marginLeft: -135,
+              background: `linear-gradient(180deg,${rgba(0.3)},${rgba(0.08)} 72%,transparent)`,
+              clipPath: 'polygon(40% 0,60% 0,100% 100%,0 100%)',
+              animation: 'bdBeam 6s ease-in-out infinite',
+              pointerEvents: 'none',
+            }}
+          />
+          <div
+            style={{
+              position: 'absolute',
+              left: '50%',
+              top: 120,
+              width: 230,
+              height: 70,
+              marginLeft: -115,
+              background: `radial-gradient(50% 50% at 50% 50%,${rgba(0.3)},transparent 70%)`,
+              pointerEvents: 'none',
+            }}
+          />
+        </>
+      )}
+
+      {fx.effect === 'aurora' && (
+        <>
+          {fx.curtains.map(([c1, c2], i) => {
+            const [left, w] = CURTAIN_POS[i]
+            return (
+              <div
+                key={i}
+                style={{
+                  position: 'absolute',
+                  left: `${left}%`,
+                  top: -40,
+                  width: w,
+                  height: 400,
+                  marginLeft: -w / 2,
+                  background: `linear-gradient(180deg,transparent,rgba(${c1},.5) 30%,rgba(${c2},.45) 62%,transparent)`,
+                  filter: 'blur(22px)',
+                  transformOrigin: 'top',
+                  mixBlendMode: 'screen',
+                  animation: `bdSway ${9 + i * 1.5}s ease-in-out ${-i * 2}s infinite`,
+                  pointerEvents: 'none',
+                }}
+              />
+            )
+          })}
+          <div
+            style={{
+              position: 'absolute',
+              left: 0,
+              right: 0,
+              top: 230,
+              height: 140,
+              background: 'linear-gradient(180deg,transparent,#06080C)',
+              pointerEvents: 'none',
+            }}
+          />
+        </>
+      )}
+
+      <div
+        style={{
+          position: 'relative',
+          flex: '1 1 auto',
+          display: 'flex',
+          flexDirection: 'column',
+          alignItems: 'center',
+          gap: 11,
+          padding: isMobile ? '0 18px 18px' : '0 24px 22px',
+          textAlign: 'center',
+        }}
+      >
+        <div style={{ marginTop: 140, marginBottom: 6, filter: `drop-shadow(0 0 22px ${rgba(0.45)})` }}>
+          <Hex width={128} height={140} inset={3} ring={tierRing} well={fx.well}>
+            {isHidden ? (
+              <span style={{ font: "700 48px/1 'Oswald', sans-serif", color: fx.acc }}>?</span>
+            ) : (
+              <span
+                style={{
+                  width: 54,
+                  height: 48,
+                  clipPath: glyphClip(activeTierBadge.glyph),
+                  background: `linear-gradient(180deg,${fx.light},${fx.acc})`,
+                }}
+              />
+            )}
+          </Hex>
+        </div>
+
+        <span
+          style={{
+            font: `700 ${isMobile ? 32 : 36}px/1.05 'Oswald', sans-serif`,
+            letterSpacing: '.05em',
+            textTransform: 'uppercase',
+            color: '#FFFFFF',
+            textShadow: `0 0 22px ${rgba(0.45)}`,
+            overflowWrap: 'anywhere',
+          }}
+        >
+          {isHidden ? '???' : badgeName}
+        </span>
+
+        {activeTierBadge.seasonCode && (
+          <span style={{ font: '600 12px/1 var(--font-mono)', letterSpacing: '.1em', color: fx.acc }}>
+            ✦ {activeTierBadge.seasonCode} ✦
+          </span>
+        )}
+
+        <span
+          style={{
+            font: `600 ${isMobile ? 10.5 : 11}px/1 'Oswald', sans-serif`,
+            letterSpacing: '.22em',
+            textTransform: 'uppercase',
+            padding: '6px 12px',
+            borderRadius: 6,
+            background: rgba(0.12),
+            borderTop: `1px solid ${rgba(0.45)}`,
+            color: fx.acc,
+          }}
+        >
+          {meta.name} · {meta.pts} {t('badges.pointsLabel')}
+        </span>
+
+        {activeTierBadge.reward && (
+          <div style={{ display: 'flex', flexWrap: 'wrap', justifyContent: 'center', gap: 8 }}>
+            <span
+              style={{
+                font: '700 12px/1 var(--font-display)',
+                padding: '7px 11px',
+                borderRadius: 7,
+                background: 'rgba(246,201,69,.12)',
+                border: '1px solid rgba(246,201,69,.4)',
+                color: GOLD,
+              }}
+            >
+              +{activeTierBadge.reward.xp || 0} XP
+            </span>
+            {Number(activeTierBadge.reward.seasonPts) > 0 && (
+              <span
+                style={{
+                  font: '700 12px/1 var(--font-display)',
+                  padding: '7px 11px',
+                  borderRadius: 7,
+                  background: rgba(0.12),
+                  border: `1px solid ${rgba(0.45)}`,
+                  color: fx.acc,
+                }}
+              >
+                +{activeTierBadge.reward.seasonPts} {t('badges.seasonPointsUnit')}
+              </span>
+            )}
+          </div>
+        )}
+
+        <span style={{ font: `400 ${isMobile ? 14 : 14.5}px/1.4 var(--font-sans)`, color: '#E3DCEE' }}>
+          {badgeCond}
+        </span>
+
+        {/* Tiến độ cá nhân — đẩy xuống đáy thẻ để huy hiệu luôn nằm ngay dưới chùm sáng */}
+        <div
+          style={{
+            alignSelf: 'stretch',
+            marginTop: 'auto',
+            display: 'flex',
+            flexDirection: 'column',
+            gap: 9,
+            padding: '12px 14px',
+            borderRadius: 12,
+            background: 'rgba(4,8,10,.72)',
+            border: '1px solid rgba(255,255,255,.08)',
+          }}
+        >
+          <div style={{ display: 'flex', alignItems: 'baseline', gap: 10 }}>
+            <span
+              style={{
+                flex: '1 1 0%',
+                textAlign: 'left',
+                font: `600 ${isMobile ? 10 : 10.5}px/1 'Oswald', sans-serif`,
+                letterSpacing: '.16em',
+                textTransform: 'uppercase',
+                color: GOLD,
+              }}
+            >
+              {t('badges.detail.yourProgress')}
+            </span>
+            <span style={{ font: `700 ${isMobile ? 22 : 24}px/1 'Oswald', sans-serif`, color: progressColor }}>
+              {progressText}
+            </span>
+          </div>
+          <div style={{ height: 7, borderRadius: 999, background: 'rgba(255,255,255,.1)', overflow: 'hidden' }}>
+            <div style={{ width: `${barPct}%`, height: '100%', borderRadius: 999, background: tierBar }} />
+          </div>
+          <span style={{ textAlign: 'left', font: '400 11px/1.4 var(--font-mono)', color: '#9A90AD' }}>
+            {progressHint}
+          </span>
+        </div>
+
+        {isUnlocked && onShowUnlock && (
+          <button
+            type="button"
+            onClick={() => {
+              onClose && onClose()
+              onShowUnlock(activeTierBadge)
+            }}
+            style={{
+              alignSelf: 'stretch',
+              padding: '12px 14px',
+              borderRadius: 10,
+              border: `1px solid ${rgba(0.55)}`,
+              background: rgba(0.14),
+              color: fx.acc,
+              font: "700 12px/1 'Oswald', sans-serif",
+              letterSpacing: '.14em',
+              textTransform: 'uppercase',
+              cursor: 'pointer',
+              transition: 'filter 140ms cubic-bezier(.2,.8,.2,1)',
+            }}
+            onMouseEnter={(e) => { e.currentTarget.style.filter = 'brightness(1.2)' }}
+            onMouseLeave={(e) => { e.currentTarget.style.filter = 'none' }}
+          >
+            {t('badges.detail.viewUnlockFanfare')}
+          </button>
+        )}
+      </div>
+    </div>
+  )
+
+  /* ── Thanh hành trình cấp độ ───────────────────────────────────────────── */
+  const pipW = isMobile ? 26 : 34
+  const pipH = isMobile ? 28 : 36
+  const journey = isFamily && (
+    <div
+      style={
+        isMobile
+          ? { ...CARD, padding: cardPad }
+          : {
+              ...CARD,
+              padding: '16px 18px 18px',
+              background: 'linear-gradient(180deg,rgba(90,20,60,.4),rgba(20,10,34,.6))',
+              border: '1px solid #2A1F4A',
+            }
+      }
+    >
+      <div style={{ display: 'flex', alignItems: 'center', gap: isMobile ? 8 : 12 }}>
+        <span
+          style={{
+            font: `700 ${isMobile ? 12 : 13}px/1 'Oswald', sans-serif`,
+            letterSpacing: '.14em',
+            textTransform: 'uppercase',
+            color: GOLD,
+          }}
+        >
+          {t('badges.detail.milestoneRoadTitle')}
+        </span>
+        <span style={{ flex: '1 1 0%', minWidth: 0, font: '400 11px/1 var(--font-mono)', color: '#8E83A8' }}>
+          {t('badges.detail.milestoneRoadHint', {
+            unlockedCount: tiers.filter((tr) => tr.unlocked).length,
+            totalCount: tiers.length,
+          })}
+        </span>
+        {!isMobile && (
+          <span style={{ font: '600 12px/1 var(--font-sans)', color: '#C8A8F0' }}>{familyName}</span>
+        )}
+      </div>
+
+      <div style={{ display: 'grid', gridTemplateColumns: `repeat(${tiers.length}, minmax(0, 1fr))`, gap: isMobile ? 7 : 12 }}>
+        {tiers.map((tr, idx) => {
+          const trFx = TIER_FX[tr.tier] || TIER_FX.rare
+          const isSelected = idx === selectedTierIdx
+          const isOpen = !!tr.unlocked
+          const trPct = Number(tr.pct) || 0
+
+          return (
+            <button
+              key={tr.id || idx}
+              type="button"
+              aria-pressed={isSelected}
+              onClick={() => setSelectedTierIdx(idx)}
+              style={{
+                minWidth: 0,
+                padding: isMobile ? '10px 4px 9px' : '14px 10px 12px',
+                borderRadius: isMobile ? 10 : 12,
+                background: isSelected
+                  ? 'linear-gradient(180deg,rgba(170,30,90,.55),rgba(50,20,120,.55))'
+                  : isOpen
+                    ? `rgba(${trFx.rgb},.06)`
+                    : 'transparent',
+                border: isSelected
+                  ? '1px solid #FF4F8A'
+                  : isOpen
+                    ? `1px solid rgba(${trFx.rgb},.45)`
+                    : '1px dashed #2E2447',
+                display: 'flex',
+                flexDirection: 'column',
+                alignItems: 'center',
+                gap: isMobile ? 6 : 7,
+                cursor: 'pointer',
+                transition: 'background 140ms cubic-bezier(.2,.8,.2,1), border-color 140ms cubic-bezier(.2,.8,.2,1)',
+              }}
+            >
+              <Hex width={pipW} height={pipH} inset={2} ring={trFx.pip} well={trFx.pipWell}>
+                {isOpen ? (
+                  <span
+                    style={{
+                      width: Math.round(pipW * 0.46),
+                      height: Math.round(pipW * 0.42),
+                      clipPath: glyphClip(tr.glyph),
+                      background: trFx.pip,
+                    }}
+                  />
+                ) : (
+                  <span style={{ font: `700 ${isMobile ? 10 : 12}px/1 var(--font-display)`, color: trFx.pip }}>?</span>
+                )}
+              </Hex>
+              <span
+                style={{
+                  font: `700 ${isMobile ? 10 : 11}px/1 'Oswald', sans-serif`,
+                  letterSpacing: isMobile ? '.1em' : '.12em',
+                  color: isSelected ? GOLD : trFx.acc,
+                }}
+              >
+                {t('badges.detail.milestoneLevel', { index: idx + 1 })}
+              </span>
+              <span
+                style={{
+                  maxWidth: '100%',
+                  overflow: 'hidden',
+                  textOverflow: 'ellipsis',
+                  whiteSpace: 'nowrap',
+                  font: `500 ${isMobile ? 11 : 13}px/1.2 var(--font-sans)`,
+                  color: isSelected || isOpen ? '#E3DCEE' : '#9A90AD',
+                }}
+              >
+                {t(`badges.items.${tr.id}.name`, { defaultValue: tr.name || '' })}
+              </span>
+              {!isMobile && (
+                <span
+                  style={{
+                    font: '400 10px/1 var(--font-mono)',
+                    padding: '4px 8px',
+                    borderRadius: 999,
+                    background: isOpen
+                      ? `rgba(${trFx.rgb},.14)`
+                      : trPct > 0
+                        ? 'rgba(246,201,69,.12)'
+                        : isSelected
+                          ? 'rgba(255,255,255,.08)'
+                          : 'rgba(255,255,255,.06)',
+                    color: isOpen ? trFx.acc : trPct > 0 ? GOLD : isSelected ? '#9A90AD' : '#7C7294',
+                  }}
+                >
+                  {isOpen ? t('badges.openedStatus') : trPct > 0 ? `${trPct}%` : t('badges.lockedStatus')}
+                </span>
+              )}
+            </button>
+          )
+        })}
+      </div>
+    </div>
+  )
+
+  /* ── Các thẻ chi tiết: điều kiện · tiến độ/chuỗi · ai đã có · người sắp đạt ── */
+  const funCard = (
+    <div
+      style={{
+        ...CARD,
+        padding: cardPad,
+        gap: 14,
+        background: 'linear-gradient(150deg,rgba(246,201,69,.08),rgba(255,79,138,.05))',
+        border: '1px solid rgba(246,201,69,.3)',
+      }}
+    >
+      <span style={{ ...cardTitle, color: GOLD }}>{t('badges.groups.fun')}</span>
+      <div
+        style={{
+          font: '400 13.5px/1.6 var(--font-sans)',
+          color: '#FFFBEA',
+          background: 'rgba(0,0,0,.35)',
+          padding: '12px 14px',
+          borderRadius: 10,
+          borderLeft: `3px solid ${GOLD}`,
+        }}
+      >
+        "{badgeCond}"
+      </div>
+      <span style={{ font: '600 12.5px/1.5 var(--font-sans)', color: '#FFC46B' }}>{t('badges.detail.funPunchline')}</span>
+      <span style={{ font: '400 11.5px/1.4 var(--font-mono)', color: '#8E83A8' }}>{t('badges.detail.funBadgeNote')}</span>
+    </div>
+  )
+
+  const conditionsCard = (
+    <div style={{ ...CARD, padding: cardPad, gap: 11 }}>
+      <span style={cardTitle}>{t('badges.detail.conditionsTitle')}</span>
+      {conditions.map((c, i) => (
+        <div key={i} style={{ display: 'flex', alignItems: 'center', gap: isMobile ? 10 : 12 }}>
+          <span
+            style={{
+              width: isMobile ? 20 : 22,
+              height: isMobile ? 22 : 24,
+              flex: '0 0 auto',
+              clipPath: HEX_CLIP,
+              display: 'grid',
+              placeItems: 'center',
+              background: c.ok ? `linear-gradient(160deg,${fx.light},${fx.acc})` : '#2A1B55',
+              font: "700 11px/1 'Oswald', sans-serif",
+              color: '#06080C',
+            }}
+          >
+            {c.ok ? '✓' : <span style={{ width: 3, height: 3, borderRadius: 999, background: '#8E7BD0' }} />}
+          </span>
+          <span style={{ flex: '1 1 0%', minWidth: 0, font: `400 ${isMobile ? 13.5 : 14}px/1.4 var(--font-sans)`, color: '#E3DCEE' }}>
+            {c.text}
+          </span>
+          <span style={{ flex: '0 0 auto', font: `600 ${isMobile ? 12 : 13}px/1 var(--font-mono)`, color: c.ok ? fx.acc : '#9A90AD' }}>
+            {c.val}
+          </span>
+        </div>
+      ))}
+    </div>
+  )
+
+  const streakCard = (
+    <div style={{ ...CARD, padding: cardPad }}>
+      <div style={{ display: 'flex', alignItems: 'center', flexWrap: 'wrap', gap: 10 }}>
+        <span style={cardTitle}>{t('badges.detail.currentStreakTitle')}</span>
+        <span style={{ font: '400 11px/1 var(--font-mono)', color: '#8E83A8' }}>{t('badges.detail.streakHint')}</span>
+      </div>
+      <div style={{ display: 'flex', gap: isMobile ? 5 : 7 }}>
+        {streakTimeline.map((s, i) => (
+          <div
+            key={i}
+            style={{
+              flex: '1 1 0%',
+              minWidth: 0,
+              height: isMobile ? 34 : 40,
+              borderRadius: 8,
+              display: 'grid',
+              placeItems: 'center',
+              font: "700 14px/1 'Oswald', sans-serif",
+              background: s.won ? rgba(0.18) : 'rgba(255,255,255,.04)',
+              border: s.won ? `1px solid ${rgba(0.55)}` : '1px solid #221A3A',
+              color: s.won ? fx.acc : '#5E5478',
+            }}
+          >
+            {s.label}
+          </div>
+        ))}
+      </div>
+    </div>
+  )
+
+  const missionCard = (
+    <div style={{ ...CARD, padding: cardPad, gap: 11 }}>
+      <div style={{ display: 'flex', alignItems: 'center', gap: 10 }}>
+        <span style={{ ...cardTitle, flex: '1 1 0%' }}>{t('badges.detail.missionProgressTitle')}</span>
+        <span style={{ font: `700 ${isMobile ? 18 : 20}px/1 'Oswald', sans-serif`, color: progressColor }}>{progressText}</span>
+      </div>
+      <div style={{ height: 8, borderRadius: 999, background: 'rgba(255,255,255,.08)', overflow: 'hidden' }}>
+        <div
+          style={{
+            width: `${barPct}%`,
+            height: '100%',
+            borderRadius: 999,
+            background: tierBar,
+            transition: 'width 320ms cubic-bezier(.2,.8,.2,1)',
+          }}
+        />
+      </div>
+      <span style={{ font: `500 ${isMobile ? 12 : 12.5}px/1.4 var(--font-sans)`, color: '#C9BFDC' }}>
+        {isUnlocked
+          ? t('badges.detail.missionCompleted')
+          : t('badges.detail.missionRemaining', {
+              current: activeTierBadge.currentVal || 0,
+              target: activeTierBadge.threshold || 1,
+              remain: Math.max(0, (activeTierBadge.threshold || 1) - (activeTierBadge.currentVal || 0)),
+            })}
+      </span>
+    </div>
+  )
+
+  // Điện thoại: hai thẻ người đứng cạnh nhau chỉ khi cả hai đều trống (như bản thiết kế); có
+  // danh sách thì xếp dọc, vì ô ~165px không chứa nổi avatar + tên + ngày.
+  const stackPeople = isMobile && (currentOwners.length > 0 || currentChasers.length > 0)
+  const peopleGrid = (
+    <div style={{ display: 'grid', gridTemplateColumns: stackPeople ? '1fr' : 'repeat(2, minmax(0, 1fr))', gap: isMobile ? 12 : 14 }}>
+      <div style={{ ...CARD, padding: isMobile ? '14px 15px' : cardPad, gap: 10 }}>
+        <span style={cardTitle}>{t('badges.detail.ownersTitle', { count: currentOwners.length })}</span>
+        {currentOwners.length === 0 ? (
+          <span style={emptyText}>{t('badges.detail.noOwners')}</span>
+        ) : (
+          <div style={{ ...SCROLL_LIST, gap: 11, minWidth: 0 }}>
+            {currentOwners.map((o) => {
+              const noteText = o.checkType === 'win_streak'
+                ? t('badges.detail.ownersStreakNote', { streak: o.streak, season: t('badges.seasonLabel') })
+                : t('badges.detail.ownersCondNote', { val: o.streak || o.threshold || 1 })
+
+              return (
+                <div key={o.id} style={{ minWidth: 0, display: 'flex', alignItems: 'center', gap: 11 }}>
+                  <div
+                    style={{
+                      width: 34,
+                      height: 34,
+                      flex: '0 0 auto',
+                      clipPath: HEX_CLIP,
+                      background: tierRing,
+                      display: 'grid',
+                      placeItems: 'center',
+                      font: "700 14px/1 'Oswald', sans-serif",
+                      color: '#06080C',
+                      overflow: 'hidden',
+                    }}
+                  >
+                    {o.avatarUrl ? (
+                      <img src={o.avatarUrl} alt={o.name} style={{ width: '100%', height: '100%', objectFit: 'cover' }} />
+                    ) : (
+                      o.initial
+                    )}
+                  </div>
+                  <div style={{ flex: '1 1 0%', minWidth: 0, display: 'flex', flexDirection: 'column', gap: 3 }}>
+                    <span
+                      title={o.name}
+                      style={{
+                        font: '600 13px/1.2 var(--font-sans)',
+                        color: '#FFFFFF',
+                        whiteSpace: 'nowrap',
+                        overflow: 'hidden',
+                        textOverflow: 'ellipsis',
+                      }}
+                    >
+                      {o.name}
+                    </span>
+                    <span style={{ font: '400 11px/1.2 var(--font-mono)', color: '#8E83A8' }}>{noteText}</span>
+                  </div>
+                  <span style={{ flex: '0 0 auto', font: '600 11.5px/1 var(--font-mono)', color: '#9A90AD' }}>{o.at}</span>
+                </div>
+              )
+            })}
+          </div>
+        )}
+      </div>
+
+      <div style={{ ...CARD, padding: isMobile ? '14px 15px' : cardPad, gap: 10 }}>
+        <span style={cardTitle}>{t('badges.detail.chasersTitle')}</span>
+        {currentChasers.length === 0 ? (
+          <span style={emptyText}>{t('badges.detail.noChasers')}</span>
+        ) : (
+          <div style={{ ...SCROLL_LIST, gap: 10 }}>
+            {currentChasers.map((c) => (
+              <div key={c.id} style={{ display: 'flex', alignItems: 'center', gap: 10 }}>
+                <span style={{ width: 20, flex: '0 0 auto', font: '600 11.5px/1 var(--font-mono)', color: '#8E83A8' }}>{c.rank}</span>
+                <span
+                  title={c.name}
+                  style={{
+                    flex: '1 1 0%',
+                    minWidth: 0,
+                    font: `${c.isMe ? 700 : 500} 12.5px/1.2 var(--font-sans)`,
+                    color: c.isMe ? GOLD : '#E3DCEE',
+                    whiteSpace: 'nowrap',
+                    overflow: 'hidden',
+                    textOverflow: 'ellipsis',
+                  }}
+                >
+                  {c.isMe ? t('badges.detail.you') : c.name}
+                </span>
+                <div style={{ flex: '2 1 0%', height: 7, borderRadius: 999, background: 'rgba(255,255,255,.08)', overflow: 'hidden' }}>
+                  <div
+                    style={{
+                      width: `${c.pct}%`,
+                      height: '100%',
+                      borderRadius: 999,
+                      background: c.isMe ? `linear-gradient(90deg,#9A7414,${GOLD})` : tierBar,
+                    }}
+                  />
+                </div>
+                <span style={{ width: 22, flex: '0 0 auto', textAlign: 'right', font: '600 12px/1 var(--font-mono)', color: '#C9BFDC' }}>
+                  {c.val}
+                </span>
+              </div>
+            ))}
+          </div>
+        )}
+      </div>
+    </div>
+  )
+
+  const details = (
+    <>
+      {isFun ? funCard : (
+        <>
+          {conditionsCard}
+          {isStreakBadge ? streakCard : missionCard}
+        </>
+      )}
+      {peopleGrid}
+    </>
+  )
+
   const modalContent = (
     <div
       role="dialog"
@@ -113,12 +847,12 @@ export default function BadgeDetailModal({
         position: 'fixed',
         inset: 0,
         zIndex: 10050,
-        background: 'rgba(5, 2, 12, 0.85)',
+        background: 'rgba(5,3,9,.85)',
         backdropFilter: 'blur(8px)',
         display: 'flex',
         alignItems: 'center',
         justifyContent: 'center',
-        padding: '16px 12px',
+        padding: isMobile ? '10px 8px' : '24px 16px',
         overflowY: 'auto',
       }}
       onClick={(e) => {
@@ -129,762 +863,95 @@ export default function BadgeDetailModal({
         style={{
           position: 'relative',
           width: '100%',
-          maxWidth: 1080,
-          background: '#07030F',
-          border: '1px solid #2A1145',
-          borderRadius: 14,
-          overflow: 'hidden',
-          onClick: (e) => e.stopPropagation(),
-          display: 'flex',
-          flexDirection: 'column',
-          boxShadow: '0 20px 60px rgba(0, 0, 0, 0.8), 0 0 40px rgba(109, 20, 255, 0.25)',
+          maxWidth: 1100,
           maxHeight: '94vh',
           overflowY: 'auto',
+          display: 'flex',
+          flexDirection: 'column',
+          borderRadius: isMobile ? 26 : 22,
+          border: '1px solid #2A1F4A',
+          // Lưới chấm nằm trên NỀN của khung cuộn chứ không phải một lớp absolute — lớp absolute
+          // chỉ phủ đúng phần nhìn thấy lúc mở, cuộn xuống là hết chấm.
+          background: 'radial-gradient(rgba(255,255,255,.06) 1px,transparent 1px) 0 0/14px 14px, #09060F',
+          boxShadow: '0 24px 70px rgba(0,0,0,.75), 0 0 48px rgba(90,40,170,.22)',
         }}
       >
-        {/* Glow nền mờ 2 quầng radial gradient anime */}
+        {/* Header dính trên cùng, thân cuộn bên dưới — nền phải đục vì nội dung chạy ngay dưới nó */}
         <div
           style={{
-            position: 'absolute',
-            inset: 0,
-            background:
-              'radial-gradient(60% 50% at 28% 8%, rgba(255,46,126,.2), transparent 70%), radial-gradient(56% 46% at 92% 90%, rgba(109,20,255,.22), transparent 72%)',
-            pointerEvents: 'none',
-          }}
-        />
-        {/* Lớp dot grid anime 9px x 9px */}
-        <div
-          style={{
-            position: 'absolute',
-            inset: 0,
-            backgroundImage: 'radial-gradient(rgba(255,255,255,.05) 1px, transparent 1px)',
-            backgroundSize: '9px 9px',
-            pointerEvents: 'none',
-          }}
-        />
-
-        {/* 1. Header & Breadcrumb */}
-        <div
-          style={{
-            padding: '14px 20px',
-            borderBottom: '1px solid #2A1145',
-            display: 'flex',
-            alignItems: 'center',
-            gap: 12,
-            // Header dính trên cùng, phần thân cuộn bên dưới. `background` phải đục vì nội dung
-            // chạy NGAY DƯỚI nó khi cuộn — nền thẻ modal không tự che.
             position: 'sticky',
             top: 0,
             zIndex: 5,
-            background: '#07030F',
             flexShrink: 0,
+            height: isMobile ? 54 : 56,
+            padding: isMobile ? '0 16px' : '0 24px',
+            display: 'flex',
+            alignItems: 'center',
+            gap: 12,
+            borderBottom: '1px solid #1E1636',
+            background: '#050309',
           }}
         >
           <span
             style={{
-              font: "600 12px/1 'Oswald', sans-serif",
+              flex: '1 1 0%',
+              minWidth: 0,
+              overflow: 'hidden',
+              textOverflow: 'ellipsis',
+              whiteSpace: 'nowrap',
+              font: "700 14px/1 'Oswald', sans-serif",
               letterSpacing: '.14em',
-              color: '#FFFFFF',
               textTransform: 'uppercase',
+              color: '#FFFFFF',
             }}
           >
-            {isHidden ? '???' : (isFamily ? t(`badges.families.${badge.familyKey}.name`, { defaultValue: badgeName }) : badgeName)}
+            {isHidden ? '???' : familyName}
           </span>
-          <div style={{ flex: '1 1 0%' }} />
           <button
             type="button"
             onClick={onClose}
             style={{
+              flex: '0 0 auto',
               border: 'none',
-              background: 'rgba(255,255,255,.06)',
-              color: '#9C8ABE',
+              borderRadius: 8,
+              background: '#161026',
+              color: '#C9BFDC',
+              padding: isMobile ? '9px 12px' : '9px 14px',
+              font: "600 12px/1 'Oswald', sans-serif",
+              letterSpacing: '.12em',
               cursor: 'pointer',
-              padding: '6px 12px',
-              clipPath: NOTCH_S_CLIP,
-              font: "700 12px/1 'Oswald', sans-serif",
+              transition: 'background 140ms cubic-bezier(.2,.8,.2,1)',
             }}
+            onMouseEnter={(e) => { e.currentTarget.style.background = '#201838' }}
+            onMouseLeave={(e) => { e.currentTarget.style.background = '#161026' }}
           >
             {t('badges.closeBtn')}
           </button>
         </div>
 
-        {/* 1.5. THANH HÀNH TRÌNH CẤP ĐỘ (LEVEL STEPPER / MILESTONE ROAD) */}
-        {isFamily && (
-          <div
-            style={{
-              margin: '16px 20px 0',
-              padding: '14px 16px',
-              clipPath: NOTCH_CLIP,
-              background: 'rgba(255,255,255,.03)',
-              border: '1px solid #2A1145',
-              display: 'flex',
-              flexDirection: 'column',
-              gap: 12,
-              position: 'relative',
-            }}
-          >
-            <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', flexWrap: 'wrap', gap: 8 }}>
-              <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
-                <span style={{ font: "700 13px/1 'Oswald', sans-serif", letterSpacing: '.14em', color: '#FFE24B' }}>
-                  {t('badges.detail.milestoneRoadTitle')}
-                </span>
-                <span style={{ font: "400 11px/1 'IBM Plex Mono', monospace", color: '#9C8ABE' }}>
-                  {t('badges.detail.milestoneRoadHint', {
-                    unlockedCount: tiers.filter((tr) => tr.unlocked).length,
-                    totalCount: tiers.length,
-                  })}
-                </span>
-              </div>
-              <span style={{ font: "600 11px/1 'IBM Plex Mono', monospace", color: '#D9A8FF' }}>
-                {t(`badges.families.${badge.familyKey}.name`)}
-              </span>
-            </div>
-
-            {/* Stepper Cards */}
-            <div
-              style={{
-                display: 'grid',
-                gridTemplateColumns: `repeat(${tiers.length}, minmax(130px, 1fr))`,
-                gap: 10,
-                overflowX: 'auto',
-                paddingBottom: 4,
-              }}
-            >
-              {tiers.map((tr, idx) => {
-                const trMeta = tr.tierMeta || ANIME_TIERS[tr.tier] || ANIME_TIERS.rare
-                const isSelected = idx === selectedTierIdx
-                const isUnlocked = tr.unlocked
-
-                return (
-                  <button
-                    key={tr.id || idx}
-                    type="button"
-                    onClick={() => setSelectedTierIdx(idx)}
-                    style={{
-                      position: 'relative',
-                      display: 'flex',
-                      flexDirection: 'column',
-                      alignItems: 'center',
-                      gap: 6,
-                      padding: '10px 8px',
-                      borderRadius: 8,
-                      clipPath: NOTCH_S_CLIP,
-                      border: isSelected
-                        ? '1px solid #FF2E7E'
-                        : isUnlocked
-                          ? `1px solid ${trMeta.bd || '#00786F'}`
-                          : '1px dashed rgba(255,255,255,.15)',
-                      background: isSelected
-                        ? 'linear-gradient(180deg, rgba(255,46,126,.24), rgba(109,20,255,.24))'
-                        : isUnlocked
-                          ? 'rgba(0,0,0,.45)'
-                          : 'rgba(255,255,255,.02)',
-                      boxShadow: isSelected ? '0 0 16px rgba(255,46,126,.45)' : 'none',
-                      cursor: 'pointer',
-                      transition: 'all 0.15s ease',
-                      textAlign: 'center',
-                    }}
-                  >
-                    <BadgeHex
-                      tier={tr.tier}
-                      glyph={tr.glyph}
-                      size={32}
-                      dim={!isUnlocked}
-                      spin={tr.tier === 'legend' && isUnlocked}
-                    />
-                    <span style={{ font: "700 10.5px/1 'Oswald', sans-serif", letterSpacing: '.12em', color: isSelected ? '#FFE24B' : trMeta.ink }}>
-                      {t('badges.detail.milestoneLevel', { index: idx + 1 })}
-                    </span>
-                    <span
-                      style={{
-                        font: "600 11.5px/1.2 'Be Vietnam Pro', sans-serif",
-                        color: isUnlocked ? '#FFFFFF' : '#8494AA',
-                        overflow: 'hidden',
-                        textOverflow: 'ellipsis',
-                        whiteSpace: 'nowrap',
-                        width: '100%',
-                      }}
-                    >
-                      {t(`badges.items.${tr.id}.name`, { defaultValue: tr.name || '' })}
-                    </span>
-                    <span
-                      style={{
-                        font: "600 9.5px/1 'IBM Plex Mono', monospace",
-                        color: isUnlocked ? '#5FEBD0' : tr.pct > 0 ? '#FFE24B' : '#6B5C8C',
-                        padding: '2px 6px',
-                        borderRadius: 999,
-                        background: isUnlocked
-                          ? 'rgba(95,235,208,.12)'
-                          : tr.pct > 0
-                            ? 'rgba(255,226,75,.12)'
-                            : 'rgba(255,255,255,.05)',
-                      }}
-                    >
-                      {isUnlocked
-                        ? t('badges.openedStatus')
-                        : tr.pct > 0
-                          ? `${tr.pct}%`
-                          : t('badges.lockedStatus')}
-                    </span>
-                  </button>
-                )
-              })}
-            </div>
-          </div>
-        )}
-
-        {/* 2. Grid Nội Dung Chính: 2 Cột chuẩn Figma/Anime */}
         <div
           style={{
-            padding: '20px',
-            display: 'grid',
-            gridTemplateColumns: 'repeat(auto-fit, minmax(min(300px, 100%), 1fr))',
-            gap: 20,
-            position: 'relative',
-            alignContent: 'start',
+            padding: isMobile ? 14 : '20px 24px 24px',
+            display: 'flex',
+            flexDirection: 'column',
+            gap: isMobile ? 14 : 18,
           }}
         >
-          {/* CỘT TRÁI: HUY HIỆU KHỔNG LỒ & TIẾN ĐỘ */}
-          <div
-            style={{
-              position: 'relative',
-              padding: 1,
-              clipPath: NOTCH_CLIP,
-              background: meta.edge || 'linear-gradient(135deg, #FF2E7E, #FFE24B 70%)',
-            }}
-          >
-            <div
-              style={{
-                position: 'relative',
-                overflow: 'hidden',
-                clipPath: NOTCH_CLIP,
-                background: meta.panel || 'linear-gradient(160deg,#2B0617,#110208)',
-                padding: '28px 24px',
-                display: 'flex',
-                flexDirection: 'column',
-                alignItems: 'center',
-                gap: 16,
-                height: '100%',
-              }}
-            >
-              {/* Conic ray spinning backdrop */}
-              <div
-                style={{
-                  position: 'absolute',
-                  top: '-28%',
-                  left: '-22%',
-                  width: 620,
-                  height: 620,
-                  background: `repeating-conic-gradient(from 0deg, ${meta.aura || 'rgba(255,46,126,.18)'} 0deg 4deg, transparent 4deg 13deg)`,
-                  animation: 'aSpin 34s linear infinite',
-                  pointerEvents: 'none',
-                }}
-              />
-
-              {/* Huy hiệu lục giác lớn 180px bồng bềnh */}
-              <BadgeHex
-                tier={activeTierBadge.tier}
-                glyph={activeTierBadge.glyph}
-                size={180}
-                float
-                pulse
-                spin={activeTierBadge.tier === 'legend'}
-                dim={isHidden}
-              />
-
-              <div style={{ position: 'relative', display: 'flex', flexDirection: 'column', alignItems: 'center', gap: 8 }}>
-                <span
-                  style={{
-                    font: "700 28px/1 'Oswald', sans-serif",
-                    letterSpacing: '.06em',
-                    textTransform: 'uppercase',
-                    color: '#FFFFFF',
-                    textAlign: 'center',
-                    textShadow: `0 0 22px ${meta.aura || 'rgba(255,46,126,.6)'}`,
-                  }}
-                >
-                  {isHidden ? '???' : badgeName}
-                </span>
-                {activeTierBadge.seasonCode && (
-                  <span style={{ font: "600 12px/1 'IBM Plex Mono', monospace", color: '#2EE9FF', letterSpacing: '.1em' }}>
-                    ✦ {activeTierBadge.seasonCode} ✦
-                  </span>
-                )}
-
-                <span
-                  style={{
-                    font: "700 10.5px/1 'Oswald', sans-serif",
-                    letterSpacing: '.2em',
-                    padding: '6px 12px',
-                    clipPath: NOTCH_S_CLIP,
-                    background: meta.chipBg,
-                    borderTop: `1px solid ${meta.bd || '#FF2E7E'}`,
-                    color: meta.ink,
-                  }}
-                >
-                  {meta.name} · {meta.pts} {t('badges.pointsLabel')}
-                </span>
-
-                {/* Phần thưởng mốc */}
-                {activeTierBadge.reward && (
-                  <div style={{ display: 'flex', alignItems: 'center', gap: 8, marginTop: 2 }}>
-                    <span
-                      style={{
-                        font: "700 11px/1 'Oswald', sans-serif",
-                        letterSpacing: '.06em',
-                        color: '#FFC46B',
-                        background: 'rgba(255,122,24,.15)',
-                        borderTop: '1px solid #FF7A18',
-                        padding: '4px 8px',
-                        clipPath: NOTCH_S_CLIP,
-                      }}
-                    >
-                      +{activeTierBadge.reward.xp || 0} XP
-                    </span>
-                    {Number(activeTierBadge.reward.seasonPts) > 0 && (
-                      <span
-                        style={{
-                          font: "700 11px/1 'Oswald', sans-serif",
-                          letterSpacing: '.06em',
-                          color: '#5FEBD0',
-                          background: 'rgba(46,233,192,.15)',
-                          borderTop: '1px solid #0E9F8E',
-                          padding: '4px 8px',
-                          clipPath: NOTCH_S_CLIP,
-                        }}
-                      >
-                        +{activeTierBadge.reward.seasonPts} {t('badges.seasonPointsUnit')}
-                      </span>
-                    )}
-                  </div>
-                )}
-
-                <span
-                  style={{
-                    font: "400 13px/1.55 'Be Vietnam Pro', sans-serif",
-                    textAlign: 'center',
-                    color: '#C9B8E6',
-                    marginTop: 4,
-                  }}
-                >
-                  {badgeCond}
-                </span>
+          {isMobile ? (
+            <>
+              {hero}
+              {journey}
+              {details}
+            </>
+          ) : (
+            <>
+              {journey}
+              <div style={{ display: 'grid', gridTemplateColumns: 'minmax(0, 430px) minmax(0, 1fr)', gap: 20 }}>
+                {hero}
+                <div style={{ display: 'flex', flexDirection: 'column', gap: 14, minWidth: 0 }}>{details}</div>
               </div>
-
-              {/* Tiến độ cá nhân của bạn */}
-              <div style={{ position: 'relative', width: '100%', display: 'flex', flexDirection: 'column', gap: 8, marginTop: 'auto' }}>
-                <div style={{ display: 'flex', alignItems: 'baseline', justifyContent: 'space-between' }}>
-                  <span style={{ font: "600 10.5px/1 'Oswald', sans-serif", letterSpacing: '.16em', color: '#FFC46B' }}>
-                    {t('badges.detail.yourProgress')}
-                  </span>
-                  <span style={{ font: "700 22px/1 'Oswald', sans-serif", color: '#FFE24B' }}>
-                    {activeTierBadge.unlocked ? t('badges.detail.statusAchieved') : activeTierBadge.progressStr || `${pct}%`}
-                  </span>
-                </div>
-                <div
-                  style={{
-                    height: 12,
-                    clipPath: NOTCH_S_CLIP,
-                    background: 'rgba(255,255,255,.1)',
-                  }}
-                >
-                  <div
-                    style={{
-                      height: '100%',
-                      width: `${pct}%`,
-                      background: meta.edge || 'linear-gradient(90deg, #FF2E7E, #FFE24B)',
-                    }}
-                  />
-                </div>
-                <span style={{ font: "400 11.5px/1.4 'IBM Plex Mono', monospace", color: '#9C8ABE' }}>
-                  {activeTierBadge.unlocked
-                    ? t('badges.detail.completedDesc')
-                    : isWinStreak && Number(activeTierBadge.currentVal) === 0
-                      ? t('badges.detail.streakResetHint')
-                      : isWinStreak && Number(activeTierBadge.currentVal) > 0
-                        ? t('badges.detail.remainingStreakHint', {
-                            current: activeTierBadge.currentVal,
-                            remain: Math.max(1, (activeTierBadge.threshold || 10) - Number(activeTierBadge.currentVal)),
-                          })
-                        : t('badges.detail.remainingHint', {
-                            remain: Math.max(1, (activeTierBadge.threshold || 10) - (activeTierBadge.currentVal || 0)),
-                          })}
-                </span>
-                {activeTierBadge.unlocked && onShowUnlock && (
-                  <button
-                    type="button"
-                    onClick={() => {
-                      onClose && onClose()
-                      onShowUnlock(activeTierBadge)
-                    }}
-                    style={{
-                      display: 'flex',
-                      alignItems: 'center',
-                      justifyContent: 'center',
-                      gap: 8,
-                      width: '100%',
-                      padding: '11px 14px',
-                      background: 'linear-gradient(135deg, rgba(255,46,126,.25), rgba(255,226,75,.25))',
-                      border: '1px solid #FFE24B',
-                      clipPath: NOTCH_S_CLIP,
-                      color: '#FFE24B',
-                      font: "700 12px/1 'Oswald', sans-serif",
-                      letterSpacing: '.12em',
-                      cursor: 'pointer',
-                      marginTop: 10,
-                      transition: 'filter 0.15s ease, transform 0.15s ease',
-                    }}
-                    onMouseEnter={(e) => {
-                      e.currentTarget.style.filter = 'brightness(1.2)'
-                      e.currentTarget.style.transform = 'translateY(-1px)'
-                    }}
-                    onMouseLeave={(e) => {
-                      e.currentTarget.style.filter = 'brightness(1)'
-                      e.currentTarget.style.transform = 'translateY(0)'
-                    }}
-                  >
-                    ✨ {t('badges.detail.viewUnlockFanfare')}
-                  </button>
-                )}
-              </div>
-            </div>
-          </div>
-
-          {/* CỘT PHẢI: ĐIỀU KIỆN · CHUỖI · AI ĐÃ CÓ · AI ĐANG ĐUỔI */}
-          <div style={{ display: 'flex', flexDirection: 'column', gap: 16 }}>
-            {/* 1. Nếu là danh hiệu Fun (Tự phong): Khối Troll đặc biệt */}
-            {isFun ? (
-              <div
-                style={{
-                  padding: '20px 22px',
-                  clipPath: NOTCH_CLIP,
-                  background: 'linear-gradient(135deg, rgba(255, 226, 75, 0.08), rgba(255, 46, 126, 0.06))',
-                  border: '1px solid rgba(255, 226, 75, 0.3)',
-                  display: 'flex',
-                  flexDirection: 'column',
-                  gap: 14,
-                }}
-              >
-                <div style={{ display: 'flex', alignItems: 'center', gap: 10 }}>
-                  <span style={{ fontSize: 22 }}>🎭</span>
-                  <span style={{ font: "700 15px/1 'Oswald', sans-serif", letterSpacing: '.12em', color: '#FFE24B' }}>
-                    {t('badges.groups.fun')}
-                  </span>
-                </div>
-
-                <div
-                  style={{
-                    font: "400 13.5px/1.6 'Be Vietnam Pro', sans-serif",
-                    color: '#FFFBEA',
-                    background: 'rgba(0,0,0,.35)',
-                    padding: '12px 14px',
-                    borderRadius: 8,
-                    borderLeft: '3px solid #FFE24B',
-                  }}
-                >
-                  "{badgeCond}"
-                </div>
-
-                <div style={{ font: "600 12.5px/1.5 'Be Vietnam Pro', sans-serif", color: '#FFC46B' }}>
-                  ✨ {t('badges.detail.funPunchline')}
-                </div>
-
-                <div style={{ font: "400 11.5px/1.4 'IBM Plex Mono', monospace", color: '#9C8ABE' }}>
-                  {t('badges.detail.funBadgeNote')}
-                </div>
-              </div>
-            ) : (
-              <>
-                {/* 1. Checklist Điều kiện thực chất */}
-                <div
-                  style={{
-                    padding: '17px 19px',
-                    clipPath: NOTCH_CLIP,
-                    background: 'rgba(255,255,255,.04)',
-                    display: 'flex',
-                    flexDirection: 'column',
-                    gap: 13,
-                  }}
-                >
-                  <div style={{ font: "700 14px/1 'Oswald', sans-serif", letterSpacing: '.12em', color: '#FFFFFF' }}>
-                    {t('badges.detail.conditionsTitle')}
-                  </div>
-                  {conditions.map((c, i) => (
-                    <div key={i} style={{ display: 'flex', alignItems: 'center', gap: 12 }}>
-                      <div
-                        style={{
-                          width: 24,
-                          height: 24,
-                          flex: '0 0 auto',
-                          clipPath: HEX_CLIP,
-                          display: 'grid',
-                          placeItems: 'center',
-                          font: "700 12px/1 'Oswald', sans-serif",
-                          background: c.ok ? 'linear-gradient(135deg,#00776B,#2EE9C0)' : '#241640',
-                          color: c.ok ? '#01130F' : '#9C8ABE',
-                        }}
-                      >
-                        {c.ok ? '✓' : '·'}
-                      </div>
-                      <span style={{ flex: '1 1 0%', minWidth: 0, font: "400 13px/1.4 'Be Vietnam Pro', sans-serif", color: '#C9B8E6' }}>
-                        {c.text}
-                      </span>
-                      <span style={{ flex: '0 0 auto', font: "600 12.5px/1 'IBM Plex Mono', monospace", color: c.ok ? '#5FEBD0' : '#C9B8E6' }}>
-                        {c.val}
-                      </span>
-                    </div>
-                  ))}
-                </div>
-
-                {/* 2. Chuỗi 10 ô W/L (CHỈ hiển thị cho danh hiệu chuỗi thắng) */}
-                {isStreakBadge ? (
-                  <div
-                    style={{
-                      padding: '17px 19px',
-                      clipPath: NOTCH_CLIP,
-                      background: 'rgba(255,255,255,.04)',
-                      display: 'flex',
-                      flexDirection: 'column',
-                      gap: 12,
-                    }}
-                  >
-                    <div style={{ display: 'flex', alignItems: 'center', gap: 11 }}>
-                      <span style={{ font: "700 14px/1 'Oswald', sans-serif", letterSpacing: '.12em', color: '#FFFFFF' }}>
-                        {t('badges.detail.currentStreakTitle')}
-                      </span>
-                      <span style={{ font: "400 11.5px/1 'IBM Plex Mono', monospace", color: '#9C8ABE' }}>
-                        {t('badges.detail.streakHint')}
-                      </span>
-                    </div>
-                    <div style={{ display: 'flex', gap: 7 }}>
-                      {streakTimeline.map((s, i) => (
-                        <div
-                          key={i}
-                          style={{
-                            flex: '1 1 0%',
-                            height: 44,
-                            clipPath: NOTCH_S_CLIP,
-                            display: 'grid',
-                            placeItems: 'center',
-                            font: "700 15px/1 'Oswald', sans-serif",
-                            background: s.won
-                              ? 'linear-gradient(165deg,#FF2E7E,#7A0A2E)'
-                              : 'rgba(255,255,255,.05)',
-                            color: s.won ? '#FFFBEA' : '#6B5C8C',
-                          }}
-                        >
-                          {s.label}
-                        </div>
-                      ))}
-                    </div>
-                  </div>
-                ) : (
-                  /* Khối Tiến trình Thử thách cho các danh hiệu nhiệm vụ / thành tích khác */
-                  <div
-                    style={{
-                      padding: '17px 19px',
-                      clipPath: NOTCH_CLIP,
-                      background: 'rgba(255,255,255,.04)',
-                      display: 'flex',
-                      flexDirection: 'column',
-                      gap: 12,
-                    }}
-                  >
-                    <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between' }}>
-                      <span style={{ font: "700 14px/1 'Oswald', sans-serif", letterSpacing: '.12em', color: '#FFFFFF' }}>
-                        {t('badges.detail.missionProgressTitle')}
-                      </span>
-                      <span style={{ font: "700 18px/1 'Oswald', sans-serif", color: activeTierBadge.unlocked ? '#5FEBD0' : '#FFE24B' }}>
-                        {activeTierBadge.unlocked ? t('badges.detail.statusAchieved') : (activeTierBadge.progressStr || `${pct}%`)}
-                      </span>
-                    </div>
-
-                    <div
-                      style={{
-                        height: 12,
-                        clipPath: NOTCH_S_CLIP,
-                        background: 'rgba(255,255,255,.08)',
-                        position: 'relative',
-                        overflow: 'hidden',
-                      }}
-                    >
-                      <div
-                        style={{
-                          height: '100%',
-                          width: `${activeTierBadge.unlocked ? 100 : pct}%`,
-                          background: meta.edge || 'linear-gradient(90deg, #FF2E7E, #FFE24B)',
-                          transition: 'width 0.3s ease',
-                        }}
-                      />
-                    </div>
-
-                    <span style={{ font: "400 12px/1.5 'Be Vietnam Pro', sans-serif", color: '#C9B8E6' }}>
-                      {activeTierBadge.unlocked
-                        ? t('badges.detail.missionCompleted')
-                        : t('badges.detail.missionRemaining', {
-                            current: activeTierBadge.currentVal || 0,
-                            target: activeTierBadge.threshold || 1,
-                            remain: Math.max(0, (activeTierBadge.threshold || 1) - (activeTierBadge.currentVal || 0)),
-                          })}
-                    </span>
-                  </div>
-                )}
-              </>
-            )}
-
-            {/* 3. Split: Ai đã có & Ai đang đuổi */}
-            <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(200px, 1fr))', gap: 16 }}>
-              {/* Ai đã có */}
-              <div
-                style={{
-                  padding: '17px 19px',
-                  clipPath: NOTCH_CLIP,
-                  background: 'rgba(255,255,255,.04)',
-                  display: 'flex',
-                  flexDirection: 'column',
-                  gap: 12,
-                }}
-              >
-                <div style={{ font: "700 14px/1 'Oswald', sans-serif", letterSpacing: '.12em', color: '#FFFFFF' }}>
-                  {t('badges.detail.ownersTitle', { count: currentOwners.length })}
-                </div>
-                {currentOwners.length === 0 ? (
-                  <span style={{ font: "400 12px/1.4 'Be Vietnam Pro', sans-serif", color: '#7E6FA0' }}>
-                    {t('badges.detail.noOwners')}
-                  </span>
-                ) : (
-                  <div
-                    style={{ minWidth: 0,
-                      maxHeight: 210,
-                      overflowY: 'auto',
-                      display: 'flex',
-                      flexDirection: 'column',
-                      gap: 11,
-                      paddingRight: 4,
-                      scrollbarWidth: 'thin',
-                      scrollbarColor: 'rgba(255,255,255,0.2) transparent',
-                    }}
-                  >
-                    {currentOwners.map((o) => {
-                      const noteText = o.checkType === 'win_streak'
-                        ? t('badges.detail.ownersStreakNote', { streak: o.streak, season: t('badges.seasonLabel') })
-                        : t('badges.detail.ownersCondNote', { val: o.streak || o.threshold || 1 })
-
-                      return (
-                        <div key={o.id} style={{ minWidth: 0, display: 'flex', alignItems: 'center', gap: 11 }}>
-                          <div
-                            style={{
-                              width: 34,
-                              height: 34,
-                              flex: '0 0 auto',
-                              clipPath: HEX_CLIP,
-                              background: 'linear-gradient(135deg,#FF2E7E,#6D14FF)',
-                              display: 'grid',
-                              placeItems: 'center',
-                              font: "700 14px/1 'Oswald', sans-serif",
-                              color: '#FFFBEA',
-                              overflow: 'hidden',
-                            }}
-                          >
-                            {o.avatarUrl ? (
-                              <img src={o.avatarUrl} alt={o.name} style={{ width: '100%', height: '100%', objectFit: 'cover' }} />
-                            ) : (
-                              o.initial
-                            )}
-                          </div>
-                          <div style={{ flex: '1 1 0%', minWidth: 0, display: 'flex', flexDirection: 'column', gap: 3 }}>
-                            <span style={{ font: "600 13px/1.2 'Be Vietnam Pro', sans-serif", color: '#FFFFFF', whiteSpace: 'nowrap', minWidth: 0, overflow: 'hidden', textOverflow: 'ellipsis' }}>
-                              <span title={o.name}>{o.name}</span>
-                            </span>
-                            <span style={{ font: "400 11px/1.2 'IBM Plex Mono', monospace", color: '#7E6FA0' }}>
-                              {noteText}
-                            </span>
-                          </div>
-                          <span style={{ font: "600 11.5px/1 'IBM Plex Mono', monospace", color: '#9C8ABE' }}>
-                            {o.at}
-                          </span>
-                        </div>
-                      )
-                    })}
-                  </div>
-                )}
-              </div>
-
-              {/* Ai đang đuổi */}
-              <div
-                style={{
-                  padding: '17px 19px',
-                  clipPath: NOTCH_CLIP,
-                  background: 'rgba(255,255,255,.04)',
-                  display: 'flex',
-                  flexDirection: 'column',
-                  gap: 12,
-                }}
-              >
-                <div style={{ font: "700 14px/1 'Oswald', sans-serif", letterSpacing: '.12em', color: '#FFFFFF' }}>
-                  {t('badges.detail.chasersTitle')}
-                </div>
-                {currentChasers.length === 0 ? (
-                  <span style={{ font: "400 12px/1.4 'Be Vietnam Pro', sans-serif", color: '#7E6FA0' }}>
-                    {t('badges.detail.noChasers')}
-                  </span>
-                ) : (
-                  <div
-                    style={{
-                      maxHeight: 210,
-                      overflowY: 'auto',
-                      display: 'flex',
-                      flexDirection: 'column',
-                      gap: 10,
-                      paddingRight: 4,
-                      scrollbarWidth: 'thin',
-                      scrollbarColor: 'rgba(255,255,255,0.2) transparent',
-                    }}
-                  >
-                    {currentChasers.map((c) => (
-                      <div key={c.id} style={{ display: 'flex', alignItems: 'center', gap: 10 }}>
-                        <span style={{ width: 20, flex: '0 0 auto', font: "600 11.5px/1 'IBM Plex Mono', monospace", color: '#7E6FA0' }}>
-                          {c.rank}
-                        </span>
-                        <span
-                          style={{
-                            flex: '1 1 0%',
-                            minWidth: 0,
-                            font: `${c.isMe ? 700 : 500} 12.5px/1 'Be Vietnam Pro', sans-serif`,
-                            color: c.isMe ? '#FFE24B' : '#C9B8E6',
-                            whiteSpace: 'nowrap',
-                            overflow: 'hidden',
-                            textOverflow: 'ellipsis',
-                          }}
-                        >
-                          <span title={c.name}>{c.isMe ? t('badges.detail.you') : c.name}</span>
-                        </span>
-                        <div
-                          style={{
-                            flex: '2 1 0%',
-                            height: 7,
-                            clipPath: NOTCH_S_CLIP,
-                            background: 'rgba(255,255,255,.08)',
-                          }}
-                        >
-                          <div
-                            style={{
-                              height: '100%',
-                              width: `${c.pct}%`,
-                              background: c.isMe ? 'linear-gradient(90deg,#FF2E7E,#FFE24B)' : 'linear-gradient(90deg,#6D14FF,#C04BFF)',
-                            }}
-                          />
-                        </div>
-                        <span style={{ width: 22, flex: '0 0 auto', textAlign: 'right', font: "600 12px/1 'IBM Plex Mono', monospace", color: '#C9B8E6' }}>
-                          {c.val}
-                        </span>
-                      </div>
-                    ))}
-                  </div>
-                )}
-              </div>
-            </div>
-          </div>
+            </>
+          )}
         </div>
       </div>
     </div>

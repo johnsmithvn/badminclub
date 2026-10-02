@@ -4701,8 +4701,8 @@
         "cond": "Cả mùa tỉ lệ thắng ≥ 80% với ít nhất 30 trận đấu"
       },
       "doc_co": {
-        "name": "Độc cô",
-        "cond": "Giữ hạng 1 Elo liên tục trong 60 ngày"
+        "name": "Độc cô cầu bại",
+        "cond": "Giữ hạng 1 Elo liên tục 10 buổi"
       },
       "nguoc_dong_the_ky": {
         "name": "Ngược dòng thế kỷ",

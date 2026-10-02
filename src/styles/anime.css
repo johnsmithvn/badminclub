@@ -50,6 +50,58 @@
   50% { opacity: 1; transform: scale(1.06); }
 }
 
+/* Nền hiệu ứng thẻ huy hiệu trong modal chi tiết (BadgeDetailModal): bụi sao, sao băng,
+   chùm sáng, cực quang. Chỉ các phần tử nằm trong [data-badge-fx] dùng nhóm này. */
+@keyframes bdTwinkle {
+  0%, 100% { opacity: 0.1; }
+  50% { opacity: 1; }
+}
+
+@keyframes bdDrift {
+  0%, 100% { transform: translate(0, 0); }
+  50% { transform: translate(4px, -14px); }
+}
+
+@keyframes bdShoot {
+  0% { opacity: 0; transform: translate(60px, 20px) rotate(28deg); }
+  6% { opacity: 1; }
+  22% { opacity: 0; transform: translate(300px, 180px) rotate(28deg); }
+  100% { opacity: 0; transform: translate(300px, 180px) rotate(28deg); }
+}
+
+@keyframes bdBeam {
+  0%, 100% { opacity: 0.75; }
+  50% { opacity: 1; }
+}
+
+@keyframes bdSway {
+  0%, 100% { transform: translateX(-18px) skewX(-6deg); opacity: 0.7; }
+  50% { transform: translateX(22px) skewX(7deg); opacity: 1; }
+}
+
+/* Hiệu ứng icon huy hiệu (BadgeHex): vệt sáng quét, quầng thở, sao lấp lánh.
+   Viền xoay và hạt bay dùng lại aSpin. */
+@keyframes bhSheen {
+  0% { background-position: 160% 0; }
+  55%, 100% { background-position: -60% 0; }
+}
+
+@keyframes bhPulse {
+  0%, 100% { opacity: 0.35; transform: scale(0.92); }
+  50% { opacity: 1; transform: scale(1.08); }
+}
+
+@keyframes bhSpark {
+  0%, 100% { opacity: 0; transform: scale(0.3) rotate(0deg); }
+  50% { opacity: 1; transform: scale(1) rotate(45deg); }
+}
+
+/* Animation viết inline nên token motion về 0ms không chạm tới — phải tắt tay ở đây. */
+@media (prefers-reduced-motion: reduce) {
+  [data-badge-fx] *,
+  [data-badge-hex] * { animation: none !important; }
+}
+
 :root {
   --anime-font-display: 'Oswald', sans-serif;
   --anime-font-ui: 'Be Vietnam Pro', sans-serif;
