@@ -585,9 +585,9 @@ export default function ActivityTab() {
 }
 
 const S = {
+  // Không chặn bề rộng: trải theo khung như các tab anh em (Thành tích, Sân đấu). Bản 2a vẽ
+  // 560px là khổ canvas thiết kế, không phải giới hạn — trên PC chặn lại là hở hai bên.
   container: {
-    maxWidth: 560,
-    margin: '0 auto',
     padding: '16px 0 32px',
     display: 'flex',
     flexDirection: 'column',
