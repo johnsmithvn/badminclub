@@ -650,21 +650,11 @@ export default function ArenaChallengeCard({
                 >
                   VS
                 </span>
-                {hasPlayedSets ? (
+                {hasPlayedSets && (
                   <span style={{ font: '700 15px/1 "Barlow Condensed", monospace', color: '#D8B4FE' }}>
                     {seriesProg.seriesScoreText}
                   </span>
-                ) : ratA > 0 && ratB > 0 ? (
-                  <span
-                    style={{
-                      font: '500 11px/1 "IBM Plex Mono", monospace',
-                      color: '#8494AA',
-                      whiteSpace: 'nowrap',
-                    }}
-                  >
-                    {t(isMobile ? 'challenge.pointGapAvgShort' : 'challenge.pointGapAvg', { gap: gap.toLocaleString('vi-VN') })}
-                  </span>
-                ) : null}
+                )}
               </>
             )}
           </div>
@@ -777,28 +767,17 @@ export default function ArenaChallengeCard({
                 {pctA}%
               </span>
 
-              {isFeatured ? (
-                <span
-                  style={{
-                    fontSize: 11.5,
-                    letterSpacing: '0.14em',
-                    textTransform: 'uppercase',
-                    color: '#8494AA',
-                    fontWeight: 600,
-                  }}
-                >
-                  {t('challenge.winChance')}
-                </span>
-              ) : (
-                <span
-                  style={{
-                    font: '500 11px/1 "IBM Plex Mono", monospace',
-                    color: '#6F7E95',
-                  }}
-                >
-                  {t('challenge.avgPoint', { score: ratA })} · {t('challenge.pointGapAvg', { gap })} · {t('challenge.avgPoint', { score: ratB })}
-                </span>
-              )}
+              <span
+                style={{
+                  fontSize: isFeatured ? 11.5 : 11,
+                  letterSpacing: '0.14em',
+                  textTransform: 'uppercase',
+                  color: isFeatured ? '#8494AA' : '#6F7E95',
+                  fontWeight: 600,
+                }}
+              >
+                {t('challenge.winChance')}
+              </span>
 
               <span
                 style={{
