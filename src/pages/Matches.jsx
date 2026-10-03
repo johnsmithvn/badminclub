@@ -1,4 +1,5 @@
 import { useState, useMemo, useCallback, useEffect, useRef } from 'react'
+import { createPortal } from 'react-dom'
 import { useNavigate, useSearchParams } from 'react-router-dom'
 import { Alert, Avatar, Button, Card, Dialog, Icon, IconButton, Input, Select, StatCard } from '#ds'
 import { LevelChip, Mono, Overline, PageHeader, SearchSelect, TabBar, TabTrack } from '#ui'
@@ -7,7 +8,6 @@ import { useTheme } from '#contexts/ThemeContext.jsx'
 import { useMobile } from '#hooks/useMobile.js'
 import { t } from '#i18n'
 import NotificationBell from '#components/notification/NotificationBell.jsx'
-import cfg from '#config/app.json' with { type: 'json' }
 import { playerName, courtOf, myMember, playerOf, timeTxt, courtTxt, presentCount, shortName } from '#lib/money.js'
 import { dd, isoOf, todayISO, weekdayOf, wd } from '#utils/dates.js'
 import {
@@ -245,8 +245,10 @@ export default function Matches() {
     ? pairFilter
     : null
   const [qualityFilter, setQualityFilter] = useState('all') // 'all' | 'close' | 'threeSets' | 'upset'
-  const [showMoreFilters, setShowMoreFilters] = useState(false)
-  const [seasonFilter, setSeasonFilter] = useState('all')
+  // Popover Bộ lọc: null = đóng, mở thì giữ toạ độ màn hình của nút (popover vẽ position:fixed).
+  const [filterPos, setFilterPos] = useState(null)
+  const filterBtnRef = useRef(null)
+  const filterPopRef = useRef(null)
   const [courtFilter, setCourtFilter] = useState('all')
   const [sourceFilter, setSourceFilter] = useState('all')
   const [onlyVideoFilter, setOnlyVideoFilter] = useState(() => searchParams.get('video') === 'true')
@@ -567,6 +569,46 @@ export default function Matches() {
   const upsetMatchesCount = useMemo(() => {
     return allMatchesForCounters.filter(isUpsetMatch).length
   }, [allMatchesForCounters])
+
+  // Mẫu số "11 / 130": mọi trận của người đang chọn, chưa qua lọc nào khác.
+  const baseMatchCount = useMemo(() => searchMatches(db.matches || [], {
+    playerA: playerA || null,
+    playerB: playerB || null,
+    mode: searchMode,
+    quality: 'all',
+    ratingsMap: {},
+  }).length, [db.matches, playerA, playerB, searchMode])
+
+  // Số trên nút Bộ lọc = số nhóm trong popover đang khác mặc định. Kèo tính cả khi bật từ chip ngoài
+  // vì hai chỗ là một trạng thái.
+  const activeFilterCount = (searchMode !== 'vs') + (sourceFilter !== 'all') + (courtFilter !== 'all') + (viewerFilter !== 'all')
+  const resetPopoverFilters = () => {
+    setSearchMode('vs')
+    setSourceFilter('all')
+    setCourtFilter('all')
+    setViewerFilter('all')
+  }
+  const openFilter = () => {
+    const r = filterBtnRef.current?.getBoundingClientRect()
+    if (!r) return
+    const width = Math.min(380, window.innerWidth - 32)
+    setFilterPos({ top: r.bottom + 6, left: Math.max(16, Math.min(r.left, window.innerWidth - width - 16)), width })
+  }
+  // Toạ độ chốt lúc mở — trang cuộn / đổi cỡ thì đóng, không để popover trôi khỏi nút.
+  // Cuộn bên trong chính popover (nhiều sân, màn thấp) thì giữ nguyên.
+  useEffect(() => {
+    if (!filterPos) return
+    const close = (e) => {
+      if (filterPopRef.current && filterPopRef.current.contains(e.target)) return
+      setFilterPos(null)
+    }
+    window.addEventListener('scroll', close, true)
+    window.addEventListener('resize', close)
+    return () => {
+      window.removeEventListener('scroll', close, true)
+      window.removeEventListener('resize', close)
+    }
+  }, [filterPos])
 
   const editedMatchesCount = useMemo(() => {
     const matchEdits = db.matchEdits || []
@@ -1322,19 +1364,20 @@ export default function Matches() {
               boxShadow: 'var(--shadow-xs)',
             }}
           >
-            {/* 1. Thanh Tìm trận thu gọn */}
+            {/* 1. Thanh tìm trận: Người chơi A ⇄ B · Bộ lọc · Sắp xếp */}
             <div
               style={{
                 padding: isMobile ? '8px 10px' : '11px 14px',
                 borderBottom: '1px solid var(--border-subtle)',
                 display: 'flex',
-                flexDirection: 'column',
+                alignItems: 'center',
                 gap: 8,
+                flexWrap: 'wrap',
                 background: 'var(--surface-inset)',
               }}
             >
-              {/* Hàng 1: Cụm chọn Người chơi A ⇄ Người chơi B */}
-              <div style={{ display: 'flex', alignItems: 'center', gap: 5, width: '100%' }}>
+              {/* Cụm chọn Người chơi A ⇄ Người chơi B */}
+              <div style={{ display: 'flex', alignItems: 'center', gap: 5, flex: isMobile ? '1 1 100%' : '0 1 420px', minWidth: 0 }}>
                 <div style={{ flex: 1, minWidth: 0 }}>
                   <SearchSelect
                     size="sm"
@@ -1387,258 +1430,169 @@ export default function Matches() {
                 </div>
               </div>
 
-              {/* Hàng 2: Thanh công cụ lọc cuộn ngang mượt mà trên Mobile (Pills bar) */}
-              <div
+              {/* Bộ lọc: Góc nhìn · Kèo · Sân (· Người xem) gom vào một popover; nút hiện số lọc đang bật */}
+              <button
+                ref={filterBtnRef}
+                type="button"
+                aria-expanded={Boolean(filterPos)}
+                aria-label={t('common.filterTitle')}
+                title={t('common.filterTitle')}
+                onClick={() => (filterPos ? setFilterPos(null) : openFilter())}
                 style={{
+                  height: 32,
                   display: 'flex',
                   alignItems: 'center',
                   gap: 6,
-                  overflowX: 'auto',
-                  WebkitOverflowScrolling: 'touch',
-                  paddingBottom: isMobile ? 2 : 0,
-                  flexWrap: isMobile ? 'nowrap' : 'wrap',
+                  padding: '0 10px',
+                  borderRadius: 'var(--radius-control)',
+                  border: '1px solid',
+                  borderColor: filterPos || activeFilterCount ? 'var(--teal-500)' : 'var(--field-border)',
+                  background: activeFilterCount ? 'var(--surface-accent-soft)' : 'var(--field-bg)',
+                  color: filterPos || activeFilterCount ? (isDark ? '#5FDBD3' : 'var(--teal-700)') : 'var(--text-secondary)',
+                  font: "600 12.5px/1 'IBM Plex Sans', sans-serif",
+                  cursor: 'pointer',
+                  flexShrink: 0,
+                  whiteSpace: 'nowrap',
                 }}
               >
-                {/* Chế độ đối đầu / cùng đội */}
-                <div style={{ flexShrink: 0 }}>
-                  <Select
-                    size="sm"
-                    value={searchMode}
-                    onChange={(e) => setSearchMode(e.target.value)}
-                    options={[
-                      { value: 'vs', label: t('matchSearch.modeH2H') },
-                      { value: 'team', label: t('matchSearch.modeTeammate') },
-                    ]}
-                  />
-                </div>
-
-                {/* Dropdown kịch tính */}
-                <div style={{ flexShrink: 0 }}>
-                  <Select
-                    size="sm"
-                    value={qualityFilter}
-                    onChange={(e) => setQualityFilter(e.target.value)}
-                    options={[
-                      { value: 'all', label: t('matchSearch.qualityAll') },
-                      { value: 'close', label: t('matchSearch.qualityClose', { n: cfg.match?.closeMatchMaxDiff ?? 3 }) },
-                      { value: 'threeSets', label: t('matchSearch.qualityThreeSets') },
-                      { value: 'upset', label: t('matchSearch.qualityUpset') },
-                    ]}
-                    style={qualityFilter !== 'all' ? {
-                      borderColor: 'var(--teal-500)',
-                      fontWeight: 600,
-                    } : undefined}
-                  />
-                </div>
-
-                {/* Lọc Nguồn: Tất cả / Kèo / Chia sân */}
-                <div style={{ flexShrink: 0 }}>
-                  <Select
-                    size="sm"
-                    value={sourceFilter}
-                    onChange={(e) => setSourceFilter(e.target.value)}
-                    options={[
-                      { value: 'all', label: t('matchVideo.filterAllSources') },
-                      { value: 'challenge', label: `⚔️ ${t('challenge.challenge')}` },
-                      { value: 'session', label: `🏟️ ${t('challenge.fromCourt')}` },
-                    ]}
-                    style={sourceFilter === 'challenge' ? {
-                      borderColor: '#A855F7',
-                      color: 'var(--text-primary)',
-                      fontWeight: 600,
-                    } : undefined}
-                  />
-                </div>
-
-                {/* Bộ chọn Sắp xếp: Trên Mobile là 1 dropdown gọn gàng, Desktop là 3 nút segmented */}
-                {isMobile ? (
-                  <div style={{ flexShrink: 0 }}>
-                    <Select
-                      size="sm"
-                      value={sortOption}
-                      onChange={(e) => setSortOption(e.target.value)}
-                      options={[
-                        { value: 'latest', label: t('matchVideo.sortLatest') },
-                        { value: 'dramatic', label: t('matchVideo.sortDramatic') },
-                        { value: 'elo_swing', label: t('matchVideo.sortEloSwing') },
-                      ]}
-                    />
-                  </div>
-                ) : (
-                  <div
+                <Icon name="filter" size={14} />
+                {!isMobile && <span>{t('common.filterTitle')}</span>}
+                {activeFilterCount > 0 && (
+                  <span
                     style={{
-                      display: 'flex',
+                      minWidth: 18,
+                      height: 18,
+                      padding: '0 5px',
+                      boxSizing: 'border-box',
+                      borderRadius: 999,
+                      display: 'inline-flex',
                       alignItems: 'center',
-                      gap: 4,
-                      padding: 3,
-                      borderRadius: 8,
-                      background: 'var(--field-bg)',
-                      border: '1px solid var(--border-subtle)',
-                      marginLeft: 'auto',
+                      justifyContent: 'center',
+                      background: 'var(--action-accent-bg)',
+                      color: 'var(--action-accent-fg)',
+                      font: "700 11px/1 'IBM Plex Mono', monospace",
                     }}
                   >
-                    {[
-                      { id: 'latest', label: t('matchVideo.sortLatest') },
-                      { id: 'dramatic', label: t('matchVideo.sortDramatic') },
-                      { id: 'elo_swing', label: t('matchVideo.sortEloSwing') },
-                    ].map((opt) => (
-                      <button
-                        key={opt.id}
-                        type="button"
-                        onClick={() => setSortOption(opt.id)}
-                        style={{
-                          height: 28,
-                          display: 'flex',
-                          alignItems: 'center',
-                          padding: '0 10px',
-                          borderRadius: 6,
-                          border: 'none',
-                          background: sortOption === opt.id ? 'var(--surface-card)' : 'transparent',
-                          font: sortOption === opt.id ? "600 12px/1 'IBM Plex Sans', sans-serif" : "500 12px/1 'IBM Plex Sans', sans-serif",
-                          color: sortOption === opt.id ? 'var(--text-primary)' : 'var(--text-muted)',
-                          cursor: 'pointer',
-                          boxShadow: sortOption === opt.id ? 'var(--shadow-xs)' : 'none',
-                        }}
-                      >
-                        {opt.label}
-                      </button>
-                    ))}
-                  </div>
-                )}
-
-                {/* Nút Lọc thêm */}
-                <button
-                  type="button"
-                  onClick={() => setShowMoreFilters((prev) => !prev)}
-                  style={{
-                    height: 28,
-                    display: 'flex',
-                    alignItems: 'center',
-                    gap: 5,
-                    padding: '0 9px',
-                    borderRadius: 'var(--radius-control)',
-                    border: '1px solid var(--border-subtle)',
-                    background: showMoreFilters ? 'var(--surface-sunken)' : 'transparent',
-                    font: "500 12px/1 'IBM Plex Sans', sans-serif",
-                    color: showMoreFilters ? 'var(--teal-500)' : 'var(--text-muted)',
-                    cursor: 'pointer',
-                    flexShrink: 0,
-                    whiteSpace: 'nowrap',
-                  }}
-                >
-                  <span>{t('matchVideo.moreFilters')}</span>
-                  <span style={{ font: "400 9px/1 'IBM Plex Mono', monospace", color: 'var(--teal-500)' }}>
-                    {showMoreFilters ? '▲' : '▾'}
+                    {activeFilterCount}
                   </span>
-                </button>
-
-                {/* Nút Xoá lọc */}
-                {(playerA || playerB || qualityFilter !== 'all' || searchMode !== 'vs' || onlyVideoFilter || courtFilter !== 'all' || sourceFilter !== 'all') && (
-                  <button
-                    type="button"
-                    onClick={() => {
-                      setPlayerA('')
-                      setPlayerB('')
-                      setSearchMode('vs')
-                      setQualityFilter('all')
-                      setOnlyVideoFilter(false)
-                      setCourtFilter('all')
-                      setSourceFilter('all')
-                    }}
-                    style={{
-                      height: 28,
-                      display: 'flex',
-                      alignItems: 'center',
-                      padding: '0 8px',
-                      borderRadius: 'var(--radius-control)',
-                      border: 'none',
-                      background: 'transparent',
-                      font: "600 11.5px/1 'IBM Plex Sans', sans-serif",
-                      color: 'var(--text-muted)',
-                      cursor: 'pointer',
-                      flexShrink: 0,
-                      whiteSpace: 'nowrap',
-                    }}
-                  >
-                    {t('matchVideo.clearFilters')}
-                  </button>
                 )}
+                <Icon name={filterPos ? 'chevron-up' : 'chevron-down'} size={14} />
+              </button>
+
+              {/* Sắp xếp: một dropdown ở mép phải */}
+              <div style={{ position: 'relative', marginLeft: 'auto', flex: isMobile ? '1 1 0' : '0 0 auto', minWidth: 0 }}>
+                <Icon
+                  name="chevrons-up-down"
+                  size={14}
+                  style={{ position: 'absolute', left: 10, top: '50%', transform: 'translateY(-50%)', color: 'var(--text-muted)', pointerEvents: 'none', zIndex: 1 }}
+                />
+                <Select
+                  size="sm"
+                  aria-label={t('common.sort')}
+                  value={sortOption}
+                  onChange={(e) => setSortOption(e.target.value)}
+                  options={[
+                    { value: 'latest', label: t('matchVideo.sortLatest') },
+                    { value: 'dramatic', label: t('matchVideo.sortDramatic') },
+                    { value: 'elo_swing', label: t('matchVideo.sortEloSwing') },
+                  ]}
+                  style={{ paddingLeft: 30, fontWeight: 600 }}
+                />
               </div>
             </div>
 
-            {/* Hàng lọc thứ 2 (Lọc thêm) */}
-            {showMoreFilters && (
-              <div
-                style={{
-                  padding: '9px 14px',
-                  background: 'var(--surface-inset)',
-                  borderBottom: '1px solid var(--border-subtle)',
-                  display: 'flex',
-                  alignItems: 'center',
-                  gap: 8,
-                  flexWrap: 'wrap',
-                }}
-              >
-                <Select
-                  size="sm"
-                  value={seasonFilter}
-                  onChange={(e) => setSeasonFilter(e.target.value)}
-                  options={[
-                    { value: 'all', label: t('matchVideo.filterSeason', { season: '2026' }) },
-                  ]}
-                />
-
-                <Select
-                  size="sm"
-                  value={courtFilter}
-                  onChange={(e) => setCourtFilter(e.target.value)}
-                  options={[
-                    { value: 'all', label: t('matchVideo.filterAllCourts') },
-                    ...(db.courts || []).map((c) => ({ value: c.id, label: c.name })),
-                  ]}
-                  style={courtFilter !== 'all' ? {
-                    borderColor: 'var(--teal-500)',
-                    fontWeight: 600,
-                  } : undefined}
-                />
-
-                <button
-                  type="button"
-                  onClick={() => setOnlyVideoFilter((prev) => !prev)}
+            {/* Popover Bộ lọc: đưa ra document.body vì thẻ này overflow:hidden — lọc ra ít trận thì
+                thẻ thấp và popover bị cắt đúng lúc cần bấm Đặt lại. Lọc áp ngay khi chọn. */}
+            {filterPos && createPortal(
+              <>
+                <div onClick={() => setFilterPos(null)} style={{ position: 'fixed', inset: 0, zIndex: 1000 }} />
+                <div
+                  ref={filterPopRef}
                   style={{
-                    height: 32,
-                    display: 'flex',
-                    alignItems: 'center',
-                    padding: '0 10px',
-                    borderRadius: 'var(--radius-control)',
-                    border: '1px solid',
-                    borderColor: onlyVideoFilter ? 'var(--teal-500)' : 'var(--border-subtle)',
-                    background: onlyVideoFilter ? 'var(--surface-brand-soft, rgba(0,178,169,.14))' : 'var(--field-bg)',
-                    color: onlyVideoFilter ? 'var(--teal-500)' : 'var(--text-secondary)',
-                    font: "600 12px/1 'IBM Plex Sans', sans-serif",
-                    cursor: 'pointer',
+                    position: 'fixed',
+                    top: filterPos.top,
+                    left: filterPos.left,
+                    width: filterPos.width,
+                    maxHeight: `calc(100vh - ${filterPos.top + 16}px)`,
+                    overflowY: 'auto',
+                    zIndex: 1001,
+                    display: 'grid',
+                    gap: 12,
+                    padding: 14,
+                    boxSizing: 'border-box',
+                    borderRadius: 10,
+                    background: 'var(--surface-card)',
+                    border: '1px solid var(--border-default)',
+                    boxShadow: 'var(--shadow-lg, 0 8px 24px rgba(0,0,0,.18))',
                   }}
                 >
-                  {t('matchVideo.onlyHasVideo')}
-                </button>
+                  <div style={{ display: 'grid', gap: 6 }}>
+                    <Overline>{t('matchVideo.filterView')}</Overline>
+                    <FilterSeg
+                      value={searchMode}
+                      onChange={setSearchMode}
+                      options={[
+                        { value: 'vs', label: t('matchSearch.modeH2H') },
+                        { value: 'team', label: t('matchSearch.modeTeammate') },
+                      ]}
+                    />
+                  </div>
 
-                {isAdmin && (
-                  <Select
-                    size="sm"
-                    value={viewerFilter}
-                    onChange={(e) => setViewerFilter(e.target.value)}
-                    options={[
-                      { value: 'all', label: t('matchVideo.allViewers') },
-                      { value: 'guest', label: t('matchVideo.guestViewer') },
-                      ...(db.members || []).map((m) => ({ value: m.id, label: m.name })),
-                    ]}
-                    style={viewerFilter !== 'all' ? {
-                      borderColor: 'var(--teal-500)',
-                      fontWeight: 600,
-                    } : undefined}
-                  />
-                )}
-              </div>
+                  {/* Cùng trạng thái với chip Kèo ngoài bảng */}
+                  <div style={{ display: 'grid', gap: 6 }}>
+                    <Overline>{t('challenge.challenge')}</Overline>
+                    <FilterSeg
+                      value={sourceFilter}
+                      onChange={setSourceFilter}
+                      options={[
+                        { value: 'all', label: t('common.all') },
+                        { value: 'challenge', label: t('matchVideo.filterSourceChallenge') },
+                        { value: 'session', label: t('matchVideo.filterSourceSession') },
+                      ]}
+                    />
+                  </div>
+
+                  {(db.courts || []).length > 0 && (
+                    <div style={{ display: 'grid', gap: 6 }}>
+                      <Overline>{t('matchVideo.colCourt')}</Overline>
+                      <FilterSeg
+                        value={courtFilter}
+                        onChange={setCourtFilter}
+                        options={[
+                          { value: 'all', label: t('matchVideo.filterAllCourts') },
+                          ...(db.courts || []).map((c) => ({ value: c.id, label: c.name })),
+                        ]}
+                      />
+                    </div>
+                  )}
+
+                  {isAdmin && (
+                    <div style={{ display: 'grid', gap: 6 }}>
+                      <Overline>{t('matchVideo.filterViewer')}</Overline>
+                      <Select
+                        size="sm"
+                        value={viewerFilter}
+                        onChange={(e) => setViewerFilter(e.target.value)}
+                        options={[
+                          { value: 'all', label: t('matchVideo.allViewers') },
+                          { value: 'guest', label: t('matchVideo.guestViewer') },
+                          ...(db.members || []).map((m) => ({ value: m.id, label: m.name })),
+                        ]}
+                      />
+                    </div>
+                  )}
+
+                  <div style={{ display: 'grid', gridTemplateColumns: 'repeat(2, minmax(0, 1fr))', gap: 8, paddingTop: 12, borderTop: '1px solid var(--border-subtle)' }}>
+                    <Button variant="secondary" size="sm" block disabled={activeFilterCount === 0} onClick={resetPopoverFilters}>
+                      {t('matchVideo.filterReset')}
+                    </Button>
+                    <Button variant="accent" size="sm" block onClick={() => setFilterPos(null)}>
+                      {t('matchVideo.filterApply', { n: searchResults.length })}
+                    </Button>
+                  </div>
+                </div>
+              </>,
+              document.body,
             )}
 
             {/* Thanh đối đầu H2H trực quan khi chọn đủ 2 người */}
@@ -1725,10 +1679,13 @@ export default function Matches() {
                 background: 'var(--surface-card)',
               }}
             >
-              <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', gap: 8 }}>
+              <div style={{ display: 'flex', alignItems: 'baseline', gap: 6, flexWrap: 'wrap', minWidth: 0 }}>
                 <div style={{ font: isMobile ? "600 13px/1.2 'IBM Plex Sans', sans-serif" : "600 15px/1.25 'IBM Plex Sans', sans-serif", color: 'var(--text-primary)' }}>
                   {t('matchVideo.recentMatchesHeader', { n: searchResults.length })}
                 </div>
+                <span style={{ font: "400 11.5px/1.2 'IBM Plex Mono', monospace", color: 'var(--text-muted)', whiteSpace: 'nowrap' }}>
+                  {t('matchVideo.recentMatchesTotal', { total: baseMatchCount })}
+                </span>
               </div>
 
               {/* Dòng cuộn ngang các pills duy nhất */}
@@ -1743,25 +1700,31 @@ export default function Matches() {
                   flexWrap: isMobile ? 'nowrap' : 'wrap',
                 }}
               >
-                {/* Pill Có video */}
-                <div
+                {/* Chip Có video: bấm là bật/tắt lọc "chỉ trận có video" */}
+                <button
+                  type="button"
+                  aria-pressed={onlyVideoFilter}
+                  onClick={() => setOnlyVideoFilter((prev) => !prev)}
                   style={{
                     height: 24,
                     display: 'inline-flex',
                     alignItems: 'center',
                     padding: '0 8px',
                     borderRadius: 999,
-                    background: isDark ? 'rgba(0,178,169,.14)' : 'var(--status-transit-bg)',
+                    background: onlyVideoFilter ? 'var(--action-accent-bg)' : (isDark ? 'rgba(0,178,169,.14)' : 'var(--status-transit-bg)'),
                     border: '1px solid',
-                    borderColor: isDark ? 'rgba(0,178,169,.42)' : 'var(--teal-300)',
+                    borderColor: onlyVideoFilter ? 'var(--teal-500)' : (isDark ? 'rgba(0,178,169,.42)' : 'var(--teal-300)'),
                     font: "600 11px/1 'IBM Plex Sans', sans-serif",
-                    color: isDark ? '#5FDBD3' : 'var(--status-transit-fg)',
+                    color: onlyVideoFilter ? 'var(--action-accent-fg)' : (isDark ? '#5FDBD3' : 'var(--status-transit-fg)'),
+                    cursor: 'pointer',
+                    transition: 'all 0.15s ease',
                     whiteSpace: 'nowrap',
                     flexShrink: 0,
                   }}
+                  title={t('matchVideo.onlyHasVideo')}
                 >
                   {t('matchVideo.hasVideoCount', { n: searchResults.filter((m) => Boolean(m.videoUrl)).length })}
-                </div>
+                </button>
 
                 {/* Nút lọc nhanh: Kèo */}
                 <button
@@ -3628,6 +3591,56 @@ function CardMenu({ items }) {
           </div>
         </>
       )}
+    </div>
+  )
+}
+
+/**
+ * Hàng chọn một trong popover Bộ lọc (tab Lịch sử). Ô chia đều, nhiều lựa chọn (danh sách sân)
+ * thì tự xuống dòng thay vì tràn ngang.
+ */
+function FilterSeg({ options, value, onChange }) {
+  return (
+    <div
+      style={{
+        display: 'grid',
+        gridTemplateColumns: 'repeat(auto-fit, minmax(72px, 1fr))',
+        gap: 4,
+        padding: 3,
+        borderRadius: 8,
+        background: 'var(--field-bg)',
+        border: '1px solid var(--border-subtle)',
+      }}
+    >
+      {options.map((o) => {
+        const on = o.value === value
+        return (
+          <button
+            key={o.value}
+            type="button"
+            aria-pressed={on}
+            title={o.label}
+            onClick={() => onChange(o.value)}
+            style={{
+              height: 30,
+              minWidth: 0,
+              padding: '0 8px',
+              borderRadius: 6,
+              border: 'none',
+              background: on ? 'var(--surface-card)' : 'transparent',
+              boxShadow: on ? 'var(--shadow-xs)' : 'none',
+              font: `${on ? 600 : 500} 12px/1 var(--font-sans)`,
+              color: on ? 'var(--text-primary)' : 'var(--text-muted)',
+              whiteSpace: 'nowrap',
+              overflow: 'hidden',
+              textOverflow: 'ellipsis',
+              cursor: 'pointer',
+            }}
+          >
+            {o.label}
+          </button>
+        )
+      })}
     </div>
   )
 }
