@@ -491,7 +491,7 @@ export default function Leaderboard() {
         <MemberSeasonLedgerModal
           memberId={ledgerMemberId}
           db={db}
-          seasonConfig={cfg.season}
+          seasonConfig={resolvedSeason}
           isMobile={isMobile}
           onClose={() => setLedgerMemberId(null)}
           onViewCareerElo={() => {
@@ -633,6 +633,8 @@ export default function Leaderboard() {
 
             {/* Modal Body */}
             <div style={{ padding: isMobile ? 12 : 20, overflowY: 'auto', flex: 1 }}>
+              {/* seasonConfig = mùa BXH đang hiện, không phải cfg.season: app.json cố định một mùa
+                  (Q3), sang mùa mới thì hồ sơ vẫn đếm mùa cũ trong khi BXH đã sang mùa mới. */}
               <MemberProfileTab
                 member={currentMember}
                 allMembers={activeMembers}
@@ -642,7 +644,7 @@ export default function Leaderboard() {
                 onSelectTheme={(themeKey) => setRankTheme(themeKey)}
                 isMobile={isMobile}
                 initialSubTab={profileInitialTab}
-                seasonConfig={cfg.season}
+                seasonConfig={resolvedSeason}
                 onChallenge={(targetId) => {
                   setSelectedMemberId(null)
                   setInitialTeamA([])

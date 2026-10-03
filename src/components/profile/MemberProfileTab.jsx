@@ -6,7 +6,7 @@ import { getPlayerRating, applyInactivityDecay, lastMatchAtOf, getPlayerFormatRa
 import { RANK_THEMES } from '#data/rankThemes.js'
 import { calculateMemberXp, getMemberXpLedger } from '#lib/xp.js'
 import { calculateMemberBadges, TIER_ORDER, getBadgeById, BADGE_TIERS, familyViewOf } from '#lib/badges.js'
-import { getSeasonBountyPlayer, getMemberSeasonLedger, seasonConfigOf } from '#lib/season.js'
+import { getSeasonBountyPlayer, getMemberSeasonLedger, resolveSeason } from '#lib/season.js'
 import RatingLineChart from '#components/challenge/RatingLineChart.jsx'
 import PairDetailModal from '#components/leaderboard/PairDetailModal.jsx'
 import BadgeHex from '#components/badges/BadgeHex.jsx'
@@ -120,7 +120,9 @@ export default function MemberProfileTab({
 
   const ledgerData = useMemo(() => {
     if (!mid || !db) return null
-    return getMemberSeasonLedger(mid, db, seasonConfig || seasonConfigOf(db))
+    // Không truyền mùa thì lấy mùa active của CLB (db.seasons) — seasonConfigOf chỉ đọc app.json
+    // nên sang mùa mới vẫn ra mùa cũ.
+    return getMemberSeasonLedger(mid, db, seasonConfig || resolveSeason(db))
   }, [mid, db, seasonConfig])
 
   // Tỷ lệ thanh phân bổ Stacked Bar cho Điểm mùa
@@ -573,13 +575,12 @@ export default function MemberProfileTab({
               <span style={{ font: '700 26px/1.05 Barlow, sans-serif', color: 'var(--text-primary)' }}>
                 {decayInfo.rating}
               </span>
-              <span style={{ font: '400 12px/1.3 "IBM Plex Mono", monospace', color: isDark ? '#5FD9A2' : '#059669' }}>
-                {pr.deltaToday ? `${pr.deltaToday > 0 ? '+' : ''}${pr.deltaToday}` : `+${stats.currentStreak * 2}`}
-              </span>
             </div>
 
+            {/* Hai ô dưới đếm MỌI trận (sự nghiệp), không riêng mùa — nhãn phải nói rõ, không thì
+                mở từ BXH mùa thấy lệch với dòng BXH mà tưởng sai. */}
             <div style={S.statCardMini}>
-              <span style={S.statMiniLabel}>{t('leaderboard.winRate')}</span>
+              <span style={S.statMiniLabel}>{t('profile.careerWinRate')}</span>
               <span style={{ font: '700 26px/1.05 Barlow, sans-serif', color: 'var(--text-primary)' }}>
                 {stats.winRate}%
               </span>
@@ -589,7 +590,7 @@ export default function MemberProfileTab({
             </div>
 
             <div style={S.statCardMini}>
-              <span style={S.statMiniLabel}>{t('leaderboard.recentForm')}</span>
+              <span style={S.statMiniLabel}>{t('profile.careerForm')}</span>
               <span style={{ font: '700 26px/1.05 Barlow, sans-serif', color: isDark ? '#5FDBD3' : 'var(--text-accent)' }}>
                 {stats.currentStreak}W
               </span>
