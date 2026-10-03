@@ -11,7 +11,7 @@ import {
   getPredictionStats, challengeExpiryAt, challengeCountdown, isChallengeExpired, isChallengeAccepted,
   getChallengeMatchTags,
 } from '#lib/challenge.js'
-import { sessionMembers, sGuests, isPresent } from '#lib/money.js'
+import { sessionMembers, sGuests, isPresent, playerName } from '#lib/money.js'
 import { sessionPlayers } from '#lib/assign.js'
 import ArenaPlayerTag from './ArenaPlayerTag.jsx'
 
@@ -540,9 +540,9 @@ export default function ArenaChallengeCard({
             display: 'grid',
             gridTemplateColumns: isMobile
               ? 'minmax(0, 1fr) 46px minmax(0, 1fr)'
-              : (isFeatured ? 'minmax(0, 1fr) 160px minmax(0, 1fr)' : 'minmax(0, 1fr) 96px minmax(0, 1fr)'),
+              : (isFeatured ? 'minmax(0, 1fr) 120px minmax(0, 1fr)' : 'minmax(0, 1fr) 80px minmax(0, 1fr)'),
             alignItems: 'center',
-            gap: isFeatured ? (isMobile ? 4 : 20) : (isMobile ? 4 : 12),
+            gap: isFeatured ? (isMobile ? 4 : 16) : (isMobile ? 4 : 10),
             minWidth: 0,
           }}
         >
@@ -570,7 +570,7 @@ export default function ArenaChallengeCard({
                 return (
                   <ArenaPlayerTag
                     key={id}
-                    name={shortNameOf(id)}
+                    name={(memberNameOf ? memberNameOf(id) : playerName(db, id)) || id}
                     team="A"
                     isAccepted={isPending && isAcc && Boolean(isAdmin || (myId && id === myId))}
                     isWinner={isPlayed && winnerTeam === 'A'}
@@ -684,7 +684,7 @@ export default function ArenaChallengeCard({
                   return (
                     <ArenaPlayerTag
                       key={id}
-                      name={shortNameOf(id)}
+                      name={(memberNameOf ? memberNameOf(id) : playerName(db, id)) || id}
                       team="B"
                       isAccepted={isPending && isAcc && Boolean(isAdmin || (myId && id === myId))}
                       isWinner={isPlayed && winnerTeam === 'B'}
@@ -956,7 +956,7 @@ export default function ArenaChallengeCard({
                         whiteSpace: 'nowrap',
                         overflow: 'hidden',
                         textOverflow: 'ellipsis',
-                        maxWidth: isMobile ? 70 : 130,
+                        maxWidth: isMobile ? 85 : (isFeatured ? 260 : 180),
                       }}
                       title={predStats.predictorsA.map((p) => shortNameOf(p.memberId)).join(', ')}
                     >
@@ -1064,7 +1064,7 @@ export default function ArenaChallengeCard({
                         whiteSpace: 'nowrap',
                         overflow: 'hidden',
                         textOverflow: 'ellipsis',
-                        maxWidth: isMobile ? 70 : 130,
+                        maxWidth: isMobile ? 85 : (isFeatured ? 260 : 180),
                       }}
                       title={predStats.predictorsB.map((p) => shortNameOf(p.memberId)).join(', ')}
                     >
