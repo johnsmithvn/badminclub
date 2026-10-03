@@ -443,7 +443,7 @@ export default function ChallengeDetailModal({ challenge, session, onClose, onSc
     <Dialog
       open
       sheet={isMobile}
-      width={480}
+      width={600}
       className="challenge-detail-dialog"
       title={
         <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', width: '100%', gap: 10 }}>
@@ -1042,7 +1042,7 @@ export default function ChallengeDetailModal({ challenge, session, onClose, onSc
             <div style={{ display: 'grid', gap: 5, marginTop: 4 }}>
               <div style={{ display: 'flex', justifyContent: 'space-between', fontSize: 12, fontFamily: 'var(--font-mono)' }}>
                 <span style={{ color: 'var(--status-transit-fg)', fontWeight: 600 }}>{pctA}%</span>
-                <span style={{ color: 'var(--text-muted)' }}>{t('rating.gap', { gap })}</span>
+                <span style={{ color: 'var(--text-muted)', fontSize: 11, letterSpacing: '0.12em', textTransform: 'uppercase', fontWeight: 600 }}>{t('challenge.winChance')}</span>
                 <span style={{ color: 'var(--text-secondary)', fontWeight: 600 }}>{pctB}%</span>
               </div>
               <div style={{ display: 'flex', height: 6, borderRadius: 999, overflow: 'hidden', background: 'var(--surface-sunken)' }}>
