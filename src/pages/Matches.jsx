@@ -1,7 +1,7 @@
 import { useState, useMemo, useCallback, useEffect, useRef } from 'react'
 import { createPortal } from 'react-dom'
 import { useNavigate, useSearchParams } from 'react-router-dom'
-import { Alert, Avatar, Button, Card, Dialog, Icon, IconButton, Input, Select, StatCard } from '#ds'
+import { Alert, Avatar, Button, Card, Dialog, Icon, IconButton, Select, StatCard } from '#ds'
 import { LevelChip, Mono, Overline, PageHeader, SearchSelect, TabBar, TabTrack } from '#ui'
 import { useApp } from '#contexts/AppContext.jsx'
 import { useTheme } from '#contexts/ThemeContext.jsx'
@@ -9,7 +9,7 @@ import { useMobile } from '#hooks/useMobile.js'
 import { t } from '#i18n'
 import NotificationBell from '#components/notification/NotificationBell.jsx'
 import { playerName, courtOf, myMember, playerOf, timeTxt, courtTxt, presentCount, shortName } from '#lib/money.js'
-import { dd, isoOf, todayISO, weekdayOf, wd } from '#utils/dates.js'
+import { dd, ddmy, isoOf, todayISO, weekdayOf, wd } from '#utils/dates.js'
 import {
   getPlayerRating,
   BALANCE_THRESHOLD, IMBALANCE_THRESHOLD, matchCodeOf, DEFAULT_RATING,
@@ -267,8 +267,7 @@ export default function Matches() {
   const filterPopRef = useRef(null)
   const [courtFilter, setCourtFilter] = useState('all')
   // Lọc ngày: ISO 'YYYY-MM-DD', rỗng = không chặn đầu đó.
-  const [dateFrom, setDateFrom] = useState('')
-  const [dateTo, setDateTo] = useState('')
+  const [dayFilter, setDayFilter] = useState('') // '' = mọi buổi; 'YYYY-MM-DD' = chỉ trận ngày đó
   const [sourceFilter, setSourceFilter] = useState('all')
   const [onlyVideoFilter, setOnlyVideoFilter] = useState(() => searchParams.get('video') === 'true')
   const [sortOption, setSortOption] = useState('latest') // 'latest' | 'dramatic' | 'elo_swing'
@@ -450,11 +449,8 @@ export default function Matches() {
         return courtObj?.courtId === courtFilter || String(m.courtIdx) === courtFilter
       })
     }
-    if (dateFrom || dateTo) {
-      list = list.filter((m) => {
-        const d = matchDayOf(m, sessionDateById)
-        return Boolean(d) && (!dateFrom || d >= dateFrom) && (!dateTo || d <= dateTo)
-      })
+    if (dayFilter) {
+      list = list.filter((m) => matchDayOf(m, sessionDateById) === dayFilter)
     }
     if (sourceFilter !== 'all') {
       list = list.filter((m) => {
@@ -479,7 +475,7 @@ export default function Matches() {
     }
 
     return list
-  }, [db.matches, playerA, playerB, searchMode, activePairs, qualityFilter, onlyVideoFilter, courtFilter, dateFrom, dateTo, sessionDateById, sourceFilter, sortOption, db.playerRatings, activeMembers, db.levels, db.sessions])
+  }, [db.matches, playerA, playerB, searchMode, activePairs, qualityFilter, onlyVideoFilter, courtFilter, dayFilter, sessionDateById, sourceFilter, sortOption, db.playerRatings, activeMembers, db.levels, db.sessions])
 
   const dayGroups = useMemo(() => {
     const groups = []
@@ -576,14 +572,11 @@ export default function Matches() {
         return courtObj?.courtId === courtFilter || String(m.courtIdx) === courtFilter
       })
     }
-    if (dateFrom || dateTo) {
-      list = list.filter((m) => {
-        const d = matchDayOf(m, sessionDateById)
-        return Boolean(d) && (!dateFrom || d >= dateFrom) && (!dateTo || d <= dateTo)
-      })
+    if (dayFilter) {
+      list = list.filter((m) => matchDayOf(m, sessionDateById) === dayFilter)
     }
     return list
-  }, [db.matches, playerA, playerB, searchMode, onlyVideoFilter, courtFilter, dateFrom, dateTo, sessionDateById, db.sessions])
+  }, [db.matches, playerA, playerB, searchMode, onlyVideoFilter, courtFilter, dayFilter, sessionDateById, db.sessions])
 
   const challengeMatchesCount = useMemo(() => {
     return allMatchesForCounters.filter((m) => Boolean(m.challengeId || m.sourceType === 'challenge')).length
@@ -602,44 +595,43 @@ export default function Matches() {
   }, [allMatchesForCounters])
 
   // Mẫu số "11 / 130": mọi trận của người đang chọn, chưa qua lọc nào khác.
-  const baseMatchCount = useMemo(() => searchMatches(db.matches || [], {
+  const baseMatches = useMemo(() => searchMatches(db.matches || [], {
     playerA: playerA || null,
     playerB: playerB || null,
     mode: searchMode,
     quality: 'all',
     ratingsMap: {},
-  }).length, [db.matches, playerA, playerB, searchMode])
+  }), [db.matches, playerA, playerB, searchMode])
+  const baseMatchCount = baseMatches.length
+
+  // Ô chọn Buổi: các ngày từng có trận của người đang chọn, mới nhất trên cùng. Theo NGÀY chứ không theo
+  // bản ghi buổi tập — kèo đánh ngoài buổi (không sessionId) vẫn lọc được. Ngày đang chọn mà đổi người
+  // xong không còn trận thì vẫn giữ dòng "· 0 trận", không thì ô chọn hiện sai mục.
+  const dayOptions = useMemo(() => {
+    const countByDay = new Map()
+    for (const m of baseMatches) {
+      const d = matchDayOf(m, sessionDateById)
+      if (d) countByDay.set(d, (countByDay.get(d) || 0) + 1)
+    }
+    if (dayFilter && !countByDay.has(dayFilter)) countByDay.set(dayFilter, 0)
+    const thisYear = todayISO().slice(0, 4)
+    return [...countByDay.entries()]
+      .sort(([a], [b]) => (a < b ? 1 : -1))
+      .map(([d, n]) => ({
+        value: d,
+        label: t('matchVideo.filterSessionItem', { wd: wd(d), date: d.startsWith(thisYear) ? dd(d) : ddmy(d), n }),
+      }))
+  }, [baseMatches, sessionDateById, dayFilter])
 
   // Số trên nút Bộ lọc = số nhóm trong popover đang khác mặc định. Kèo tính cả khi bật từ chip ngoài
   // vì hai chỗ là một trạng thái.
   const activeFilterCount = (searchMode !== 'vs') + (sourceFilter !== 'all') + (courtFilter !== 'all')
-    + Boolean(dateFrom || dateTo)
+    + Boolean(dayFilter)
   const resetPopoverFilters = () => {
     setSearchMode('vs')
     setSourceFilter('all')
     setCourtFilter('all')
-    setDateFrom('')
-    setDateTo('')
-  }
-  // Nút nhanh "N ngày gần nhất" (tính cả hôm nay) = khoảng [hôm nay − (N−1), hôm nay], giờ địa phương.
-  const daysAgoISO = (today, n) => {
-    const d = new Date(today + 'T00:00:00')
-    d.setDate(d.getDate() - n)
-    return isoOf(d)
-  }
-  const filterToday = todayISO()
-  const datePreset = !dateFrom && !dateTo
-    ? 'all'
-    : (['1', '7', '30'].find((n) => dateTo === filterToday && dateFrom === daysAgoISO(filterToday, Number(n) - 1)) || 'custom')
-  const applyDatePreset = (key) => {
-    if (key === 'all') {
-      setDateFrom('')
-      setDateTo('')
-      return
-    }
-    const today = todayISO()
-    setDateFrom(daysAgoISO(today, Number(key) - 1))
-    setDateTo(today)
+    setDayFilter('')
   }
   const openFilter = () => {
     const r = filterBtnRef.current?.getBoundingClientRect()
@@ -1608,39 +1600,15 @@ export default function Matches() {
                     />
                   </div>
 
-                  {/* Ngày: nút nhanh hoặc tự chọn khoảng; chọn tay thì không nút nhanh nào sáng */}
+                  {/* Buổi: các ngày từng có trận, mới nhất trên cùng */}
                   <div style={{ display: 'grid', gap: 6 }}>
-                    <Overline>{t('matchVideo.filterDate')}</Overline>
-                    <FilterSeg
-                      value={datePreset}
-                      onChange={applyDatePreset}
-                      options={[
-                        { value: 'all', label: t('matchVideo.filterDateAll') },
-                        { value: '1', label: t('matchVideo.today') },
-                        { value: '7', label: t('matchVideo.filterDate7') },
-                        { value: '30', label: t('matchVideo.filterDate30') },
-                      ]}
+                    <Overline>{t('matchVideo.filterSession')}</Overline>
+                    <Select
+                      size="sm"
+                      value={dayFilter}
+                      onChange={(e) => setDayFilter(e.target.value)}
+                      options={[{ value: '', label: t('matchVideo.filterSessionAll') }, ...dayOptions]}
                     />
-                    <div style={{ display: 'grid', gridTemplateColumns: 'repeat(2, minmax(0, 1fr))', gap: 8 }}>
-                      <Input
-                        type="date"
-                        size="sm"
-                        mono
-                        label={t('matchVideo.filterDateFrom')}
-                        value={dateFrom}
-                        max={dateTo || undefined}
-                        onChange={(e) => setDateFrom(e.target.value)}
-                      />
-                      <Input
-                        type="date"
-                        size="sm"
-                        mono
-                        label={t('matchVideo.filterDateTo')}
-                        value={dateTo}
-                        min={dateFrom || undefined}
-                        onChange={(e) => setDateTo(e.target.value)}
-                      />
-                    </div>
                   </div>
 
                   {(db.courts || []).length > 0 && (
