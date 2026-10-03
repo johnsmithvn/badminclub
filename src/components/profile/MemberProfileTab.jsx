@@ -409,7 +409,9 @@ export default function MemberProfileTab({
               justifyContent: 'space-between',
               gap: 16,
               flexWrap: 'wrap',
-              paddingRight: isMobile ? 36 : 42,
+              // Mobile: nút X nổi chỉ chạm tới dòng tên — chừa chỗ ở dòng tên thôi, không ăn mất
+              // bề ngang của dải danh hiệu và ô chọn người bên dưới.
+              paddingRight: isMobile ? 0 : 42,
             }}
           >
             {/* Cụm thông tin VĐV bên trái */}
@@ -422,7 +424,7 @@ export default function MemberProfileTab({
               />
               <div style={{ display: 'flex', flexDirection: 'column', gap: 6, minWidth: 0, flex: 1 }}>
                 {/* Hàng 1: Tên + LevelChip + Giới tính */}
-                <div style={{ display: 'flex', alignItems: 'center', gap: 8, flexWrap: 'wrap' }}>
+                <div style={{ display: 'flex', alignItems: 'center', gap: 8, flexWrap: 'wrap', paddingRight: isMobile ? 36 : 0 }}>
                   <span style={{ font: '700 22px/1.2 Barlow, sans-serif', color: 'var(--text-primary)', minWidth: 0, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }} title={member.name}>
                     {member.name}
                   </span>
@@ -444,18 +446,16 @@ export default function MemberProfileTab({
                 )}
 
                 {/* Hàng 3: Danh hiệu được gắn trên kệ hoặc danh hiệu hiếm nhất (chỉ tên danh hiệu) */}
+                {/* Tự xuống dòng ở mọi cỡ màn — trước đây mobile là dải cuộn ngang, khung cuộn cắt
+                    mất đầu/cuối chip cùng bóng viền, mà người xem không biết còn chip để vuốt. */}
                 {shelfBadges.length > 0 && (
                   <div
                     style={{
                       display: 'flex',
                       alignItems: 'center',
                       gap: isMobile ? 6 : 8,
-                      flexWrap: isMobile ? 'nowrap' : 'wrap',
-                      overflowX: isMobile ? 'auto' : 'visible',
-                      scrollbarWidth: 'none',
-                      WebkitOverflowScrolling: 'touch',
+                      flexWrap: 'wrap',
                       maxWidth: '100%',
-                      paddingBottom: isMobile ? 2 : 0,
                       marginTop: 2,
                     }}
                   >
@@ -483,6 +483,7 @@ export default function MemberProfileTab({
                             boxShadow: `0 2px 8px ${alphaColor(tierInfo.bd || '#000', '26', 15)}`,
                             cursor: 'pointer',
                             flexShrink: 0,
+                            maxWidth: '100%',
                             outline: 'none',
                             transition: 'transform 0.15s ease, filter 0.15s ease',
                           }}
@@ -493,6 +494,9 @@ export default function MemberProfileTab({
                               font: isMobile ? "600 11.5px/1.2 'IBM Plex Sans', sans-serif" : "600 12.5px/1.2 'IBM Plex Sans', sans-serif",
                               color: isDark ? '#E9EFF7' : 'var(--text-primary)',
                               whiteSpace: 'nowrap',
+                              minWidth: 0,
+                              overflow: 'hidden',
+                              textOverflow: 'ellipsis',
                             }}
                           >
                             {bName}
