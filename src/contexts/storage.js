@@ -10,7 +10,7 @@
 // thì người ghi sau thắng. Chấp nhận được vì đơn vị ghi là từng dòng, không phải cả CLB.
 
 import { supabase, unwrap } from '#supabase'
-import { clubRow, diff, toDb, toRows, toTour, toTourMatch, toTourMatchEdit } from '#contexts/dbmap.js'
+import { clubRow, diff, toDb, toRows, toTour, toTourMatch, toTourMatchEdit, videosRow } from '#contexts/dbmap.js'
 import { monthOf } from '#utils/dates.js'
 import { t } from '#i18n'
 import cfg from '#config/app.json' with { type: 'json' }
@@ -313,6 +313,17 @@ async function apply(op) {
         ? await q.upsert(cleanRows, { onConflict: op.conflict, ignoreDuplicates: Boolean(op.ignoreDuplicates) })
         : await q.insert(cleanRows)
     }
+    if (op.table === 'matches' && res.error && res.error.message?.includes("'videos'")) {
+      console.warn('[storage] DB chưa chạy migration 0065 (thiếu cột videos). Bỏ qua videos để không chặn lưu.')
+      const cleanRows = op.rows.map((r) => {
+        const copy = { ...r }
+        delete copy.videos
+        return copy
+      })
+      res = op.conflict
+        ? await q.upsert(cleanRows, { onConflict: op.conflict, ignoreDuplicates: Boolean(op.ignoreDuplicates) })
+        : await q.insert(cleanRows)
+    }
     return unwrap(res)
   }
   if (op.op === 'delIds') {
@@ -357,13 +368,15 @@ export function syncPatchMatchViews(matchId, videoViews, videoViewers) {
  * Giúp `diff` không sinh ra thao tác upsert trên bảng `matches` khi chỉ có thông tin video thay đổi,
  * tránh bị RLS từ chối khi người gắn/sửa là thành viên thường (member).
  */
-export function syncPatchMatchVideo(matchId, videoUrl, videoTimestamp, videoNote) {
+export function syncPatchMatchVideo(matchId, videoUrl, videoTimestamp, videoNote, videos) {
   if (!synced || !synced.rows || !Array.isArray(synced.rows.matches)) return
   const row = synced.rows.matches.find((m) => m.id === matchId)
   if (row) {
     row.video_url = videoUrl || null
     row.video_timestamp = videoTimestamp || null
     row.video_note = videoNote || null
+    // Cùng hàm với toRows — xem videosRow. Bỏ trống (gọi kiểu cũ) thì không đụng tới.
+    if (videos !== undefined) row.videos = videosRow(videos)
   }
 }
 

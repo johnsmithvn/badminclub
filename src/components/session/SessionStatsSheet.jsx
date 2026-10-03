@@ -4,7 +4,7 @@ import { playerName, shortName } from '#lib/money.js'
 import { calculatePlayerWaitTime, sessionFairnessRows } from '#lib/assign.js'
 import { DEFAULT_RATING } from '#lib/rating.js'
 import { t } from '#i18n'
-import cfg from '#config/app.json' with { type: 'json' }
+import cfg from '#config/app.js'
 
 // Ngưỡng tô màu cột Lệch. Lấy từ config chứ không viết thẳng số vào JSX.
 const DEBT_WARN = cfg.assign?.debtWarnThreshold ?? 1.5

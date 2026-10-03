@@ -17,6 +17,9 @@ export default [
     rules: {
       ...js.configs.recommended.rules,
       ...reactHooks.configs.recommended.rules,
+      // Luật này chỉ báo "compiler không giữ được memo thủ công" — có nghĩa khi BẬT React Compiler
+      // lúc build. Repo không bật (vite.config.js không có babel-plugin-react-compiler) nên chỉ cảnh báo.
+      'react-hooks/preserve-manual-memoization': 'warn',
       'react-refresh/only-export-components': ['warn', { allowConstantExport: true }],
       'no-unused-vars': ['warn', { varsIgnorePattern: '^[A-Z_]', argsIgnorePattern: '^_' }],
     },

@@ -18,7 +18,7 @@ import { useAuth } from '#contexts/AuthContext.jsx'
 import { genderTxt } from '#lib/money.js'
 import { ddmy } from '#utils/dates.js'
 import { t } from '#i18n'
-import cfg from '#config/app.json' with { type: 'json' }
+import cfg from '#config/app.js'
 
 import { AvatarUpload, BankAccountSection } from '#ui'
 

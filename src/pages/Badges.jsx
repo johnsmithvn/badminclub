@@ -33,7 +33,7 @@ import {
 import { calculateMemberXp } from '#lib/xp.js'
 import { getSeasonRankLeaderboard, seasonMatchesOf, resolveSeason } from '#lib/season.js'
 import { myMember } from '#lib/money.js'
-import badgesConfig from '#config/badges.json'
+import badgesConfig from '#config/badges.js'
 
 /**
  * Trang Master: Danh hiệu & Treo thưởng.

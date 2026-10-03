@@ -11,7 +11,7 @@ import {
 import { confidenceLevelOf } from '#lib/rating.js'
 import { dd, monthOf, wd } from '#utils/dates.js'
 import { t } from '#i18n'
-import cfg from '#config/app.json' with { type: 'json' }
+import cfg from '#config/app.js'
 
 /** Pill trạng thái buổi (Chưa mở / Đã mở / Đã chốt / Đã hủy). */
 export function SessionPill({ status, size = 'sm' }) {

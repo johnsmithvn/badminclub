@@ -1,4 +1,4 @@
-import { useEffect, useRef, useState } from 'react'
+import { useEffect, useLayoutEffect, useRef, useState } from 'react'
 import { Alert, Button, Dialog, Input } from '#ds'
 import { Mono } from '#ui'
 import {
@@ -11,7 +11,7 @@ import { linkShape } from '#lib/tournament/bracketView.js'
 import { isDouble } from '#lib/tournament/doubleElim.js'
 import { roundsOf, swissRounds } from '#lib/tournament/swiss.js'
 import { eventTeams } from '#lib/tournament/pairing.js'
-import cfg from '#config/app.json' with { type: 'json' }
+import cfg from '#config/app.js'
 import { t } from '#i18n'
 import { RuleCard, Seg, TeamNameLines } from './TourBits.jsx'
 import RecommendDialog from './RecommendDialog.jsx'
@@ -111,8 +111,9 @@ export default function FlowCanvas({ tour, event, db, a, canEdit, onBack, onOpen
   const [focus, setFocus] = useState(false) // phóng to: phủ cả màn, ẩn 2 thanh bên tới khi chọn khối
   const [save, setSave] = useState('idle') // 'idle' | 'saving' | 'saved' — nhãn "vừa lưu" (handoff)
   const viewRef = useRef(null)
+  // Handler cuộn chuột đọc zoom mới nhất qua ref; cập nhật sau commit chứ không ghi ref giữa lúc render.
   const zoomRef = useRef(zoom)
-  zoomRef.current = zoom
+  useLayoutEffect(() => { zoomRef.current = zoom }, [zoom])
 
   // Esc thoát phóng to (trừ khi đang mở hộp thoại — Esc đó là của hộp thoại).
   useEffect(() => {

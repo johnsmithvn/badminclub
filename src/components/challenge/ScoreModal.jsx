@@ -18,7 +18,7 @@ import { calculateMemberBadges, computeClubBadgeStats, getBadgeById, newlyUnlock
 import { seenBadgesKey, markBadgeSeen } from '#utils/seenBadges.js'
 import BadgeUnlockModal from '#components/badges/BadgeUnlockModal.jsx'
 import { t } from '#i18n'
-import cfg from '#config/app.json' with { type: 'json' }
+import cfg from '#config/app.js'
 
 /**
  * Chụp trạng thái danh hiệu của một thành viên.

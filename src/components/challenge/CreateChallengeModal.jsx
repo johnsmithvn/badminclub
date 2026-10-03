@@ -8,7 +8,7 @@ import {
 import { shortName, playerName, playerOf } from '#lib/money.js'
 import { calcSeasonMatchDeltaFinal, challengeMultiplierOf } from '#lib/season.js'
 import { t } from '#i18n'
-import cfg from '#config/app.json' with { type: 'json' }
+import cfg from '#config/app.js'
 
 export default function CreateChallengeModal({ session, onClose, onCreated, initialTeamA = [], initialTeamB = [] }) {
   const { db, a } = useApp()

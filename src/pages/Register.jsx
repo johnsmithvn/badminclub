@@ -9,7 +9,7 @@ import AuthLayout from '#components/layout/AuthLayout.jsx'
 import { useAuth } from '#contexts/AuthContext.jsx'
 import { genderTxt } from '#lib/money.js'
 import { t } from '#i18n'
-import cfg from '#config/app.json' with { type: 'json' }
+import cfg from '#config/app.js'
 
 const EMPTY = {
   email: '', password: '', password2: '',

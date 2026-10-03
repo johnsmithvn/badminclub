@@ -13,7 +13,7 @@ import { ddmy } from '#utils/dates.js'
 import { roleName } from '#lib/roles.js'
 import { PUBLIC_PATHS } from '#routes'
 import { t } from '#i18n'
-import cfg from '#config/app.json' with { type: 'json' }
+import cfg from '#config/app.js'
 
 export default function Clubs() {
   const { profile, clubs, requests, setActiveClub, signOut, createClub, joinByCode } = useAuth()

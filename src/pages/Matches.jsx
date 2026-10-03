@@ -18,7 +18,7 @@ import {
   searchMatches, headToHeadMatrix, neverMetPairs, topDisparatePairs, neverMetWithSessionCount,
   isCloseMatch, isThreeSetMatch, isUpsetMatch,
 } from '#lib/matchSearch.js'
-import { formatGapMinutes, parseVideoProvider } from '#utils/videoUtils.js'
+import { formatGapMinutes, videoTagLabelOf, matchVideosOf } from '#utils/videoUtils.js'
 import { isChallengeAccepted } from '#lib/challenge.js'
 import EditScoreModal from '#components/challenge/EditScoreModal.jsx'
 import CreateChallengeModal from '#components/challenge/CreateChallengeModal.jsx'
@@ -48,6 +48,11 @@ function getShortDisplayName(fullName, allMembers = []) {
     return `${prev[0] ? prev[0] + '.' : ''} ${lastName}`
   }
   return lastName
+}
+
+/** Ngày (ISO) của một trận — cùng quy tắc với nhóm theo ngày ở tab Lịch sử: ngày buổi, không có buổi thì ngày đánh. */
+function matchDayOf(m, sessionDateById) {
+  return sessionDateById[m.sessionId] || (m.at ? isoOf(new Date(m.at)) : '')
 }
 
 export default function Matches() {
@@ -91,6 +96,12 @@ export default function Matches() {
   const [viewingChallenge, setViewingChallenge] = useState(null)
   const [scoringChallenge, setScoringChallenge] = useState(null)
 
+  // Modals — khai báo trước các effect đọc URL bên dưới (effect matchId mở viewingMatch).
+  const [editingMatch, setEditingMatch] = useState(null)
+  const [viewingMatch, setViewingMatch] = useState(null)
+  const [playingVideoMatch, setPlayingVideoMatch] = useState(null)
+  const [attachVideoMatch, setAttachVideoMatch] = useState(null)
+
   /**
    * Buổi có thể gắn kèo vào.
    *
@@ -125,6 +136,9 @@ export default function Matches() {
     const challengeParam = searchParams.get('challenge')
     if (!target && challengeParam !== 'new') return
 
+    // Đồng bộ từ URL (router — hệ ngoài React): đọc param, mở modal, rồi xoá param. Viết lại thành
+    // tính lúc render là đụng cả luồng điều hướng kèo; luật này chỉ về hiệu năng (thêm một lượt render).
+    // eslint-disable-next-line react-hooks/set-state-in-effect
     setInitialTeamA(myId ? [myId] : [])
     setInitialTeamB(target ? [target] : [])
     setChallengeModalOpen(true)
@@ -148,6 +162,8 @@ export default function Matches() {
   useEffect(() => {
     const tab = searchParams.get('tab')
     if (tab === 'search' || tab === 'history') {
+      // Đồng bộ từ URL như effect trên — xem lý do ở đó.
+      // eslint-disable-next-line react-hooks/set-state-in-effect
       setActiveTab('search')
     } else if (tab === 'matrix') {
       setActiveTab('matrix')
@@ -250,18 +266,15 @@ export default function Matches() {
   const filterBtnRef = useRef(null)
   const filterPopRef = useRef(null)
   const [courtFilter, setCourtFilter] = useState('all')
+  // Lọc ngày: ISO 'YYYY-MM-DD', rỗng = không chặn đầu đó.
+  const [dateFrom, setDateFrom] = useState('')
+  const [dateTo, setDateTo] = useState('')
   const [sourceFilter, setSourceFilter] = useState('all')
   const [onlyVideoFilter, setOnlyVideoFilter] = useState(() => searchParams.get('video') === 'true')
   const [viewerFilter, setViewerFilter] = useState('all')
   const [sortOption, setSortOption] = useState('latest') // 'latest' | 'dramatic' | 'elo_swing'
   const [searchCardLimit, setSearchCardLimit] = useState(10)
   const [expandedVideoMatchId, setExpandedVideoMatchId] = useState(null)
-
-  // Modals
-  const [editingMatch, setEditingMatch] = useState(null)
-  const [viewingMatch, setViewingMatch] = useState(null)
-  const [playingVideoMatch, setPlayingVideoMatch] = useState(null)
-  const [attachVideoMatch, setAttachVideoMatch] = useState(null)
 
   // State Ma trận đối đầu H2H
   const [matrixMemberLimit, setMatrixMemberLimit] = useState(() => (isMobile ? 5 : 8))
@@ -338,11 +351,16 @@ export default function Matches() {
   // Kèo được trỏ tới (từ thông báo / Bảng tin) nằm trong mục "Đã kết thúc" — mục này mặc định
   // THU GỌN — thì phải mở ra. Không thì banner "Đang làm nổi bật kèo…" hiện mà thẻ kèo không có
   // trên màn hình: dính mọi thông báo huỷ kèo / kèo ngã ngũ gửi cho chính người trong kèo.
-  useEffect(() => {
-    if (highlightedChallengeId && myEndedChallenges.some((c) => c.id === highlightedChallengeId)) {
-      setMyEndedCollapsed(false)
-    }
-  }, [highlightedChallengeId, myEndedChallenges])
+  // Mở MỘT lần cho mỗi kèo được trỏ tới, chỉnh ngay lúc render (mẫu "điều chỉnh state khi đầu vào
+  // đổi" của React) thay vì setState trong effect. Bản effect cũ còn mở lại mỗi lần db nạp lại, kể cả
+  // khi người dùng vừa tự thu gọn.
+  const [endedOpenedFor, setEndedOpenedFor] = useState(null)
+  const highlightIsEnded = Boolean(highlightedChallengeId)
+    && myEndedChallenges.some((c) => c.id === highlightedChallengeId)
+  if (highlightIsEnded && endedOpenedFor !== highlightedChallengeId) {
+    setEndedOpenedFor(highlightedChallengeId)
+    setMyEndedCollapsed(false)
+  }
 
   const pendingChallenges = useMemo(() => {
     return allChallenges.filter((c) => c.status === 'pending')
@@ -403,6 +421,11 @@ export default function Matches() {
   // =========================================================================
   // TAB 2: LỊCH SỬ ĐẤU & VIDEO (SEARCH) - BÊ NGUYÊN TỪ LEADERBOARD CŨ
   // =========================================================================
+  const sessionDateById = useMemo(
+    () => Object.fromEntries((db.sessions || []).map((s) => [s.id, s.date])),
+    [db.sessions],
+  )
+
   const searchResults = useMemo(() => {
     const ratingsMap = {}
     activeMembers.forEach((m) => {
@@ -426,6 +449,12 @@ export default function Matches() {
         const s = (db.sessions || []).find((x) => x.id === m.sessionId)
         const courtObj = s?.courts?.[m.courtIdx]
         return courtObj?.courtId === courtFilter || String(m.courtIdx) === courtFilter
+      })
+    }
+    if (dateFrom || dateTo) {
+      list = list.filter((m) => {
+        const d = matchDayOf(m, sessionDateById)
+        return Boolean(d) && (!dateFrom || d >= dateFrom) && (!dateTo || d <= dateTo)
       })
     }
     if (sourceFilter !== 'all') {
@@ -457,7 +486,7 @@ export default function Matches() {
     }
 
     return list
-  }, [db.matches, playerA, playerB, searchMode, activePairs, qualityFilter, onlyVideoFilter, viewerFilter, courtFilter, sourceFilter, sortOption, db.playerRatings, activeMembers, db.levels, db.sessions])
+  }, [db.matches, playerA, playerB, searchMode, activePairs, qualityFilter, onlyVideoFilter, viewerFilter, courtFilter, dateFrom, dateTo, sessionDateById, sourceFilter, sortOption, db.playerRatings, activeMembers, db.levels, db.sessions])
 
   const dayGroups = useMemo(() => {
     const groups = []
@@ -475,7 +504,10 @@ export default function Matches() {
     // Giờ địa phương, KHÔNG toISOString (UTC) — trước 07:00 giờ VN nó trả về ngày hôm qua
     // nên nhãn 'Hôm nay' / 'Hôm qua' gắn lệch một ngày.
     const todayStr = todayISO()
-    const yesterdayStr = isoOf(new Date(Date.now() - 86400000))
+    // Hôm qua tính từ chính todayStr (giờ địa phương) — không đọc đồng hồ lần thứ hai giữa lúc render.
+    const yesterday = new Date(todayStr + 'T00:00:00')
+    yesterday.setDate(yesterday.getDate() - 1)
+    const yesterdayStr = isoOf(yesterday)
 
     for (const [dateKey, matchesInDay] of dayMap.entries()) {
       matchesInDay.sort((a, b) => (b.at || 0) - (a.at || 0))
@@ -551,8 +583,14 @@ export default function Matches() {
         return courtObj?.courtId === courtFilter || String(m.courtIdx) === courtFilter
       })
     }
+    if (dateFrom || dateTo) {
+      list = list.filter((m) => {
+        const d = matchDayOf(m, sessionDateById)
+        return Boolean(d) && (!dateFrom || d >= dateFrom) && (!dateTo || d <= dateTo)
+      })
+    }
     return list
-  }, [db.matches, playerA, playerB, searchMode, onlyVideoFilter, courtFilter, db.sessions])
+  }, [db.matches, playerA, playerB, searchMode, onlyVideoFilter, courtFilter, dateFrom, dateTo, sessionDateById, db.sessions])
 
   const challengeMatchesCount = useMemo(() => {
     return allMatchesForCounters.filter((m) => Boolean(m.challengeId || m.sourceType === 'challenge')).length
@@ -581,12 +619,35 @@ export default function Matches() {
 
   // Số trên nút Bộ lọc = số nhóm trong popover đang khác mặc định. Kèo tính cả khi bật từ chip ngoài
   // vì hai chỗ là một trạng thái.
-  const activeFilterCount = (searchMode !== 'vs') + (sourceFilter !== 'all') + (courtFilter !== 'all') + (viewerFilter !== 'all')
+  const activeFilterCount = (searchMode !== 'vs') + (sourceFilter !== 'all') + (courtFilter !== 'all')
+    + (viewerFilter !== 'all') + Boolean(dateFrom || dateTo)
   const resetPopoverFilters = () => {
     setSearchMode('vs')
     setSourceFilter('all')
     setCourtFilter('all')
     setViewerFilter('all')
+    setDateFrom('')
+    setDateTo('')
+  }
+  // Nút nhanh "N ngày gần nhất" (tính cả hôm nay) = khoảng [hôm nay − (N−1), hôm nay], giờ địa phương.
+  const daysAgoISO = (today, n) => {
+    const d = new Date(today + 'T00:00:00')
+    d.setDate(d.getDate() - n)
+    return isoOf(d)
+  }
+  const filterToday = todayISO()
+  const datePreset = !dateFrom && !dateTo
+    ? 'all'
+    : (['1', '7', '30'].find((n) => dateTo === filterToday && dateFrom === daysAgoISO(filterToday, Number(n) - 1)) || 'custom')
+  const applyDatePreset = (key) => {
+    if (key === 'all') {
+      setDateFrom('')
+      setDateTo('')
+      return
+    }
+    const today = todayISO()
+    setDateFrom(daysAgoISO(today, Number(key) - 1))
+    setDateTo(today)
   }
   const openFilter = () => {
     const r = filterBtnRef.current?.getBoundingClientRect()
@@ -1555,6 +1616,41 @@ export default function Matches() {
                     />
                   </div>
 
+                  {/* Ngày: nút nhanh hoặc tự chọn khoảng; chọn tay thì không nút nhanh nào sáng */}
+                  <div style={{ display: 'grid', gap: 6 }}>
+                    <Overline>{t('matchVideo.filterDate')}</Overline>
+                    <FilterSeg
+                      value={datePreset}
+                      onChange={applyDatePreset}
+                      options={[
+                        { value: 'all', label: t('matchVideo.filterDateAll') },
+                        { value: '1', label: t('matchVideo.today') },
+                        { value: '7', label: t('matchVideo.filterDate7') },
+                        { value: '30', label: t('matchVideo.filterDate30') },
+                      ]}
+                    />
+                    <div style={{ display: 'grid', gridTemplateColumns: 'repeat(2, minmax(0, 1fr))', gap: 8 }}>
+                      <Input
+                        type="date"
+                        size="sm"
+                        mono
+                        label={t('matchVideo.filterDateFrom')}
+                        value={dateFrom}
+                        max={dateTo || undefined}
+                        onChange={(e) => setDateFrom(e.target.value)}
+                      />
+                      <Input
+                        type="date"
+                        size="sm"
+                        mono
+                        label={t('matchVideo.filterDateTo')}
+                        value={dateTo}
+                        min={dateFrom || undefined}
+                        onChange={(e) => setDateTo(e.target.value)}
+                      />
+                    </div>
+                  </div>
+
                   {(db.courts || []).length > 0 && (
                     <div style={{ display: 'grid', gap: 6 }}>
                       <Overline>{t('matchVideo.colCourt')}</Overline>
@@ -1939,8 +2035,7 @@ export default function Matches() {
                         const predPct = isUpset ? '34%' : isClose ? '52%' : '50%'
                         const isCorrect = !isUpset
                         const hasVideo = Boolean(m.videoUrl)
-                        const vProvider = parseVideoProvider(m.videoUrl)
-                        const videoTagLabel = vProvider === 'youtube' ? 'YouTube' : vProvider === 'drive' ? 'Drive' : vProvider === 'icloud' ? 'iCloud' : 'Video'
+                        const videoTagLabel = videoTagLabelOf(m)
 
                         let leftAccentColor = '#00B2A9'
                         let cardBg = 'var(--surface-raised, #161F30)'
@@ -2501,8 +2596,7 @@ export default function Matches() {
                       const isChallenge = Boolean(m.challengeId || m.sourceType === 'challenge')
                       const predPct = isUpset ? '34%' : isClose ? '52%' : '50%'
                       const hasVideo = Boolean(m.videoUrl)
-                      const vProvider = parseVideoProvider(m.videoUrl)
-                      const videoTagLabel = vProvider === 'youtube' ? 'YouTube' : vProvider === 'drive' ? 'Drive' : vProvider === 'icloud' ? 'iCloud' : 'Video'
+                      const videoTagLabel = videoTagLabelOf(m)
 
                       return (
                         <div key={m.id} style={{ display: 'grid' }}>
@@ -2750,6 +2844,7 @@ export default function Matches() {
                               courtVenueStr={`${courtLabel} · ${venue?.name || ''}`}
                               teamText={`${winnerFull} vs ${loserFull}`}
                               scoreText={fullScoreStr}
+                              lockCount={isAdmin ? 0 : matchVideosOf(m).length}
                               onSave={(videoData) => {
                                 a.attachMatchVideo(m.id, videoData)
                                 setExpandedVideoMatchId(null)

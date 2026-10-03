@@ -214,6 +214,34 @@ export default function SessionDetail() {
   // URL là nguồn sự thật; đồng bộ vào db để action dùng db.sessionId.
   useEffect(() => { if (sid) a.setSessionId(sid) }, [sid, a])
 
+  // MỌI hook phải nằm TRƯỚC early return `if (!s)` bên dưới (Rules of Hooks). Buổi đang xem đổi từ
+  // không có sang có (nạp chậm, id sai rồi sửa) hay bị xoá khi đang mở là số hook đổi giữa hai lần
+  // render — React ném lỗi và trắng màn. Các hook dưới đây chịu được `s` null.
+  // Cố định của nhóm + người đi thêm hôm nay. Người đi thêm trả tiền theo ĐƠN GIÁ MỘT BUỔI
+  // của nhóm, không phải giá khách — họ là người nhà, xem tab Đối chiếu ở Công nợ.
+  const att = (s && db.attendance[s.id]) || {}
+  const [sortKey, setSortKey] = useState(0)
+  const [attStatusFilter, setAttStatusFilter] = useState('all')
+  const [attKindFilter, setAttKindFilter] = useState('all')
+
+  // Thứ tự thành viên được tính ban đầu (hoặc khi người dùng chủ động bấm "Gom nhóm").
+  // Trong quá trình bấm đổi trạng thái điểm danh, thứ tự được giữ cố định để không bị nhảy vị trí.
+  // Deps cố ý chỉ có id buổi + sortKey: thêm db/att là thứ tự nhảy lại sau mỗi lần bấm điểm danh.
+  const orderedMemberIds = useMemo(() => {
+    if (!s) return []
+    return sortAttendanceMembers(sessionMembers(db, s), att).map((m) => m.id)
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [s?.id, sortKey])
+
+  const currentMembers = useMemo(() => (s ? sessionMembers(db, s) : []), [db, s])
+  const memberMap = useMemo(() => new Map(currentMembers.map((m) => [m.id, m])), [currentMembers])
+  const members = useMemo(() => {
+    const sorted = orderedMemberIds.map((mid) => memberMap.get(mid)).filter(Boolean)
+    const existing = new Set(orderedMemberIds)
+    const rest = currentMembers.filter((m) => !existing.has(m.id))
+    return [...sorted, ...rest]
+  }, [orderedMemberIds, memberMap, currentMembers])
+
   if (!s) {
     return (
       <Card padding="0">
@@ -227,25 +255,6 @@ export default function SessionDetail() {
   const canMoney = can(role, 'money')
   const month = s.date.slice(0, 7)
   const group = groupOf(db, s.groupId)
-  // Cố định của nhóm + người đi thêm hôm nay. Người đi thêm trả tiền theo ĐƠN GIÁ MỘT BUỔI
-  // của nhóm, không phải giá khách — họ là người nhà, xem tab Đối chiếu ở Công nợ.
-  const att = db.attendance[s.id] || {}
-  const [sortKey, setSortKey] = useState(0)
-
-  // Thứ tự thành viên được tính ban đầu (hoặc khi người dùng chủ động bấm "Gom nhóm").
-  // Trong quá trình bấm đổi trạng thái điểm danh, thứ tự được giữ cố định để không bị nhảy vị trí.
-  const orderedMemberIds = useMemo(() => {
-    return sortAttendanceMembers(sessionMembers(db, s), att).map((m) => m.id)
-  }, [s.id, sortKey])
-
-  const currentMembers = sessionMembers(db, s)
-  const memberMap = useMemo(() => new Map(currentMembers.map((m) => [m.id, m])), [currentMembers])
-  const members = useMemo(() => {
-    const sorted = orderedMemberIds.map((mid) => memberMap.get(mid)).filter(Boolean)
-    const existing = new Set(orderedMemberIds)
-    const rest = currentMembers.filter((m) => !existing.has(m.id))
-    return [...sorted, ...rest]
-  }, [orderedMemberIds, memberMap, currentMembers])
   // Khối "Khách giao lưu" chỉ liệt kê khách NGOÀI CLB. Dòng thu của thành viên đi buổi đột xuất
   // nằm trong bảng điểm danh, ngay cạnh tên họ — không tách ra hai chỗ cho cùng một người.
   const guests = sGuestsOnly(db, s.id)
@@ -269,9 +278,6 @@ export default function SessionDetail() {
   const sSubTitle = timeRange && courtNames
     ? t('session.courtTimeSub', { time: timeRange, courts: courtNames })
     : `${wd(s.date)} · ${headCount(db, s)} ${t('units.people')} · ${(s.courts || []).filter((c) => !c.sold).length} ${t('units.court')} · ${group.name}`
-
-  const [attStatusFilter, setAttStatusFilter] = useState('all')
-  const [attKindFilter, setAttKindFilter] = useState('all')
 
   const KIND_COLORS = {
     member: '#00B2A9',

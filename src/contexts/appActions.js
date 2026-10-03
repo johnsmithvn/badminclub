@@ -25,6 +25,7 @@ import { seasonMatchesOf, calculateSeasonLeaderboard } from '#lib/season.js'
 import { buildMatchBackup, validateMatchBackup } from '#lib/matchBackup.js'
 import cfgBadges from '#config/badges.json' with { type: 'json' }
 import { syncPatchMatchViews, syncPatchMatchVideo } from '#contexts/storage.js'
+import { cleanVideoParts, matchVideosOf } from '#utils/videoUtils.js'
 import { makeTournamentActions } from '#contexts/tournamentActions.js'
 import { detectMatchNarrative, notifyRecipients, notifiableMemberIds, resolveNotificationPayload } from '#lib/activity.js'
 
@@ -3919,18 +3920,28 @@ export function makeActions({ setDb, setUi, dbRef, uiRef, navRef, toast, reload,
       }
     },
 
-    attachMatchVideo: (matchId, { videoUrl, videoTimestamp, videoNote } = {}) => {
+    /**
+     * Gắn / sửa video của trận. `videos` = các phần theo thứ tự (Part 1, Part 2…, 0065).
+     * Vẫn nhận kiểu cũ một link (`videoUrl` + `videoTimestamp`) — coi như một phần.
+     */
+    attachMatchVideo: (matchId, { videos, videoUrl, videoTimestamp, videoNote } = {}) => {
       const d0 = db()
       const match = (d0.matches || []).find((m) => m.id === matchId)
       if (!match) return false
 
-      const nextUrl = videoUrl !== undefined ? (videoUrl ? videoUrl.trim() : null) : match.videoUrl
-      const nextTs = videoTimestamp !== undefined ? (videoTimestamp ? videoTimestamp.trim() : null) : match.videoTimestamp
+      const parts = videos !== undefined
+        ? cleanVideoParts(videos)
+        : videoUrl !== undefined
+          ? cleanVideoParts(videoUrl ? [{ url: videoUrl, start: videoTimestamp }] : [])
+          : matchVideosOf(match)
+      // Cột cũ luôn = Part 1 — mọi chỗ chỉ hỏi "trận có video không" vẫn đọc videoUrl như trước.
+      const nextUrl = parts[0]?.url || null
+      const nextTs = parts[0]?.start || null
       const nextNote = videoNote !== undefined ? (videoNote ? videoNote.trim() : null) : match.videoNote
 
       // Cập nhật snapshot cục bộ để `diff` không phát sinh op upsert trên bảng matches,
       // tránh bị RLS từ chối khi người thực hiện là thành viên thường (member).
-      syncPatchMatchVideo(matchId, nextUrl, nextTs, nextNote)
+      syncPatchMatchVideo(matchId, nextUrl, nextTs, nextNote, parts)
 
       up((d) => ({
         matches: (d.matches || []).map((m) => (
@@ -3940,21 +3951,35 @@ export function makeActions({ setDb, setUi, dbRef, uiRef, navRef, toast, reload,
               videoUrl: nextUrl,
               videoTimestamp: nextTs,
               videoNote: nextNote,
+              videos: parts,
             }
             : m
         )),
       }))
 
-      // Gọi RPC gắn video an toàn trên database
+      // Gọi RPC gắn video an toàn trên database. DB chưa chạy 0065 thì chưa có attach_match_videos:
+      // lùi về RPC cũ với Part 1 (mất các phần sau cho tới khi chạy migration, không mất Part 1).
       if (supabase && typeof supabase.rpc === 'function') {
-        Promise.resolve(supabase.rpc('attach_match_video', {
+        const fail = (err) => {
+          console.warn('[actions] Không lưu được video trận:', err?.message || err)
+          toast(t('sync.failed', { msg: err?.message || String(err) }))
+        }
+        Promise.resolve(supabase.rpc('attach_match_videos', {
           p_match_id: matchId,
-          p_video_url: nextUrl,
-          p_video_timestamp: nextTs,
+          p_videos: parts.map((p) => ({ url: p.url, start: p.start || null })),
           p_video_note: nextNote,
-        })).catch((err) => {
-          console.warn('[actions] Không gọi được RPC attach_match_video:', err?.message || err)
-        })
+        })).then(({ error } = {}) => {
+          if (!error) return
+          if (error.code === 'PGRST202' || error.message?.includes('attach_match_videos')) {
+            return Promise.resolve(supabase.rpc('attach_match_video', {
+              p_match_id: matchId,
+              p_video_url: nextUrl,
+              p_video_timestamp: nextTs,
+              p_video_note: nextNote,
+            })).then(({ error: oldErr } = {}) => { if (oldErr) fail(oldErr) })
+          }
+          fail(error)
+        }).catch(fail)
       }
 
       toast(t('common.save'))

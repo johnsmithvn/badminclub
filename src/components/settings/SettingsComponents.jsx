@@ -1,7 +1,7 @@
 import React, { useState, useRef, useEffect } from 'react'
 import { Icon } from '#ds'
 import { t } from '#i18n'
-import cfg from '#config/app.json' with { type: 'json' }
+import cfg from '#config/app.js'
 
 /**
  * Hàng dữ liệu chuẩn theo ngữ pháp handoff 2c:

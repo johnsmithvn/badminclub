@@ -14,7 +14,7 @@ import { FundOverviewCards } from '#pages/Fund.jsx'
 import { can } from '#lib/roles.js'
 import { scheduleForm } from '#lib/forms.js'
 import { PUBLIC_PATHS } from '#routes'
-import cfg from '#config/app.json' with { type: 'json' }
+import cfg from '#config/app.js'
 
 export default function Home() {
   const { ui, a } = useApp()

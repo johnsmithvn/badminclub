@@ -1,5 +1,5 @@
 import { useEffect } from 'react'
-import cfg from '#config/app.json' with { type: 'json' }
+import cfg from '#config/app.js'
 
 /**
  * Nạp lại bảng trận của giải mỗi `tournament.pollMs` khi tab đang mở; quay lại tab thì nạp ngay.

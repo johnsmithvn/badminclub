@@ -16,7 +16,7 @@ import ChallengeDetailModal from '#components/challenge/ChallengeDetailModal.jsx
 import ScoreModal from '#components/challenge/ScoreModal.jsx'
 import AttachVideoModal, { MatchVideoInlineExpander } from '#components/challenge/AttachVideoModal.jsx'
 import { VideoPlayerModal } from '#components/challenge/VideoPlayerModal.jsx'
-import { formatGapMinutes, calcSessionTimeStats, parseVideoProvider, formatVideoDisplayLabel } from '#utils/videoUtils.js'
+import { formatGapMinutes, calcSessionTimeStats, formatVideoDisplayLabel, videoTagLabelOf } from '#utils/videoUtils.js'
 
 export default function SessionMatchesTab({ s, onSwitchTab }) {
   const { db, a } = useApp()
@@ -350,8 +350,7 @@ export default function SessionMatchesTab({ s, onSwitchTab }) {
                 const absDelta = Math.abs(m.eloDelta || 0)
                 const isTarget = targetMatchId === m.id
                 const hasVideo = Boolean(m.videoUrl)
-                const vProvider = parseVideoProvider(m.videoUrl)
-                const videoTagLabel = vProvider === 'youtube' ? 'YouTube' : vProvider === 'drive' ? 'Drive' : vProvider === 'icloud' ? 'iCloud' : 'Video'
+                const videoTagLabel = videoTagLabelOf(m)
 
                 const ra = m.initialRatingA != null ? m.initialRatingA : (teamA.reduce((sum, id) => sum + getRating(id), 0) / (teamA.length || 1))
                 const rb = m.initialRatingB != null ? m.initialRatingB : (teamB.reduce((sum, id) => sum + getRating(id), 0) / (teamB.length || 1))
@@ -829,8 +828,7 @@ export default function SessionMatchesTab({ s, onSwitchTab }) {
 
                     const isChallenge = Boolean(m.challengeId || m.sourceType === 'challenge')
                     const hasVideo = Boolean(m.videoUrl)
-                    const vProvider = parseVideoProvider(m.videoUrl)
-                    const videoTagLabel = vProvider === 'youtube' ? 'YouTube' : vProvider === 'drive' ? 'Drive' : vProvider === 'icloud' ? 'iCloud' : 'Video'
+                    const videoTagLabel = videoTagLabelOf(m)
 
                     return (
                       <div key={m.id} style={{ display: 'grid' }}>
@@ -1096,8 +1094,7 @@ export default function SessionMatchesTab({ s, onSwitchTab }) {
               const courtLabel = courtObj?.label || (courtObj ? t('session.courtNum', { n: (m.courtIdx ?? 0) + 1 }) : t('session.courtNum', { n: 1 }))
               const matchTime = m.at ? new Date(m.at).toLocaleTimeString('vi-VN', { hour: '2-digit', minute: '2-digit' }) : (courtObj?.from || '19:00')
               const matchCode = matchCodeOf(db, m)
-              const vProvider = parseVideoProvider(m.videoUrl)
-              const videoTagLabel = vProvider === 'youtube' ? 'YouTube' : vProvider === 'drive' ? 'Drive' : vProvider === 'icloud' ? 'iCloud' : 'Video'
+              const videoTagLabel = videoTagLabelOf(m)
               const displayLabel = formatVideoDisplayLabel(m.videoUrl, m.videoTimestamp)
 
               return (
