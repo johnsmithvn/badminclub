@@ -1,7 +1,7 @@
 import test from 'node:test'
 import assert from 'node:assert/strict'
 
-import { groupBadgesByFamily, getBadgeFamily, ANIME_GLYPHS, ANIME_TIERS } from '#lib/badges.js'
+import { groupBadgesByFamily, getBadgeFamily, BADGE_GLYPHS, BADGE_TIERS } from '#lib/badges.js'
 import cfgBadges from '#config/badges.json' with { type: 'json' }
 
 /**
@@ -133,7 +133,7 @@ test('Config: mỗi badge chỉ được thuộc tối đa MỘT họ', () => {
 test('Config: bậc phẩm cấp trong một họ phải TĂNG DẦN theo độ khó', () => {
   const byId = new Map(activeCatalog().map((b) => [b.id, b]))
   for (const [key, fam] of Object.entries(cfgBadges.families || {})) {
-    const pts = (fam.badgeIds || []).map((id) => ANIME_TIERS[byId.get(id).tier]?.pts ?? 0)
+    const pts = (fam.badgeIds || []).map((id) => BADGE_TIERS[byId.get(id).tier]?.pts ?? 0)
     for (let i = 1; i < pts.length; i++) {
       assert.ok(
         pts[i] > pts[i - 1],
@@ -186,7 +186,7 @@ test('Config: mọi glyph được gọi tên đều phải có hình thật', (
   Object.values(cfgBadges.families || {}).forEach((f) => f.glyph && used.add(f.glyph))
   activeCatalog().forEach((b) => b.glyph && used.add(b.glyph))
 
-  const missing = [...used].filter((g) => !ANIME_GLYPHS[g])
+  const missing = [...used].filter((g) => !BADGE_GLYPHS[g])
   assert.deepEqual(missing, [], `Glyph không có hình: ${missing.join(', ')}`)
 })
 

@@ -38,7 +38,7 @@ src/
   App.jsx             đăng ký route, gác quyền, đưa navigate cho actions
   components/
     auth/             AuthLayout
-    badges/           BadgeCard · BadgeDetailModal · BadgeShelf · BadgeUnlockModal · BountyBoardTab · BountyHeroPoster · CollectorLeaderboardTab · GlobalBadgeUnlockHost · mobile/ (AnimeMobileCollection · AnimeMobileBadgeDetail)
+    badges/           BadgeCard · BadgeDetailModal · BadgeHex · BadgeShelf · BadgeUnlockModal · BountyHeroPoster · CollectorLeaderboardTab · GlobalBadgeUnlockHost · TierBackdrop · tierFx · mobile/ (MobileBadgeCollection)
     challenge/        ArenaChallengeCard · CreateChallengeModal · ScoreModal · EditScoreModal · RatingLineChart · ChallengeDetailModal · MatchDetailModal · AttachVideoModal · VideoPlayerModal
     ds/               DESIGN SYSTEM TDMS — trích từ handoff, KHÔNG sửa tay (icons.js + index.js)
     home/             ActivityTab · HomeMatchTab · personal/ (HeroRankCard · MyOpponentsCard · RecentFormCard · SynergyBadgesCard · UpcomingSessionCard...)
@@ -71,7 +71,7 @@ src/
     activity.js       sự kiện mạng xã hội CLB (Social Activity), thông báo cá nhân, điểm nhấn cá nhân hoá (Personal Highlights), sắc thái trận đấu (Match Narratives)
     assign.js         chia sân: slot, 5 chế độ xếp, chia đều, số trận
     backtest.js       runner chạy lại dữ liệu lịch sử thật
-    badges.js         hệ thống danh hiệu anime, điều kiện mở khóa, tính toán badge shelf & bounty board
+    badges.js         hệ thống danh hiệu, điều kiện mở khóa, tính toán badge shelf & bounty board
     challenge.js      kèo đấu: mã kèo, hướng xem, độ cân, điều kiện nhận/đẩy sân, cược SP
     csv.js            đọc/sinh CSV thành viên, RFC 4180, validate, phát hiện cột
     forms.js          giá trị mặc định an toàn cho các dialog
@@ -92,7 +92,7 @@ src/
     xp.js             hệ thống XP, Cấp bậc và Sổ ghi đóng góp VĐV (Trục gắn bó: tham gia, ra sân, thâm niên, rủ khách; cấp 1-25+ và 6 danh xưng)
   pages/              1 file 1 màn hình, chỉ render + gọi actions (23 màn hình)
     Account.jsx       hồ sơ tài khoản (profiles, NGOÀI CLB)
-    Badges.jsx        bộ sưu tập danh hiệu anime, bảng săn thưởng, BXH sưu tầm
+    Badges.jsx        bộ sưu tập danh hiệu (kèm banner truy nã), BXH sưu tầm
     Calendar.jsx      lịch tháng buổi tập
     Clubs.jsx         danh sách CLB, tạo CLB, tham gia bằng mã
     Debts.jsx         quản lý công nợ, đối chiếu buổi lẻ, duyệt khai nợ
@@ -221,7 +221,7 @@ Bên cạnh **Sổ quỹ**, hệ thống có **Thi đấu & Đẳng cấp** hoà
 - **Trục Gắn bó & Cống hiến (`src/lib/xp.js` & `src/lib/badges.js`)**:
   - Hệ thống XP và Cấp bậc: XP chỉ tăng, không phụ thuộc thắng thua, đo mức độ tham gia (50 XP/buổi, 10 XP/trận, 20 XP/tháng thâm niên, 25 XP/khách rủ).
   - Cấp độ = $\lfloor \text{totalXP} / 600 \rfloor + 1$; Danh xưng 6 bậc: Tân thủ → Tập sự → Quen sân → Thực chiến → Hảo thủ → Cao thủ.
-  - Kệ 3 huy hiệu danh dự (`badge_shelf`), châm ngôn (`signature`) cùng kho danh hiệu anime đa dạng đạt được qua các mốc thành tích thực chiến (`lib/badges.js`).
+  - Kệ 3 huy hiệu danh dự (`badge_shelf`), châm ngôn (`signature`) cùng kho danh hiệu đa dạng đạt được qua các mốc thành tích thực chiến (`lib/badges.js`).
   - Vĩnh viễn theo thời gian, không reset theo mùa giải.
 
 ### Tầng D: Hệ thống Sòng Bạc & Dự Đoán Kèo (Match Predictions & Casino Hub)
@@ -288,7 +288,7 @@ Danh sách Route key và component render tương ứng (xem `src/routes/index.j
 5. `session`: `/buoi-tap/:id` — Chi tiết buổi tập (Điểm danh, Chia sân & Kèo chờ, Trận đấu).
 6. `matches`: `/tran-dau` — Sàn kèo thách đấu & Lịch sử trận đấu toàn CLB.
 7. `leaderboard`: `/bang-xep-hang` — Đua top mùa giải (Season Race), Elo sự nghiệp (Career Elo), BXH Cặp đôi (Pairs), Đối đầu H2H và Ma trận kết quả.
-8. `badges`: `/danh-hieu` — Kho danh hiệu anime, huy hiệu thành tích và tiêu chuẩn đạt được.
+8. `badges`: `/danh-hieu` — Kho danh hiệu, huy hiệu thành tích và tiêu chuẩn đạt được.
 9. `members`: `/thanh-vien` — Danh bạ thành viên chính thức & khách vãng lai.
 10. `debts`: `/cong-no` — Sổ công nợ, nhắc nợ, tự khai chuyển khoản và duyệt thanh toán.
 11. `fund`: `/so-quy` — Sổ quỹ thu chi, quỹ tiền mặt và lịch sử giao dịch CLB.
@@ -383,7 +383,7 @@ Hai bất biến bắt buộc, có test khoá ở `src/__tests__/sync/dbmap.test
 | Tự khai nợ & Duyệt chuyển khoản | ✅ **Đã làm** | Migration 0018: cột `claimed_at` cho `monthly_dues`, `member_adjustments`, `session_guests` + RPC `claim_payments` |
 | Banner nhắc nợ Trang chủ | ✅ **Đã làm** | Migration 0019: cấu hình kiểu banner nhắc công nợ (`clubs.debt_banner`) |
 | Giao diện Dark Mode & Responsive Mobile | ✅ **Đã làm** | `ThemeContext.jsx` (Dark/Light/System) + `MobileFooterNav.jsx` 5 slot + `MoreSheet.jsx` |
-| Huy hiệu & Kệ huy hiệu (Badges & Shelf) | ✅ **Đã làm** | Migration 0027 (`badges`, `badge_shelf`) + `src/lib/badges.js` + Kệ 3 huy hiệu vinh danh trên `MemberProfileTab` + Kho danh hiệu anime (`/danh-hieu`) |
+| Huy hiệu & Kệ huy hiệu (Badges & Shelf) | ✅ **Đã làm** | Migration 0027 (`badges`, `badge_shelf`) + `src/lib/badges.js` + Kệ 3 huy hiệu vinh danh trên `MemberProfileTab` + Kho danh hiệu (`/danh-hieu`) |
 | Tiền thưởng Săn chuỗi thắng (Bounty Broken) | ✅ **Đã làm** | Migration 0028 (`bounty_broken`) ghi nhận phần thưởng khi lật đổ Vua Lì Đòn |
 | Video Replay & Lượt xem trận đấu | ✅ **Đã làm** | Migrations 0029, 0030, 0034, 0035 (`video_*`) + `AttachVideoModal`, `MatchVideoPlayerModal`, `VideoTimelineEditor` |
 | Điểm danh Bùng kèo (Attendance No-show) | ✅ **Đã làm** | Migrations 0031, 0032 (`noshow` enum state) + gác tự động trong Planner và chia sân |

@@ -1,4 +1,4 @@
-import { ANIME_GLYPHS, HEX_CLIP } from '#lib/badges.js'
+import { BADGE_GLYPHS, HEX_CLIP } from '#lib/badges.js'
 import { TIER_FX } from './tierFx.js'
 
 /**
@@ -69,7 +69,7 @@ export default function BadgeHex({
             />
           )}
           {motion.orbit && (
-            <div style={{ position: 'absolute', inset: 0, animation: 'aSpin 7s linear infinite' }}>
+            <div style={{ position: 'absolute', inset: 0, animation: 'badgeSpin 7s linear infinite' }}>
               <span
                 style={{
                   position: 'absolute',
@@ -131,7 +131,7 @@ export default function BadgeHex({
                 height: '200%',
                 margin: '-100% 0 0 -100%',
                 background: `conic-gradient(${fx.conic})`,
-                animation: 'aSpin 4s linear infinite',
+                animation: 'badgeSpin 4s linear infinite',
               }}
             />
           )}
@@ -153,7 +153,7 @@ export default function BadgeHex({
               style={{
                 width: 34 * k,
                 height: 30 * k,
-                clipPath: ANIME_GLYPHS[glyph] || ANIME_GLYPHS.crystal,
+                clipPath: BADGE_GLYPHS[glyph] || BADGE_GLYPHS.crystal,
                 background: `linear-gradient(180deg,${fx.light},${fx.acc})`,
               }}
             />

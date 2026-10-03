@@ -1,6 +1,6 @@
 import { useState, useMemo } from 'react'
 import { createPortal } from 'react-dom'
-import { HEX_CLIP, ANIME_TIERS, getBadgeOwners, getBadgeChasers, getStreakTimeline } from '#lib/badges.js'
+import { HEX_CLIP, BADGE_TIERS, getBadgeOwners, getBadgeChasers, getStreakTimeline } from '#lib/badges.js'
 import BadgeHex from './BadgeHex.jsx'
 import TierBackdrop from './TierBackdrop.jsx'
 import { TIER_FX } from './tierFx.js'
@@ -76,7 +76,7 @@ export default function BadgeDetailModal({
     return tiers[selectedTierIdx] || tiers[0] || badge || {}
   }, [tiers, selectedTierIdx, badge])
 
-  const meta = activeTierBadge.tierMeta || ANIME_TIERS[activeTierBadge.tier] || ANIME_TIERS.rare
+  const meta = activeTierBadge.tierMeta || BADGE_TIERS[activeTierBadge.tier] || BADGE_TIERS.rare
   const fx = TIER_FX[activeTierBadge.tier] || TIER_FX.rare
   const rgba = (a) => `rgba(${fx.rgb},${a})`
   const isHidden = activeTierBadge.tier === 'hidden' && !activeTierBadge.unlocked

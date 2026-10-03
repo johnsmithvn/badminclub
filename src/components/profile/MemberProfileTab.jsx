@@ -5,7 +5,7 @@ import { playerName, shortName } from '#lib/money.js'
 import { getPlayerRating, applyInactivityDecay, lastMatchAtOf, getPlayerFormatRatings, getPlayerPartnersAndMatchups, DEFAULT_RATING } from '#lib/rating.js'
 import { RANK_THEMES } from '#data/rankThemes.js'
 import { calculateMemberXp, getMemberXpLedger } from '#lib/xp.js'
-import { calculateMemberBadges, TIER_ORDER, getBadgeById, ANIME_TIERS, familyViewOf } from '#lib/badges.js'
+import { calculateMemberBadges, TIER_ORDER, getBadgeById, BADGE_TIERS, familyViewOf } from '#lib/badges.js'
 import { getSeasonBountyPlayer, getMemberSeasonLedger, seasonConfigOf } from '#lib/season.js'
 import RatingLineChart from '#components/challenge/RatingLineChart.jsx'
 import PairDetailModal from '#components/leaderboard/PairDetailModal.jsx'
@@ -459,7 +459,7 @@ export default function MemberProfileTab({
                   >
                     {shelfBadges.map((b) => {
                       const bName = t(`badges.items.${b.id}.name`, { defaultValue: b.name })
-                      const tierInfo = ANIME_TIERS[b.tier] || ANIME_TIERS.rare
+                      const tierInfo = BADGE_TIERS[b.tier] || BADGE_TIERS.rare
                       return (
                         <button
                           key={b.id}

@@ -9,11 +9,10 @@ import BadgeCard from '#components/badges/BadgeCard.jsx'
 import BadgeShelf from '#components/badges/BadgeShelf.jsx'
 import BountyHeroPoster from '#components/badges/BountyHeroPoster.jsx'
 import BadgeDetailModal from '#components/badges/BadgeDetailModal.jsx'
-import BountyBoardTab from '#components/badges/BountyBoardTab.jsx'
 import BadgeUnlockModal from '#components/badges/BadgeUnlockModal.jsx'
 import CollectorLeaderboardTab from '#components/badges/CollectorLeaderboardTab.jsx'
 import { useMobile } from '#hooks/useMobile.js'
-import AnimeMobileCollection from '#components/badges/mobile/AnimeMobileCollection.jsx'
+import MobileBadgeCollection from '#components/badges/mobile/MobileBadgeCollection.jsx'
 import TierBackdrop from '#components/badges/TierBackdrop.jsx'
 import { TIER_FX, levelTier } from '#components/badges/tierFx.js'
 import {
@@ -26,7 +25,7 @@ import {
   familyViewOf,
   cleanShelf,
   sortBadgesByRarity,
-  ANIME_TIERS,
+  BADGE_TIERS,
   NOTCH_CLIP,
   NOTCH_S_CLIP,
   HEX_CLIP,
@@ -37,16 +36,15 @@ import { myMember } from '#lib/money.js'
 import badgesConfig from '#config/badges.json'
 
 /**
- * Trang Master: Danh hiệu & Treo thưởng (Bản Anime).
+ * Trang Master: Danh hiệu & Treo thưởng.
  * Triển khai chuẩn xác theo file thiết kế:
- * - A1: Bộ sưu tập Anime + Danh hiệu Tinh hoa
+ * - A1: Bộ sưu tập + Danh hiệu Tinh hoa
  * - A2: Modal Chi tiết Huy hiệu
  * - A3: Đổi Kệ trưng bày
- * - A4: Bảng treo thưởng Bounty Hunters
  * - A5: BXH Người sưu tập & Huy hiệu Hiếm
  */
 /** Tab hợp lệ của trang — dùng để lọc `?tab=` trước khi đưa vào state. */
-const TAB_IDS = ['collection', 'bounty', 'leaderboard']
+const TAB_IDS = ['collection', 'leaderboard']
 
 export default function Badges() {
   const isMobile = useMobile(768)
@@ -54,7 +52,7 @@ export default function Badges() {
   const navigate = useNavigate()
   const location = useLocation()
 
-  // Tab đang kích hoạt: collection | bounty | leaderboard
+  // Tab đang kích hoạt: collection | leaderboard
   const [activeTab, setActiveTab] = useState('collection')
 
   // Quản lý Modal
@@ -392,16 +390,23 @@ export default function Badges() {
     return typeof document !== 'undefined' ? createPortal(modal, document.body) : modal
   }
 
-  // Danh sách tabs phong cách Anime
+  // Danh sách tabs
   const TAB_LABEL_KEYS = {
     collection: 'badges.tabCollection',
-    bounty: 'badges.tabBounty',
     leaderboard: 'badges.tabLeaderboard',
   }
   const tabs = TAB_IDS.map((id) => ({ id, label: t(TAB_LABEL_KEYS[id]) }))
 
-  // Hero Bounty Poster mục tiêu hot nhất
+  // Banner truy nã mục tiêu hot nhất — ở đầu màn Bộ sưu tập, desktop lẫn mobile (trang Truy nã
+  // riêng đã bỏ vì trùng với banner này)
   const heroBounty = bounties.length > 0 ? bounties[0] : null
+  const goChallenge = (b) => {
+    if (b && b.targetId) {
+      navigate(`/tran-dau?tab=challenges&targetId=${b.targetId}`)
+    } else {
+      navigate('/tran-dau?tab=challenges')
+    }
+  }
 
   // Modal chi tiết (A2) + mở khoá (A4) — DÙNG CHUNG cho mobile và desktop
   const badgeModals = (
@@ -457,14 +462,14 @@ export default function Badges() {
   )
 
   // ══════════════════════════════════════════════════════════════════
-  // GIAO DIỆN BẢN ANIME MOBILE (3A: AM1, AM2)
+  // GIAO DIỆN MOBILE (3A: AM1, AM2)
   // ══════════════════════════════════════════════════════════════════
   if (isMobile) {
     return (
       <div style={{ padding: '0 0 30px', color: '#FFFFFF' }}>
         {activeTab === 'collection' ? (
-          /* AM1: Màn Bộ sưu tập Anime Mobile */
-          <AnimeMobileCollection
+          /* AM1: Màn Bộ sưu tập mobile */
+          <MobileBadgeCollection
             activeMember={activeMember}
             currentMember={currentMember}
             isViewingSelf={isViewingSelf}
@@ -486,9 +491,11 @@ export default function Badges() {
             allSeasons={allSeasons}
             selectedSeasonId={selectedSeasonId}
             onSelectSeason={(sId) => setSelectedSeasonId(sId)}
+            heroBounty={heroBounty}
+            onChallengeBounty={goChallenge}
           />
         ) : (
-          /* Các tab còn lại trên Mobile (Bounty / Leaderboard) */
+          /* Tab Xếp hạng trên Mobile */
           <div
             style={{
               width: '100%',
@@ -496,44 +503,34 @@ export default function Badges() {
               margin: '0 auto',
               display: 'flex',
               flexDirection: 'column',
-              gap: 14,
-              background: '#07030F',
-              border: '1px solid #2A1145',
-              borderRadius: 22,
-              padding: '14px 14px 24px',
+              overflow: 'hidden',
+              borderRadius: 26,
+              border: '1px solid #2A1F4A',
+              background: 'radial-gradient(rgba(255,255,255,.055) 1px,transparent 1px) 0 0/14px 14px, #09060F',
               minHeight: '844px',
             }}
           >
-            {/* Header chuyển tab trên mobile chuẩn AM3 */}
-            <div style={{ display: 'flex', flexDirection: 'column', gap: 10, borderBottom: '1px solid #2A1145', paddingBottom: 12 }}>
-              {activeTab === 'bounty' && (
-                <div style={{ display: 'flex', alignItems: 'center', gap: 10 }}>
-                  <div style={{ flex: 1, minWidth: 0, display: 'flex', flexDirection: 'column', gap: 3 }}>
-                    <span style={{ font: "700 22px/1 'Oswald', sans-serif", letterSpacing: '.04em', textTransform: 'uppercase', color: '#FFFFFF' }}>
-                      {t('badges.bountyBoard.title')}
-                    </span>
-                    <span style={{ font: "400 10.5px/1.3 'IBM Plex Mono', monospace", color: '#9C8ABE' }}>
-                      {t('badges.bountyBoard.sub', { count: bounties.length })}
-                    </span>
-                  </div>
-                </div>
-              )}
-              {activeTab === 'leaderboard' && (
-                <div style={{ display: 'flex', alignItems: 'center', gap: 10 }}>
-                  <div style={{ flex: 1, minWidth: 0, display: 'flex', flexDirection: 'column', gap: 3 }}>
-                    <span style={{ font: "700 22px/1 'Oswald', sans-serif", letterSpacing: '.04em', textTransform: 'uppercase', color: '#FFFFFF' }}>
-                      {t('badges.leaderboard.title')}
-                    </span>
-                    <span style={{ font: "400 10.5px/1.3 'IBM Plex Mono', monospace", color: '#9C8ABE' }}>
-                      {t('badges.leaderboard.subMobile')}
-                    </span>
-                  </div>
-                </div>
-              )}
-              <div style={{ display: 'flex', gap: 4 }}>
+            {/* Header cùng kiểu màn Bộ sưu tập (MobileBadgeCollection): tiêu đề + 2 tab */}
+            <div
+              style={{
+                padding: '18px 16px 16px',
+                display: 'flex',
+                flexDirection: 'column',
+                gap: 12,
+                background: 'linear-gradient(180deg,#1A0C3A,#0D0820)',
+              }}
+            >
+              <div style={{ display: 'flex', flexDirection: 'column', gap: 6 }}>
+                <span style={{ font: "700 32px/1 'Oswald', sans-serif", letterSpacing: '.04em', textTransform: 'uppercase', color: '#FFFFFF' }}>
+                  {t('badges.leaderboard.title')}
+                </span>
+                <span style={{ font: '400 12px/1.4 var(--font-mono)', color: '#9A90AD' }}>
+                  {t('badges.leaderboard.subMobile')}
+                </span>
+              </div>
+              <div style={{ display: 'grid', gridTemplateColumns: 'repeat(2, minmax(0, 1fr))', gap: 6 }}>
                 {[
                   { id: 'collection', label: t('badges.tabCollection') },
-                  { id: 'bounty', label: t('badges.tabBounties') },
                   { id: 'leaderboard', label: t('badges.tabLeaderboardShort') },
                 ].map((tab) => {
                   const isActive = activeTab === tab.id
@@ -543,16 +540,20 @@ export default function Badges() {
                       type="button"
                       onClick={() => setActiveTab(tab.id)}
                       style={{
-                        flex: 1,
-                        textAlign: 'center',
-                        font: "600 10.5px/1 'Oswald', sans-serif",
-                        letterSpacing: '.1em',
-                        padding: '10px 4px',
-                        clipPath: 'polygon(7px 0, 100% 0, 100% calc(100% - 7px), calc(100% - 7px) 100%, 0 100%, 0 7px)',
+                        minWidth: 0,
+                        padding: '11px 4px',
                         border: 'none',
                         cursor: 'pointer',
-                        background: isActive ? 'linear-gradient(135deg, #FF2E7E, #FFB03A)' : 'rgba(255,255,255,.05)',
-                        color: isActive ? '#140109' : '#9C8ABE',
+                        textAlign: 'center',
+                        font: "700 12px/1 'Oswald', sans-serif",
+                        letterSpacing: '.14em',
+                        whiteSpace: 'nowrap',
+                        overflow: 'hidden',
+                        textOverflow: 'ellipsis',
+                        background: isActive ? 'linear-gradient(90deg,#FF3D77,#FF9A3D)' : 'rgba(255,255,255,.05)',
+                        color: isActive ? '#1A0510' : '#8E83A8',
+                        clipPath: isActive ? 'polygon(0 0,100% 0,100% 70%,92% 100%,0 100%)' : undefined,
+                        transition: 'background 140ms cubic-bezier(.2,.8,.2,1), color 140ms cubic-bezier(.2,.8,.2,1)',
                       }}
                     >
                       {tab.label}
@@ -563,39 +564,24 @@ export default function Badges() {
             </div>
 
             {/* Nội dung tab */}
-            {activeTab === 'bounty' && (
-              <BountyBoardTab
-                bounties={bounties}
-                heroBounty={heroBounty}
-                currentMember={currentMember}
-                isMobile={true}
-                hideHeader={true}
-                onChallenge={(b) => {
-                  if (b && b.targetId) {
-                    navigate(`/tran-dau?tab=challenges&targetId=${b.targetId}`)
-                  } else {
-                    navigate('/tran-dau?tab=challenges')
-                  }
-                }}
-                onViewBadge={(b) => handleSelectBadge(b)}
-              />
-            )}
-            {activeTab === 'leaderboard' && (
-              <CollectorLeaderboardTab
-                collectors={collectors}
-                rarestBadges={rarestBadges}
-                seasonRows={seasonRows}
-                currentMemberId={activeMemberId}
-                hideHeader={true}
-                isMobile={true}
-                onSelectMember={(mId) => {
-                  setViewingMemberId(mId === currentMember?.id ? null : mId)
-                  setActiveTab('collection')
-                }}
-                onSelectBadge={handleSelectBadge}
-                onViewBadge={handleSelectBadge}
-              />
-            )}
+            <div style={{ padding: '14px 14px 24px', display: 'flex', flexDirection: 'column', gap: 14 }}>
+              {activeTab === 'leaderboard' && (
+                <CollectorLeaderboardTab
+                  collectors={collectors}
+                  rarestBadges={rarestBadges}
+                  seasonRows={seasonRows}
+                  currentMemberId={activeMemberId}
+                  hideHeader={true}
+                  isMobile={true}
+                  onSelectMember={(mId) => {
+                    setViewingMemberId(mId === currentMember?.id ? null : mId)
+                    setActiveTab('collection')
+                  }}
+                  onSelectBadge={handleSelectBadge}
+                  onViewBadge={handleSelectBadge}
+                />
+              )}
+            </div>
           </div>
         )}
 
@@ -661,7 +647,7 @@ export default function Badges() {
                     .sort((x, y) => myShelf.includes(y.id) - myShelf.includes(x.id))
                     .map((badge) => {
                       const isEquipped = myShelf.includes(badge.id)
-                      const tierMeta = ANIME_TIERS[badge.tier] || ANIME_TIERS.rare
+                      const tierMeta = BADGE_TIERS[badge.tier] || BADGE_TIERS.rare
                       return (
                         <div
                           key={badge.id}
@@ -716,7 +702,7 @@ export default function Badges() {
   }
 
   // ══════════════════════════════════════════════════════════════════
-  // GIAO DIỆN BẢN DESKTOP ANIME (2A)
+  // GIAO DIỆN DESKTOP (2A)
   // ══════════════════════════════════════════════════════════════════
   return (
     <div
@@ -734,7 +720,7 @@ export default function Badges() {
         overflow: 'hidden',
       }}
     >
-      {/* Lớp dot grid anime 9px x 9px */}
+      {/* Lớp dot grid 9px x 9px */}
       <div
         style={{
           position: 'absolute',
@@ -979,16 +965,10 @@ export default function Badges() {
             </div>
           )}
 
-          {/* 1. Hero Bounty Poster (Avatar thật + Quầng sáng Anime) */}
+          {/* 1. Hero Bounty Poster (Avatar thật + nền cực quang theo bậc truy nã) */}
           <BountyHeroPoster
             bounty={heroBounty}
-            onChallenge={(b) => {
-              if (b && b.targetId) {
-                navigate(`/tran-dau?tab=challenges&targetId=${b.targetId}`)
-              } else {
-                navigate('/tran-dau?tab=challenges')
-              }
-            }}
+            onChallenge={goChallenge}
           />
 
           {/* 2. Khối 2 cột: Hồ sơ nhà sưu tập (Profile) & Sáu bậc lục giác (6 Tiers) */}
@@ -1001,7 +981,7 @@ export default function Badges() {
             }}
           >
             {/* CỘT TRÁI: THẺ HỒ SƠ — nền hiệu ứng theo cấp ở nửa trên, chữ và chỉ số trên nền tối ở
-                nửa dưới (cùng hệ với AnimeMobileCollection, thiết kế "Bộ sưu tập mobile (hiệu ứng mới)") */}
+                nửa dưới (cùng hệ với MobileBadgeCollection, thiết kế "Bộ sưu tập mobile (hiệu ứng mới)") */}
             <div
               style={{
                 position: 'relative',
@@ -1241,8 +1221,8 @@ export default function Badges() {
                 {t('badges.sixTiersTitle')}
               </div>
               <div style={{ display: 'grid', gridTemplateColumns: 'repeat(2, minmax(0, 1fr))', gap: 10 }}>
-                {Object.keys(ANIME_TIERS).map((k) => {
-                  const tMeta = ANIME_TIERS[k]
+                {Object.keys(BADGE_TIERS).map((k) => {
+                  const tMeta = BADGE_TIERS[k]
                   const glyph =
                     k === 'legend'
                       ? 'flame'
@@ -1378,7 +1358,7 @@ export default function Badges() {
                 }}
               >
                 {unlockedShowcaseBadges.map((badge) => {
-                  const tMeta = ANIME_TIERS[badge.tier] || ANIME_TIERS.rare
+                  const tMeta = BADGE_TIERS[badge.tier] || BADGE_TIERS.rare
                   return (
                     <div
                       key={badge.id}
@@ -1597,7 +1577,7 @@ export default function Badges() {
               const groupBadges = group.badges || []
               const openedInGroup = groupBadges.filter((b) => b.unlocked).length
               const groupTone = group.tone || 'elite'
-              const toneMeta = ANIME_TIERS[groupTone] || ANIME_TIERS.elite
+              const toneMeta = BADGE_TIERS[groupTone] || BADGE_TIERS.elite
 
               // Lọc badges theo Kind, Status và Search
               const filteredBadges = groupBadges.filter((b) => {
@@ -1783,24 +1763,7 @@ export default function Badges() {
       )}
 
       {/* ─────────────────────────────────────────────────────────────
-          TAB 2: BẢNG TREO THƯỞNG (Màn A3)
-         ───────────────────────────────────────────────────────────── */}
-      {activeTab === 'bounty' && (
-        <BountyBoardTab
-          bounties={bounties}
-          onChallenge={(b) => {
-            if (b && b.targetId) {
-              navigate(`/tran-dau?tab=challenges&targetId=${b.targetId}`)
-            } else {
-              navigate('/tran-dau?tab=challenges')
-            }
-          }}
-          onViewBadge={(b) => handleSelectBadge(b)}
-        />
-      )}
-
-      {/* ─────────────────────────────────────────────────────────────
-          TAB 3: XẾP HẠNG SƯU TẬP (Màn A5)
+          TAB 2: XẾP HẠNG SƯU TẬP (Màn A5)
          ───────────────────────────────────────────────────────────── */}
       {activeTab === 'leaderboard' && (
         <CollectorLeaderboardTab
@@ -1893,7 +1856,7 @@ export default function Badges() {
                   .sort((x, y) => myShelf.includes(y.id) - myShelf.includes(x.id))
                   .map((badge) => {
                     const isEquipped = myShelf.includes(badge.id)
-                    const tierMeta = ANIME_TIERS[badge.tier] || ANIME_TIERS.rare
+                    const tierMeta = BADGE_TIERS[badge.tier] || BADGE_TIERS.rare
 
                     return (
                       <div

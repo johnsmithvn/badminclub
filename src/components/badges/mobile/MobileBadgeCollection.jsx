@@ -1,6 +1,7 @@
 import { useState, useMemo } from 'react'
 import BadgeHex from '../BadgeHex.jsx'
 import TierBackdrop from '../TierBackdrop.jsx'
+import BountyHeroPoster from '../BountyHeroPoster.jsx'
 import { TIER_FX, levelTier } from '../tierFx.js'
 import { HEX_CLIP, sortBadgesByRarity } from '#lib/badges.js'
 import { t } from '#i18n'
@@ -32,13 +33,14 @@ const OPTION = { background: '#0B0820', color: '#FFFFFF' }
 
 /**
  * AM1 · Bộ sưu tập (mobile) — thiết kế "Danh hiệu · Bộ sưu tập mobile (hiệu ứng mới)".
- * - Header: tiêu đề, mùa, nút Sắp lại kệ, chọn mùa / người xem, 3 tab
+ * - Header: tiêu đề, mùa, nút Sắp lại kệ, chọn mùa / người xem, 2 tab (Bộ sưu tập · Xếp hạng)
+ * - Banner truy nã (khi CLB đang có chuỗi bị treo thưởng) — thay cho trang Truy nã riêng đã bỏ
  * - Thẻ hồ sơ: nền hiệu ứng theo cấp (TierBackdrop compact) ở nửa trên, chữ và chỉ số nằm trên
  *   nền tối ở nửa dưới
  * - Kệ 3 ô · Kho huy hiệu đã mở · Bộ lọc loại · Lưới nhóm đang chọn · Danh sách nhóm khác
  * Lưới tô viền theo bậc để nhìn ra bậc ngay cả khi chưa mở; chưa mở thì icon hiện dấu "?".
  */
-export default function AnimeMobileCollection({
+export default function MobileBadgeCollection({
   activeMember,
   currentMember,
   isViewingSelf = true,
@@ -57,6 +59,8 @@ export default function AnimeMobileCollection({
   allSeasons = [],
   selectedSeasonId = null,
   onSelectSeason,
+  heroBounty = null,
+  onChallengeBounty,
 }) {
   // Nhóm đang được chọn để hiển thị lưới 3 cột (mặc định là nhóm đầu tiên)
   const [selectedGroupIdx, setSelectedGroupIdx] = useState(0)
@@ -323,11 +327,10 @@ export default function AnimeMobileCollection({
           </div>
         )}
 
-        {/* Sub-tabs: BỘ SƯU TẬP | TREO THƯỞNG | XẾP HẠNG */}
-        <div style={{ display: 'grid', gridTemplateColumns: 'repeat(3, minmax(0, 1fr))', gap: 6 }}>
+        {/* Sub-tabs: BỘ SƯU TẬP | XẾP HẠNG */}
+        <div style={{ display: 'grid', gridTemplateColumns: 'repeat(2, minmax(0, 1fr))', gap: 6 }}>
           {[
             { id: 'collection', label: t('badges.tabCollection') },
-            { id: 'bounty', label: t('badges.tabBounties') },
             { id: 'leaderboard', label: t('badges.tabLeaderboardShort') },
           ].map((tab) => {
             const isActive = activeTab === tab.id
@@ -416,6 +419,14 @@ export default function AnimeMobileCollection({
             >
               {t('badges.backToMyCollection')}
             </button>
+          </div>
+        )}
+
+        {/* Banner truy nã — chỉ hiện khi CLB đang có người bị treo thưởng (điện thoại không vẽ
+            thẻ trống như desktop cho đỡ chiếm chỗ) */}
+        {heroBounty && (
+          <div style={{ flex: '0 0 auto' }}>
+            <BountyHeroPoster bounty={heroBounty} onChallenge={onChallengeBounty} />
           </div>
         )}
 

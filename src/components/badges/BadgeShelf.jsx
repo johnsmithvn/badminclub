@@ -1,5 +1,5 @@
 import BadgeHex from './BadgeHex.jsx'
-import { NOTCH_CLIP, NOTCH_S_CLIP, ANIME_TIERS } from '#lib/badges.js'
+import { NOTCH_CLIP, NOTCH_S_CLIP, BADGE_TIERS } from '#lib/badges.js'
 import { t } from '#i18n'
 
 /**
@@ -79,7 +79,7 @@ export default function BadgeShelf({ shelf = [], onSlotClick }) {
           )
         }
 
-        const tierMeta = badge.tierMeta || ANIME_TIERS[badge.tier] || ANIME_TIERS.rare
+        const tierMeta = badge.tierMeta || BADGE_TIERS[badge.tier] || BADGE_TIERS.rare
         const badgeName = t(`badges.items.${badge.id}.name`, { defaultValue: badge.name })
 
         return (

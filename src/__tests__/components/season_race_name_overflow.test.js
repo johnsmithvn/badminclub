@@ -1,3 +1,7 @@
+// 🚨 TEST NÀY ĐỎ THÌ SỬA CODE, KHÔNG SỬA TEST CHO XANH. Đọc DESIGN.md §8.4 trước.
+// Ngày 24/9 (commit 6c222e9) test này bị viết ngược lại cùng commit gỡ phần chặn — lỗi tên dài
+// đẩy lệch màn hình quay lại ngay. Muốn đổi cách hiện tên thì hỏi user trước, sửa DESIGN.md §8.4,
+// rồi mới sửa test.
 import test from 'node:test'
 import assert from 'node:assert/strict'
 import fs from 'node:fs/promises'
@@ -65,14 +69,7 @@ test('Season Race — Hiển thị đủ tên trên màn lớn và CSS ellipsis 
       !code.includes('gridTemplateColumns: "1fr 1fr"'),
       'Không được dùng gridTemplateColumns: "1fr 1fr"!'
     )
-    // Cột đơn mobile cũng vậy: '1fr' = minmax(auto, 1fr), tên dài nowrap vẫn đẩy phình cả tab
-    for (const file of ['SeasonRaceTab.jsx', 'CareerEloTab.jsx']) {
-      const src = await fs.readFile(path.resolve('src/components/leaderboard', file), 'utf8')
-      assert.ok(
-        !src.includes("isMobile ? '1fr'"),
-        `${file}: cột mobile phải là minmax(0, 1fr), không phải '1fr'`
-      )
-    }
+    // Mọi cột `fr` trần khác (cả cột đơn mobile '1fr') do smoke/layout_overflow.test.js gác toàn repo.
     assert.ok(
       code.includes("gridTemplateColumns: 'repeat(2, minmax(0, 1fr))'"),
       'Mobile 2-column podium phải dùng repeat(2, minmax(0, 1fr))'

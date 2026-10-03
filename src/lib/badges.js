@@ -40,13 +40,7 @@ export function resolveBadgeId(id) {
   return BADGE_ID_ALIASES[id] || id
 }
 
-export const ANIME_FONTS = {
-  display: 'Oswald, sans-serif',
-  ui: "'Be Vietnam Pro', sans-serif",
-  mono: "'IBM Plex Mono', monospace",
-}
-
-export const ANIME_TIERS = {
+export const BADGE_TIERS = {
   legend: {
     key: 'legend',
     name: cfgBadges.tiers?.legend?.name || 'LEGEND',
@@ -153,7 +147,7 @@ export const ANIME_TIERS = {
   },
 }
 
-export const ANIME_GLYPHS = {
+export const BADGE_GLYPHS = {
   flame: 'polygon(50% 0%,72% 26%,62% 40%,84% 34%,74% 62%,92% 76%,50% 100%,8% 76%,26% 62%,16% 34%,38% 40%,28% 26%)',
   shuriken: 'polygon(50% 0%,61% 39%,100% 50%,61% 61%,50% 100%,39% 61%,0% 50%,39% 39%)',
   wing: 'polygon(0% 100%,10% 52%,36% 62%,42% 26%,68% 40%,76% 6%,100% 22%,64% 96%)',
@@ -183,7 +177,8 @@ export const NOTCH_XS_CLIP = 'polygon(6px 0,100% 0,100% calc(100% - 6px),calc(10
  * Danh mục danh hiệu đang bật.
  * `enabled: false` trong badges.json = tạm tắt vì tính năng nguồn chưa có (ví dụ `trum_giai`
  * chờ tính năng Giải đấu). Bật lại chỉ cần xoá cờ đó, không phải đụng code.
- * hunterBadges KHÔNG nối vào đây — nó chỉ là metadata hiển thị cho tab Bounty.
+ * hunterBadges KHÔNG nối vào đây — nó là metadata hiển thị của trang Truy nã cũ (đã bỏ
+ * 2026-10-03, giữ banner truy nã ở màn Bộ sưu tập); hiện không màn nào đọc khối này.
  */
 function activeCatalog() {
   return (cfgBadges.catalog || [])
@@ -202,7 +197,7 @@ export function getBadgeGroups() {
 
 /** Lấy danh sách 6 bậc phẩm cấp */
 export function getBadgeTiers() {
-  return Object.values(ANIME_TIERS)
+  return Object.values(BADGE_TIERS)
 }
 
 /**
@@ -1631,7 +1626,7 @@ export function calculateMemberBadges(
     }
 
     const effectiveTier = isUnlocked && badge.revealedTier ? badge.revealedTier : badge.tier
-    const tierMeta = ANIME_TIERS[effectiveTier] || ANIME_TIERS.rare
+    const tierMeta = BADGE_TIERS[effectiveTier] || BADGE_TIERS.rare
 
     const item = {
       ...badge,
@@ -1661,7 +1656,7 @@ export function calculateMemberBadges(
 
   // Tính điểm sưu tập: chỉ tính các huy hiệu chính thức đã mở
   const collectionScore = officialUnlocked.reduce((acc, b) => {
-    return acc + (ANIME_TIERS[b.tier]?.pts || 0)
+    return acc + (BADGE_TIERS[b.tier]?.pts || 0)
   }, 0)
 
   // Kệ = những gì người dùng tự gắn VÀ đang giữ ở mùa đang xét. KHÔNG tự lấp ô trống: Tự phong luôn
@@ -1777,7 +1772,7 @@ export function getRarestBadges(db, season = null, preloadedMatches = null, prel
         totalMembers,
         own: count === 0 ? '0' : `${count} / ${totalMembers}`,
         ratio,
-        pts: ANIME_TIERS[b.tier]?.pts || 0,
+        pts: BADGE_TIERS[b.tier]?.pts || 0,
       }
     })
 
@@ -1970,8 +1965,8 @@ export function getMemberHighestBadge(memberId, db, season = null, preloadedSeas
     unlocked.slice().sort((a, b) => {
       const tierDiff = (TIER_ORDER[b.tier] || 0) - (TIER_ORDER[a.tier] || 0)
       if (tierDiff !== 0) return tierDiff
-      const ptsA = a.points || a.pts || ANIME_TIERS[a.tier]?.pts || 0
-      const ptsB = b.points || b.pts || ANIME_TIERS[b.tier]?.pts || 0
+      const ptsA = a.points || a.pts || BADGE_TIERS[a.tier]?.pts || 0
+      const ptsB = b.points || b.pts || BADGE_TIERS[b.tier]?.pts || 0
       return ptsB - ptsA
     })[0] || null
   )

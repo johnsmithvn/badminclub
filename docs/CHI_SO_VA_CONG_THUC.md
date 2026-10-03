@@ -63,7 +63,7 @@ thường dẫn xuất từ `db.matches` + `db.playerRatings`, tính lại mỗi
      điểm dẫn xuất)           đua tuần dẫn xuất)
 
     XP ──► CẤP BẬC           (dẫn xuất, KHÔNG dính Elo, KHÔNG dính thắng thua)
-    DANH HIỆU ANIME          (dẫn xuất từ trận; chỉ "kệ khoe" là lưu DB)
+    DANH HIỆU                (dẫn xuất từ trận; chỉ "kệ khoe" là lưu DB)
 
     ════════════════════════════════════════════════════════════════════════════
     PHÂN HỆ GIẢI ĐẤU (16 bảng tournament_* — CÁCH LY HOÀN TOÀN KHỎI ELO / ĐIỂM MÙA)
@@ -714,7 +714,7 @@ migration 0042 — đó chỉ là bản cập nhật lạc quan cho màn hình, 
 
 ---
 
-## 8. TẦNG DANH HIỆU ANIME — `src/lib/badges.js` (DẪN XUẤT)
+## 8. TẦNG DANH HIỆU — `src/lib/badges.js` (DẪN XUẤT)
 
 Toàn bộ điều kiện mở khoá tính lại từ `db.matches` mỗi lần render. **Không có bảng nào lưu danh
 hiệu đã mở.** Thứ duy nhất lưu là `club_members.badge_shelf` — 3 danh hiệu người dùng chọn để
@@ -723,9 +723,9 @@ khoe trên hồ sơ.
 Hệ quả: Đổi điều kiện danh hiệu → **hiệu lực ngay**, và danh hiệu ai đó "đã có" có thể **biến
 mất** nếu điều kiện siết lại.
 
-### 8.1. Hệ thống 6 Bậc Anime Tier & Điểm Sưu Tập (`tierPoints`)
+### 8.1. Hệ thống 6 Bậc Huy Hiệu & Điểm Sưu Tập (`tierPoints`)
 
-Danh hiệu được thiết kế theo phong cách anime sống động, phân cấp độ hiếm và điểm thưởng sưu tập:
+Danh hiệu phân cấp độ hiếm và điểm thưởng sưu tập (`BADGE_TIERS` trong `lib/badges.js`):
 
 | Bậc Tier | Tên hiển thị | Điểm sưu tập | Hiệu ứng thị giác | Phông chữ |
 |---|---|---:|---|---|

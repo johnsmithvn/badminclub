@@ -1,15 +1,19 @@
-import React from 'react'
 import { t } from '#i18n'
 import BadgeHex from './BadgeHex.jsx'
-import { ANIME_TIERS, NOTCH_S_CLIP } from '#lib/badges.js'
+import TierBackdrop from './TierBackdrop.jsx'
+import { TIER_FX } from './tierFx.js'
+import { BADGE_TIERS } from '#lib/badges.js'
 import { useMobile } from '#hooks/useMobile.js'
+
+const GOLD = '#F6C945'
 
 /**
  * Màn A4 (Desktop) & AM4 (Mobile): Fanfare Modal Mở khóa Danh hiệu.
- * Hiển thị hiệu ứng anime rực rỡ (speed lines, tia conic quay, badge lấp lánh,
- * các mốc thưởng +XP, +Điểm mùa, +Elo và nút thao tác gắn lên kệ ngay).
- * - Trên Mobile (AM4): Full màn hình (100vw/100vh), 2 nút hành động xếp dọc.
- * - Trên Desktop (A4): Modal nổi ở giữa 660px, 2 nút hành động xếp ngang.
+ * Cùng hệ hiệu ứng với modal chi tiết: nền bụi sao + sao băng + chùm sáng (Hiếm / Tinh anh /
+ * Tự phong) hoặc cực quang (Sử thi / Huyền thoại) theo bậc của danh hiệu vừa mở, icon dùng hiệu
+ * ứng ghép theo bậc của BadgeHex.
+ * - Trên Mobile (AM4): Full màn hình, 2 nút hành động xếp dọc dán đáy.
+ * - Trên Desktop (A4): Modal nổi ở giữa 560px, 2 nút hành động xếp ngang.
  */
 export default function BadgeUnlockModal({
   badge,
@@ -26,25 +30,20 @@ export default function BadgeUnlockModal({
   if (!badge) return null
 
   const tier = badge.tier || 'epic'
-  const tTier = ANIME_TIERS[tier] || ANIME_TIERS.epic
+  const tTier = BADGE_TIERS[tier] || BADGE_TIERS.epic
+  const fx = TIER_FX[tier] || TIER_FX.epic
+  const rgba = (a) => `rgba(${fx.rgb},${a})`
   const glyph = badge.glyph || 'flame'
   const pts = tTier.pts || badge.points || 60
 
-  // Thưởng mặc định theo bậc nếu không khai báo cụ thể
-  const defaultRewards = {
-    common: { xp: 20, sp: 5, elo: 5 },
-    rare: { xp: 50, sp: 10, elo: 10 },
-    epic: { xp: 100, sp: 15, elo: 18 },
-    legendary: { xp: 200, sp: 25, elo: 25 },
-    mythic: { xp: 500, sp: 50, elo: 35 },
-    fun: { xp: 10, sp: 2, elo: 0 },
-  }[tier] || { xp: 100, sp: 15, elo: 18 }
-
-  const xpReward = badge.xp ?? defaultRewards.xp
-  const spReward = badge.seasonPoints ?? badge.sp ?? defaultRewards.sp
-  const eloReward = badge.elo ?? defaultRewards.elo
-
-  const badgeSize = isMobile ? 150 : 190
+  // Phần thưởng THẬT. ScoreModal tự tính sẵn xp / sp (từ `reward` trong cấu hình) và elo (Elo của
+  // trận vừa đánh); GlobalBadgeUnlockHost truyền thẳng bản catalog nên đọc `reward`.
+  // Bản trước rơi về một bảng mặc định có khoá sai tên bậc (common/legendary/mythic) — mọi danh
+  // hiệu Tinh anh / Huyền thoại đều hiện "+100 XP · +15 · ELO +18" bất kể cấu hình, và danh
+  // hiệu không hề cộng Elo. Không có số thật thì không vẽ chip, không bịa.
+  const xpReward = badge.xp ?? badge.reward?.xp ?? 0
+  const spReward = badge.seasonPoints ?? badge.sp ?? badge.reward?.seasonPts ?? 0
+  const eloReward = badge.elo
 
   // Tên và điều kiện LUÔN tra từ i18n theo id, giống mọi màn danh hiệu khác.
   // Catalog trong `badges.json` không có field `name`/`cond`, nên đọc thẳng `badge.name` là
@@ -64,8 +63,208 @@ export default function BadgeUnlockModal({
     ? t('badges.unlockModal.shelfReplaceNote')
     : t('badges.unlockModal.shelfAvailableNote', { count: Math.max(1, 3 - shelfCount) })
 
+  const rewardChips = [
+    xpReward > 0 && {
+      key: 'xp',
+      text: `+${xpReward} XP`,
+      color: GOLD,
+      bg: 'rgba(246,201,69,.12)',
+      bd: 'rgba(246,201,69,.4)',
+    },
+    spReward > 0 && {
+      key: 'sp',
+      text: `+${spReward} ${t(isMobile ? 'badges.unlockModal.seasonShortUnit' : 'badges.unlockModal.seasonPointsUnit')}`,
+      color: fx.acc,
+      bg: rgba(0.12),
+      bd: rgba(0.45),
+    },
+    Number.isFinite(eloReward) && eloReward !== 0 && {
+      key: 'elo',
+      text: `ELO ${eloReward > 0 ? '+' : ''}${eloReward}`,
+      color: '#7CC0FF',
+      bg: 'rgba(58,160,255,.12)',
+      bd: 'rgba(58,160,255,.4)',
+    },
+  ].filter(Boolean)
+
+  const btnBase = {
+    textAlign: 'center',
+    font: "700 13px/1 'Oswald', sans-serif",
+    letterSpacing: '.14em',
+    padding: '15px 16px',
+    borderRadius: 10,
+    cursor: 'pointer',
+    transition: 'filter 140ms cubic-bezier(.2,.8,.2,1)',
+  }
+  const hoverOn = (e) => { e.currentTarget.style.filter = 'brightness(1.15)' }
+  const hoverOff = (e) => { e.currentTarget.style.filter = 'none' }
+
+  const closeBtn = (
+    <button
+      type="button"
+      aria-label={t('common.close')}
+      onClick={onClose}
+      style={{
+        position: 'absolute',
+        top: isMobile ? 'calc(14px + env(safe-area-inset-top, 0px))' : 14,
+        right: isMobile ? 16 : 14,
+        zIndex: 3,
+        width: 40,
+        height: 40,
+        borderRadius: 10,
+        border: 'none',
+        background: '#161026',
+        color: '#C9BFDC',
+        font: '600 16px/1 var(--font-sans)',
+        display: 'grid',
+        placeItems: 'center',
+        cursor: 'pointer',
+        transition: 'background 140ms cubic-bezier(.2,.8,.2,1)',
+      }}
+      onMouseEnter={(e) => { e.currentTarget.style.background = '#201838' }}
+      onMouseLeave={(e) => { e.currentTarget.style.background = '#161026' }}
+    >
+      ✕
+    </button>
+  )
+
+  const body = (
+    <>
+      <span
+        style={{
+          font: `700 ${isMobile ? 11 : 12}px/1 'Oswald', sans-serif`,
+          letterSpacing: '.26em',
+          textTransform: 'uppercase',
+          color: GOLD,
+        }}
+      >
+        {t('badges.unlockModal.title')}
+      </span>
+
+      {/* Huy hiệu nằm ngay dưới chùm sáng / cực quang của TierBackdrop */}
+      <BadgeHex
+        tier={tier}
+        glyph={glyph}
+        size={isMobile ? 150 : 170}
+        style={{ margin: isMobile ? '34px 0 10px' : '38px 0 12px' }}
+      />
+
+      <span
+        style={{
+          maxWidth: '100%',
+          font: `700 ${isMobile ? 32 : 40}px/1.05 'Oswald', sans-serif`,
+          letterSpacing: '.04em',
+          textTransform: 'uppercase',
+          textAlign: 'center',
+          color: '#FFFFFF',
+          textShadow: `0 0 26px ${rgba(0.5)}`,
+          overflowWrap: 'anywhere',
+        }}
+      >
+        {badgeName}
+      </span>
+
+      <span
+        style={{
+          font: `600 ${isMobile ? 10.5 : 11}px/1 'Oswald', sans-serif`,
+          letterSpacing: '.22em',
+          textTransform: 'uppercase',
+          padding: '6px 12px',
+          borderRadius: 6,
+          background: rgba(0.12),
+          borderTop: `1px solid ${rgba(0.45)}`,
+          color: fx.acc,
+        }}
+      >
+        {tTier.name} · {pts} {t('badges.unlockModal.ptsUnit')}
+      </span>
+
+      <span
+        style={{
+          maxWidth: 440,
+          font: `400 ${isMobile ? 14 : 15}px/1.5 var(--font-sans)`,
+          textAlign: 'center',
+          color: '#E3DCEE',
+        }}
+      >
+        {storyText}
+      </span>
+
+      {rewardChips.length > 0 && (
+        <div style={{ display: 'flex', flexWrap: 'wrap', justifyContent: 'center', gap: 8, marginTop: 2 }}>
+          {rewardChips.map((c) => (
+            <span
+              key={c.key}
+              style={{
+                font: `700 ${isMobile ? 14 : 15}px/1 var(--font-display)`,
+                padding: '9px 14px',
+                borderRadius: 8,
+                background: c.bg,
+                border: `1px solid ${c.bd}`,
+                color: c.color,
+              }}
+            >
+              {c.text}
+            </span>
+          ))}
+        </div>
+      )}
+
+      {/* Hành động: mobile xếp dọc và dán đáy (gần ngón cái), desktop xếp ngang */}
+      <div
+        style={{
+          alignSelf: 'stretch',
+          marginTop: isMobile ? 'auto' : 10,
+          paddingTop: isMobile ? 18 : 0,
+          display: 'flex',
+          flexDirection: 'column',
+          gap: 10,
+        }}
+      >
+        <div style={{ display: 'flex', flexDirection: isMobile ? 'column' : 'row', gap: isMobile ? 8 : 10 }}>
+          <button
+            type="button"
+            onClick={() => onEquipShelf && onEquipShelf(badge)}
+            style={{
+              ...btnBase,
+              flex: 1,
+              border: 'none',
+              background: 'linear-gradient(90deg,#F6C945,#FF9A3D)',
+              color: '#1A0F00',
+            }}
+            onMouseEnter={hoverOn}
+            onMouseLeave={hoverOff}
+          >
+            {t('badges.unlockModal.equipShelfBtn')}
+          </button>
+          <button
+            type="button"
+            onClick={() => {
+              if (onViewCollection) onViewCollection(badge)
+              else if (onClose) onClose()
+            }}
+            style={{
+              ...btnBase,
+              flex: 1,
+              border: '1px solid #2E2447',
+              background: 'rgba(255,255,255,.06)',
+              color: '#C9BFDC',
+            }}
+            onMouseEnter={hoverOn}
+            onMouseLeave={hoverOff}
+          >
+            {t('badges.unlockModal.viewCollectionBtn')}
+          </button>
+        </div>
+        <span style={{ textAlign: 'center', font: '400 11px/1.4 var(--font-mono)', color: '#8E83A8' }}>
+          {shelfNote}
+        </span>
+      </div>
+    </>
+  )
+
   // ══════════════════════════════════════════════════════════════════
-  // GIAO DIỆN AM4 MOBILE: FULL MÀN HÌNH (100% Viewport)
+  // AM4 MOBILE: FULL MÀN HÌNH
   // ══════════════════════════════════════════════════════════════════
   if (isMobile) {
     return (
@@ -77,320 +276,40 @@ export default function BadgeUnlockModal({
           position: 'fixed',
           inset: 0,
           zIndex: 9999,
-          width: '100vw',
-          height: '100vh',
-          background: '#07030F',
+          background: '#06080C',
           overflow: 'hidden',
           display: 'flex',
           flexDirection: 'column',
         }}
       >
-        {/* Nền hiệu ứng Anime AM4 */}
-        <div
-          style={{
-            position: 'absolute',
-            inset: 0,
-            background: 'radial-gradient(70% 40% at 50% 40%, rgba(109,20,255,.32), transparent 72%)',
-            pointerEvents: 'none',
-          }}
-        />
-        <div
-          style={{
-            position: 'absolute',
-            inset: 0,
-            backgroundImage: 'radial-gradient(rgba(255,255,255,.05) 1px, transparent 1px)',
-            backgroundSize: '9px 9px',
-            pointerEvents: 'none',
-          }}
-        />
-        <div
-          style={{
-            position: 'absolute',
-            inset: 0,
-            backgroundImage: 'repeating-linear-gradient(96deg, rgba(255,255,255,.05) 0 2px, transparent 2px 12px)',
-            animation: 'aSpeed 1.4s linear infinite',
-            pointerEvents: 'none',
-          }}
-        />
-        <div
-          style={{
-            position: 'absolute',
-            top: '34%',
-            left: '50%',
-            width: 760,
-            height: 760,
-            margin: '-380px 0 0 -380px',
-            background: 'repeating-conic-gradient(from 0deg, rgba(255,226,75,.12) 0deg 3deg, transparent 3deg 12deg)',
-            animation: 'aSpin 40s linear infinite',
-            pointerEvents: 'none',
-          }}
-        />
+        <TierBackdrop tier={tier} />
+        {closeBtn}
 
-        {/* Nút đóng góc trên bên phải */}
-        <button
-          type="button"
-          aria-label={t('common.close')}
-          onClick={onClose}
-          style={{
-            position: 'absolute',
-            top: 'calc(14px + env(safe-area-inset-top, 0px))',
-            right: 16,
-            zIndex: 20,
-            background: 'rgba(255,255,255,.08)',
-            border: '1px solid #4C2673',
-            borderRadius: '50%',
-            width: 36,
-            height: 36,
-            color: '#FFFFFF',
-            fontSize: 18,
-            display: 'flex',
-            alignItems: 'center',
-            justifyContent: 'center',
-            cursor: 'pointer',
-          }}
-        >
-          ✕
-        </button>
-
-        {/* Nội dung trung tâm cuộn được trên màn hình nhỏ */}
         <div
           style={{
             position: 'relative',
             flex: 1,
             minHeight: 0,
             overflowY: 'auto',
-            display: 'flex',
-            flexDirection: 'column',
-            alignItems: 'center',
-            justifyContent: 'center',
-            gap: 16,
-            padding: 'calc(36px + env(safe-area-inset-top, 0px)) 22px calc(24px + env(safe-area-inset-bottom, 0px))',
             width: '100%',
             maxWidth: 420,
             margin: '0 auto',
             boxSizing: 'border-box',
+            padding: 'calc(40px + env(safe-area-inset-top, 0px)) 22px calc(24px + env(safe-area-inset-bottom, 0px))',
+            display: 'flex',
+            flexDirection: 'column',
+            alignItems: 'center',
+            gap: 12,
           }}
         >
-          {/* Nhãn mở khóa danh hiệu */}
-          <span
-            style={{
-              font: "700 10.5px/1 'Oswald', sans-serif",
-              letterSpacing: '.26em',
-              color: '#FFE24B',
-              textTransform: 'uppercase',
-            }}
-          >
-            {t('badges.unlockModal.title')}
-          </span>
-
-          {/* Badge to 150px với hiệu ứng spinning conic và sao lấp lánh */}
-          <div style={{ position: 'relative', width: 150, height: 150, flexShrink: 0 }}>
-            <div
-              style={{
-                position: 'absolute',
-                inset: '-32%',
-                background: 'repeating-conic-gradient(from 0deg, rgba(255,46,126,.3) 0deg 5deg, transparent 5deg 15deg)',
-                animation: 'aSpinBack 18s linear infinite',
-                pointerEvents: 'none',
-              }}
-            />
-            <div
-              style={{
-                position: 'absolute',
-                inset: '-24%',
-                background: 'radial-gradient(50% 50% at 50% 50%, rgba(255,226,75,.5), transparent 70%)',
-                animation: 'aPulse 2.4s ease-in-out infinite',
-                pointerEvents: 'none',
-              }}
-            />
-            <BadgeHex
-              tier={tier}
-              glyph={glyph}
-              size={badgeSize}
-              spin={true}
-              twinkle={false}
-              pulse={true}
-            />
-            <div
-              style={{
-                position: 'absolute',
-                top: '-5%',
-                left: '-3%',
-                width: 14,
-                height: 14,
-                background: '#FFE24B',
-                clipPath: 'polygon(50% 0%, 100% 50%, 50% 100%, 0% 50%)',
-                animation: 'aTwinkle 2.2s ease-in-out infinite',
-                pointerEvents: 'none',
-              }}
-            />
-            <div
-              style={{
-                position: 'absolute',
-                bottom: '2%',
-                right: '-6%',
-                width: 11,
-                height: 11,
-                background: '#FF6BE0',
-                clipPath: 'polygon(50% 0%, 100% 50%, 50% 100%, 0% 50%)',
-                animation: 'aTwinkle 2.8s ease-in-out .6s infinite',
-                pointerEvents: 'none',
-              }}
-            />
-          </div>
-
-          {/* Tên danh hiệu */}
-          <span
-            style={{
-              font: "700 30px/1.05 'Oswald', sans-serif",
-              letterSpacing: '.02em',
-              textTransform: 'uppercase',
-              textAlign: 'center',
-              color: '#FFFFFF',
-              textShadow: `0 3px 0 #4A0A5A, 0 0 28px ${tTier.aura || 'rgba(192,75,255,.7)'}`,
-            }}
-          >
-            {badgeName}
-          </span>
-
-          {/* Tag độ hiếm */}
-          <span
-            style={{
-              font: "700 9.5px/1 'Oswald', sans-serif",
-              letterSpacing: '.18em',
-              padding: '6px 12px',
-              clipPath: 'polygon(7px 0, 100% 0, 100% calc(100% - 7px), calc(100% - 7px) 100%, 0 100%, 0 7px)',
-              background: tTier.tagBg || 'rgba(139,43,255,.2)',
-              borderTop: `1px solid ${tTier.tagBd || '#8B2BFF'}`,
-              color: tTier.tagColor || '#D9A8FF',
-              textTransform: 'uppercase',
-            }}
-          >
-            {tTier.name} · {pts} {t('badges.unlockModal.ptsUnit')}
-          </span>
-
-          {/* Mô tả / Chiến tích */}
-          <span
-            style={{
-              font: "400 13px/1.55 'Be Vietnam Pro', sans-serif",
-              textAlign: 'center',
-              color: '#C9B8E6',
-              maxWidth: 360,
-              padding: '0 4px',
-            }}
-          >
-            {storyText}
-          </span>
-
-          {/* 3 Thỏi thưởng: XP, Mùa, Elo */}
-          <div style={{ width: '100%', display: 'flex', gap: 8 }}>
-            <span
-              style={{
-                flex: 1,
-                textAlign: 'center',
-                font: "700 14px/1 'Oswald', sans-serif",
-                letterSpacing: '.04em',
-                color: '#FFC46B',
-                background: 'rgba(20,1,9,.6)',
-                borderTop: '1px solid #FF7A18',
-                padding: '12px 6px',
-                clipPath: NOTCH_S_CLIP,
-              }}
-            >
-              +{xpReward} XP
-            </span>
-            <span
-              style={{
-                flex: 1,
-                textAlign: 'center',
-                font: "700 14px/1 'Oswald', sans-serif",
-                letterSpacing: '.04em',
-                color: '#5FEBD0',
-                background: 'rgba(1,19,15,.6)',
-                borderTop: '1px solid #0E9F8E',
-                padding: '12px 6px',
-                clipPath: NOTCH_S_CLIP,
-              }}
-            >
-              +{spReward} {t('badges.unlockModal.seasonShortUnit')}
-            </span>
-            <span
-              style={{
-                flex: 1,
-                textAlign: 'center',
-                font: "700 14px/1 'Oswald', sans-serif",
-                letterSpacing: '.04em',
-                color: '#7FE7FF',
-                background: 'rgba(1,16,31,.6)',
-                borderTop: '1px solid #1B7BE0',
-                padding: '12px 6px',
-                clipPath: NOTCH_S_CLIP,
-              }}
-            >
-              ELO +{eloReward}
-            </span>
-          </div>
-
-          {/* 2 Nút hành động dọc */}
-          <div style={{ width: '100%', display: 'flex', flexDirection: 'column', gap: 8 }}>
-            <button
-              type="button"
-              onClick={() => onEquipShelf && onEquipShelf(badge)}
-              style={{
-                textAlign: 'center',
-                font: "700 12.5px/1 'Oswald', sans-serif",
-                letterSpacing: '.14em',
-                color: '#140109',
-                background: 'linear-gradient(135deg, #FFE24B, #FF7A18)',
-                padding: '14px',
-                clipPath: 'polygon(8px 0, 100% 0, 100% calc(100% - 8px), calc(100% - 8px) 100%, 0 100%, 0 8px)',
-                border: 'none',
-                cursor: 'pointer',
-              }}
-            >
-              {t('badges.unlockModal.equipShelfBtn')}
-            </button>
-            <button
-              type="button"
-              onClick={() => {
-                if (onViewCollection) onViewCollection(badge)
-                else if (onClose) onClose()
-              }}
-              style={{
-                textAlign: 'center',
-                font: "700 12.5px/1 'Oswald', sans-serif",
-                letterSpacing: '.14em',
-                color: '#D9A8FF',
-                background: 'rgba(255,255,255,.06)',
-                borderTop: '1px solid #8B2BFF',
-                borderLeft: 'none',
-                borderRight: 'none',
-                borderBottom: 'none',
-                padding: '14px',
-                clipPath: 'polygon(8px 0, 100% 0, 100% calc(100% - 8px), calc(100% - 8px) 100%, 0 100%, 0 8px)',
-                cursor: 'pointer',
-              }}
-            >
-              {t('badges.unlockModal.viewCollectionBtn')}
-            </button>
-            <span
-              style={{
-                textAlign: 'center',
-                font: "400 10.5px/1.4 'IBM Plex Mono', monospace",
-                color: '#7E6FA0',
-                marginTop: 2,
-              }}
-            >
-              {shelfNote}
-            </span>
-          </div>
+          {body}
         </div>
       </div>
     )
   }
 
   // ══════════════════════════════════════════════════════════════════
-  // GIAO DIỆN A4 DESKTOP: MODAL NỔI GIỮA MÀN HÌNH (660px)
+  // A4 DESKTOP: MODAL NỔI GIỮA MÀN HÌNH
   // ══════════════════════════════════════════════════════════════════
   return (
     <div
@@ -404,396 +323,42 @@ export default function BadgeUnlockModal({
         display: 'flex',
         alignItems: 'center',
         justifyContent: 'center',
-        overflow: 'hidden',
-        background: 'rgba(4,2,10,.86)',
+        padding: 24,
+        background: 'rgba(5,3,9,.86)',
         backdropFilter: 'blur(10px)',
         WebkitBackdropFilter: 'blur(10px)',
-        padding: '24px',
       }}
       onClick={(e) => {
         if (e.target === e.currentTarget) onClose && onClose()
       }}
     >
-      {/* Hiệu ứng Anime Background */}
-      <div
-        style={{
-          position: 'absolute',
-          inset: 0,
-          background: 'radial-gradient(60% 50% at 50% 42%, rgba(109,20,255,.32), transparent 72%)',
-          pointerEvents: 'none',
-        }}
-      />
-      <div
-        style={{
-          position: 'absolute',
-          inset: 0,
-          backgroundImage: 'radial-gradient(rgba(255,255,255,.05) 1px, transparent 1px)',
-          backgroundSize: '9px 9px',
-          pointerEvents: 'none',
-        }}
-      />
-      <div
-        style={{
-          position: 'absolute',
-          inset: 0,
-          backgroundImage: 'repeating-linear-gradient(96deg, rgba(255,255,255,.06) 0 2px, transparent 2px 12px)',
-          animation: 'aSpeed 1.4s linear infinite',
-          pointerEvents: 'none',
-        }}
-      />
-      <div
-        style={{
-          position: 'absolute',
-          top: '50%',
-          left: '50%',
-          width: 1100,
-          height: 1100,
-          margin: '-550px 0 0 -550px',
-          background: 'repeating-conic-gradient(from 0deg, rgba(255,226,75,.14) 0deg 3deg, transparent 3deg 12deg)',
-          animation: 'aSpin 40s linear infinite',
-          pointerEvents: 'none',
-        }}
-      />
-
-      {/* Khung Modal Trung Tâm (Notch clip viền gradient) */}
       <div
         style={{
           position: 'relative',
-          width: 660,
-          maxWidth: 'calc(100vw - 32px)',
-          maxHeight: 'calc(100vh - 40px)',
-          padding: 1,
-          clipPath: 'polygon(20px 0, 100% 0, 100% calc(100% - 20px), calc(100% - 20px) 100%, 0 100%, 0 20px)',
-          background: 'linear-gradient(135deg, #FF2E7E, #FFE24B 50%, #6D14FF)',
-          boxShadow: '0 0 60px rgba(109,20,255,.5), 0 0 100px rgba(255,46,126,.3)',
-          animation: 'aFloat 7s ease-in-out infinite',
+          width: 560,
+          maxWidth: '100%',
+          maxHeight: 'calc(100vh - 48px)',
           overflowY: 'auto',
+          borderRadius: 22,
+          border: `1px solid ${rgba(0.45)}`,
+          background: '#06080C',
+          boxShadow: `0 24px 70px rgba(0,0,0,.75), 0 0 60px ${rgba(0.22)}`,
         }}
       >
+        <TierBackdrop tier={tier} />
+        {closeBtn}
+
         <div
           style={{
             position: 'relative',
-            overflow: 'hidden',
-            clipPath: 'polygon(20px 0, 100% 0, 100% calc(100% - 20px), calc(100% - 20px) 100%, 0 100%, 0 20px)',
-            background: 'linear-gradient(170deg, #2B0617, #12021C 70%)',
-            padding: '42px 46px 34px',
+            padding: '34px 40px 30px',
             display: 'flex',
             flexDirection: 'column',
             alignItems: 'center',
-            gap: 20,
+            gap: 12,
           }}
         >
-          {/* Vệt sáng quét ngang qua hộp */}
-          <div
-            style={{
-              position: 'absolute',
-              top: 0,
-              left: 0,
-              width: 160,
-              height: '100%',
-              background: 'linear-gradient(90deg, transparent, rgba(255,255,255,.14), transparent)',
-              animation: 'aSweep 4.5s ease-in-out infinite',
-              pointerEvents: 'none',
-            }}
-          />
-
-          {/* Nút đóng góc phải */}
-          <button
-            type="button"
-            aria-label={t('common.close')}
-            onClick={onClose}
-            style={{
-              position: 'absolute',
-              top: 14,
-              right: 16,
-              background: 'transparent',
-              border: 'none',
-              color: '#9C8ABE',
-              fontSize: 22,
-              lineHeight: 1,
-              cursor: 'pointer',
-              padding: 6,
-              zIndex: 2,
-              display: 'flex',
-              alignItems: 'center',
-              justifyContent: 'center',
-              transition: 'color 0.15s ease, transform 0.15s ease',
-            }}
-            onMouseEnter={(e) => {
-              e.currentTarget.style.color = '#FFFFFF'
-              e.currentTarget.style.transform = 'scale(1.15)'
-            }}
-            onMouseLeave={(e) => {
-              e.currentTarget.style.color = '#9C8ABE'
-              e.currentTarget.style.transform = 'scale(1)'
-            }}
-          >
-            ✕
-          </button>
-
-          {/* Subtitle Mở khóa danh hiệu */}
-          <span
-            style={{
-              position: 'relative',
-              font: "700 12px/1 'Oswald', sans-serif",
-              letterSpacing: '.28em',
-              color: '#FFE24B',
-              textTransform: 'uppercase',
-            }}
-          >
-            {t('badges.unlockModal.title')}
-          </span>
-
-          {/* Huy hiệu Fanfare to với spinning conic phụ trợ */}
-          <div style={{ position: 'relative', width: 190, height: 190, margin: '6px 0' }}>
-            <div
-              style={{
-                position: 'absolute',
-                inset: '-34%',
-                background: 'repeating-conic-gradient(from 0deg, rgba(255,46,126,.3) 0deg 5deg, transparent 5deg 15deg)',
-                animation: 'aSpinBack 18s linear infinite',
-                pointerEvents: 'none',
-              }}
-            />
-            <div
-              style={{
-                position: 'absolute',
-                inset: '-26%',
-                background: 'radial-gradient(50% 50% at 50% 50%, rgba(255,226,75,.5), transparent 70%)',
-                animation: 'aPulse 2.4s ease-in-out infinite',
-                pointerEvents: 'none',
-              }}
-            />
-            <BadgeHex
-              tier={tier}
-              glyph={glyph}
-              size={badgeSize}
-              spin={true}
-              twinkle={false}
-              pulse={true}
-            />
-            <div
-              style={{
-                position: 'absolute',
-                top: '-6%',
-                left: '-2%',
-                width: 16,
-                height: 16,
-                background: '#FFE24B',
-                clipPath: 'polygon(50% 0%, 100% 50%, 50% 100%, 0% 50%)',
-                animation: 'aTwinkle 2.2s ease-in-out infinite',
-                pointerEvents: 'none',
-              }}
-            />
-            <div
-              style={{
-                position: 'absolute',
-                bottom: '2%',
-                right: '-6%',
-                width: 12,
-                height: 12,
-                background: '#FF6BE0',
-                clipPath: 'polygon(50% 0%, 100% 50%, 50% 100%, 0% 50%)',
-                animation: 'aTwinkle 2.8s ease-in-out .6s infinite',
-                pointerEvents: 'none',
-              }}
-            />
-            <div
-              style={{
-                position: 'absolute',
-                top: '36%',
-                right: '-12%',
-                width: 9,
-                height: 9,
-                background: '#7FE7FF',
-                clipPath: 'polygon(50% 0%, 100% 50%, 50% 100%, 0% 50%)',
-                animation: 'aTwinkle 3.2s ease-in-out 1.1s infinite',
-                pointerEvents: 'none',
-              }}
-            />
-          </div>
-
-          {/* Tên danh hiệu + Tag bậc + Mô tả */}
-          <div
-            style={{
-              position: 'relative',
-              display: 'flex',
-              flexDirection: 'column',
-              alignItems: 'center',
-              gap: 11,
-              width: '100%',
-            }}
-          >
-            <span
-              style={{
-                font: "700 40px/1 'Oswald', sans-serif",
-                letterSpacing: '.03em',
-                textTransform: 'uppercase',
-                color: '#FFFFFF',
-                textAlign: 'center',
-                textShadow: `0 3px 0 #4A0A5A, 0 0 34px ${tTier.aura || 'rgba(192,75,255,.7)'}`,
-              }}
-            >
-              {badgeName}
-            </span>
-
-            <span
-              style={{
-                font: "700 10.5px/1 'Oswald', sans-serif",
-                letterSpacing: '.2em',
-                padding: '6px 12px',
-                clipPath: 'polygon(9px 0, 100% 0, 100% calc(100% - 9px), calc(100% - 9px) 100%, 0 100%, 0 9px)',
-                background: tTier.tagBg || 'rgba(139,43,255,.2)',
-                borderTop: `1px solid ${tTier.tagBd || '#8B2BFF'}`,
-                color: tTier.tagColor || '#D9A8FF',
-                textTransform: 'uppercase',
-              }}
-            >
-              {tTier.name} · {pts} {t('badges.unlockModal.ptsUnit')}
-            </span>
-
-            <span
-              style={{
-                font: "400 14px/1.55 'Be Vietnam Pro', sans-serif",
-                textAlign: 'center',
-                color: '#C9B8E6',
-                maxWidth: 440,
-              }}
-            >
-              {storyText}
-            </span>
-          </div>
-
-          {/* 3 Thỏi thưởng: +XP, +Điểm mùa, ELO + */}
-          <div
-            style={{
-              position: 'relative',
-              display: 'flex',
-              gap: 11,
-            }}
-          >
-            <span
-              style={{
-                font: "700 17px/1 'Oswald', sans-serif",
-                letterSpacing: '.06em',
-                color: '#FFC46B',
-                background: 'rgba(20,1,9,.6)',
-                borderTop: '1px solid #FF7A18',
-                padding: '13px 20px',
-                clipPath: 'polygon(9px 0, 100% 0, 100% calc(100% - 9px), calc(100% - 9px) 100%, 0 100%, 0 9px)',
-              }}
-            >
-              +{xpReward} XP
-            </span>
-            <span
-              style={{
-                font: "700 17px/1 'Oswald', sans-serif",
-                letterSpacing: '.06em',
-                color: '#5FEBD0',
-                background: 'rgba(1,19,15,.6)',
-                borderTop: '1px solid #0E9F8E',
-                padding: '13px 20px',
-                clipPath: 'polygon(9px 0, 100% 0, 100% calc(100% - 9px), calc(100% - 9px) 100%, 0 100%, 0 9px)',
-              }}
-            >
-              +{spReward} {t('badges.unlockModal.seasonPointsUnit')}
-            </span>
-            <span
-              style={{
-                font: "700 17px/1 'Oswald', sans-serif",
-                letterSpacing: '.06em',
-                color: '#7FE7FF',
-                background: 'rgba(1,16,31,.6)',
-                borderTop: '1px solid #1B7BE0',
-                padding: '13px 20px',
-                clipPath: 'polygon(9px 0, 100% 0, 100% calc(100% - 9px), calc(100% - 9px) 100%, 0 100%, 0 9px)',
-              }}
-            >
-              ELO +{eloReward}
-            </span>
-          </div>
-
-          {/* Các nút hành động A4: row ngang */}
-          <div
-            style={{
-              position: 'relative',
-              width: '100%',
-              display: 'flex',
-              gap: 11,
-            }}
-          >
-            <button
-              type="button"
-              onClick={() => onEquipShelf && onEquipShelf(badge)}
-              style={{
-                flex: 1,
-                textAlign: 'center',
-                font: "700 13px/1 'Oswald', sans-serif",
-                letterSpacing: '.14em',
-                color: '#140109',
-                background: 'linear-gradient(135deg, #FFE24B, #FF7A18)',
-                padding: '15px 16px',
-                clipPath: 'polygon(9px 0, 100% 0, 100% calc(100% - 9px), calc(100% - 9px) 100%, 0 100%, 0 9px)',
-                border: 'none',
-                cursor: 'pointer',
-                transition: 'filter 0.15s ease',
-              }}
-              onMouseEnter={(e) => {
-                e.currentTarget.style.filter = 'brightness(1.15)'
-              }}
-              onMouseLeave={(e) => {
-                e.currentTarget.style.filter = 'brightness(1)'
-              }}
-            >
-              {t('badges.unlockModal.equipShelfBtn')}
-            </button>
-
-            <button
-              type="button"
-              onClick={() => {
-                if (onViewCollection) onViewCollection(badge)
-                else if (onClose) onClose()
-              }}
-              style={{
-                flex: 1,
-                textAlign: 'center',
-                font: "700 13px/1 'Oswald', sans-serif",
-                letterSpacing: '.14em',
-                color: '#D9A8FF',
-                background: 'rgba(255,255,255,.06)',
-                borderTop: '1px solid #8B2BFF',
-                borderLeft: 'none',
-                borderRight: 'none',
-                borderBottom: 'none',
-                padding: '15px 16px',
-                clipPath: 'polygon(9px 0, 100% 0, 100% calc(100% - 9px), calc(100% - 9px) 100%, 0 100%, 0 9px)',
-                cursor: 'pointer',
-                transition: 'filter 0.15s ease, background 0.15s ease',
-              }}
-              onMouseEnter={(e) => {
-                e.currentTarget.style.filter = 'brightness(1.2)'
-                e.currentTarget.style.background = 'rgba(255,255,255,.12)'
-              }}
-              onMouseLeave={(e) => {
-                e.currentTarget.style.filter = 'brightness(1)'
-                e.currentTarget.style.background = 'rgba(255,255,255,.06)'
-              }}
-            >
-              {t('badges.unlockModal.viewCollectionBtn')}
-            </button>
-          </div>
-
-          {/* Ghi chú trạng thái kệ 3 ô */}
-          <span
-            style={{
-              position: 'relative',
-              font: "400 11.5px/1.4 'IBM Plex Mono', monospace",
-              color: '#7E6FA0',
-              textAlign: 'center',
-            }}
-          >
-            {shelfNote}
-          </span>
+          {body}
         </div>
       </div>
     </div>

@@ -1,48 +1,15 @@
-/* Hệ thống hiệu ứng và animation phong cách Anime cho Danh hiệu & Treo thưởng */
+/* Hiệu ứng chuyển động dùng chung: danh hiệu (icon, nền thẻ), huy chương bảng xếp hạng,
+   chip lửa của màn chia sân. Animation viết inline trong component nên tên keyframe ở đây là
+   hợp đồng — đổi tên phải tìm cả chuỗi `animation: '<tên> ...'` trong src. */
 
-@keyframes aSpin {
+@keyframes badgeSpin {
   from { transform: rotate(0deg); }
   to { transform: rotate(360deg); }
 }
 
-@keyframes aSpinBack {
-  from { transform: rotate(360deg); }
-  to { transform: rotate(0deg); }
-}
-
-@keyframes aPulse {
-  0%, 100% { opacity: 0.45; transform: scale(0.94); }
-  50% { opacity: 1; transform: scale(1.06); }
-}
-
-@keyframes aSweep {
+@keyframes badgeSweep {
   0% { transform: translateX(-130%) skewX(-18deg); }
   55%, 100% { transform: translateX(240%) skewX(-18deg); }
-}
-
-@keyframes aSpeed {
-  from { background-position: 0 0; }
-  to { background-position: -160px 0; }
-}
-
-@keyframes aTwinkle {
-  0%, 100% { opacity: 0.15; transform: scale(0.6) rotate(0deg); }
-  50% { opacity: 1; transform: scale(1) rotate(45deg); }
-}
-
-@keyframes aFloat {
-  0%, 100% { transform: translateY(0); }
-  50% { transform: translateY(-6px); }
-}
-
-@keyframes emberSpin {
-  from { transform: rotate(0deg); }
-  to { transform: rotate(360deg); }
-}
-
-@keyframes emberPulse {
-  0%, 100% { opacity: 0.55; }
-  50% { opacity: 1; }
 }
 
 @keyframes medalGlow {
@@ -50,8 +17,8 @@
   50% { opacity: 1; transform: scale(1.06); }
 }
 
-/* Nền hiệu ứng thẻ huy hiệu trong modal chi tiết (BadgeDetailModal): bụi sao, sao băng,
-   chùm sáng, cực quang. Chỉ các phần tử nằm trong [data-badge-fx] dùng nhóm này. */
+/* Nền hiệu ứng thẻ huy hiệu (TierBackdrop): bụi sao, sao băng, chùm sáng, cực quang.
+   Chỉ các phần tử nằm trong [data-badge-fx] dùng nhóm này. */
 @keyframes bdTwinkle {
   0%, 100% { opacity: 0.1; }
   50% { opacity: 1; }
@@ -80,7 +47,7 @@
 }
 
 /* Hiệu ứng icon huy hiệu (BadgeHex): vệt sáng quét, quầng thở, sao lấp lánh.
-   Viền xoay và hạt bay dùng lại aSpin. */
+   Viền xoay và hạt bay dùng lại badgeSpin. */
 @keyframes bhSheen {
   0% { background-position: 160% 0; }
   55%, 100% { background-position: -60% 0; }
@@ -102,22 +69,10 @@
   [data-badge-hex] * { animation: none !important; }
 }
 
-:root {
-  --anime-font-display: 'Oswald', sans-serif;
-  --anime-font-ui: 'Be Vietnam Pro', sans-serif;
-  --anime-font-mono: 'IBM Plex Mono', monospace;
-  
-  --clip-hex: polygon(50% 0%, 95% 25%, 95% 75%, 50% 100%, 5% 75%, 5% 25%);
-  --clip-notch: polygon(14px 0, 100% 0, 100% calc(100% - 14px), calc(100% - 14px) 100%, 0 100%, 0 14px);
-  --clip-notch-s: polygon(9px 0, 100% 0, 100% calc(100% - 9px), calc(100% - 9px) 100%, 0 100%, 0 9px);
-  --clip-notch-xs: polygon(6px 0, 100% 0, 100% calc(100% - 6px), calc(100% - 6px) 100%, 0 100%, 0 6px);
-  --clip-diamond: polygon(50% 0%, 100% 50%, 50% 100%, 0% 50%);
-}
-
 /* Hiệu ứng rực lửa (Fiery Flame Aura) cho Kèo Thách Đấu */
 @keyframes flameAuraPulse {
   0% {
-    box-shadow: 
+    box-shadow:
       0 0 10px rgba(255, 69, 0, 0.45),
       0 0 20px rgba(255, 140, 0, 0.3),
       0 0 35px rgba(255, 69, 0, 0.15),
@@ -125,7 +80,7 @@
     border-color: rgba(255, 100, 0, 0.7);
   }
   50% {
-    box-shadow: 
+    box-shadow:
       0 0 18px rgba(255, 69, 0, 0.8),
       0 0 35px rgba(255, 160, 0, 0.55),
       0 0 55px rgba(255, 69, 0, 0.25),
@@ -133,7 +88,7 @@
     border-color: rgba(255, 180, 0, 0.95);
   }
   100% {
-    box-shadow: 
+    box-shadow:
       0 0 10px rgba(255, 69, 0, 0.45),
       0 0 20px rgba(255, 140, 0, 0.3),
       0 0 35px rgba(255, 69, 0, 0.15),
@@ -168,7 +123,7 @@
 .chal-chip-flame:hover {
   transform: translateY(-1px);
   border-color: #ffaa00 !important;
-  box-shadow: 
+  box-shadow:
     0 0 22px rgba(255, 69, 0, 0.85),
     0 0 45px rgba(255, 160, 0, 0.65),
     inset 0 0 20px rgba(255, 120, 0, 0.35) !important;
