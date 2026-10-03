@@ -112,7 +112,7 @@ export default function BadgeCard({ badge, isHighlighted = false, onClick }) {
             glyph={badge.glyph}
             size={76}
             dim={isHidden}
-            spin={badge.tier === 'legend'}
+            still={!badge.unlocked}
           />
         </div>
 

@@ -1041,8 +1041,8 @@
       "groupId": 0,
       "tier": "legend",
       "glyph": "eye",
-      "checkType": "days_rank_1",
-      "threshold": 60,
+      "checkType": "sessions_rank_1",
+      "threshold": 10,
       "reward": {
         "xp": 500,
         "seasonPts": 70

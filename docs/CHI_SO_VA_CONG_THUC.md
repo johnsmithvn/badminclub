@@ -1,6 +1,6 @@
 # CHỈ SỐ & CÔNG THỨC — BÁO CÁO TOÀN BỘ
 
-**Version:** v2.0.0 · **Updated:** 2026-09-30 · **Đối chiếu code tại commit hiện hành**
+**Version:** v2.0.1 · **Updated:** 2026-10-02 · **Đối chiếu code tại commit hiện hành**
 
 > Tài liệu này liệt kê **mọi con số** app đang tính, công thức của nó, **lưu DB hay tính lại lúc
 > render**, và **cái nào ăn theo cái nào**. Mọi công thức dưới đây đọc trực tiếp từ code, không
@@ -63,7 +63,7 @@ thường dẫn xuất từ `db.matches` + `db.playerRatings`, tính lại mỗi
      điểm dẫn xuất)           đua tuần dẫn xuất)
 
     XP ──► CẤP BẬC           (dẫn xuất, KHÔNG dính Elo, KHÔNG dính thắng thua)
-    DANH HIỆU ANIME          (dẫn xuất từ trận; chỉ "kệ khoe" là lưu DB)
+    DANH HIỆU                (dẫn xuất từ trận; chỉ "kệ khoe" là lưu DB)
 
     ════════════════════════════════════════════════════════════════════════════
     PHÂN HỆ GIẢI ĐẤU (16 bảng tournament_* — CÁCH LY HOÀN TOÀN KHỎI ELO / ĐIỂM MÙA)
@@ -695,6 +695,7 @@ người `noshow` (nghỉ không báo, vẫn thu tiền) **không** được XP.
 |---|---|---|
 | Phiếu cược | ✅ `challenge_predictions` | `stakePoints`, `team`, `status`, `settledAt` |
 | Tỷ lệ pool | ❌ | `pctA = pointsA / totalPoints × 100`, hoà 50/50 nếu chưa ai cược |
+| Mức cược một phiếu | ✅ `stake_points` | `1..10` SP — `app.json → challenge.maxStakePoints` + RPC (0064) |
 | Tiền thắng | ✅ (cột `payout_points`) | thắng = `stake × 2`, thua = 0 |
 | Điểm đang bị giam | ❌ | tổng `stakePoints` của phiếu `pending` trên kèo còn sống |
 | Điểm được cược | ❌ | `max(0, điểmMùa − đangBịGiam)` |
@@ -702,12 +703,18 @@ người `noshow` (nghỉ không báo, vẫn thu tiền) **không** được XP.
 Cổng cược đóng ngay khi ghi xong hiệp đầu tiên (`predictionsLocked`) — nếu không, khán giả xem
 xong hiệp 1 biết tỷ số rồi mới đặt.
 
+**Trần 10 SP/phiếu (từ 2026-10-02):** một phiếu không được đáng hơn một trận thắng (dải thắng thấp nhất
++10). Trần cũ 50 bằng ~3 trận thắng, mà trả ×2 phẳng trong khi đội Elo cao thắng 61% trên dữ liệu thật
+Q3 — cứ đặt cửa trên là có lãi, người chỉ ngồi cược leo được top 3. Phiếu đặt trước đó (20/30/50) giữ
+nguyên mức và luật cũ; CHECK của bảng vẫn để 1..100 cho các dòng đó. `challenge.test.js` gác
+`maxStakePoints ≤` dải thắng thấp nhất.
+
 `settlePredictionsLocal` phải khớp **từng dòng** với RPC `settle_challenge_predictions` trong
 migration 0042 — đó chỉ là bản cập nhật lạc quan cho màn hình, sự thật nằm ở DB.
 
 ---
 
-## 8. TẦNG DANH HIỆU ANIME — `src/lib/badges.js` (DẪN XUẤT)
+## 8. TẦNG DANH HIỆU — `src/lib/badges.js` (DẪN XUẤT)
 
 Toàn bộ điều kiện mở khoá tính lại từ `db.matches` mỗi lần render. **Không có bảng nào lưu danh
 hiệu đã mở.** Thứ duy nhất lưu là `club_members.badge_shelf` — 3 danh hiệu người dùng chọn để
@@ -716,9 +723,9 @@ khoe trên hồ sơ.
 Hệ quả: Đổi điều kiện danh hiệu → **hiệu lực ngay**, và danh hiệu ai đó "đã có" có thể **biến
 mất** nếu điều kiện siết lại.
 
-### 8.1. Hệ thống 6 Bậc Anime Tier & Điểm Sưu Tập (`tierPoints`)
+### 8.1. Hệ thống 6 Bậc Huy Hiệu & Điểm Sưu Tập (`tierPoints`)
 
-Danh hiệu được thiết kế theo phong cách anime sống động, phân cấp độ hiếm và điểm thưởng sưu tập:
+Danh hiệu phân cấp độ hiếm và điểm thưởng sưu tập (`BADGE_TIERS` trong `lib/badges.js`):
 
 | Bậc Tier | Tên hiển thị | Điểm sưu tập | Hiệu ứng thị giác | Phông chữ |
 |---|---|---:|---|---|

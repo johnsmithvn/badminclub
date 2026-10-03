@@ -1280,7 +1280,7 @@ export default function ChallengeDetailModal({ challenge, session, onClose, onSc
                 </div>
 
                 {/* Mức SP: nhập tự do. Ba nút 1/2/3 cũ đã bỏ — trần thật nằm ở SP khả dụng của
-                    chính người đặt, và ở `maxStakePoints` (server cũng chặn, xem 0047). */}
+                    chính người đặt, và ở `maxStakePoints` (server cũng chặn, xem 0064). */}
                 <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', gap: 8 }}>
                   <span style={{ font: '500 12px/1 "IBM Plex Sans", sans-serif', color: 'var(--text-secondary)' }}>
                     {t('challenge.predictionStakeLabel')}

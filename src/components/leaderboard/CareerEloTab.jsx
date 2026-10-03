@@ -264,20 +264,23 @@ export default function CareerEloTab({
       data-screen-label="SS2 Bang dang cap Elo"
       style={{
         display: 'grid',
+        gridTemplateColumns: 'minmax(0, 1fr)',
         gap: 16,
       }}
     >
       {/* NỘI DUNG CHÍNH: 2 CỘT */}
+      {/* Mọi lưới bọc tên đều phải minmax(0, 1fr): cột 'auto'/'1fr' nở theo độ rộng tối thiểu
+          của tên dài (nowrap) và đẩy cả thẻ ra ngoài màn hình, ellipsis không kịp cắt. */}
       <div
         style={{
           display: 'grid',
-          gridTemplateColumns: isMobile ? '1fr' : 'minmax(0, 1fr) 356px',
+          gridTemplateColumns: isMobile ? 'minmax(0, 1fr)' : 'minmax(0, 1fr) 356px',
           gap: 16,
           alignItems: 'start',
         }}
       >
         {/* CỘT TRÁI: BẢNG XẾP HẠNG ELO TOÀN DIỆN */}
-        <div style={{ display: 'grid', gap: 14 }}>
+        <div style={{ display: 'grid', gridTemplateColumns: 'minmax(0, 1fr)', gap: 14 }}>
           {/* Bộ lọc giới tính Nam / Nữ */}
           <div
             style={{
@@ -414,6 +417,7 @@ export default function CareerEloTab({
                   background: 'linear-gradient(180deg, #16202E, #101827 66%)',
                   padding: 12,
                   display: 'grid',
+                  gridTemplateColumns: 'minmax(0, 1fr)',
                   gap: 9,
                   boxShadow: '0 8px 32px rgba(0, 0, 0, 0.45)',
                 }}
@@ -1264,7 +1268,7 @@ export default function CareerEloTab({
         </div>
 
         {/* CỘT PHẢI (RIGHT RAIL) */}
-        <div style={{ display: 'grid', gap: 12 }}>
+        <div style={{ display: 'grid', gridTemplateColumns: 'minmax(0, 1fr)', gap: 12 }}>
           {/* Card 1: Thang độ tin cậy */}
           <div
             style={{

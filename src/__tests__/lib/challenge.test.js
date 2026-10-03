@@ -208,6 +208,15 @@ assert.equal(
   'Không biết số dư (phía server) thì chỉ kiểm trần',
 )
 
+// Luật của chủ CLB (2026-10-02): một phiếu cược không được đáng hơn một trận thắng. Trước đó trần 50
+// bằng ~3 trận thắng, mà trả ×2 phẳng thì cứ đặt cửa trên là có lãi — người chỉ ngồi cược leo được
+// top 3. So với dải thắng THẤP NHẤT để không dải nào bị một phiếu cược vượt mặt.
+const minWin = Math.min(...Object.values(cfg.season.deltaScale).map((d) => d.win))
+assert.ok(
+  cfg.challenge.maxStakePoints <= minWin,
+  `Trần cược ${cfg.challenge.maxStakePoints} SP vượt điểm một trận thắng thấp nhất (${minWin}) — nhớ sửa cả RPC (0064)`,
+)
+
 // 6. challengeCloserOf — người chốt kèo, chỉ khi KHÔNG phải đội B
 //
 // Bước 2 dòng thời gian nói về BÊN NHẬN nên tên luôn là đội B. `acceptedBy` là người bấm nhát

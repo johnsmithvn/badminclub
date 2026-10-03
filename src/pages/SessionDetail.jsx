@@ -183,8 +183,12 @@ export default function SessionDetail() {
   const tabFromUrl = searchParams.get('tab')
   const [tabState, setTabState] = useState(tabFromUrl || 'attend')
   const activeTab = tabFromUrl || tabState
-  const setActiveTab = (tab) => {
+  // Đội hình nạp sẵn cho tab Chia sân (nút Đấu lại ở tab Trận). Đổi tab nào khác cũng xoá nó,
+  // nên quay lại Chia sân sau đó không bị nạp lại đội hình cũ.
+  const [courtPreset, setCourtPreset] = useState(null)
+  const setActiveTab = (tab, preset = null) => {
     setTabState(tab)
+    setCourtPreset(preset)
     setSearchParams({ tab }, { replace: true })
   }
   const [editingGuest, setEditingGuest] = useState(null)
@@ -527,340 +531,291 @@ export default function SessionDetail() {
     )
   }
 
+  // Menu ⋯ của header mobile: gom Nguyện vọng · Copy Zalo · Mở/Chốt/Mở lại · Xóa để header chỉ
+  // còn một dòng. Điều kiện hiện từng mục giữ đúng như các nút ở header desktop.
+  const mobileMenuItems = [
+    me && !isClosed && {
+      key: 'wish',
+      icon: 'sparkles',
+      label: myWish ? t('session.myWishEditMenu') : t('session.myWishBtn'),
+      onClick: () => setShowMyWishDialog(true),
+    },
+    { key: 'zalo', icon: 'send', label: t('session.copyZalo'), onClick: () => a.copyZalo(s.id) },
+    canEdit && s.status === 'draft' && {
+      key: 'open',
+      icon: 'user-round-check',
+      label: t('session.doOpen'),
+      onClick: () => a.setSessionStatus(s.id, 'open'),
+    },
+    canEdit && s.status === 'open' && {
+      key: 'close',
+      icon: 'circle-check',
+      label: t('session.doClose'),
+      disabled: !canMoney,
+      onClick: () => a.confirm({
+        title: t('session.closeTitle'),
+        message: t('session.closeMsg'),
+        tone: 'info',
+        confirmText: t('session.closeOk'),
+        onConfirm: () => a.setSessionStatus(s.id, 'closed'),
+      }),
+    },
+    canEdit && (s.status === 'cancelled' || s.status === 'closed') && {
+      key: 'reopen',
+      icon: 'rotate-ccw',
+      label: t('session.doReopen'),
+      disabled: !canMoney,
+      onClick: () => a.confirm({
+        title: t('session.reopenTitle'),
+        message: t('session.reopenMsg'),
+        tone: 'warning',
+        confirmText: t('session.reopenOk'),
+        onConfirm: () => a.setSessionStatus(s.id, 'open'),
+      }),
+    },
+    canEdit && s.status !== 'closed' && {
+      key: 'delete',
+      icon: 'trash-2',
+      label: t('session.doDeleteMenu'),
+      danger: true,
+      onClick: () => a.confirm({
+        title: t('session.delTitle'),
+        message: t('session.delMsg', { date: ddmy(s.date) }),
+        tone: 'danger',
+        confirmText: t('session.doDelete'),
+        onConfirm: () => a.deleteSession(s.id),
+      }),
+    },
+  ].filter(Boolean)
+
   return (
     <>
-      {/* ---------------- Unified Session Top Header (Mockup 01 / K1 / W1) ---------------- */}
-      {isMobile ? (
-        <div style={S.sessionHeaderBarMobile}>
-          {/* Tầng 1: Nút back + Tiêu đề & Subtitle + Badge trạng thái + Xóa */}
-          <div style={{ display: 'flex', alignItems: 'center', gap: 10, minWidth: 0, width: '100%' }}>
-            <button
-              type="button"
-              onClick={() => a.go('sessions')}
-              style={S.backBtn}
-              aria-label={t('session.backToList')}
-            >
-              <Icon name="arrow-left" size={18} color="var(--text-primary)" />
-            </button>
-            <div style={{ display: 'flex', flexDirection: 'column', gap: 2, minWidth: 0, flex: 1 }}>
-              <div style={S.sessionTitleText}>
-                {`${t('session.sessionTitlePrefix')} ${dd(s.date)}`}
+      {/* Header + thanh tab ghim ở đầu khung cuộn (main của AppLayout) — chỉ nội dung tab trôi */}
+      <div style={isMobile ? S.pinnedTopMobile : S.pinnedTop}>
+        {/* ---------------- Unified Session Top Header (Mockup 01 / K1 / W1) ---------------- */}
+        {isMobile ? (
+          <div style={S.sessionHeaderBarMobile}>
+            {/* Một dòng: Nút back + Tiêu đề & Subtitle + Badge trạng thái + Chuông + Menu ⋯ */}
+            <div style={{ display: 'flex', alignItems: 'center', gap: 10, minWidth: 0, width: '100%' }}>
+              <button
+                type="button"
+                onClick={() => a.go('sessions')}
+                style={S.backBtn}
+                aria-label={t('session.backToList')}
+              >
+                <Icon name="arrow-left" size={18} color="var(--text-primary)" />
+              </button>
+              <div style={{ display: 'flex', flexDirection: 'column', gap: 2, minWidth: 0, flex: 1 }}>
+                <div style={S.sessionTitleText}>
+                  {`${t('session.sessionTitlePrefix')} ${dd(s.date)}`}
+                </div>
+                <div style={{ ...S.sessionSubText, whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis' }}>
+                  {sSubTitle}
+                </div>
               </div>
-              <div style={{ ...S.sessionSubText, whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis' }}>
-                {sSubTitle}
+              <div style={s.status === 'open' ? S.statusBadgeTeal : S.statusBadgeDefault}>
+                <div style={s.status === 'open' ? S.statusDotTeal : S.statusDotDefault} />
+                <span style={{ font: '600 11px/1 "IBM Plex Sans", sans-serif', color: s.status === 'open' ? '#5FDBD3' : 'var(--text-muted)', whiteSpace: 'nowrap' }}>
+                  {s.status === 'open'
+                    ? (sessionMatches.length > 0 ? t('session.statusPlaying') : t('session.statusOpen'))
+                    : t(`sessionState.${s.status}`)}
+                </span>
+              </div>
+              <NotificationBell />
+              <SessionMoreMenu items={mobileMenuItems} />
+            </div>
+          </div>
+        ) : (
+          <div style={S.sessionHeaderBar}>
+            <div style={{ display: 'flex', alignItems: 'center', gap: 12, minWidth: 0, flex: 1 }}>
+              <button
+                type="button"
+                onClick={() => a.go('sessions')}
+                style={S.backBtn}
+                aria-label={t('session.backToList')}
+              >
+                <Icon name="arrow-left" size={18} color="var(--text-primary)" />
+              </button>
+              <div style={{ display: 'flex', flexDirection: 'column', gap: 2, minWidth: 0 }}>
+                <div style={S.sessionTitleText}>
+                  {`${t('session.sessionTitlePrefix')} ${dd(s.date)}`}
+                </div>
+                <div style={S.sessionSubText}>
+                  {sSubTitle}
+                </div>
               </div>
             </div>
-            <div style={s.status === 'open' ? S.statusBadgeTeal : S.statusBadgeDefault}>
-              <div style={s.status === 'open' ? S.statusDotTeal : S.statusDotDefault} />
-              <span style={{ font: '600 11px/1 "IBM Plex Sans", sans-serif', color: s.status === 'open' ? '#5FDBD3' : 'var(--text-muted)', whiteSpace: 'nowrap' }}>
-                {s.status === 'open'
-                  ? (sessionMatches.length > 0 ? t('session.statusPlaying') : t('session.statusOpen'))
-                  : t(`sessionState.${s.status}`)}
-              </span>
-            </div>
-            <NotificationBell />
-            {canEdit && s.status !== 'closed' && (
+
+            <div style={{ display: 'flex', alignItems: 'center', gap: 8, flexWrap: 'wrap' }}>
+              <NotificationBell />
+              <div style={s.status === 'open' ? S.statusBadgeTeal : S.statusBadgeDefault}>
+                <div style={s.status === 'open' ? S.statusDotTeal : S.statusDotDefault} />
+                <span style={{ font: '600 11.5px/1 "IBM Plex Sans", sans-serif', color: s.status === 'open' ? '#5FDBD3' : 'var(--text-muted)' }}>
+                  {s.status === 'open'
+                    ? (sessionMatches.length > 0 ? t('session.statusPlaying') : t('session.statusOpen'))
+                    : t(`sessionState.${s.status}`)}
+                </span>
+              </div>
+
+              {canEdit && (
+                <>
+                  {s.status === 'draft' && (
+                    <Button
+                      variant="primary"
+                      size="sm"
+                      icon="user-round-check"
+                      onClick={() => a.setSessionStatus(s.id, 'open')}
+                    >
+                      {t('session.doOpen')}
+                    </Button>
+                  )}
+                  {s.status === 'open' && (
+                    <Button
+                      variant="primary"
+                      size="sm"
+                      icon="circle-check"
+                      disabled={!canMoney}
+                      onClick={() => a.confirm({
+                        title: t('session.closeTitle'),
+                        message: t('session.closeMsg'),
+                        tone: 'info',
+                        confirmText: t('session.closeOk'),
+                        onConfirm: () => a.setSessionStatus(s.id, 'closed'),
+                      })}
+                    >
+                      {t('session.doClose')}
+                    </Button>
+                  )}
+                  {(s.status === 'cancelled' || s.status === 'closed') && (
+                    <Button
+                      variant="secondary"
+                      size="sm"
+                      icon="rotate-ccw"
+                      disabled={!canMoney}
+                      onClick={() => a.confirm({
+                        title: t('session.reopenTitle'),
+                        message: t('session.reopenMsg'),
+                        tone: 'warning',
+                        confirmText: t('session.reopenOk'),
+                        onConfirm: () => a.setSessionStatus(s.id, 'open'),
+                      })}
+                    >
+                      {t('session.doReopen')}
+                    </Button>
+                  )}
+                </>
+              )}
+
               <IconButton
-                icon="trash-2"
+                icon="send"
                 size="sm"
                 variant="ghost"
-                label={t('session.doDelete')}
-                onClick={() => a.confirm({
-                  title: t('session.delTitle'),
-                  message: t('session.delMsg', { date: ddmy(s.date) }),
-                  tone: 'danger',
-                  confirmText: t('session.doDelete'),
-                  onConfirm: () => a.deleteSession(s.id),
-                })}
+                label={t('session.copyZalo')}
+                onClick={() => a.copyZalo(s.id)}
               />
-            )}
-          </div>
 
-          {/* Tầng 2: Action Bar (Copy Zalo + Nút hành động chính Mở / Chốt / Mở lại) */}
-          <div style={{ display: 'flex', gap: 8, width: '100%', paddingTop: 4 }}>
-            <Button
-              variant="secondary"
-              size="sm"
-              icon="send"
-              onClick={() => a.copyZalo(s.id)}
+              {canEdit && s.status !== 'closed' && (
+                <IconButton
+                  icon="trash-2"
+                  size="sm"
+                  variant="ghost"
+                  label={t('session.doDelete')}
+                  onClick={() => a.confirm({
+                    title: t('session.delTitle'),
+                    message: t('session.delMsg', { date: ddmy(s.date) }),
+                    tone: 'danger',
+                    confirmText: t('session.doDelete'),
+                    onConfirm: () => a.deleteSession(s.id),
+                  })}
+                />
+              )}
+            </div>
+          </div>
+        )}
+
+        {/* ---------------- Segmented Tab Bar (Handoff 02 / 05) ---------------- */}
+        {/* Mobile: khung trang đã có gap 12px giữa các khối — thêm margin nữa là hở gấp đôi */}
+        <TabTrack style={{ ...S.tabBarWrap, margin: isMobile ? '0 0 6px' : '14px 0 8px', width: isMobile ? '100%' : 'auto' }}>
+          <div style={{ ...S.tabTrack, width: isMobile ? '100%' : 'auto' }}>
+            <button
+              type="button"
+              onClick={() => setActiveTab('attend')}
               style={{
-                flex: 1,
-                height: 34,
-                background: 'var(--surface-inset)',
-                border: '1px solid var(--border-default)',
-                color: 'var(--text-primary)',
-                fontSize: 12,
-                fontWeight: 600,
-                justifyContent: 'center',
+                ...S.tabBtn,
+                ...(isMobile ? S.tabBtnMobile : {}),
+                ...(activeTab === 'attend' ? S.tabBtnActive : {}),
               }}
             >
-              {t('session.copyZalo')}
-            </Button>
-            {canEdit && (
-              <>
-                {s.status === 'draft' && (
-                  <Button
-                    variant="primary"
-                    size="sm"
-                    icon="user-round-check"
-                    onClick={() => a.setSessionStatus(s.id, 'open')}
-                    style={{
-                      height: 34,
-                      flex: '0 0 auto',
-                      background: 'var(--teal-600)',
-                      color: '#FFFFFF',
-                      fontSize: 12,
-                      fontWeight: 700,
-                    }}
-                  >
-                    {t('session.doOpen')}
-                  </Button>
-                )}
-                {s.status === 'open' && (
-                  <Button
-                    variant="primary"
-                    size="sm"
-                    icon="circle-check"
-                    disabled={!canMoney}
-                    onClick={() => a.confirm({
-                      title: t('session.closeTitle'),
-                      message: t('session.closeMsg'),
-                      tone: 'info',
-                      confirmText: t('session.closeOk'),
-                      onConfirm: () => a.setSessionStatus(s.id, 'closed'),
-                    })}
-                    style={{
-                      height: 34,
-                      flex: '0 0 auto',
-                      background: '#0D5E3A',
-                      border: '1px solid #00875A',
-                      color: '#FFFFFF',
-                      fontSize: 12,
-                      fontWeight: 700,
-                    }}
-                  >
-                    {t('session.doClose')}
-                  </Button>
-                )}
-                {(s.status === 'cancelled' || s.status === 'closed') && (
-                  <Button
-                    variant="secondary"
-                    size="sm"
-                    icon="rotate-ccw"
-                    disabled={!canMoney}
-                    onClick={() => a.confirm({
-                      title: t('session.reopenTitle'),
-                      message: t('session.reopenMsg'),
-                      tone: 'warning',
-                      confirmText: t('session.reopenOk'),
-                      onConfirm: () => a.setSessionStatus(s.id, 'open'),
-                    })}
-                    style={{
-                      height: 34,
-                      flex: '0 0 auto',
-                      background: 'var(--surface-inset)',
-                      border: '1px solid var(--border-default)',
-                      color: 'var(--text-primary)',
-                      fontSize: 12,
-                      fontWeight: 600,
-                    }}
-                  >
-                    {t('session.doReopen')}
-                  </Button>
-                )}
-              </>
-            )}
-          </div>
-        </div>
-      ) : (
-        <div style={S.sessionHeaderBar}>
-          <div style={{ display: 'flex', alignItems: 'center', gap: 12, minWidth: 0, flex: 1 }}>
+              <span>{t('sessionTabs.attend')}</span>
+              <span style={{
+                ...S.tabBadgeMono,
+                color: activeTab === 'attend' ? '#5FDBD3' : 'var(--text-muted)',
+              }}>
+                {presentCount(db, s)}/{members.length}
+              </span>
+            </button>
             <button
               type="button"
-              onClick={() => a.go('sessions')}
-              style={S.backBtn}
-              aria-label={t('session.backToList')}
+              onClick={() => setActiveTab('planner')}
+              style={{
+                ...S.tabBtn,
+                ...(isMobile ? S.tabBtnMobile : {}),
+                ...(activeTab === 'planner' ? S.tabBtnActive : {}),
+              }}
             >
-              <Icon name="arrow-left" size={18} color="var(--text-primary)" />
-            </button>
-            <div style={{ display: 'flex', flexDirection: 'column', gap: 2, minWidth: 0 }}>
-              <div style={S.sessionTitleText}>
-                {`${t('session.sessionTitlePrefix')} ${dd(s.date)}`}
-              </div>
-              <div style={S.sessionSubText}>
-                {sSubTitle}
-              </div>
-            </div>
-          </div>
-
-          <div style={{ display: 'flex', alignItems: 'center', gap: 8, flexWrap: 'wrap' }}>
-            <NotificationBell />
-            <div style={s.status === 'open' ? S.statusBadgeTeal : S.statusBadgeDefault}>
-              <div style={s.status === 'open' ? S.statusDotTeal : S.statusDotDefault} />
-              <span style={{ font: '600 11.5px/1 "IBM Plex Sans", sans-serif', color: s.status === 'open' ? '#5FDBD3' : 'var(--text-muted)' }}>
-                {s.status === 'open'
-                  ? (sessionMatches.length > 0 ? t('session.statusPlaying') : t('session.statusOpen'))
-                  : t(`sessionState.${s.status}`)}
+              <span>{t('sessionTabs.planner')}</span>
+              <span style={{
+                ...S.tabBadgeMono,
+                color: activeTab === 'planner' ? '#5FDBD3' : 'var(--text-muted)',
+              }}>
+                {s.planner?.rounds?.length || 10}
               </span>
-            </div>
-
-            {canEdit && (
-              <>
-                {s.status === 'draft' && (
-                  <Button
-                    variant="primary"
-                    size="sm"
-                    icon="user-round-check"
-                    onClick={() => a.setSessionStatus(s.id, 'open')}
-                  >
-                    {t('session.doOpen')}
-                  </Button>
-                )}
-                {s.status === 'open' && (
-                  <Button
-                    variant="primary"
-                    size="sm"
-                    icon="circle-check"
-                    disabled={!canMoney}
-                    onClick={() => a.confirm({
-                      title: t('session.closeTitle'),
-                      message: t('session.closeMsg'),
-                      tone: 'info',
-                      confirmText: t('session.closeOk'),
-                      onConfirm: () => a.setSessionStatus(s.id, 'closed'),
-                    })}
-                  >
-                    {t('session.doClose')}
-                  </Button>
-                )}
-                {(s.status === 'cancelled' || s.status === 'closed') && (
-                  <Button
-                    variant="secondary"
-                    size="sm"
-                    icon="rotate-ccw"
-                    disabled={!canMoney}
-                    onClick={() => a.confirm({
-                      title: t('session.reopenTitle'),
-                      message: t('session.reopenMsg'),
-                      tone: 'warning',
-                      confirmText: t('session.reopenOk'),
-                      onConfirm: () => a.setSessionStatus(s.id, 'open'),
-                    })}
-                  >
-                    {t('session.doReopen')}
-                  </Button>
-                )}
-              </>
-            )}
-
-            <IconButton
-              icon="send"
-              size="sm"
-              variant="ghost"
-              label={t('session.copyZalo')}
-              onClick={() => a.copyZalo(s.id)}
-            />
-
-            {canEdit && s.status !== 'closed' && (
-              <IconButton
-                icon="trash-2"
-                size="sm"
-                variant="ghost"
-                label={t('session.doDelete')}
-                onClick={() => a.confirm({
-                  title: t('session.delTitle'),
-                  message: t('session.delMsg', { date: ddmy(s.date) }),
-                  tone: 'danger',
-                  confirmText: t('session.doDelete'),
-                  onConfirm: () => a.deleteSession(s.id),
-                })}
-              />
-            )}
+            </button>
+            <button
+              type="button"
+              onClick={() => setActiveTab('courts')}
+              style={{
+                ...S.tabBtn,
+                ...(isMobile ? S.tabBtnMobile : {}),
+                ...(activeTab === 'courts' ? S.tabBtnActive : {}),
+              }}
+            >
+              <span>{t('sessionTabs.courts')}</span>
+              <span style={{
+                ...S.tabBadgeMono,
+                color: '#5FDBD3',
+              }}>
+                {sessionMatches.length}
+              </span>
+            </button>
+            <button
+              type="button"
+              onClick={() => setActiveTab('matches')}
+              style={{
+                ...S.tabBtn,
+                ...(isMobile ? S.tabBtnMobile : {}),
+                ...(activeTab === 'matches' ? S.tabBtnActive : {}),
+              }}
+            >
+              <span>{t('sessionTabs.matches')}</span>
+              <span style={{
+                ...S.tabBadgeMono,
+                color: '#F0B75C',
+              }}>
+                {sessionMatches.length}{pendingChallengesCount > 0 ? `/${pendingChallengesCount}` : ''}
+              </span>
+            </button>
           </div>
-        </div>
-      )}
-
-      {/* ---------------- Segmented Tab Bar (Handoff 02 / 05) ---------------- */}
-      <TabTrack style={{ ...S.tabBarWrap, margin: isMobile ? '10px 0 6px' : '14px 0 8px', width: isMobile ? '100%' : 'auto' }}>
-        <div style={{ ...S.tabTrack, width: isMobile ? '100%' : 'auto' }}>
-          <button
-            type="button"
-            onClick={() => setActiveTab('attend')}
-            style={{
-              ...S.tabBtn,
-              ...(isMobile ? S.tabBtnMobile : {}),
-              ...(activeTab === 'attend' ? S.tabBtnActive : {}),
-            }}
-          >
-            <span>{t('sessionTabs.attend')}</span>
-            <span style={{
-              ...S.tabBadgeMono,
-              color: activeTab === 'attend' ? '#5FDBD3' : 'var(--text-muted)',
-            }}>
-              {presentCount(db, s)}/{members.length}
-            </span>
-          </button>
-          <button
-            type="button"
-            onClick={() => setActiveTab('planner')}
-            style={{
-              ...S.tabBtn,
-              ...(isMobile ? S.tabBtnMobile : {}),
-              ...(activeTab === 'planner' ? S.tabBtnActive : {}),
-            }}
-          >
-            <span>{t('sessionTabs.planner')}</span>
-            <span style={{
-              ...S.tabBadgeMono,
-              color: activeTab === 'planner' ? '#5FDBD3' : 'var(--text-muted)',
-            }}>
-              {s.planner?.rounds?.length || 10}
-            </span>
-          </button>
-          <button
-            type="button"
-            onClick={() => setActiveTab('courts')}
-            style={{
-              ...S.tabBtn,
-              ...(isMobile ? S.tabBtnMobile : {}),
-              ...(activeTab === 'courts' ? S.tabBtnActive : {}),
-            }}
-          >
-            <span>{t('sessionTabs.courts')}</span>
-            <span style={{
-              ...S.tabBadgeMono,
-              color: '#5FDBD3',
-            }}>
-              {sessionMatches.length}
-            </span>
-          </button>
-          <button
-            type="button"
-            onClick={() => setActiveTab('matches')}
-            style={{
-              ...S.tabBtn,
-              ...(isMobile ? S.tabBtnMobile : {}),
-              ...(activeTab === 'matches' ? S.tabBtnActive : {}),
-            }}
-          >
-            <span>{t('sessionTabs.matches')}</span>
-            <span style={{
-              ...S.tabBadgeMono,
-              color: '#F0B75C',
-            }}>
-              {sessionMatches.length}{pendingChallengesCount > 0 ? `/${pendingChallengesCount}` : ''}
-            </span>
-          </button>
-        </div>
-      </TabTrack>
+        </TabTrack>
+      </div>
       {!isMobile && (
         <div style={{ font: "400 12px/1.4 'IBM Plex Sans', sans-serif", color: 'var(--text-muted)', margin: '0 0 14px' }}>
           {activeTab === 'attend' ? t('sessionTabs.hintAttend') : activeTab === 'planner' ? t('sessionTabs.hintPlanner') : activeTab === 'courts' ? t('sessionTabs.hintCourts') : t('sessionTabs.hintMatches')}
         </div>
       )}
 
-      {/* Khối nguyện vọng thành viên */}
-      {me && !isClosed && (
+      {/* Khối nguyện vọng thành viên — mobile đã chuyển vào menu ⋯ ở header */}
+      {me && !isClosed && !isMobile && (
         <div style={{
           margin: '0 0 16px',
           padding: '12px 16px',
@@ -1512,7 +1467,7 @@ export default function SessionDetail() {
       )}
 
       {activeTab === 'planner' && <SessionPlannerTab s={s} />}
-      {activeTab === 'courts' && <CourtAssignmentTab s={s} />}
+      {activeTab === 'courts' && <CourtAssignmentTab s={s} preset={courtPreset} />}
       {activeTab === 'matches' && <SessionMatchesTab s={s} onSwitchTab={setActiveTab} />}
 
       {editingGuest && (
@@ -1555,6 +1510,61 @@ export default function SessionDetail() {
           defaultMemberId={me?.id}
           existingWish={myWish}
         />
+      )}
+    </>
+  )
+}
+
+/* ---------------- menu ⋯ header mobile ---------------- */
+
+/**
+ * Panel dùng position fixed neo theo nút, KHÔNG absolute: header mobile để overflow hidden nên
+ * panel absolute bị cắt mất. Lớp phủ trong suốt phía sau để chạm ra ngoài là đóng.
+ */
+function SessionMoreMenu({ items }) {
+  const [anchor, setAnchor] = useState(null)
+  if (!items.length) return null
+
+  return (
+    <>
+      <IconButton
+        icon="ellipsis"
+        size="sm"
+        variant="ghost"
+        label={t('common.more')}
+        active={Boolean(anchor)}
+        onClick={(e) => {
+          const r = e.currentTarget.getBoundingClientRect()
+          setAnchor(anchor ? null : { top: r.bottom + 6, right: document.documentElement.clientWidth - r.right })
+        }}
+      />
+      {anchor && (
+        <>
+          <div onClick={() => setAnchor(null)} style={{ position: 'fixed', inset: 0, zIndex: 40 }} />
+          <div role="menu" style={{ ...S.moreMenu, top: anchor.top, right: anchor.right }}>
+            {items.map((it) => (
+              <button
+                key={it.key}
+                type="button"
+                role="menuitem"
+                disabled={it.disabled}
+                onClick={() => {
+                  setAnchor(null)
+                  it.onClick()
+                }}
+                style={{
+                  ...S.moreMenuItem,
+                  color: it.danger ? 'var(--status-incident-fg)' : 'var(--text-primary)',
+                  opacity: it.disabled ? 0.45 : 1,
+                  cursor: it.disabled ? 'not-allowed' : 'pointer',
+                }}
+              >
+                <Icon name={it.icon} size={16} />
+                <span>{it.label}</span>
+              </button>
+            ))}
+          </div>
+        </>
       )}
     </>
   )
@@ -1949,10 +1959,53 @@ const S = {
     background: '#080F1C',
     border: '1px solid var(--border-subtle)',
     borderRadius: 10,
-    margin: '0 0 12px',
+    margin: 0,
     maxWidth: '100%',
     boxSizing: 'border-box',
     overflow: 'hidden',
+  },
+  // Desktop không ghim — chỉ giữ đúng gap 16px của khung trang như khi header/tab còn là 2 khối rời.
+  pinnedTop: { display: 'grid', gap: 16, minWidth: 0 },
+  // Ghim vào <main> của AppLayout (khung cuộn duy nhất). Các số 14 = padding của main mobile
+  // (AppLayout S.mainMobile): margin âm kéo khối sát mép main, padding trả lại đúng 14px — nên nền
+  // phủ kín cả dải padding quanh header, nội dung trôi bên dưới không lộ ra.
+  // top PHẢI là -14, không phải 0: trình duyệt tính vạch dính từ mép NỘI DUNG của main (đã trừ
+  // padding 14px), nên top: 0 dính ở vạch 14px và để hở một dải cho nội dung lộ lên trên header.
+  pinnedTopMobile: {
+    position: 'sticky',
+    top: -14,
+    zIndex: 20,
+    display: 'grid',
+    gap: 12,
+    minWidth: 0,
+    margin: '-14px -14px 0',
+    padding: '14px 14px 0',
+    background: 'var(--surface-page)',
+  },
+  moreMenu: {
+    position: 'fixed',
+    zIndex: 50,
+    minWidth: 200,
+    padding: 4,
+    display: 'grid',
+    gap: 2,
+    background: 'var(--surface-card)',
+    border: '1px solid var(--border-default)',
+    borderRadius: 10,
+    boxShadow: '0 8px 24px rgba(0,0,0,.35)',
+  },
+  moreMenuItem: {
+    display: 'flex',
+    alignItems: 'center',
+    gap: 10,
+    width: '100%',
+    minHeight: 44,
+    padding: '0 12px',
+    borderRadius: 8,
+    border: 'none',
+    background: 'none',
+    font: '500 14px/1.2 "IBM Plex Sans", sans-serif',
+    textAlign: 'left',
   },
   sessionHeaderSubRowMobile: {
     display: 'flex',

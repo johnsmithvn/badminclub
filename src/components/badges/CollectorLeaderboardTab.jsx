@@ -1,7 +1,7 @@
 import React from 'react'
 import { t } from '#i18n'
 import BadgeHex from './BadgeHex.jsx'
-import { ANIME_TIERS, HEX_CLIP, NOTCH_CLIP, NOTCH_S_CLIP } from '#lib/badges.js'
+import { BADGE_TIERS, HEX_CLIP, NOTCH_CLIP, NOTCH_S_CLIP } from '#lib/badges.js'
 import badgesConfig from '#config/badges.json'
 import { useMobile } from '#hooks/useMobile.js'
 
@@ -41,7 +41,7 @@ export default function CollectorLeaderboardTab({
   ]
 
   // ══════════════════════════════════════════════════════════════════
-  // GIAO DIỆN BẢN ANIME MOBILE AM5 (AM5 · XẾP HẠNG SƯU TẬP · HIẾM NHẤT CLB)
+  // GIAO DIỆN MOBILE AM5 (AM5 · XẾP HẠNG SƯU TẬP · HIẾM NHẤT CLB)
   // ══════════════════════════════════════════════════════════════════
   if (isMobile) {
     return (
@@ -101,7 +101,7 @@ export default function CollectorLeaderboardTab({
                         width: 60,
                         height: '100%',
                         background: 'linear-gradient(90deg, transparent, rgba(255,226,75,.22), transparent)',
-                        animation: 'aSweep 5s ease-in-out infinite',
+                        animation: 'badgeSweep 5s ease-in-out infinite',
                         pointerEvents: 'none',
                       }}
                     />
@@ -299,7 +299,7 @@ export default function CollectorLeaderboardTab({
             {t('badges.leaderboard.scoringTitle')}
           </span>
           {scoringTiers.map((s) => {
-            const tTier = ANIME_TIERS[s.key] || ANIME_TIERS.rare
+            const tTier = BADGE_TIERS[s.key] || BADGE_TIERS.rare
             return (
               <div
                 key={s.key}
@@ -502,7 +502,7 @@ export default function CollectorLeaderboardTab({
                       height: '100%',
                       background:
                         'linear-gradient(90deg, transparent, rgba(255,226,75,.22), transparent)',
-                      animation: 'aSweep 5s ease-in-out infinite',
+                      animation: 'badgeSweep 5s ease-in-out infinite',
                       pointerEvents: 'none',
                     }}
                   />
@@ -755,7 +755,7 @@ export default function CollectorLeaderboardTab({
             </div>
 
             {scoringTiers.map((s) => {
-              const tTier = ANIME_TIERS[s.key] || ANIME_TIERS.rare
+              const tTier = BADGE_TIERS[s.key] || BADGE_TIERS.rare
               return (
                 <div
                   key={s.key}

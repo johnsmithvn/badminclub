@@ -3,6 +3,7 @@ import { useNavigate } from 'react-router-dom'
 import { Dialog, Icon } from '#ds'
 import { useApp } from '#contexts/AppContext.jsx'
 import { useMobile } from '#hooks/useMobile.js'
+import { elapsedMin } from '#hooks/useClock.js'
 import { teamRating, calcPlayerDeltas, getPlayerRating } from '#lib/rating.js'
 import { playerName, playerOf, myMember } from '#lib/money.js'
 import { getChallengeSeriesProgress } from '#lib/challenge.js'
@@ -286,7 +287,11 @@ export default function ScoreModal({ court, session, challenge, onClose, onSaved
         teamB,
         sets: playedSets,
         winnerTeam,
-        minutes: court?.minutes || (court?.startedAt ? Math.max(1, Math.round((Date.now() - court.startedAt) / 60000)) : cfg.match?.defaultMinutes || 20),
+        // Trận xếp sẵn bấm ▶ từ sớm nhưng thường đánh xong mới ghi một loạt — khoảng từ lúc bấm ▶
+        // tới lúc ghi không phải thời lượng trận. Vượt số phút mặc định thì lấy số mặc định.
+        minutes: court?.minutes || (court?.startedAt
+          ? Math.min(elapsedMin(court.startedAt), cfg.match?.defaultMinutes || 20)
+          : cfg.match?.defaultMinutes || 20),
       })
 
       const { nextPlayerRatings = null, ...savedMatch } = res || {}
@@ -309,7 +314,7 @@ export default function ScoreModal({ court, session, challenge, onClose, onSaved
           streak: saved.brokenStreak || 5,
           xp: baseBadge.reward?.xp || 100,
           sp: baseBadge.reward?.seasonPts || 15,
-          elo: saved.eloDelta || 18,
+          elo: saved.eloDelta, // Elo thật của trận; không có thì modal ẩn chip, không điền số bịa
           winnerPlayerIds: winningTeam,
         }
       } else if (currentMember?.id && saved) {
@@ -328,7 +333,7 @@ export default function ScoreModal({ court, session, challenge, onClose, onSaved
               story: nb.story || nb.desc || nb.cond,
               xp: nb.reward?.xp || 50,
               sp: nb.reward?.seasonPts || 10,
-              elo: saved.eloDelta || 10,
+              elo: saved.eloDelta,
             }
           }
         } catch (err) {

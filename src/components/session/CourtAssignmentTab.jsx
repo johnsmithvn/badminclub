@@ -23,19 +23,21 @@ import BalanceScore from '#components/session/BalanceScore.jsx'
 import VoiceMatchModal from '#components/session/VoiceMatchModal.jsx'
 import ScoreModal from '#components/challenge/ScoreModal.jsx'
 
-export default function CourtAssignmentTab({ s }) {
+// `preset`: đội hình nạp sẵn khi bấm "Nạp vào mặt sân" từ nút Đấu lại ở tab Trận. Chỉ đọc lúc
+// mount — SessionDetail xoá nó ở lần đổi tab kế tiếp.
+export default function CourtAssignmentTab({ s, preset }) {
   const { db, a } = useApp()
   const isMobile = useMobile(768)
   const role = db.viewAs || 'owner'
   const canManage = can(role, 'assign')
 
   // Mode: 'doubles' (2 vs 2) hoặc 'singles' (1 vs 1)
-  const [mode, setMode] = useState('doubles')
+  const [mode, setMode] = useState(preset?.mode || 'doubles')
   const maxPerTeam = mode === 'doubles' ? 2 : 1
 
   // Đội A & Đội B (mảng id/key các đấu thủ)
-  const [teamA, setTeamA] = useState([])
-  const [teamB, setTeamB] = useState([])
+  const [teamA, setTeamA] = useState(() => preset?.teamA || [])
+  const [teamB, setTeamB] = useState(() => preset?.teamB || [])
 
   // Quản lý các trận đang diễn ra trên sân (chờ ghi điểm)
   const ongoingStorageKey = `badmin_ongoing_${s?.id}`
@@ -61,8 +63,8 @@ export default function CourtAssignmentTab({ s }) {
   const [voiceTargetMatch, setVoiceTargetMatch] = useState(null)
 
   // Cài đặt sân & Elo
-  const [courtIdx, setCourtIdx] = useState(0)
-  const [ratingEnabled, setRatingEnabled] = useState(true)
+  const [courtIdx, setCourtIdx] = useState(preset?.courtIdx ?? 0)
+  const [ratingEnabled, setRatingEnabled] = useState(preset?.ratingEnabled ?? true)
   const [selectedChallengeId, setSelectedChallengeId] = useState(null)
 
   // Kèo đang được nạp vào form và tiến độ chuỗi BO3
@@ -1710,10 +1712,11 @@ export default function CourtAssignmentTab({ s }) {
                               style={{
                                 ...S.cs1PlayerCard,
                                 borderColor: isFemale ? 'rgba(232,107,168,.45)' : '#2E3E5C',
+                                ...(onCourtPlayerMap[p.key] ? S.cs1PlayerQueued : {}),
                               }}
                               role="button"
                               tabIndex={0}
-                              title={p.name}
+                              title={onCourtPlayerMap[p.key] ? `${p.name} · ${onCourtPlayerMap[p.key]}` : p.name}
                             >
                               <div style={{ flex: 1, minWidth: 0 }}>
                                 <div style={S.cs1PlayerName} title={p.name}>{p.name}</div>
@@ -1721,23 +1724,7 @@ export default function CourtAssignmentTab({ s }) {
                                   {genderTxt(p.gender)} · {p.level || 'TB'}
                                   {p.guest && <span style={S.cs1GuestBadge}>{t('home.tagGuest')}</span>}
                                   {onCourtPlayerMap[p.key] && (
-                                    <span
-                                      style={{
-                                        display: 'inline-flex',
-                                        alignItems: 'center',
-                                        gap: 3,
-                                        padding: '1px 5px',
-                                        borderRadius: 4,
-                                        background: 'rgba(0, 178, 169, 0.18)',
-                                        color: 'var(--action-accent-fg, #00B2A9)',
-                                        border: '1px solid rgba(0, 178, 169, 0.35)',
-                                        fontSize: 10.5,
-                                        fontWeight: 600,
-                                        marginLeft: 4,
-                                      }}
-                                    >
-                                      🎾 {onCourtPlayerMap[p.key]}
-                                    </span>
+                                    <span style={S.cs1QueuedIcon}><Icon name="play" size={10} /></span>
                                   )}
                                 </div>
                               </div>
@@ -1831,10 +1818,11 @@ export default function CourtAssignmentTab({ s }) {
                           style={{
                             ...S.cs1PlayerCard,
                             borderColor: isFemale ? 'rgba(232,107,168,.45)' : '#2E3E5C',
+                            ...(onCourtPlayerMap[p.key] ? S.cs1PlayerQueued : {}),
                           }}
                           role="button"
                           tabIndex={0}
-                          title={p.name}
+                          title={onCourtPlayerMap[p.key] ? `${p.name} · ${onCourtPlayerMap[p.key]}` : p.name}
                         >
                           <div style={{ flex: 1, minWidth: 0 }}>
                             <div style={S.cs1PlayerName} title={p.name}>{p.name}</div>
@@ -1844,6 +1832,9 @@ export default function CourtAssignmentTab({ s }) {
                                 <> · {t('assign.waitingMinutes', { m: Math.round((playerWaitTimeMap[p.key] || 0) / 60000) })}</>
                               )}
                               {p.guest && <span style={S.cs1GuestBadge}>{t('home.tagGuest')}</span>}
+                              {onCourtPlayerMap[p.key] && (
+                                <span style={S.cs1QueuedIcon}><Icon name="play" size={10} /></span>
+                              )}
                             </div>
                           </div>
                           {canManage && (
@@ -3548,6 +3539,18 @@ const S = {
   cs1MatchCount: {
     font: '700 18px/1 Barlow, sans-serif',
     flex: '0 0 auto',
+  },
+  // Người đã có trận xếp sẵn (bấm ▶): mờ đi + icon ▶, không dùng chữ để thẻ không vỡ trên điện
+  // thoại. Vẫn bấm được — một người có thể nằm trong 2 trận xếp sẵn liên tiếp.
+  cs1PlayerQueued: {
+    opacity: 0.45,
+    borderStyle: 'dashed',
+  },
+  cs1QueuedIcon: {
+    display: 'inline-flex',
+    verticalAlign: 'middle',
+    marginLeft: 4,
+    color: 'var(--status-transit-fg)',
   },
   slotActiveHighlight: {
     minHeight: 56,

@@ -1,6 +1,6 @@
 # DESIGN.md
 
-**Version:** v0.4.0 · **Updated:** 2026-09-05
+**Version:** v0.5.0 · **Updated:** 2026-10-03
 
 Hệ thiết kế của app là **TDMS**, lấy nguyên từ handoff. **Không hard-code màu/chữ/khoảng cách mới**
 — mọi giá trị đi qua `var(--*)`. Đọc file này trước khi sửa bất cứ thứ gì thuộc UI/CSS/layout.
@@ -134,7 +134,7 @@ Bản mobile áp dụng cho màn hình ≤768px với **ngưỡng duy nhất: `u
 - **Sidebar 248px bị gỡ hoàn toàn** ở mobile. Điều hướng chuyển sang: Mobile Header trên + Footer Nav 5 slot dưới + Sheet "Thêm" (N1).
 - **Mobile Header:** sticky, `min-height 60px`, `padding 16px 18px`, `background: var(--surface-nav)`, `border-bottom: 1px solid var(--border-nav)`. Trái là tên trang + subtitle mono cho ngày/giờ/CLB; phải là **tối đa một** hành động primary + nút đổi theme.
 - **Switcher CLB không nằm ở header mobile** — đặt trong màn Hồ sơ (`/ca-nhan`) và cuối sheet Thêm.
-- **Nội dung:** 1 cột, `padding 14px`, `padding-bottom 80px` để không bị footer nav che. Mọi grid desktop `minmax(320–420px, 1fr)` chuyển về `1fr`.
+- **Nội dung:** 1 cột, `padding 14px`, `padding-bottom 80px` để không bị footer nav che. Mọi grid desktop `minmax(320–420px, 1fr)` chuyển về `minmax(0, 1fr)` — **không phải** `1fr` trần (xem §8.4).
 - **Thanh footer nav (5 slot):**
   - `background: var(--surface-nav)` · `border-top: 1px solid var(--border-nav)` · `display: grid; grid-template-columns: repeat(5, 1fr)`.
   - `padding: 10px 0 16px` (cộng thêm `env(safe-area-inset-bottom)`).
@@ -166,6 +166,45 @@ Mọi màu từ handoff mobile phải ánh xạ sang CSS variables của app:
 - Nút primary: `var(--action-primary-bg)`
 - Nút primary xanh lá (Chốt buổi): `var(--action-success-bg)` và `var(--action-success-border)`
 - Trạng thái: delivered `var(--status-delivered-fg)`, delayed `var(--status-delayed-fg)`, incident `var(--status-incident-fg)`, transit `var(--status-transit-fg)`.
+
+### 8.4 🚨 Tên dài không được đẩy lệch màn hình (bắt buộc)
+
+> Lỗi "tên dài đẩy lệch màn hình mobile" đã bị "sửa" 4 lần (20/9 → 24/9) bằng cách đổi qua lại
+> giữa hai nửa giải pháp, lần nào cũng quay lại. Đọc hết mục này trước khi đụng vào chỗ hiện tên.
+
+**Cách duy nhất được dùng — đủ cả hai vế:**
+
+1. Tên hiện **đủ**, cắt bằng CSS: `minWidth: 0, overflow: 'hidden', textOverflow: 'ellipsis',
+   whiteSpace: 'nowrap'`, kèm `title={name}` để xem tên trọn vẹn.
+2. **Mọi tầng bọc** từ dòng tên lên tới gốc trang phải cho phép co:
+   - Lưới: cột viết `minmax(0, 1fr)` — **cấm** `1fr` trần, `'1fr 1fr'`, `repeat(n, 1fr)`,
+     `'40px 1fr auto'`. Lưới xếp dọc chỉ có `gap` (không khai cột) mà bọc tên cũng phải thêm
+     `gridTemplateColumns: 'minmax(0, 1fr)'` — không khai cột tức là cột `auto`, hỏng y hệt.
+   - Flex item chứa tên: `minWidth: 0`.
+   - Không đặt `flexShrink: 0` lên phần tử có tên `nowrap`. Muốn con số không bị cắt thì tách hai
+     span: tên co được + ellipsis, số `flexShrink: 0` (mẫu: thẻ "Sắp trao" ở `SeasonRaceTab.jsx`).
+
+**Vì sao `1fr` trần gây tràn:** `1fr` = `minmax(auto, 1fr)`. Phần `auto` bắt cột không được hẹp
+hơn độ rộng tối thiểu của nội dung — với tên `nowrap` thì đó là **cả cái tên**. Cột phình ra, đẩy
+cả thẻ qua mép màn hình, `ellipsis` không có cơ hội cắt. Chỉ cần **một** tầng bọc dùng cột auto là
+đủ hỏng, dù các tầng dưới đã `minWidth: 0` đầy đủ.
+
+**Cấm:**
+
+- Dùng `shortName()` (cắt tên trong JS) để chữa tràn. Nó chỉ che lỗi: tên ngắn đi nên cột không
+  phình, nhưng gốc vẫn nằm đó — người sau thấy tên bị cắt cứng sẽ gỡ đi và lỗi quay lại (đúng
+  chuyện đã xảy ra ngày 21/9 và 24/9).
+- Sửa test chống tràn cho xanh trong cùng commit với việc gỡ phần chặn (commit `6c222e9` ngày
+  24/9 đã làm vậy). Test đỏ thì dừng và hỏi user — `RULES.md` §5.
+
+**Ngoại lệ:** lưới mà ô chắc chắn không chứa chữ dài (chỉ icon, số cố định) được giữ `fr` trần nếu
+ghi `// layout-ok: <lý do>` cuối dòng. Giống `// i18n-ok`: test tin tuyệt đối vào dấu này, đừng rải bừa.
+
+**Gác tự động:** `src/__tests__/smoke/layout_overflow.test.js` quét `src/` và cấm `fr` trần mới.
+Nợ cũ (116 chỗ / 39 file tại 2026-10-03, kể cả lớp tiện ích `.mobile-grid-1col` trong
+`tokens/base.css`) nằm trong `KNOWN_DEBT`, chỉ được giảm. Test chỉ thấy giá trị cột viết dạng
+chuỗi: **không** thấy lưới không khai cột, giá trị ghép từ biến số, và không đo layout thật — vẫn
+phải tự thử một tên dài (~30 ký tự) trên màn 375px.
 
 
 ## 9. Khi cần một thứ chưa có

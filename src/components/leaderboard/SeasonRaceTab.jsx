@@ -168,13 +168,15 @@ export default function SeasonRaceTab({
       data-screen-label="SS1 Dua top mua giai"
       style={{
         display: 'grid',
-        gridTemplateColumns: isMobile ? '1fr' : 'minmax(0, 1fr) 356px',
+        gridTemplateColumns: isMobile ? 'minmax(0, 1fr)' : 'minmax(0, 1fr) 356px',
         gap: 16,
         alignItems: 'start',
       }}
     >
+      {/* Mọi lưới bọc tên đều phải minmax(0, 1fr): cột 'auto'/'1fr' nở theo độ rộng tối thiểu
+          của tên dài (nowrap) và đẩy cả thẻ ra ngoài màn hình, ellipsis không kịp cắt. */}
       {/* CỘT TRÁI (BẢNG ĐUA TOP & TIẾN TRÌNH) */}
-      <div style={{ display: 'grid', gap: 12 }}>
+      <div style={{ display: 'grid', gridTemplateColumns: 'minmax(0, 1fr)', gap: 12 }}>
         {/* Chọn mùa + tiến trình mùa chung một thẻ; tiến trình thu gọn mặc định, bấm để mở */}
         <div
           style={{
@@ -484,6 +486,7 @@ export default function SeasonRaceTab({
                 background: 'linear-gradient(180deg, #18212F, #101827 62%)',
                 padding: 12,
                 display: 'grid',
+                gridTemplateColumns: 'minmax(0, 1fr)',
                 gap: 10,
                 boxShadow: '0 8px 32px rgba(0, 0, 0, 0.45)',
               }}
@@ -1367,7 +1370,7 @@ export default function SeasonRaceTab({
       </div>
 
       {/* CỘT PHẢI (SẮP TRAO, ĐIỂM ĐẾN TỪ ĐÂU, MINI CHART) */}
-      <div style={{ display: 'grid', gap: 12 }}>
+      <div style={{ display: 'grid', gridTemplateColumns: 'minmax(0, 1fr)', gap: 12 }}>
         {/* 1. Bảng 5 dải điểm Elo (+14 / -8) */}
         <div
           style={{
@@ -1496,11 +1499,13 @@ export default function SeasonRaceTab({
               }}
             >
               <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', gap: 8 }}>
-                <span style={{ font: "600 12.5px/1.2 'IBM Plex Sans', sans-serif", color: 'var(--text-primary)' }}>
+                <span style={{ font: "600 12.5px/1.2 'IBM Plex Sans', sans-serif", color: 'var(--text-primary)', flexShrink: 0 }}>
                   {t('season.awardTitlePointsKing')}
                 </span>
-                <span style={{ fontFamily: "'IBM Plex Mono', monospace", font: "600 12px/1 'IBM Plex Mono', monospace", color: 'var(--text-primary)', whiteSpace: 'nowrap', flexShrink: 0 }}>
-                  {top1?.name || '—'} · <span style={{ color: isDark ? '#5FDBD3' : 'var(--teal-700)' }}>{top1?.totalSeasonPoints ?? 0}</span>
+                {/* Tên dài tự cắt "…", con số luôn hiện đủ */}
+                <span style={{ display: 'flex', gap: 4, minWidth: 0, font: "600 12px/1 'IBM Plex Mono', monospace", color: 'var(--text-primary)', whiteSpace: 'nowrap' }}>
+                  <span title={top1?.name} style={{ minWidth: 0, overflow: 'hidden', textOverflow: 'ellipsis' }}>{top1?.name || '—'}</span>
+                  <span style={{ flexShrink: 0 }}>· <span style={{ color: isDark ? '#5FDBD3' : 'var(--teal-700)' }}>{top1?.totalSeasonPoints ?? 0}</span></span>
                 </span>
               </div>
               <div style={{ font: "400 11.5px/1.3 'IBM Plex Sans', sans-serif", color: 'var(--text-muted)' }}>
@@ -1521,11 +1526,12 @@ export default function SeasonRaceTab({
               }}
             >
               <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', gap: 8 }}>
-                <span style={{ font: "600 12.5px/1.2 'IBM Plex Sans', sans-serif", color: 'var(--text-primary)' }}>
+                <span style={{ font: "600 12.5px/1.2 'IBM Plex Sans', sans-serif", color: 'var(--text-primary)', flexShrink: 0 }}>
                   {t('season.awardTitleMostDiligent')}
                 </span>
-                <span style={{ fontFamily: "'IBM Plex Mono', monospace", font: "600 12px/1 'IBM Plex Mono', monospace", color: 'var(--text-primary)', whiteSpace: 'nowrap', flexShrink: 0 }}>
-                  {topStats.mostAttendedPlayer?.name || '—'} · <span style={{ color: isDark ? '#5FDBD3' : 'var(--teal-700)' }}>{topStats.mostAttendedPlayer?.attendedCount ?? 0}/{playedSessions}</span>
+                <span style={{ display: 'flex', gap: 4, minWidth: 0, font: "600 12px/1 'IBM Plex Mono', monospace", color: 'var(--text-primary)', whiteSpace: 'nowrap' }}>
+                  <span title={topStats.mostAttendedPlayer?.name} style={{ minWidth: 0, overflow: 'hidden', textOverflow: 'ellipsis' }}>{topStats.mostAttendedPlayer?.name || '—'}</span>
+                  <span style={{ flexShrink: 0 }}>· <span style={{ color: isDark ? '#5FDBD3' : 'var(--teal-700)' }}>{topStats.mostAttendedPlayer?.attendedCount ?? 0}/{playedSessions}</span></span>
                 </span>
               </div>
               <div style={{ font: "400 11.5px/1.3 'IBM Plex Sans', sans-serif", color: 'var(--text-muted)' }}>
@@ -1546,11 +1552,12 @@ export default function SeasonRaceTab({
               }}
             >
               <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', gap: 8 }}>
-                <span style={{ font: "600 12.5px/1.2 'IBM Plex Sans', sans-serif", color: 'var(--text-primary)' }}>
+                <span style={{ font: "600 12.5px/1.2 'IBM Plex Sans', sans-serif", color: 'var(--text-primary)', flexShrink: 0 }}>
                   {t('season.awardTitleUpsetHunter')}
                 </span>
-                <span style={{ fontFamily: "'IBM Plex Mono', monospace", font: "600 12px/1 'IBM Plex Mono', monospace", color: 'var(--text-primary)', whiteSpace: 'nowrap', flexShrink: 0 }}>
-                  {topStats.mostUpsetsPlayer?.name || '—'} · <span style={{ color: isDark ? '#F0D26A' : 'var(--amber-700)' }}>{topStats.mostUpsetsPlayer?.upsetsCount ?? 0} {t('units.times')}</span>
+                <span style={{ display: 'flex', gap: 4, minWidth: 0, font: "600 12px/1 'IBM Plex Mono', monospace", color: 'var(--text-primary)', whiteSpace: 'nowrap' }}>
+                  <span title={topStats.mostUpsetsPlayer?.name} style={{ minWidth: 0, overflow: 'hidden', textOverflow: 'ellipsis' }}>{topStats.mostUpsetsPlayer?.name || '—'}</span>
+                  <span style={{ flexShrink: 0 }}>· <span style={{ color: isDark ? '#F0D26A' : 'var(--amber-700)' }}>{topStats.mostUpsetsPlayer?.upsetsCount ?? 0} {t('units.times')}</span></span>
                 </span>
               </div>
               <div style={{ font: "400 11.5px/1.3 'IBM Plex Sans', sans-serif", color: 'var(--text-muted)' }}>

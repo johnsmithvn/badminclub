@@ -15,6 +15,14 @@ import {
   resolveNotificationPayload,
   notifyRecipients,
   notifiableMemberIds,
+  parseScoreWinningLosing,
+  getPlayerInitials,
+  getAvatarBg,
+  getPlayerProfile,
+  resolveTeamProfiles,
+  resolveActivityRow2a,
+  groupActivities2a,
+  activityLinkOf,
 } from '#lib/activity.js'
 
 console.log('--- Testing detectMatchNarrative ---')
@@ -428,3 +436,295 @@ assert.equal(actOld.losers, 'Kuro')
 assert.equal(actOld.matchCode, 'M-09')
 
 console.log('match_recorded payload: OK')
+
+console.log('--- Testing Option 2a helper functions ---')
+
+// 1. parseScoreWinningLosing
+assert.deepEqual(
+  parseScoreWinningLosing('21-19'),
+  { ws: '21', ls: '19', diff: 2 },
+  '21-19 should parse to ws: 21, ls: 19, diff: 2'
+)
+assert.deepEqual(
+  parseScoreWinningLosing('21-15, 18-21, 22-20'),
+  { ws: '22', ls: '20', diff: 2 },
+  'deciding set 22-20 should be parsed'
+)
+assert.deepEqual(
+  parseScoreWinningLosing('15-21'),
+  { ws: '21', ls: '15', diff: 6 },
+  'inverted 15-21 should still place higher score as ws'
+)
+assert.deepEqual(
+  parseScoreWinningLosing('1-0'),
+  { ws: '1', ls: '0', diff: 1 },
+  '1-0 series score should parse'
+)
+
+// 2. getPlayerInitials & getAvatarBg
+assert.equal(getPlayerInitials('Kuro'), 'K')
+assert.equal(getPlayerInitials('Vân Anh'), 'VA')
+assert.equal(getPlayerInitials('Nguyễn Thị Thúy'), 'NT')
+assert.ok(typeof getAvatarBg('m1', 'Quân') === 'string')
+
+// 3. resolveActivityRow2a & groupActivities2a
+const sampleEvents = [
+  {
+    id: 'ev-1',
+    type: 'match_recorded',
+    created_at: '2026-09-29T14:48:00.000Z',
+    payload: {
+      matchId: 'm-101',
+      winnerIds: ['m1', 'm2'],
+      loserIds: ['m3', 'g1'],
+      score: '22-20',
+      narrativeType: 'clutch',
+    },
+  },
+  {
+    id: 'ev-2',
+    type: 'bounty_broken',
+    created_at: '2026-09-29T14:48:00.000Z',
+    payload: {
+      matchId: 'm-101',
+      streak: 5,
+      victimIds: ['m3'],
+      breakerIds: ['m1', 'm2'],
+    },
+  },
+  {
+    id: 'ev-3',
+    type: 'challenge_completed',
+    created_at: '2026-09-29T10:00:00.000Z',
+    payload: {
+      code: 'C-0121',
+      winnerIds: ['m1'],
+      loserIds: ['m2'],
+      seriesScore: '1-0',
+    },
+  },
+]
+
+const grouped = groupActivities2a(sampleEvents, mockDb)
+assert.equal(grouped.length, 1, 'Both events are on same day 2026-09-29')
+assert.equal(grouped[0].items.length, 2, 'bounty_broken should be absorbed into match_recorded')
+
+const rowMatch = grouped[0].items[0]
+assert.equal(rowMatch.isMatch, true)
+assert.equal(rowMatch.ws, '22')
+assert.equal(rowMatch.ls, '20')
+assert.equal(rowMatch.hasLeadAv, true)
+assert.equal(rowMatch.hasStreak, true, 'Streak should be attached from bounty event')
+assert.ok(rowMatch.streakText.includes('5'), 'Streak text should mention 5')
+
+const rowResolved = grouped[0].items[1]
+assert.equal(rowResolved.isResolved, true)
+assert.equal(rowResolved.code, 'C-0121')
+assert.equal(rowResolved.ws, '1')
+assert.equal(rowResolved.ls, '0')
+
+// 4. Trận nhiều set: `scoreText` là SỐ SET ("2 – 1", gạch ngang dài như appActions ghi), còn
+// "cách N điểm" phải lấy điểm thật từ set của trận — không được ra "hơn đúng 1 điểm".
+assert.deepEqual(parseScoreWinningLosing('2 – 1'), { ws: '2', ls: '1', diff: 1 })
+const multiSetDb = {
+  members: mockMembers,
+  matches: [
+    { id: 'bo3-clutch', sets: [[21, 15], [18, 21], [22, 20]], winnerTeam: 'A' },
+    { id: 'bo3-blowout', sets: [[21, 8], [21, 17]], winnerTeam: 'A' },
+  ],
+}
+const matchRow = (matchId, score, narrativeType) => resolveActivityRow2a({
+  id: matchId, type: 'match_recorded', created_at: '2026-09-29T10:00:00.000Z',
+  payload: { matchId, score, narrativeType, winnerIds: ['m1'], loserIds: ['m2'] },
+}, multiSetDb)
+
+const clutchRow = matchRow('bo3-clutch', '2 – 1', 'clutch')
+assert.equal(clutchRow.ws, '2', 'cột phải vẫn hiện số set')
+assert.equal(clutchRow.ls, '1')
+assert.ok(clutchRow.caption.includes('2 điểm'), 'nghẹt thở lấy chênh lệch set cuối 22-20: ' + clutchRow.caption)
+
+const blowoutRow = matchRow('bo3-blowout', '2 – 0', 'blowout')
+assert.ok(blowoutRow.caption.includes('13 điểm'), 'áp đảo lấy set chênh nhất 21-8: ' + blowoutRow.caption)
+
+const unknownRow = matchRow('da-xoa', '2 – 0', 'normal')
+assert.ok(!/\d/.test(unknownRow.caption), 'không có set thì không in con số: ' + unknownRow.caption)
+
+// 5. Trạng thái kèo theo đúng `status` mà appActions ghi — không phải cái gì cũng "Chờ nhận".
+const keoRow = (status, extra = {}) => resolveActivityRow2a({
+  id: 'k', type: 'challenge_created', ref_id: 'c1', created_at: '2026-09-29T10:00:00.000Z',
+  payload: { chalId: 'c1', code: 'C-01', challengerIds: ['m1', 'm3'], opponentIds: ['m2', 'm4'] },
+}, status ? { members: mockMembers, challenges: [{ id: 'c1', code: 'C-01', status, ...extra }] } : { members: mockMembers })
+const inOneHour = new Date(Date.now() + 3600000).toISOString()
+assert.equal(keoRow('pending', { expiresAt: inOneHour }).keoStatus, 'Chờ nhận')
+assert.equal(keoRow('accepted').keoStatus, 'Đã nhận · chờ đấu')
+assert.equal(keoRow('oncourt').keoStatus, 'Đang trên sân')
+assert.equal(keoRow('played').keoStatus, 'Đã đấu')
+assert.equal(keoRow('cancelled').keoStatus, 'Đã hủy')
+assert.equal(keoRow(null).keoStatus, '', 'không còn thấy kèo thì để trống, không đoán')
+
+// Từ chối là âm thầm: Bảng tin cả CLB đọc, nên "bị từ chối" và "hết hạn" phải KHÔNG phân biệt
+// được — tách nhãn là lộ ra đội B đã từ chối.
+assert.equal(keoRow('declined').keoStatus, 'Không thành')
+assert.equal(keoRow('expired').keoStatus, 'Không thành')
+assert.equal(
+  keoRow('pending', { expiresAt: '2026-01-01T00:00:00.000Z' }).keoStatus,
+  'Không thành',
+  'pending đã quá hạn nhận mà chưa ai quét sang expired cũng là kèo không thành'
+)
+
+// 7. Bấm dòng: kèo → Sàn kèo, buổi → trang buổi; thứ không còn / kèo "Không thành" thì không bấm
+const linkDb = {
+  challenges: [
+    { id: 'c-live', status: 'accepted' },
+    { id: 'c-dec', status: 'declined' },
+    { id: 'c-exp', status: 'expired' },
+  ],
+  sessions: [{ id: 's1', status: 'open' }, { id: 's2', status: 'closed' }],
+}
+const linkOfRef = (ref_type, ref_id) => activityLinkOf({ ref_type, ref_id }, linkDb)
+assert.equal(linkOfRef('challenge', 'c-live'), '/tran-dau?tab=challenges&challengeId=c-live')
+assert.equal(linkOfRef('session', 's1'), '/buoi-tap/s1')
+assert.equal(linkOfRef('challenge', 'c-gone'), null, 'kèo không còn thì không đưa tới màn trống')
+assert.equal(linkOfRef('challenge', 'c-dec'), null, 'kèo từ chối: mở ra là thẻ kèo ghi "Từ chối"')
+assert.equal(linkOfRef('challenge', 'c-exp'), null, 'hết hạn khoá cùng từ chối để không đoán được')
+
+// Trận → Lịch sử lọc đúng hai cặp; đội thắng đứng A; thành viên đứng đầu cặp (ô chọn không có khách)
+const matchLinkDb = {
+  members: [{ id: 'kuro' }, { id: 'hoa' }, { id: 'hang' }],
+  matches: [{ id: 'mt-x', teamA: ['g-khach', 'hang'], teamB: ['kuro', 'hoa'], winnerTeam: 'B' }],
+}
+const mLink = new URL(activityLinkOf({ ref_type: 'match', ref_id: 'mt-x' }, matchLinkDb), 'http://x')
+assert.equal(mLink.pathname, '/tran-dau')
+assert.equal(mLink.searchParams.get('tab'), 'search')
+assert.equal(mLink.searchParams.get('pairA'), 'kuro,hoa', 'đội thắng đứng A')
+assert.equal(mLink.searchParams.get('pairB'), 'hang,g-khach', 'thành viên lên đầu cặp')
+assert.equal(mLink.searchParams.get('playerA'), 'kuro')
+assert.equal(mLink.searchParams.get('playerB'), 'hang')
+assert.equal(mLink.searchParams.get('matchId'), null, 'không mở modal chi tiết trận')
+assert.equal(activityLinkOf({ ref_type: 'match', ref_id: 'da-huy' }, matchLinkDb), null, 'trận đã huỷ không bấm được')
+
+const sessionRow = (sessionId) => resolveActivityRow2a({
+  id: 'so', type: 'session_opened', ref_id: sessionId, created_at: '2026-09-29T10:00:00.000Z',
+  payload: { sessionId, date: '2026-10-02' },
+}, linkDb)
+assert.equal(sessionRow('s1').canRsvp, true)
+assert.equal(sessionRow('s2').canRsvp, false, 'buổi đã chốt thì không mời điểm danh nữa')
+
+// 8. Sửa / huỷ trận: dòng gốc kể kết quả HIỆN TẠI + nhãn + lịch sử; dòng báo riêng ở đầu Bảng tin
+{
+  const recorded = {
+    id: 'r1', type: 'match_recorded', ref_type: 'match', ref_id: 'mx', created_at: '2026-09-27T12:20:00.000Z',
+    payload: { matchId: 'mx', matchCode: 'M-12', score: '21 – 16', winnerTeam: 'A', narrativeType: 'normal', winnerIds: ['m1', 'm2'], loserIds: ['m3', 'm4'] },
+  }
+  const bounty = {
+    id: 'b1', type: 'bounty_broken', ref_type: 'match', ref_id: 'mx', created_at: '2026-09-27T12:20:01.000Z',
+    payload: { matchId: 'mx', streak: 5, breakerIds: ['m1', 'm2'], victimIds: ['m3'] },
+  }
+  // Sửa lật kết quả: đội B thắng 21-19 (newScore ghi điểm đội A trước)
+  const edited = {
+    id: 'e1', type: 'match_edited', ref_type: 'match', ref_id: 'mx', actor_id: 'm5', created_at: '2026-09-27T12:40:00.000Z',
+    payload: { matchId: 'mx', matchCode: 'M-12', newScore: '19-21', reason: 'nhập nhầm đội' },
+  }
+  const cancelled = {
+    id: 'c1', type: 'match_cancelled', ref_type: 'match', ref_id: 'mx', actor_id: 'm5', created_at: '2026-09-27T13:05:00.000Z',
+    payload: { matchId: 'mx', matchCode: 'M-12', reason: 'Xóa' },
+  }
+  const dbEdited = {
+    members: mockMembers,
+    matches: [{ id: 'mx', teamA: ['m1', 'm2'], teamB: ['m3', 'm4'], sets: [[19, 21]], winnerTeam: 'B', scoreText: '21 – 16' }],
+  }
+  const rowsOf = (events, db) => groupActivities2a(events, db).flatMap((d) => d.items)
+
+  // Đã sửa: Bảng tin mới → cũ = [edited, bounty, recorded]
+  const rows = rowsOf([edited, bounty, recorded], dbEdited)
+  assert.equal(rows.length, 2, 'dòng báo sửa vẫn hiện riêng, chặn chuỗi gộp vào trận')
+  const [announce, matchRow] = rows
+  assert.equal(announce.isMatchChange, true)
+  assert.equal(announce.actor, 'Minh')
+  assert.equal(announce.before, 'Quân & Kuro thắng 21–16')
+  assert.equal(announce.after, 'Vân & Mai thắng 21–19')
+  assert.equal(announce.reason, 'nhập nhầm đội')
+  assert.ok(announce.link?.includes('pairA=m3%2Cm4'), 'bấm dòng báo sửa → Lịch sử, đội thắng MỚI đứng A')
+
+  assert.equal(matchRow.badge?.text, 'Đã sửa')
+  assert.equal(matchRow.W.names, 'Vân & Mai', 'dòng gốc kể kết quả hiện tại')
+  assert.equal(matchRow.ws, '21')
+  assert.equal(matchRow.ls, '19', '`scoreText` không đổi khi sửa — phải đọc từ set')
+  assert.equal(matchRow.hasStreak, false, 'lật kết quả thì chặn chuỗi không còn đúng')
+  assert.deepEqual(matchRow.history.map((h) => h.kind), ['recorded', 'edited'])
+  assert.equal(matchRow.history[1].by, 'Minh')
+
+  // Đã huỷ: trận không còn trong db, log sửa đã bị CASCADE xoá — lịch sử vẫn dựng được từ Bảng tin
+  const rows2 = rowsOf([cancelled, edited, bounty, recorded], { members: mockMembers, matches: [] })
+  const cancelRow = rows2.find((r) => r.isMatchChange && r.isCancelChange)
+  assert.equal(cancelRow.before, 'Vân & Mai thắng 21–19', 'bản bị huỷ là bản sau lần sửa')
+  assert.equal(cancelRow.reason, '', 'chữ "Xóa" mặc định không phải lý do')
+  assert.equal(cancelRow.link, null, 'trận đã huỷ không bấm được')
+  const cancelledMatch = rows2.find((r) => r.isMatch)
+  assert.equal(cancelledMatch.isCancelled, true)
+  assert.equal(cancelledMatch.badge?.text, 'Đã huỷ')
+  assert.equal(cancelledMatch.hasStreak, false)
+  assert.deepEqual(cancelledMatch.history.map((h) => h.kind), ['recorded', 'edited', 'cancelled'])
+
+  // Chưa ai sửa: không nhãn, không lịch sử
+  const plain = rowsOf([recorded], { members: mockMembers, matches: [] })[0]
+  assert.equal(plain.badge, null)
+  assert.deepEqual(plain.history, [])
+}
+
+// 9. Kèo ngã ngũ lại / bị lật / bị huỷ kết quả — đọc kết quả hiện tại từ kèo
+{
+  const done = (id, at, winnerIds, loserIds, seriesScore) => ({
+    id, type: 'challenge_completed', ref_type: 'challenge', ref_id: 'ck', created_at: at,
+    payload: { chalId: 'ck', code: 'C-0121', winnerIds, loserIds, seriesScore },
+  })
+  const first = done('d1', '2026-09-27T13:01:00.000Z', ['m1', 'm2'], ['m3', 'm4'], '1-0')
+  const again = done('d2', '2026-09-27T13:30:00.000Z', ['m3', 'm4'], ['m1', 'm2'], '1-0')
+  const chal = (extra) => ({ id: 'ck', code: 'C-0121', teamA: ['m1', 'm2'], teamB: ['m3', 'm4'], ...extra })
+
+  // Huỷ ván rồi đánh lại → 2 sự kiện ngã ngũ, chỉ 1 dòng sống, dòng cũ thành lịch sử
+  const rows = groupActivities2a([again, first], { members: mockMembers, challenges: [chal({ status: 'played', winnerTeam: 'B' })] })
+    .flatMap((d) => d.items)
+  assert.equal(rows.length, 1)
+  assert.equal(rows[0].id, 'd2')
+  assert.equal(rows[0].badge?.text, 'Đã sửa')
+  assert.deepEqual(rows[0].history.map((h) => h.winners), ['Quân & Kuro', 'Vân & Mai'])
+
+  // Sửa ván lật đội thắng, không có sự kiện mới → dòng cũ tự kể kết quả mới
+  const flipped = resolveActivityRow2a(first, { members: mockMembers, challenges: [chal({ status: 'played', winnerTeam: 'B' })] })
+  assert.equal(flipped.W.names, 'Vân & Mai')
+  assert.deepEqual(flipped.history.map((h) => h.kind), ['resolved', 'current'])
+
+  // Huỷ ván quyết định → kèo quay về 'accepted': kết quả bị huỷ
+  const voided = resolveActivityRow2a(first, { members: mockMembers, challenges: [chal({ status: 'accepted' })] })
+  assert.equal(voided.isVoid, true)
+  assert.equal(voided.badge?.text, 'Đã huỷ')
+
+  // Không đổi gì → không nhãn
+  const same = resolveActivityRow2a(first, { members: mockMembers, challenges: [chal({ status: 'played', winnerTeam: 'A' })] })
+  assert.equal(same.badge, null)
+}
+
+// 10. Huỷ kèo: dòng gạ kèo đã hiện "Đã hủy" thì bỏ dòng huỷ riêng; gạ kèo ở trang chưa tải thì giữ
+{
+  const created = {
+    id: 'g1', type: 'challenge_created', ref_type: 'challenge', ref_id: 'c129', created_at: '2026-10-02T06:10:00.000Z',
+    payload: { chalId: 'c129', code: 'C-0129', challengerIds: ['m1', 'm2'], opponentIds: ['m3', 'm4'] },
+  }
+  const cancelled = {
+    id: 'x1', type: 'challenge_cancelled', ref_type: 'challenge', ref_id: 'c129', created_at: '2026-10-02T06:18:00.000Z',
+    payload: { code: 'C-0129' },
+  }
+  const db = { members: mockMembers, challenges: [{ id: 'c129', code: 'C-0129', status: 'cancelled' }] }
+  const both = groupActivities2a([cancelled, created], db).flatMap((d) => d.items)
+  assert.deepEqual(both.map((r) => r.id), ['g1'], 'chỉ còn dòng gạ kèo')
+  assert.equal(both[0].keoStatus, 'Đã hủy')
+
+  const onlyCancel = groupActivities2a([cancelled], db).flatMap((d) => d.items)
+  assert.deepEqual(onlyCancel.map((r) => r.id), ['x1'], 'gạ kèo chưa tải thì dòng huỷ là tin duy nhất')
+}
+
+// 6. Tên bắt đầu bằng emoji không bị cắt đôi cặp surrogate
+assert.equal(getPlayerInitials('🐔 Gà'), '🐔G')
+
+console.log('Option 2a helpers: OK')

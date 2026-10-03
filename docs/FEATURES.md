@@ -515,20 +515,18 @@ Trang `/tong-quan` (Route key `overview`, component `src/pages/Home.jsx`) là **
 
 ---
 
-## 15. Kho Danh Hiệu & Huy Hiệu Anime Thành Tích (`/danh-hieu` & `src/lib/badges.js`)
+## 15. Kho Danh Hiệu & Huy Hiệu Thành Tích (`/danh-hieu` & `src/lib/badges.js`)
 
-Trang `/danh-hieu` (Route key `badges`, component `src/pages/Badges.jsx`) cung cấp hệ thống huy hiệu và danh hiệu anime thể thao phong phú:
+Trang `/danh-hieu` (Route key `badges`, component `src/pages/Badges.jsx`) cung cấp hệ thống huy hiệu và danh hiệu thành tích thể thao:
 
-- **3 Tab chính**:
+- **2 Tab chính**:
   1. **Bộ sưu tập (`collection`)**:
-     - Danh sách huy hiệu lấy cảm hứng từ các bộ anime thể thao kinh điển, chia theo các hệ: *Chiến Binh, Bất Bại, Cặp Đôi, Thâm Niên, Kình Địch, Nghệ Sĩ Sân Cầu*.
+     - Danh sách huy hiệu chia theo các hệ: *Chiến Binh, Bất Bại, Cặp Đôi, Thâm Niên, Kình Địch, Nghệ Sĩ Sân Cầu*.
      - Mỗi huy hiệu có các cấp bậc độ hiếm (Đồng, Bạc, Vàng, Kim Cương, Thần Thoại), điều kiện mở khóa tự động dựa trên phân tích số liệu thực chiến (`lib/badges.js: calculateMemberBadges`).
      - **Kệ 3 Huy Hiệu Danh Dự (`BadgeShelf`)**: Cho phép thành viên tự chọn 3 huy hiệu ưng ý nhất ghim lên kệ vinh danh hiển thị ở đầu hồ sơ cá nhân và Hero Card.
      - **Châm ngôn cá nhân (`signature`)**: Lời tuyên ngôn / slogan ngắn hiển thị trên thẻ cá nhân.
-  2. **Bảng Treo Thưởng Vua Lì Đòn (`bounty`)**:
-     - Tự động phát lệnh truy nã (Wanted Poster) cho đấu thủ đang sở hữu chuỗi thắng dài nhất CLB ($\ge 3$ trận).
-     - Ghi nhận phần thưởng Điểm Mùa (Season Bounty) cho người nào xuất sắc đánh bại được Vua Lì Đòn, lưu vết danh dự `bounty_broken`.
-  3. **BXH Người Sưu Tập (`leaderboard`)**:
+     - **Banner truy nã (`BountyHeroPoster`)**: đầu màn Bộ sưu tập (desktop lẫn mobile) treo thưởng người đang có chuỗi thắng dài nhất CLB (ngưỡng ở `badges.json → bounty`); ai đánh bại nhận XP + Điểm mùa, lưu vết `bounty_broken`. Trang Truy nã riêng đã bỏ 2026-10-03 vì trùng với banner này.
+  2. **BXH Người Sưu Tập (`leaderboard`)**:
      - Xếp hạng các thành viên theo tổng số huy hiệu và điểm thành tích sưu tập đạt được.
      - Danh sách các huy hiệu hiếm nhất (Rarest Badges) toàn CLB và những ai đang sở hữu chúng.
 

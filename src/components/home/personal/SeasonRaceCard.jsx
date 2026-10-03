@@ -288,7 +288,9 @@ const S = {
     display: 'flex',
     flexDirection: 'column',
     gap: 12,
-    overflow: 'hidden',
+    // KHÔNG `overflow: hidden`: menu chọn người của `SearchSelect` là popover `position: absolute`
+    // nằm TRONG thẻ — cắt tràn là menu bị xén mất phần dưới. Nội dung đã cách mép bằng padding,
+    // biểu đồ có khung cuộn riêng (`chartContainer`), nên không có gì cần cắt ở đây.
   },
   headerRow: {
     display: 'flex',

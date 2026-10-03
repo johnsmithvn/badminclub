@@ -485,7 +485,7 @@ export default function EditScoreModal({ match: initialMatch, onClose, onSaved, 
             streak: saved.brokenStreak || 5,
             xp: baseBadge.reward?.xp || 100,
             sp: baseBadge.reward?.seasonPts || 15,
-            elo: saved.eloDelta || 18,
+            elo: saved.eloDelta, // Elo thật của trận; không có thì modal ẩn chip, không điền số bịa
             winnerPlayerIds: winningTeam,
           }
         } else {
@@ -512,7 +512,7 @@ export default function EditScoreModal({ match: initialMatch, onClose, onSaved, 
               story: nb.story || nb.desc || nb.cond,
               xp: nb.reward?.xp || 50,
               sp: nb.reward?.seasonPts || 10,
-              elo: saved.eloDelta || 10,
+              elo: saved.eloDelta,
               winnerPlayerIds: [currentMember.id],
             }
           }

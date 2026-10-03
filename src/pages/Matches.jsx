@@ -1,4 +1,4 @@
-import { useState, useMemo, useCallback, useEffect } from 'react'
+import { useState, useMemo, useCallback, useEffect, useRef } from 'react'
 import { useNavigate, useSearchParams } from 'react-router-dom'
 import { Alert, Avatar, Button, Card, Dialog, Icon, IconButton, Input, Select, StatCard } from '#ds'
 import { LevelChip, Mono, Overline, PageHeader, SearchSelect, TabBar, TabTrack } from '#ui'
@@ -141,6 +141,8 @@ export default function Matches() {
   const cidParam = searchParams.get('challengeId')
   const matchIdParam = searchParams.get('matchId')
   const [highlightedChallengeId, setHighlightedChallengeId] = useState(() => cidParam || null)
+  const focusedCidRef = useRef(null) // cid đã chuyển sang Sàn kèo + làm nổi bật
+  const subTabCidRef = useRef(null) // cid đã chọn xong tab con
 
   // Đồng bộ tab và challengeId / matchId từ URL searchParams khi được điều hướng từ ngoài vào
   useEffect(() => {
@@ -161,31 +163,47 @@ export default function Matches() {
       }
     }
 
-    if (cidParam) {
+    // Mỗi `challengeId` chỉ được TRỎ TỚI MỘT LẦN. Param vẫn nằm lại trên URL, mà effect này chạy
+    // lại mỗi khi URL đổi (bấm sang tab Lịch sử) hay `db.challenges` nạp lại — trước đây lần nào
+    // cũng setActiveTab('challenges') + đặt lại tab con, giật người dùng về Sàn kèo.
+    if (!cidParam) {
+      focusedCidRef.current = null
+      subTabCidRef.current = null
+      return
+    }
+    if (focusedCidRef.current !== cidParam) {
+      focusedCidRef.current = cidParam
       setHighlightedChallengeId(cidParam)
       setActiveTab('challenges')
+    }
+    if (subTabCidRef.current === cidParam) return
 
-      const targetChal = (db.challenges || []).find((c) => c.id === cidParam)
-      if (targetChal) {
-        const isMine = myId && (
-          (targetChal.teamA || []).includes(myId) ||
-          (targetChal.teamB || []).includes(myId) ||
-          targetChal.createdBy === myId
-        )
-        if (isMine) {
-          setChallengeSubTab('my')
-        } else if (targetChal.status === 'pending') {
-          setChallengeSubTab('pending')
-        } else if (targetChal.status === 'played') {
-          setChallengeSubTab('played')
-        } else if (isChallengeAccepted(targetChal)) {
-          setChallengeSubTab('accepted')
-        } else {
-          setChallengeSubTab('pending')
-        }
-      } else {
+    const targetChal = (db.challenges || []).find((c) => c.id === cidParam)
+    if (!targetChal) {
+      // Chưa nạp xong kèo thì chờ lượt sau — chốt luôn là chọn nhầm tab con mà không sửa lại được.
+      // Đã có danh sách mà không thấy thì kèo không còn: chốt 'pending' như cũ.
+      if ((db.challenges || []).length) {
+        subTabCidRef.current = cidParam
         setChallengeSubTab('pending')
       }
+      return
+    }
+    subTabCidRef.current = cidParam
+    const isMine = myId && (
+      (targetChal.teamA || []).includes(myId) ||
+      (targetChal.teamB || []).includes(myId) ||
+      targetChal.createdBy === myId
+    )
+    if (isMine) {
+      setChallengeSubTab('my')
+    } else if (targetChal.status === 'pending') {
+      setChallengeSubTab('pending')
+    } else if (targetChal.status === 'played') {
+      setChallengeSubTab('played')
+    } else if (isChallengeAccepted(targetChal)) {
+      setChallengeSubTab('accepted')
+    } else {
+      setChallengeSubTab('pending')
     }
   }, [searchParams, cidParam, matchIdParam, db.challenges, db.matches, myId])
 
@@ -213,6 +231,19 @@ export default function Matches() {
   const [playerA, setPlayerA] = useState(() => searchParams.get('playerA') || '')
   const [playerB, setPlayerB] = useState(() => searchParams.get('playerB') || '')
   const [searchMode, setSearchMode] = useState('vs') // 'vs' | 'team'
+  // Bấm một dòng trận trên Bảng tin: lọc ĐÚNG hai cặp của trận đó (`pairA`/`pairB` = "id,id").
+  // Không có ô riêng trên giao diện — hai ô Người A/B hiện người đứng đầu mỗi cặp, và ràng buộc
+  // cặp chỉ còn hiệu lực khi hai ô đó vẫn đúng hai người ấy. Đổi người / đổi chế độ / xoá lọc là
+  // nó tự rơi, không cần nút gỡ.
+  const [pairFilter] = useState(() => {
+    const a = (searchParams.get('pairA') || '').split(',').filter(Boolean)
+    const b = (searchParams.get('pairB') || '').split(',').filter(Boolean)
+    return a.length && b.length ? [a, b] : null
+  })
+  const activePairs = pairFilter && searchMode === 'vs'
+    && playerA === pairFilter[0][0] && playerB === pairFilter[1][0]
+    ? pairFilter
+    : null
   const [qualityFilter, setQualityFilter] = useState('all') // 'all' | 'close' | 'threeSets' | 'upset'
   const [showMoreFilters, setShowMoreFilters] = useState(false)
   const [seasonFilter, setSeasonFilter] = useState('all')
@@ -302,6 +333,15 @@ export default function Matches() {
     return myChallenges.filter((c) => !ACTIVE_STATUS.has(c.status))
   }, [myChallenges])
 
+  // Kèo được trỏ tới (từ thông báo / Bảng tin) nằm trong mục "Đã kết thúc" — mục này mặc định
+  // THU GỌN — thì phải mở ra. Không thì banner "Đang làm nổi bật kèo…" hiện mà thẻ kèo không có
+  // trên màn hình: dính mọi thông báo huỷ kèo / kèo ngã ngũ gửi cho chính người trong kèo.
+  useEffect(() => {
+    if (highlightedChallengeId && myEndedChallenges.some((c) => c.id === highlightedChallengeId)) {
+      setMyEndedCollapsed(false)
+    }
+  }, [highlightedChallengeId, myEndedChallenges])
+
   const pendingChallenges = useMemo(() => {
     return allChallenges.filter((c) => c.status === 'pending')
   }, [allChallenges])
@@ -373,6 +413,7 @@ export default function Matches() {
       mode: searchMode,
       quality: qualityFilter,
       ratingsMap,
+      pairs: activePairs,
     })
 
     if (onlyVideoFilter) {
@@ -414,7 +455,7 @@ export default function Matches() {
     }
 
     return list
-  }, [db.matches, playerA, playerB, searchMode, qualityFilter, onlyVideoFilter, viewerFilter, courtFilter, sourceFilter, sortOption, db.playerRatings, activeMembers, db.levels, db.sessions])
+  }, [db.matches, playerA, playerB, searchMode, activePairs, qualityFilter, onlyVideoFilter, viewerFilter, courtFilter, sourceFilter, sortOption, db.playerRatings, activeMembers, db.levels, db.sessions])
 
   const dayGroups = useMemo(() => {
     const groups = []
@@ -994,8 +1035,9 @@ export default function Matches() {
               </div>
             </div>
 
-            {/* BANNER KÈO ĐƯỢC HIGHLIGHT / CHỌN */}
-            {highlightedChallengeId && (
+            {/* BANNER KÈO ĐƯỢC HIGHLIGHT / CHỌN — kèo không còn trong db thì không có gì để
+                làm nổi bật; hiện banner là treo mã ID thô trên một danh sách không có nó. */}
+            {highlightedChallengeId && allChallenges.some((c) => c.id === highlightedChallengeId) && (
               <div
                 style={{
                   display: 'flex',

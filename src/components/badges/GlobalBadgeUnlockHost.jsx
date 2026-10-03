@@ -16,7 +16,7 @@ const SHELF_SLOTS = cfgBadges.shelfSlots ?? 3
  * - CHỈ kích hoạt cho chính người nhận được danh hiệu (myMember).
  * - Bất kể khi nào có điểm trận đấu được nhập mà người chơi chưa online/chưa đăng nhập,
  *   thì ở lần online/đăng nhập tiếp theo khi người đó mở app (ở bất kỳ màn nào),
- *   modal mở khóa phong cách Anime sẽ tự động bung lên chúc mừng!
+ *   modal mở khóa danh hiệu sẽ tự động bung lên chúc mừng.
  */
 export default function GlobalBadgeUnlockHost() {
   const { db, a } = useApp()

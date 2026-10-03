@@ -1,5 +1,6 @@
 // Logic tìm kiếm trận đấu, lọc đối đầu & ma trận thi đấu (H2H Matrix) — Pure functions.
 import cfg from '#config/app.json' with { type: 'json' }
+import { pathOf } from '#routes'
 
 /**
  * Ba tiêu chí chất lượng trận — nguồn sự thật DUY NHẤT cho cả bộ lọc lẫn nhãn hiển thị.
@@ -33,8 +34,12 @@ export function isUpsetMatch(m) {
 /**
  * Lọc danh sách trận đấu theo các tiêu chí đa chiều.
  */
-export function filterMatches(matches, { playerA, playerB, mode = 'h2h', quality = 'all', fromDate, toDate } = {}) {
+export function filterMatches(matches, { playerA, playerB, mode = 'h2h', quality = 'all', fromDate, toDate, pairs } = {}) {
   const normMode = mode === 'vs' ? 'h2h' : mode === 'team' ? 'teammate' : mode
+  // `pairs`: [[cặp 1], [cặp 2]] — chỉ giữ trận ĐÚNG hai cặp này gặp nhau, bên nào đứng A cũng
+  // được. Lọc 2 người (playerA/playerB) không làm được việc này: Kuro gặp Hằng khi đánh với
+  // đồng đội khác vẫn lọt.
+  const isPair = (team, pair) => team.length === pair.length && pair.every((id) => team.includes(id))
 
   return (matches || []).filter((m) => {
     const teamA = m.teamA || (m.playerKeys ? m.playerKeys.slice(0, 2) : [])
@@ -65,6 +70,11 @@ export function filterMatches(matches, { playerA, playerB, mode = 'h2h', quality
       if (!players.includes(playerB)) return false
     }
 
+    if (pairs) {
+      const [p1, p2] = pairs
+      if (!(isPair(teamA, p1) && isPair(teamB, p2)) && !(isPair(teamA, p2) && isPair(teamB, p1))) return false
+    }
+
     // Lọc theo chất lượng trận đấu — dùng đúng predicate mà UI dùng để gắn nhãn
     if (quality === 'close') {
       if (!isCloseMatch(m)) return false
@@ -79,6 +89,26 @@ export function filterMatches(matches, { playerA, playerB, mode = 'h2h', quality
 }
 
 export const searchMatches = filterMatches
+
+/**
+ * URL mở tab Lịch sử lọc ĐÚNG hai cặp của một trận (xem `pairs` ở `filterMatches`), đội thắng
+ * đứng A. Dùng chung cho mọi chỗ "bấm vào trận": Bảng tin, thẻ Trận gần nhất.
+ *
+ * Ô Người A/B chỉ liệt kê thành viên, nên mỗi cặp đưa thành viên lên đầu — đứng đầu là khách thì
+ * ô hiện trống dù danh sách đã lọc. Không có hai đội thì `null` (không có gì để lọc).
+ */
+export function matchPairsPath(match, members = []) {
+  if (!match?.teamA?.length || !match?.teamB?.length) return null
+  const isMember = (id) => (members || []).some((m) => m.id === id)
+  const lead = (team) => [...team].sort((x, y) => isMember(y) - isMember(x))
+  const [w, l] = match.winnerTeam === 'B' ? [match.teamB, match.teamA] : [match.teamA, match.teamB]
+  const pairA = lead(w)
+  const pairB = lead(l)
+  const q = new URLSearchParams({
+    tab: 'search', playerA: pairA[0], playerB: pairB[0], pairA: pairA.join(','), pairB: pairB.join(','),
+  })
+  return `${pathOf('matches')}?${q}`
+}
 
 /**
  * Xây dựng ma trận đối đầu N x N giữa các thành viên.

@@ -20,6 +20,7 @@ import {
   getSurroundingSeasonStandings,
   getPersonalGreeting,
 } from '#lib/homePersonal.js'
+import { matchPairsPath } from '#lib/matchSearch.js'
 
 import HeroRankCard from '#components/home/personal/HeroRankCard.jsx'
 import RecentFormCard from '#components/home/personal/RecentFormCard.jsx'
@@ -156,6 +157,12 @@ export default function MyStats() {
   // Callbacks điều hướng dùng a.go(key) chuẩn
   const handleLogMatch = () => a.go('matches')
   const handleViewMatches = () => a.go('matches')
+  // Bấm một kèo trên thẻ Buổi tới → Sàn kèo, làm nổi bật kèo đó (không id: mở Sàn kèo).
+  const handleOpenChallenge = (challengeId) => a.go('challenges', challengeId)
+  const handleOpenMatch = (matchId) => {
+    const path = matchPairsPath((db.matches || []).find((m) => m.id === matchId), db.members)
+    a.go(path || 'matches')
+  }
   const handleViewSchedule = () => a.go('calendar')
   const handleViewAssignment = () => {
     if (upcomingSession?.id) {
@@ -258,6 +265,7 @@ export default function MyStats() {
               matches={recentMatches}
               isMobile={true}
               onViewAll={handleViewMatches}
+              onOpenMatch={handleOpenMatch}
             />
 
             {/* Thẻ 05b: Quanh bạn trên BXH */}
@@ -292,6 +300,7 @@ export default function MyStats() {
               onViewSchedule={handleViewSchedule}
               onViewAssignment={handleViewAssignment}
               onChallenge={handleLogMatch}
+              onOpenChallenge={handleOpenChallenge}
             />
 
             {/* Thẻ 08: Hoạt động CLB hôm nay */}
@@ -400,6 +409,7 @@ export default function MyStats() {
               matches={recentMatches}
               isMobile={false}
               onViewAll={handleViewMatches}
+              onOpenMatch={handleOpenMatch}
             />
           </div>
 
@@ -412,6 +422,7 @@ export default function MyStats() {
               onViewSchedule={handleViewSchedule}
               onViewAssignment={handleViewAssignment}
               onChallenge={handleLogMatch}
+              onOpenChallenge={handleOpenChallenge}
             />
 
             {/* 07. Quanh bạn trên BXH */}

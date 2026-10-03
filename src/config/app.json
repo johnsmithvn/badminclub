@@ -176,7 +176,7 @@
     "pendingExpireHours": 24,
     "pendingExpireDays": 1,
     "abandonedAcceptedDays": 14,
-    "maxStakePoints": 50,
+    "maxStakePoints": 10,
     "gamblerMinTickets": 5,
     "gamblerMinStreak": 3,
     "stakeMaxLen": 120
