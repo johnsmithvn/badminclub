@@ -11,7 +11,7 @@ import { PUBLIC_PATHS, pathOf } from '#routes'
 import { allowedRoutes, roleName, can } from '#lib/roles.js'
 import { clubDebtCounts, monthSessions, myDebtCounts } from '#lib/money.js'
 import { t } from '#i18n'
-import cfg from '#config/app.json' with { type: 'json' }
+import cfg from '#config/app.js'
 
 /** Cấu trúc nav: value = route key, section = nhãn nhóm. Nhãn lấy từ i18n. */
 const NAV = [

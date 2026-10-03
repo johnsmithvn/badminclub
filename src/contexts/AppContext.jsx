@@ -8,7 +8,7 @@ import { flushNow, load, reset, save, setSyncErrorHandler, setSyncFatalHandler }
 import { makeActions } from '#contexts/appActions.js'
 import { useAuth } from '#contexts/AuthContext.jsx'
 import { t } from '#i18n'
-import cfg from '#config/app.json' with { type: 'json' }
+import cfg from '#config/app.js'
 
 const UI0 = {
   tab: { home: 'overview', debts: 'guest', fund: 'month', settings: 'general', members: 'all', sessions: 'all' },
@@ -102,17 +102,19 @@ export function StoreProvider({ children }) {
 
   // Đổi CLB (kể cả bỏ chọn) → đẩy nốt thay đổi của CLB cũ (cleanup chạy TRƯỚC body của
   // effect mới), quên ảnh chụp cũ, rồi nạp lại từ đầu.
+  // Xoá db/tour của CLB cũ nằm ở cleanup, không setState trong body: cùng thời điểm (trước body
+  // mới), và db/tour khởi đầu đã là null nên lần mount đầu không cần xoá.
   useEffect(() => {
     reset()
-    if (!activeClubId) {
+    if (!activeClubId) return undefined
+    // reload chỉ setState SAU `await load()` (bất đồng bộ) — luật không phân biệt trước/sau await.
+    // eslint-disable-next-line react-hooks/set-state-in-effect
+    reload()
+    return () => {
+      flushNow()
       setDb(null)
       setTour(null)
-      return undefined
     }
-    setDb(null)
-    setTour(null)
-    reload()
-    return () => { flushNow() }
   }, [activeClubId, reload])
 
   useEffect(() => { save(db) }, [db])
@@ -126,17 +128,24 @@ export function StoreProvider({ children }) {
       clearTimeout(toastTimer.current)
       toastTimer.current = setTimeout(() => setUi((u) => ({ ...u, toast: null })), cfg.toastMs)
     }
-    setSyncErrorHandler((e) => toast(t('sync.failed', { msg: e.message })))
+    // makeActions chỉ GIỮ ref trong closure, đọc trong event handler (sau commit), không đọc lúc render.
+    // Luật refs không nhìn xuyên được vào makeActions nên báo nhầm — tắt riêng dòng này.
+    // eslint-disable-next-line react-hooks/refs
+    return { toast, navRef, a: makeActions({ setDb, setUi, dbRef, uiRef, navRef, toast, reload, setTour, tourRef }) }
+  }, [reload])
+
+  // Đăng ký handler lỗi đồng bộ SAU commit. Trước đây gọi ngay trong useMemo — tức là side effect
+  // giữa lúc render. Lỗi đồng bộ luôn tới bất đồng bộ (sau lần ghi mạng) nên lúc đó đã đăng ký xong.
+  useEffect(() => {
+    setSyncErrorHandler((e) => api.toast(t('sync.failed', { msg: e.message })))
     // Lỗi không tự khỏi (khoá ngoại, RLS chặn): nạp lại CLB từ DB để hàng đợi thông trở lại.
     // Thay đổi vừa rồi mất — nhưng nó vốn đã không xuống được DB, và giữ lại trên màn hình thì
     // chặn mọi thay đổi sau nó mà không báo gì. Toast nói rõ để người dùng làm lại.
     setSyncFatalHandler((e) => {
-      toast(t('sync.fatal', { msg: e.message }))
+      api.toast(t('sync.fatal', { msg: e.message }))
       reload()
     })
-    // makeActions chỉ GIỮ ref trong closure, đọc trong event handler (sau commit), không đọc lúc render.
-    return { toast, navRef, a: makeActions({ setDb, setUi, dbRef, uiRef, navRef, toast, reload, setTour, tourRef }) }
-  }, [reload])
+  }, [api, reload])
 
   // Dọn kèo chết một lần sau mỗi lần nạp CLB — xem `A.sweepStaleChallenges`. Khoá theo clubId vì
   // `db` đổi ở MỌI thao tác; thiếu khoá là quét lại sau từng lần gõ phím.

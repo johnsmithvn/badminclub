@@ -6,7 +6,7 @@ import { courtOf, myMember, playerName, playerOf, shortName } from '#lib/money.j
 import { expectedScore, getPlayerRating, matchCodeOf } from '#lib/rating.js'
 import { getChallengeAcceptanceProgress, canMemberAcceptChallenge, canAdminForceAcceptChallenge, challengeCloserOf, validateStakePoints, getPredictionStats, getMemberPrediction, canMemberPredict, availableSeasonPoints, stakeBaseOf, isChallengeExpired, challengeExpiryAt, isChallengeAccepted } from '#lib/challenge.js'
 import { calculateSeasonLeaderboard, calcSeasonMatchDeltaFinal, challengeMultiplierOf } from '#lib/season.js'
-import cfg from '#config/app.json'
+import cfg from '#config/app.js'
 import { t } from '#i18n'
 import ArenaPlayerTag from './ArenaPlayerTag.jsx'
 

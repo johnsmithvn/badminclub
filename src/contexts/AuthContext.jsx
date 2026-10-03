@@ -6,7 +6,7 @@ import { createContext, useCallback, useContext, useEffect, useMemo, useState } 
 import { hasSupabase, supabase, unwrap } from '#supabase'
 import { intOf } from '#lib/money.js'
 import { t } from '#i18n'
-import cfg from '#config/app.json' with { type: 'json' }
+import cfg from '#config/app.js'
 import { unsubscribePush, syncMissingSubscriptions } from '#lib/pushSubscription.js'
 
 const Ctx = createContext(null)

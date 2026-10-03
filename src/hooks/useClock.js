@@ -2,7 +2,7 @@
 // Tách ra hook để màn Chia sân không phải tự quản interval.
 
 import { useEffect, useState } from 'react'
-import cfg from '#config/app.json' with { type: 'json' }
+import cfg from '#config/app.js'
 
 /** @param active có sân nào đang bấm giờ không */
 export function useClock(active) {

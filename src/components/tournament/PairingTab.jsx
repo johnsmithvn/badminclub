@@ -3,7 +3,7 @@ import { Alert, Button, Card, Icon, IconButton } from '#ds'
 import { Empty, GenderChip, Mono, Overline } from '#ui'
 import { eligibleNotEntered, entriesOpen, regName } from '#lib/tournament/hub.js'
 import { PAIR_MODES, balanceOf, chemistryOf, eventPlayers, eventTeams, lineupIssue, suggestSwap, teamInsights, vsAverage } from '#lib/tournament/pairing.js'
-import cfg from '#config/app.json' with { type: 'json' }
+import cfg from '#config/app.js'
 import { t } from '#i18n'
 import { Seg } from './TourBits.jsx'
 import SpinDraw from './SpinDraw.jsx'

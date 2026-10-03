@@ -9,6 +9,7 @@ import { seasonMatchesOf } from '#lib/season.js'
 import RankMedalIcon from '#components/leaderboard/RankMedalIcon.jsx'
 import { STAT_COLORS } from '#components/leaderboard/statColors.js'
 import WinRatePill from '#components/leaderboard/WinRatePill.jsx'
+import StreakTag from '#components/leaderboard/StreakTag.jsx'
 
 function MiniShelf({ shelf = [], size = 18 }) {
   const ids = cleanShelf(shelf)
@@ -27,31 +28,6 @@ function MiniShelf({ shelf = [], size = 18 }) {
           />
         )
       })}
-    </span>
-  )
-}
-
-function BountyBadgeTag({ streak = 0 }) {
-  if (streak < 5) return null
-  return (
-    <span
-      style={{
-        font: "700 10px/1 'Oswald', sans-serif",
-        letterSpacing: '.06em',
-        padding: '3px 7px',
-        borderRadius: 999,
-        background: 'linear-gradient(135deg, rgba(255,46,126,.25), rgba(255,226,75,.15))',
-        border: '1px solid #FF2E7E',
-        color: '#FF2E7E',
-        boxShadow: '0 0 10px rgba(255,46,126,.35)',
-        display: 'inline-flex',
-        alignItems: 'center',
-        gap: 4,
-        flexShrink: 0,
-      }}
-    >
-      <span>⚡</span>
-      <span>{t('badges.bountyTag')} · {streak}W</span>
     </span>
   )
 }
@@ -593,22 +569,7 @@ export default function SeasonRaceTab({
                     <span style={{ font: "700 16px/1.15 'Barlow', sans-serif", color: '#FFFFFF', minWidth: 0, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>
                       <span title={top1?.name}>{top1?.name}</span>
                     </span>
-                    {top1?.streak >= 5 ? (
-                      <BountyBadgeTag streak={top1.streak} />
-                    ) : top1?.streak >= 3 ? (
-                      <span
-                        style={{
-                          font: "600 10.5px/1 'IBM Plex Mono', monospace",
-                          padding: '3px 7px',
-                          borderRadius: 999,
-                          background: 'rgba(0,178,169,.14)',
-                          border: '1px solid #00786F',
-                          color: '#5FDBD3',
-                        }}
-                      >
-                        streak {top1.streak}
-                      </span>
-                    ) : null}
+                    <StreakTag streak={top1?.streak} onDark />
                     <div style={{ flex: 1 }} />
                     <span style={{ font: "600 26px/1 'IBM Plex Mono', monospace", color: '#F7E3A1' }}>
                       {top1?.totalSeasonPoints?.toLocaleString()}
@@ -678,13 +639,7 @@ export default function SeasonRaceTab({
                       <span style={{ font: "600 13px/1.2 'IBM Plex Sans', sans-serif", color: '#FFFFFF', minWidth: 0, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>
                         <span title={top2?.name}>{top2?.name}</span>
                       </span>
-                      {top2?.streak >= 5 ? (
-                        <BountyBadgeTag streak={top2.streak} />
-                      ) : top2?.streak >= 3 ? (
-                        <span style={{ font: "600 9px/1 'IBM Plex Mono', monospace", padding: '2px 5px', borderRadius: 999, background: 'rgba(0,178,169,.14)', border: '1px solid #00786F', color: '#5FDBD3' }}>
-                          {top2.streak}W
-                        </span>
-                      ) : null}
+                      <StreakTag streak={top2?.streak} onDark compact />
                     </div>
                     <div style={{ font: "600 19px/1 'IBM Plex Mono', monospace", color: '#DCE6F5' }}>
                       {top2?.totalSeasonPoints?.toLocaleString()}
@@ -750,13 +705,7 @@ export default function SeasonRaceTab({
                       <span style={{ font: "600 13px/1.2 'IBM Plex Sans', sans-serif", color: '#FFFFFF', minWidth: 0, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>
                         <span title={top3?.name}>{top3?.name}</span>
                       </span>
-                      {top3?.streak >= 5 ? (
-                        <BountyBadgeTag streak={top3.streak} />
-                      ) : top3?.streak >= 3 ? (
-                        <span style={{ font: "600 9px/1 'IBM Plex Mono', monospace", padding: '2px 5px', borderRadius: 999, background: 'rgba(0,178,169,.14)', border: '1px solid #00786F', color: '#5FDBD3' }}>
-                          {top3.streak}W
-                        </span>
-                      ) : null}
+                      <StreakTag streak={top3?.streak} onDark compact />
                     </div>
                     <div style={{ font: "600 19px/1 'IBM Plex Mono', monospace", color: '#F0C096' }}>
                       {top3?.totalSeasonPoints?.toLocaleString()}
@@ -957,7 +906,7 @@ export default function SeasonRaceTab({
                   </div>
                   <div style={{ display: 'flex', alignItems: 'center', gap: 6, flexWrap: 'wrap', justifyContent: 'center' }}>
                     <MiniShelf shelf={shelfById.get(top1?.id)} />
-                    {top1?.streak >= 5 && <BountyBadgeTag streak={top1.streak} />}
+                    <StreakTag streak={top1?.streak} onDark />
                   </div>
                   <div style={{ font: "400 12px/1.3 'IBM Plex Sans', sans-serif", color: '#C6B683' }}>
                     {top1?.matchesCount} {t('units.match')} · {top1?.winsCount}W–{top1?.lossesCount}L · {top1?.winRate}% · {top1?.upsetsCount} upset
@@ -1116,22 +1065,7 @@ export default function SeasonRaceTab({
                             {t('season.youTag')}
                           </span>
                         )}
-                        {row.streak >= 5 ? (
-                          <BountyBadgeTag streak={row.streak} />
-                        ) : row.streak >= 3 ? (
-                          <span
-                            style={{
-                              font: "600 9.5px/1 'IBM Plex Mono', monospace",
-                              padding: '3px 6px',
-                              borderRadius: 999,
-                              background: 'rgba(0,178,169,.14)',
-                              border: '1px solid #00786F',
-                              color: '#5FDBD3',
-                            }}
-                          >
-                            streak {row.streak}
-                          </span>
-                        ) : null}
+                        <StreakTag streak={row.streak} onDark />
                       </div>
                       <div style={{ display: 'flex', flexWrap: 'wrap', gap: '4px 6px', alignItems: 'center' }}>
                         <MiniShelf shelf={shelfById.get(row.id)} size={17} />
@@ -1273,22 +1207,7 @@ export default function SeasonRaceTab({
                       <span title={row.name}>{row.name}</span>
                     </span>
                     <MiniShelf shelf={shelfById.get(row.id)} />
-                    {row.streak >= 5 ? (
-                      <BountyBadgeTag streak={row.streak} />
-                    ) : row.streak >= 3 ? (
-                      <span
-                        style={{
-                          font: "600 10px/1 'IBM Plex Mono', monospace",
-                          padding: '3px 6px',
-                          borderRadius: 999,
-                          background: isDark ? 'rgba(0,178,169,.14)' : 'rgba(0,178,169,.10)',
-                          border: '1px solid var(--teal-500)',
-                          color: isDark ? '#5FDBD3' : 'var(--teal-700)',
-                        }}
-                      >
-                        streak {row.streak}
-                      </span>
-                    ) : null}
+                    <StreakTag streak={row.streak} />
                     {row.isInactive && (
                       <span
                         style={{

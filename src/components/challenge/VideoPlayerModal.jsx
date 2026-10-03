@@ -4,6 +4,7 @@ import {
   parseVideoProvider,
   buildPlayableVideoUrl,
   buildEmbedVideoUrl,
+  matchVideosOf,
 } from '#utils/videoUtils.js'
 import { t } from '#i18n'
 import { useMobile } from '#hooks/useMobile.js'
@@ -64,9 +65,11 @@ export function VideoPlayerModal({ match, matchCode, onClose }) {
   const [editingVideo, setEditingVideo] = useState(false)
   const [showViewersList, setShowViewersList] = useState(false)
   const [copied, setCopied] = useState(false)
+  const [partIdx, setPartIdx] = useState(0) // video bị cắt nhiều phần: đang xem Part mấy
 
   // Lấy match trực tiếp từ db để đồng bộ tức thời khi sửa hoặc tăng view
   const liveMatch = (db.matches || []).find((m) => m.id === match?.id) || match
+  const parts = matchVideosOf(liveMatch)
 
   // Tăng lượt xem 1 lần trong phiên khi mở player (chống spam cả khi F5 lại trang)
   useEffect(() => {
@@ -78,14 +81,16 @@ export function VideoPlayerModal({ match, matchCode, onClose }) {
     }
   }, [liveMatch?.id, a])
 
-  if (!liveMatch || !liveMatch.videoUrl) return null
+  if (!liveMatch || parts.length === 0) return null
 
   const myMem = myMember(db)
   const role = db.viewAs || myMem?.role || 'member'
   const isAdmin = role === 'owner' || role === 'treasurer'
 
-  const videoUrl = liveMatch.videoUrl
-  const timestamp = liveMatch.videoTimestamp || ''
+  // Sửa bớt phần khi đang mở thì partIdx có thể vượt — kẹp về phần cuối.
+  const curIdx = Math.min(partIdx, parts.length - 1)
+  const videoUrl = parts[curIdx].url
+  const timestamp = parts[curIdx].start || ''
   const provider = parseVideoProvider(videoUrl)
   const embedUrl = buildEmbedVideoUrl(videoUrl, timestamp)
   const playUrl = buildPlayableVideoUrl(videoUrl, timestamp)
@@ -279,6 +284,57 @@ export function VideoPlayerModal({ match, matchCode, onClose }) {
         }
       >
         <div style={{ padding: '0 0 4px', display: 'flex', flexDirection: 'column', gap: 12 }}>
+          {/* Video bị cắt nhiều phần: chuyển Part 1 / Part 2…, mỗi phần phát từ mốc riêng */}
+          {parts.length > 1 && (
+            <div
+              role="tablist"
+              style={{
+                display: 'flex',
+                flexWrap: 'wrap',
+                gap: 4,
+                padding: 3,
+                borderRadius: 8,
+                background: 'var(--field-bg)',
+                border: '1px solid var(--border-subtle)',
+                alignSelf: 'flex-start',
+                maxWidth: '100%',
+              }}
+            >
+              {parts.map((p, i) => {
+                const on = i === curIdx
+                return (
+                  <button
+                    key={i}
+                    type="button"
+                    role="tab"
+                    aria-selected={on}
+                    onClick={() => setPartIdx(i)}
+                    style={{
+                      height: 30,
+                      padding: '0 12px',
+                      borderRadius: 6,
+                      border: 'none',
+                      display: 'inline-flex',
+                      alignItems: 'center',
+                      gap: 6,
+                      background: on ? 'var(--surface-card)' : 'transparent',
+                      boxShadow: on ? 'var(--shadow-xs)' : 'none',
+                      font: `${on ? 600 : 500} 12.5px/1 'IBM Plex Sans', sans-serif`,
+                      color: on ? 'var(--text-primary)' : 'var(--text-muted)',
+                      cursor: 'pointer',
+                      whiteSpace: 'nowrap',
+                    }}
+                  >
+                    <span>{t('matchVideo.partLabel', { n: i + 1 })}</span>
+                    {p.start && p.start !== '00:00' && (
+                      <span style={{ font: "500 11px/1 'IBM Plex Mono', monospace", color: 'var(--text-muted)' }}>{p.start}</span>
+                    )}
+                  </button>
+                )
+              })}
+            </div>
+          )}
+
           {/* Khung Video Player */}
           <div
             style={{

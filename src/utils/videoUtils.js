@@ -1,6 +1,7 @@
 /**
  * Tiện ích xử lý URL Video, Timestamp và Mốc thời gian trận đấu
  */
+import { t } from '#i18n'
 
 /**
  * Phân loại nền tảng video từ URL
@@ -110,6 +111,49 @@ export function formatPartsToTimestamp(input) {
     return `${hours}:${pad(minutes)}:${pad(seconds)}`
   }
   return `${pad(minutes)}:${pad(seconds)}`
+}
+
+/**
+ * Các phần video của một trận theo thứ tự (Part 1, Part 2…): [{ url, start }] — video bị cắt nhiều
+ * phần (0065). Trận cũ chưa có `videos` thì link cũ là Part 1. `start` luôn là chuỗi ('' = từ đầu).
+ * @param {object} match
+ * @returns {Array<{ url: string, start: string }>}
+ */
+export function matchVideosOf(match) {
+  const parts = (Array.isArray(match?.videos) ? match.videos : [])
+    .map((v) => ({ url: String(v?.url || '').trim(), start: String(v?.start || '').trim() }))
+    .filter((v) => v.url)
+  if (parts.length) return parts
+  const url = String(match?.videoUrl || '').trim()
+  return url ? [{ url, start: String(match?.videoTimestamp || '').trim() }] : []
+}
+
+/**
+ * Nhãn ngắn trên nút ▶: nguồn video của Part 1, kèm số phần khi nhiều hơn một ("YouTube · 2 part").
+ * @param {object} match
+ * @returns {string}
+ */
+export function videoTagLabelOf(match) {
+  const parts = matchVideosOf(match)
+  const p = parseVideoProvider(parts[0]?.url)
+  const base = p === 'youtube' ? 'YouTube' : p === 'drive' ? 'Drive' : p === 'icloud' ? 'iCloud' : 'Video'
+  return parts.length > 1 ? t('matchVideo.partsTag', { label: base, n: parts.length }) : base
+}
+
+/**
+ * Chuẩn hoá danh sách phần trước khi lưu: bỏ dòng không có link, mốc về dạng mm:ss, giữ thứ tự —
+ * cùng luật với RPC `attach_match_videos`.
+ * @param {Array<{ url?: string, start?: string }>} parts
+ * @returns {Array<{ url: string, start: string }>}
+ */
+export function cleanVideoParts(parts) {
+  return (parts || [])
+    .map((p) => {
+      const url = String(p?.url || '').trim()
+      const start = String(p?.start || '').trim()
+      return { url, start: start ? formatPartsToTimestamp(parseSecondsToParts(start)) : '' }
+    })
+    .filter((p) => p.url)
 }
 
 /**

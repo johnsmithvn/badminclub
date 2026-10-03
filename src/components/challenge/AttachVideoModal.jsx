@@ -9,7 +9,14 @@ import {
   parseSecondsToParts,
   formatPartsToTimestamp,
   addSecondsToTimestamp,
+  matchVideosOf,
 } from '#utils/videoUtils.js'
+
+/** Danh sách phần để sửa: phần đã lưu, mốc rỗng hiện 00:00; trận chưa có video thì một dòng trống. */
+function editablePartsOf(match) {
+  const parts = matchVideosOf(match).map((p) => ({ url: p.url, start: p.start || '00:00' }))
+  return parts.length ? parts : [{ url: '', start: '00:00' }]
+}
 
 
 export function TimePickerSheet({ open, onClose, value, onSelect, isMobile }) {
@@ -405,7 +412,7 @@ export function TimePickerSheet({ open, onClose, value, onSelect, isMobile }) {
   )
 }
 
-export function QuickTimestampPicker({ value, onChange, isMobile, compact = false }) {
+export function QuickTimestampPicker({ value, onChange, isMobile, compact = false, chips = true }) {
   const [pickerOpen, setPickerOpen] = useState(false)
 
   const handleQuickAdd = (deltaSec) => {
@@ -471,8 +478,8 @@ export function QuickTimestampPicker({ value, onChange, isMobile, compact = fals
         </button>
       </div>
 
-      {/* Dải chip tua nhanh 1 chạm */}
-      <div style={{ display: 'flex', gap: 4, flexWrap: 'wrap' }}>
+      {/* Dải chip tua nhanh 1 chạm — tắt khi có nhiều phần video cho form khỏi dài (vẫn còn nút mở bộ chọn) */}
+      {chips && <div style={{ display: 'flex', gap: 4, flexWrap: 'wrap' }}>
         <button
           type="button"
           onClick={() => onChange('00:00')}
@@ -534,7 +541,7 @@ export function QuickTimestampPicker({ value, onChange, isMobile, compact = fals
             </button>
           )
         })}
-      </div>
+      </div>}
 
       {pickerOpen && (
         <TimePickerSheet
@@ -549,6 +556,164 @@ export function QuickTimestampPicker({ value, onChange, isMobile, compact = fals
   )
 }
 
+const PART_LABEL_STYLE = {
+  font: '600 10.5px/1.2 "IBM Plex Sans", sans-serif',
+  letterSpacing: '0.08em',
+  textTransform: 'uppercase',
+  color: 'var(--text-muted)',
+}
+
+/**
+ * Các dòng link video của một trận — video bị cắt nhiều phần (Part 1, Part 2…). Dùng chung cho modal
+ * và khung gắn trong bảng. Một phần thì y như trước (ô link + mốc kèm nút tua); nhiều phần thì mỗi
+ * dòng gọn: nhãn Part N, ô link, ô mốc, nút bỏ. Không đặt tên phần — xem thì tự hiện Part 1, Part 2.
+ *
+ * `lockCount`: số phần đầu KHÔNG cho bỏ (thành viên thường không được xoá phần đã lưu — RPC
+ * attach_match_videos cũng chặn); phần vừa thêm thì bỏ thoải mái.
+ * `large`: ô cao 46px như modal; mặc định 36px như khung trong bảng.
+ */
+function VideoPartsEditor({ parts, onChange, isMobile, lockCount = 0, large = false }) {
+  const [pastedIdx, setPastedIdx] = useState(null)
+  const multi = parts.length > 1
+  const h = large ? 46 : 36
+  const setPart = (i, patch) => onChange(parts.map((p, j) => (j === i ? { ...p, ...patch } : p)))
+
+  const paste = async (i) => {
+    try {
+      const text = await navigator.clipboard?.readText?.()
+      if (text) {
+        setPart(i, { url: text.trim() })
+        setPastedIdx(i)
+        setTimeout(() => setPastedIdx(null), 2000)
+      }
+    } catch {
+      // trình duyệt không cho đọc clipboard
+    }
+  }
+
+  return (
+    <div style={{ display: 'grid', gap: 10 }}>
+      {parts.map((p, i) => {
+        const provider = parseVideoProvider(p.url)
+        return (
+          <div key={i} style={{ display: 'flex', flexWrap: 'wrap', gap: 8, alignItems: 'flex-start' }}>
+            <div style={{ flex: '1 1 260px', minWidth: 0, display: 'grid', gap: 6 }}>
+              <div style={{ ...PART_LABEL_STYLE, display: 'flex', alignItems: 'center', gap: 6 }}>
+                <span>{multi ? t('matchVideo.partLabel', { n: i + 1 }) : t('matchVideo.fieldUrl')}</span>
+                {provider === 'youtube' && <span style={{ color: '#FF4E45', font: '600 10px/1 "IBM Plex Sans", sans-serif' }}>● YouTube</span>}
+                {provider === 'drive' && <span style={{ color: '#0F9D58', font: '600 10px/1 "IBM Plex Sans", sans-serif' }}>● Google Drive</span>}
+                {provider === 'icloud' && <span style={{ color: '#AF52DE', font: '600 10px/1 "IBM Plex Sans", sans-serif' }}>● iCloud Photos</span>}
+              </div>
+              <div
+                style={{
+                  height: h,
+                  display: 'flex',
+                  alignItems: 'center',
+                  gap: 8,
+                  padding: '0 11px',
+                  borderRadius: large ? 10 : 7,
+                  background: 'var(--field-bg)',
+                  border: `1px solid ${p.url ? 'var(--teal-500)' : 'var(--border-default)'}`,
+                  boxSizing: 'border-box',
+                }}
+              >
+                <input
+                  type="text"
+                  value={p.url}
+                  onChange={(e) => setPart(i, { url: e.target.value })}
+                  placeholder={t('matchVideo.urlPlaceholder')}
+                  style={{
+                    flex: 1,
+                    minWidth: 0,
+                    background: 'transparent',
+                    border: 'none',
+                    outline: 'none',
+                    font: '400 12.5px/1 "IBM Plex Mono", monospace',
+                    color: 'var(--text-primary)',
+                  }}
+                />
+                <button
+                  type="button"
+                  onClick={() => paste(i)}
+                  style={{
+                    border: 'none',
+                    background: 'transparent',
+                    font: '600 11.5px/1 "IBM Plex Sans", sans-serif',
+                    color: pastedIdx === i ? '#8BEDE6' : '#5FDBD3',
+                    cursor: 'pointer',
+                    padding: '4px 4px',
+                    flexShrink: 0,
+                  }}
+                >
+                  {pastedIdx === i ? t('matchVideo.pastedSuccess') : t('matchVideo.pasteBtn')}
+                </button>
+              </div>
+            </div>
+
+            <div style={{ flex: multi ? '0 0 150px' : '0 1 330px', minWidth: 0, display: 'grid', gap: 6 }}>
+              <div style={PART_LABEL_STYLE}>{t('matchVideo.fieldTimestamp')}</div>
+              <QuickTimestampPicker
+                value={p.start}
+                onChange={(v) => setPart(i, { start: v })}
+                isMobile={isMobile}
+                compact={!large}
+                chips={!multi}
+              />
+            </div>
+
+            {multi && i >= lockCount && (
+              <button
+                type="button"
+                onClick={() => onChange(parts.filter((_, j) => j !== i))}
+                title={t('matchVideo.removePart')}
+                aria-label={t('matchVideo.removePart')}
+                style={{
+                  alignSelf: 'flex-end',
+                  width: 32,
+                  height: large ? 46 : 36,
+                  borderRadius: 7,
+                  background: 'transparent',
+                  border: '1px solid var(--border-default)',
+                  color: 'var(--text-muted)',
+                  display: 'flex',
+                  alignItems: 'center',
+                  justifyContent: 'center',
+                  cursor: 'pointer',
+                  flexShrink: 0,
+                }}
+              >
+                <Icon name="x" size={14} />
+              </button>
+            )}
+          </div>
+        )
+      })}
+
+      <button
+        type="button"
+        onClick={() => onChange([...parts, { url: '', start: '00:00' }])}
+        style={{
+          justifySelf: 'start',
+          height: 30,
+          display: 'inline-flex',
+          alignItems: 'center',
+          gap: 5,
+          padding: '0 12px',
+          borderRadius: 999,
+          background: 'transparent',
+          border: '1px dashed var(--border-default)',
+          font: '600 12px/1 "IBM Plex Sans", sans-serif',
+          color: 'var(--teal-500)',
+          cursor: 'pointer',
+        }}
+      >
+        <Icon name="plus" size={13} />
+        {t('matchVideo.addPart')}
+      </button>
+    </div>
+  )
+}
+
 export function MatchVideoInlineExpander({
   match,
   matchCode,
@@ -558,20 +723,14 @@ export function MatchVideoInlineExpander({
   scoreText,
   onSave,
   onCancel,
+  lockCount = 0,
 }) {
-  const [url, setUrl] = useState(match?.videoUrl || '')
-  const [timestamp, setTimestamp] = useState(match?.videoTimestamp || '00:00')
+  const [parts, setParts] = useState(() => editablePartsOf(match))
   const [note, setNote] = useState(match?.videoNote || '')
 
-  const provider = parseVideoProvider(url)
-
+  // Chuẩn hoá (bỏ dòng trống, mốc mm:ss) nằm ở appActions.attachMatchVideo → cleanVideoParts.
   const handleSave = () => {
-    const ts = (timestamp || '').trim()
-    onSave({
-      videoUrl: url.trim(),
-      videoTimestamp: ts ? formatPartsToTimestamp(parseSecondsToParts(ts)) : '',
-      videoNote: note.trim(),
-    })
+    onSave({ videos: parts, videoNote: note.trim() })
   }
 
   return (
@@ -613,39 +772,9 @@ export function MatchVideoInlineExpander({
       {/* Hàng tự xuống dòng, canh mép TRÊN. Trước đây là lưới cột giờ 140px + canh đáy: 8 nút tua
           gãy thành 3 hàng, cột giờ cao vọt và kéo ô link / ghi chú tụt xuống đáy, để trống cả góc trên. */}
       <div style={{ display: 'flex', flexWrap: 'wrap', gap: 10, alignItems: 'flex-start' }}>
-        <div style={{ display: 'flex', flexDirection: 'column', gap: 6, flex: '1 1 280px', minWidth: 0 }}>
-          <div style={{ font: '600 10.5px/1.2 "IBM Plex Sans", sans-serif', letterSpacing: '0.08em', textTransform: 'uppercase', color: 'var(--text-muted)', display: 'flex', alignItems: 'center', gap: 6 }}>
-            <span>{t('matchVideo.fieldUrl')}</span>
-            {provider === 'youtube' && <span style={{ color: '#FF4E45', font: '600 10px/1 "IBM Plex Sans", sans-serif' }}>● YouTube</span>}
-            {provider === 'drive' && <span style={{ color: '#0F9D58', font: '600 10px/1 "IBM Plex Sans", sans-serif' }}>● Google Drive</span>}
-            {provider === 'icloud' && <span style={{ color: '#AF52DE', font: '600 10px/1 "IBM Plex Sans", sans-serif' }}>● iCloud Photos</span>}
-          </div>
-          <input
-            type="text"
-            value={url}
-            onChange={(e) => setUrl(e.target.value)}
-            placeholder={t('matchVideo.urlPlaceholder')}
-            style={{
-              height: 36,
-              padding: '0 11px',
-              borderRadius: 7,
-              background: 'var(--field-bg)',
-              border: '1px solid var(--border-subtle)',
-              font: '400 12.5px/1 "IBM Plex Mono", monospace',
-              color: 'var(--text-primary)',
-              outline: 'none',
-              width: '100%',
-              boxSizing: 'border-box',
-            }}
-          />
-        </div>
-
-        {/* ~330px: đủ cho 8 nút tua trên một hàng */}
-        <div style={{ display: 'flex', flexDirection: 'column', gap: 6, flex: '0 1 330px', minWidth: 0 }}>
-          <div style={{ font: '600 10.5px/1.2 "IBM Plex Sans", sans-serif', letterSpacing: '0.08em', textTransform: 'uppercase', color: 'var(--text-muted)' }}>
-            {t('matchVideo.fieldTimestamp')}
-          </div>
-          <QuickTimestampPicker value={timestamp} onChange={setTimestamp} isMobile={false} compact />
+        {/* Các phần video (link + mốc mỗi phần, nút Thêm part) */}
+        <div style={{ flex: '1 1 600px', minWidth: 0 }}>
+          <VideoPartsEditor parts={parts} onChange={setParts} isMobile={false} lockCount={lockCount} />
         </div>
 
         <div style={{ display: 'flex', flexDirection: 'column', gap: 6, flex: '1 1 180px', minWidth: 0 }}>
@@ -722,12 +851,10 @@ export function MatchVideoInlineExpander({
 export default function AttachVideoModal({ match, matchCode, onClose, onSave, onSaved }) {
   const { db, a } = useApp()
   const isMobile = useMobile()
-  const [url, setUrl] = useState(match?.videoUrl || '')
-  const [timestamp, setTimestamp] = useState(match?.videoTimestamp || '00:00')
+  const [parts, setParts] = useState(() => editablePartsOf(match))
   const [note, setNote] = useState(match?.videoNote || '')
-  const [copiedHint, setCopiedHint] = useState(false)
-
-  const provider = parseVideoProvider(url)
+  const savedCount = matchVideosOf(match).length
+  const hasDrivePart = parts.some((p) => parseVideoProvider(p.url) === 'drive')
 
   // Thông tin 2 đội & tỷ số trận đấu để render preview box chuẩn V3
   const teamA = match?.teamA || []
@@ -756,28 +883,9 @@ export default function AttachVideoModal({ match, matchCode, onClose, onSave, on
   const role = db.viewAs || myMem?.role || 'member'
   const isAdmin = role === 'owner' || role === 'treasurer'
 
-  const handlePaste = async () => {
-    try {
-      if (typeof navigator !== 'undefined' && navigator.clipboard && navigator.clipboard.readText) {
-        const text = await navigator.clipboard.readText()
-        if (text) {
-          setUrl(text)
-          setCopiedHint(true)
-          setTimeout(() => setCopiedHint(false), 2000)
-        }
-      }
-    } catch {
-      // clipboard access not permitted
-    }
-  }
-
+  // Chuẩn hoá (bỏ dòng trống, mốc mm:ss) nằm ở appActions.attachMatchVideo → cleanVideoParts.
   const handleSave = () => {
-    const ts = (timestamp || '').trim()
-    const data = {
-      videoUrl: url.trim(),
-      videoTimestamp: ts ? formatPartsToTimestamp(parseSecondsToParts(ts)) : '',
-      videoNote: note.trim(),
-    }
+    const data = { videos: parts, videoNote: note.trim() }
     if (onSave) {
       onSave(data)
     } else if (a?.attachMatchVideo && match?.id) {
@@ -789,11 +897,7 @@ export default function AttachVideoModal({ match, matchCode, onClose, onSave, on
 
   const handleRemove = () => {
     if (!isAdmin) return
-    const data = {
-      videoUrl: null,
-      videoTimestamp: null,
-      videoNote: null,
-    }
+    const data = { videos: [], videoNote: null }
     if (onSave) {
       onSave(data)
     } else if (a?.attachMatchVideo && match?.id) {
@@ -813,7 +917,7 @@ export default function AttachVideoModal({ match, matchCode, onClose, onSave, on
       description={subDesc}
       footer={
         <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', width: '100%', gap: 10 }}>
-          {match?.videoUrl && isAdmin ? (
+          {savedCount > 0 && isAdmin ? (
             <Button variant="danger" onClick={handleRemove}>
               {t('matchVideo.removeLink')}
             </Button>
@@ -888,125 +992,68 @@ export default function AttachVideoModal({ match, matchCode, onClose, onSave, on
           </div>
         </div>
 
-        {/* Ô nhập Link Video */}
-        <div style={{ display: 'flex', flexDirection: 'column', gap: 7 }}>
-          <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', gap: 6 }}>
-            <div style={{ font: "600 11px/1.2 'IBM Plex Sans', sans-serif", letterSpacing: '0.08em', textTransform: 'uppercase', color: 'var(--text-muted, #8494AA)' }}>
-              {t('matchVideo.fieldUrl')}
-            </div>
-            {provider === 'youtube' && <span style={{ color: '#FF4E45', font: "600 10.5px/1 'IBM Plex Sans', sans-serif" }}>● YouTube</span>}
-            {provider === 'drive' && <span style={{ color: '#0F9D58', font: "600 10.5px/1 'IBM Plex Sans', sans-serif" }}>● Google Drive</span>}
-            {provider === 'icloud' && <span style={{ color: '#AF52DE', font: "600 10.5px/1 'IBM Plex Sans', sans-serif" }}>● iCloud Photos</span>}
-          </div>
+        {/* Các phần video: Part 1, Part 2… (video bị cắt nhiều phần) */}
+        <VideoPartsEditor
+          parts={parts}
+          onChange={setParts}
+          isMobile={isMobile}
+          lockCount={isAdmin ? 0 : savedCount}
+          large
+        />
 
+        <div style={{ font: "400 11.5px/1.45 'IBM Plex Sans', sans-serif", color: 'var(--text-muted, #8494AA)' }}>
+          {t('matchVideo.storageNotice')}
+        </div>
+
+        {hasDrivePart && (
+          <div
+            style={{
+              display: 'flex',
+              alignItems: 'flex-start',
+              gap: 6,
+              padding: '7px 10px',
+              borderRadius: 6,
+              background: 'rgba(224, 138, 0, 0.12)',
+              border: '1px solid rgba(224, 138, 0, 0.3)',
+              font: "500 11.5px/1.4 'IBM Plex Sans', sans-serif",
+              color: '#FFB84D',
+            }}
+          >
+            <Icon name="alert-circle" size={13} style={{ flexShrink: 0, marginTop: 2 }} />
+            <span>{t('matchVideo.drivePermissionNotice')}</span>
+          </div>
+        )}
+
+        {/* Ghi chú: một cho cả trận */}
+        <div style={{ display: 'flex', flexDirection: 'column', gap: 7 }}>
+          <div style={{ font: "600 11px/1.2 'IBM Plex Sans', sans-serif", letterSpacing: '0.08em', textTransform: 'uppercase', color: 'var(--text-muted, #8494AA)' }}>
+            {t('matchVideo.fieldNote')}
+          </div>
           <div
             style={{
               height: 46,
               display: 'flex',
               alignItems: 'center',
-              gap: 8,
               padding: '0 12px',
               borderRadius: 10,
               background: 'var(--field-bg, #0E1726)',
-              border: url ? '1px solid var(--teal-500, #00B2A9)' : '1px solid var(--border-default, #2E3E5C)',
-              transition: 'border 0.2s ease',
+              border: '1px solid var(--border-default, #2E3E5C)',
             }}
           >
             <input
               type="text"
-              value={url}
-              onChange={(e) => setUrl(e.target.value)}
-              placeholder="youtu.be/..."
+              value={note}
+              onChange={(e) => setNote(e.target.value)}
+              placeholder={t('matchVideo.notePlaceholder')}
               style={{
-                flex: 1,
-                minWidth: 0,
+                width: '100%',
                 background: 'transparent',
                 border: 'none',
                 outline: 'none',
-                font: "400 13px/1 'IBM Plex Mono', monospace",
+                font: "400 13px/1 'IBM Plex Sans', sans-serif",
                 color: 'var(--text-primary, #E9EFF7)',
               }}
             />
-            <button
-              type="button"
-              onClick={handlePaste}
-              style={{
-                border: 'none',
-                background: 'transparent',
-                font: "600 11.5px/1 'IBM Plex Sans', sans-serif",
-                color: copiedHint ? '#8BEDE6' : '#5FDBD3',
-                cursor: 'pointer',
-                padding: '4px 6px',
-                borderRadius: 4,
-              }}
-            >
-              {copiedHint ? t('matchVideo.pastedSuccess') : t('matchVideo.pasteBtn')}
-            </button>
-          </div>
-
-          <div style={{ font: "400 11.5px/1.45 'IBM Plex Sans', sans-serif", color: 'var(--text-muted, #8494AA)' }}>
-            {t('matchVideo.storageNotice')}
-          </div>
-
-          {provider === 'drive' && (
-            <div
-              style={{
-                display: 'flex',
-                alignItems: 'flex-start',
-                gap: 6,
-                padding: '7px 10px',
-                borderRadius: 6,
-                background: 'rgba(224, 138, 0, 0.12)',
-                border: '1px solid rgba(224, 138, 0, 0.3)',
-                font: "500 11.5px/1.4 'IBM Plex Sans', sans-serif",
-                color: '#FFB84D',
-              }}
-            >
-              <Icon name="alert-circle" size={13} style={{ flexShrink: 0, marginTop: 2 }} />
-              <span>{t('matchVideo.drivePermissionNotice')}</span>
-            </div>
-          )}
-        </div>
-
-        {/* Hàng 2 cột: Bắt đầu từ & Ghi chú */}
-        <div style={{ display: 'flex', gap: 10, alignItems: 'flex-start' }}>
-          <div style={{ width: 140, flex: '0 0 auto', display: 'flex', flexDirection: 'column', gap: 7 }}>
-            <div style={{ font: "600 11px/1.2 'IBM Plex Sans', sans-serif", letterSpacing: '0.08em', textTransform: 'uppercase', color: 'var(--text-muted, #8494AA)' }}>
-              {t('matchVideo.fieldTimestamp')}
-            </div>
-            <QuickTimestampPicker value={timestamp} onChange={setTimestamp} isMobile={isMobile} />
-          </div>
-
-          <div style={{ flex: 1, minWidth: 0, display: 'flex', flexDirection: 'column', gap: 7 }}>
-            <div style={{ font: "600 11px/1.2 'IBM Plex Sans', sans-serif", letterSpacing: '0.08em', textTransform: 'uppercase', color: 'var(--text-muted, #8494AA)' }}>
-              {t('matchVideo.fieldNote')}
-            </div>
-            <div
-              style={{
-                height: 46,
-                display: 'flex',
-                alignItems: 'center',
-                padding: '0 12px',
-                borderRadius: 10,
-                background: 'var(--field-bg, #0E1726)',
-                border: '1px solid var(--border-default, #2E3E5C)',
-              }}
-            >
-              <input
-                type="text"
-                value={note}
-                onChange={(e) => setNote(e.target.value)}
-                placeholder={t('matchVideo.notePlaceholder')}
-                style={{
-                  width: '100%',
-                  background: 'transparent',
-                  border: 'none',
-                  outline: 'none',
-                  font: "400 13px/1 'IBM Plex Sans', sans-serif",
-                  color: 'var(--text-primary, #E9EFF7)',
-                }}
-              />
-            </div>
           </div>
         </div>
 

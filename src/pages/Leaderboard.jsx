@@ -10,7 +10,7 @@ import { DEFAULT_RANK_THEME } from '#data/rankThemes.js'
 import { useMobile } from '#hooks/useMobile.js'
 import { t } from '#i18n'
 import NotificationBell from '#components/notification/NotificationBell.jsx'
-import cfg from '#config/app.json' with { type: 'json' }
+import cfg from '#config/app.js'
 import CreateChallengeModal from '#components/challenge/CreateChallengeModal.jsx'
 import MemberProfileTab from '#components/profile/MemberProfileTab.jsx'
 import SeasonRaceTab from '#components/leaderboard/SeasonRaceTab.jsx'

@@ -13,7 +13,7 @@ import { editMemberForm, memberForm } from '#lib/forms.js'
 import { can } from '#lib/roles.js'
 import { useMobile } from '#hooks/useMobile.js'
 import { t } from '#i18n'
-import cfg from '#config/app.json' with { type: 'json' }
+import cfg from '#config/app.js'
 
 export default function Members() {
   const { db, ui, a } = useApp()

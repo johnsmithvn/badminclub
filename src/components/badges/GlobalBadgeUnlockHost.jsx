@@ -4,7 +4,7 @@ import { useApp } from '#contexts/AppContext.jsx'
 import { myMember } from '#lib/money.js'
 import { calculateMemberBadges, computeClubBadgeStats, TIER_ORDER, cleanShelf } from '#lib/badges.js'
 import { resolveSeason, seasonMatchesOf } from '#lib/season.js'
-import cfgBadges from '#config/badges.json' with { type: 'json' }
+import cfgBadges from '#config/badges.js'
 import { seenBadgesKey, readSeenBadges, markBadgeSeen } from '#utils/seenBadges.js'
 import BadgeUnlockModal from './BadgeUnlockModal.jsx'
 
@@ -72,6 +72,9 @@ export default function GlobalBadgeUnlockHost() {
       } catch {
         // storage disabled or quota full
       }
+      // Đồng bộ từ localStorage (hệ ngoài React): đọc "đã xem", ghi lần đầu, rồi mới xếp hàng modal —
+      // đúng việc của effect. Dời ra lúc render thì phải ghi storage giữa render.
+      // eslint-disable-next-line react-hooks/set-state-in-effect
       setPendingBadges([topBadge])
     } else {
       // Tìm các danh hiệu đã unlocked nhưng chưa có trong danh sách đã xem

@@ -7,7 +7,7 @@ import { useAuth } from '#contexts/AuthContext.jsx'
 import { can } from '#lib/roles.js'
 import { intOf, monthSessions } from '#lib/money.js'
 import { t } from '#i18n'
-import cfg from '#config/app.json' with { type: 'json' }
+import cfg from '#config/app.js'
 
 import { FloatingSaveBar } from '#components/settings/SettingsComponents.jsx'
 import GeneralTab from '#components/settings/tabs/GeneralTab.jsx'

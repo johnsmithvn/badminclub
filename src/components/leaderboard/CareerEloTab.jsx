@@ -9,31 +9,7 @@ import { seasonMatchesOf } from '#lib/season.js'
 import RankMedalIcon from '#components/leaderboard/RankMedalIcon.jsx'
 import { STAT_COLORS } from '#components/leaderboard/statColors.js'
 import WinRatePill from '#components/leaderboard/WinRatePill.jsx'
-
-function BountyBadgeTag({ streak = 0 }) {
-  if (streak < 5) return null
-  return (
-    <span
-      style={{
-        font: "700 10px/1 'Oswald', sans-serif",
-        letterSpacing: '.06em',
-        padding: '3px 7px',
-        borderRadius: 999,
-        background: 'linear-gradient(135deg, rgba(255,46,126,.25), rgba(255,226,75,.15))',
-        border: '1px solid #FF2E7E',
-        color: '#FF2E7E',
-        boxShadow: '0 0 10px rgba(255,46,126,.35)',
-        display: 'inline-flex',
-        alignItems: 'center',
-        gap: 4,
-        flexShrink: 0,
-      }}
-    >
-      <span>⚡</span>
-      <span>{t('badges.bountyTag')} · {streak}W</span>
-    </span>
-  )
-}
+import StreakTag from '#components/leaderboard/StreakTag.jsx'
 
 function SingleBadgeSlot({ badge, size = 18 }) {
   if (badge) {
@@ -520,13 +496,7 @@ export default function CareerEloTab({
                             {t('season.youTag')}
                           </span>
                         )}
-                        {displayList[0].streak >= 5 ? (
-                          <BountyBadgeTag streak={displayList[0].streak} />
-                        ) : displayList[0].streak >= 3 ? (
-                          <span style={{ font: "600 9.5px/1 'IBM Plex Mono', monospace", padding: '2px 6px', borderRadius: 999, background: 'rgba(0,178,169,.14)', border: '1px solid #00786F', color: '#5FDBD3' }}>
-                            streak {displayList[0].streak}
-                          </span>
-                        ) : null}
+                        <StreakTag streak={displayList[0].streak} onDark />
                         <div style={{ flex: '1 1 0%' }} />
                         <span style={{ font: "600 24px/1 'IBM Plex Mono', monospace", color: '#F7E3A1' }}>
                           {displayList[0].rating}
@@ -596,13 +566,7 @@ export default function CareerEloTab({
                             {t('season.youTag')}
                           </span>
                         )}
-                        {displayList[1].streak >= 5 ? (
-                          <BountyBadgeTag streak={displayList[1].streak} />
-                        ) : displayList[1].streak >= 3 ? (
-                          <span style={{ font: "600 9.5px/1 'IBM Plex Mono', monospace", padding: '2px 6px', borderRadius: 999, background: 'rgba(0,178,169,.14)', border: '1px solid #00786F', color: '#5FDBD3' }}>
-                            streak {displayList[1].streak}
-                          </span>
-                        ) : null}
+                        <StreakTag streak={displayList[1].streak} onDark />
                         <div style={{ flex: '1 1 0%' }} />
                         <span style={{ font: "600 20px/1 'IBM Plex Mono', monospace", color: '#DCE6F5' }}>
                           {displayList[1].rating}
@@ -672,13 +636,7 @@ export default function CareerEloTab({
                             {t('season.youTag')}
                           </span>
                         )}
-                        {displayList[2].streak >= 5 ? (
-                          <BountyBadgeTag streak={displayList[2].streak} />
-                        ) : displayList[2].streak >= 3 ? (
-                          <span style={{ font: "600 9.5px/1 'IBM Plex Mono', monospace", padding: '2px 6px', borderRadius: 999, background: 'rgba(0,178,169,.14)', border: '1px solid #00786F', color: '#5FDBD3' }}>
-                            streak {displayList[2].streak}
-                          </span>
-                        ) : null}
+                        <StreakTag streak={displayList[2].streak} onDark />
                         <div style={{ flex: '1 1 0%' }} />
                         <span style={{ font: "600 20px/1 'IBM Plex Mono', monospace", color: '#F0C096' }}>
                           {displayList[2].rating}
@@ -999,13 +957,7 @@ export default function CareerEloTab({
                             {t('season.youTag')}
                           </span>
                         )}
-                        {player.streak >= 5 ? (
-                          <BountyBadgeTag streak={player.streak} />
-                        ) : player.streak >= 3 ? (
-                          <span style={{ font: "600 9.5px/1 'IBM Plex Mono', monospace", padding: '2px 6px', borderRadius: 999, background: 'rgba(0,178,169,.14)', border: '1px solid #00786F', color: '#5FDBD3' }}>
-                            streak {player.streak}
-                          </span>
-                        ) : null}
+                        <StreakTag streak={player.streak} onDark />
                       </div>
                       <EloStats player={player} />
                     </div>

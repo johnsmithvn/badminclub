@@ -171,6 +171,10 @@ export function toDb(raw, ctx) {
         videoUrl: mt.video_url || null,
         videoTimestamp: mt.video_timestamp || null,
         videoNote: mt.video_note || null,
+        // Các phần video (0065). Client giữ start là chuỗi ('' = từ đầu); videosRow đổi ngược khi ghi.
+        videos: (Array.isArray(mt.videos) ? mt.videos : [])
+          .filter((v) => v?.url)
+          .map((v) => ({ url: v.url, start: v.start || '' })),
         videoViews: Number(mt.video_views || 0),
         videoViewers: (typeof mt.video_viewers === 'object' && mt.video_viewers) ? mt.video_viewers : {},
         teamA,
@@ -523,6 +527,7 @@ export function toRows(db, ctx) {
       video_url: mt.videoUrl || null,
       video_timestamp: mt.videoTimestamp || null,
       video_note: mt.videoNote || null,
+      videos: videosRow(mt.videos),
       video_views: Number(mt.videoViews || 0),
       video_viewers: (typeof mt.videoViewers === 'object' && mt.videoViewers) ? mt.videoViewers : {},
     })
@@ -642,6 +647,17 @@ export function toRows(db, ctx) {
   }))
 
   return out
+}
+
+/**
+ * Cột `matches.videos` từ danh sách phần của client: `start` rỗng thành null (đúng dạng RPC
+ * attach_match_videos ghi). Dùng CHUNG cho toRows và storage.syncPatchMatchVideo — hai bên lệch
+ * nhau một ký tự là diff tưởng trận bị sửa, upsert dưới quyền thành viên và bị RLS chặn.
+ */
+export function videosRow(videos) {
+  return (Array.isArray(videos) ? videos : [])
+    .filter((v) => v?.url)
+    .map((v) => ({ url: v.url, start: v.start || null }))
 }
 
 /** Riêng bảng `clubs` — một dòng, cập nhật chứ không insert (RPC create_club đã tạo). */

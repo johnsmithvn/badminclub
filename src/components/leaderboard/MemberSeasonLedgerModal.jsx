@@ -1,7 +1,7 @@
 import { useMemo } from 'react'
 import { Avatar } from '#ds'
 import { getMemberSeasonLedger } from '#lib/season.js'
-import cfg from '#config/app.json'
+import cfg from '#config/app.js'
 import { t } from '#i18n'
 import { useTheme } from '#contexts/ThemeContext.jsx'
 import { useMobile } from '#hooks/useMobile.js'

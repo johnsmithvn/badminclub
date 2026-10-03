@@ -10,7 +10,7 @@ import {
   DangerZoneCard,
 } from '#components/settings/SettingsComponents.jsx'
 import { scanQrCodeFromImage, parseVietQr, getVietQrUrl, findBank } from '#utils/vietqr.js'
-import banks from '#config/banks.json' with { type: 'json' }
+import banks from '#config/banks.js'
 import { myMember } from '#lib/money.js'
 import { t } from '#i18n'
 import { useAuth } from '#contexts/AuthContext.jsx'

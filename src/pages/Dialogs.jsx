@@ -14,7 +14,7 @@ import {
 import { validateMatchBackup } from '#lib/matchBackup.js'
 import { resolveSeason } from '#lib/season.js'
 import { t } from '#i18n'
-import cfg from '#config/app.json' with { type: 'json' }
+import cfg from '#config/app.js'
 
 export default function Dialogs() {
   const { ui, a } = useApp()

@@ -6,7 +6,7 @@ import { hasResult, linkShape, progressOf, queueOf, sideScores } from '#lib/tour
 import { finalRows, groupStandings, stageGroups } from '#lib/tournament/standings.js'
 import { deView, isDouble } from '#lib/tournament/doubleElim.js'
 import { roundsOf, swissProgress, swissStandings } from '#lib/tournament/swiss.js'
-import cfg from '#config/app.json' with { type: 'json' }
+import cfg from '#config/app.js'
 import { t } from '#i18n'
 import { matchCode, stageName, teamName } from './tourUtils.js'
 import { koRounds } from '#lib/tournament/bracketView.js'

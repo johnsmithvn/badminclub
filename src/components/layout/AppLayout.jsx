@@ -1,5 +1,5 @@
 import { useState } from 'react'
-import cfg from '#config/app.json' with { type: 'json' }
+import cfg from '#config/app.js'
 import Sidebar from '#components/layout/Sidebar.jsx'
 import AppHeader from '#components/layout/AppHeader.jsx'
 import ToastHost from '#components/layout/ToastHost.jsx'

@@ -8,7 +8,7 @@
 
 import assert from 'node:assert/strict'
 import cfg from '#config/app.json' with { type: 'json' }
-import { TABLES, clubRow, diff, toDb, toRows } from '#contexts/dbmap.js'
+import { TABLES, clubRow, diff, toDb, toRows, videosRow } from '#contexts/dbmap.js'
 import { seed } from '../fixture.js'
 
 const db = seed()
@@ -210,6 +210,28 @@ assert.deepEqual(back.manual[0], { id: 'l1', date: '2026-08-10', dir: 'out', cat
 // lệch nhau là lần save đầu sẽ xoá/ghi bừa.
 const backCtx = { clubId: 'CL1', memberIds: new Set(['m1']) }
 assert.deepEqual(diff(toRows(back, backCtx), toRows(clone(back), backCtx)), [])
+
+// Video nhiều phần (0065). DB → client → DB phải y nguyên, và bản vá ảnh chụp (syncPatchMatchVideo
+// dùng videosRow) phải trùng toRows — lệch một ký tự là diff tưởng trận bị sửa, upsert dưới quyền
+// thành viên thường và bị RLS chặn ngay sau khi họ gắn video.
+const vidParts = [{ url: 'https://youtu.be/p1', start: '00:42' }, { url: 'https://drive.google.com/p2', start: null }]
+const vidMatch = (extra) => ({
+  ...raw,
+  sessions: [{
+    ...raw.sessions[0],
+    matches: [{ id: 'mtV', court_index: 0, minutes: 20, ended_at: '2026-08-09T13:00:00Z', match_players: [], ...extra }],
+  }],
+})
+const vidBack = toDb(vidMatch({ video_url: 'https://youtu.be/p1', video_timestamp: '00:42', videos: vidParts }), { clubId: 'CL1' })
+assert.deepEqual(vidBack.matches[0].videos, [
+  { url: 'https://youtu.be/p1', start: '00:42' },
+  { url: 'https://drive.google.com/p2', start: '' },
+], 'videos phải đọc ra đủ phần, đúng thứ tự; mốc null thành chuỗi rỗng')
+const vidRow = toRows(vidBack, backCtx).matches.find((r) => r.id === 'mtV')
+assert.deepEqual(vidRow.videos, vidParts, 'ghi lại phải đúng dạng DB (mốc rỗng là null) — không thì mỗi lần load là một lần ghi')
+assert.deepEqual(videosRow(vidBack.matches[0].videos), vidRow.videos, 'bản vá ảnh chụp phải trùng toRows')
+// Trận trước 0065 (DB chưa có cột videos): mảng rỗng, không vỡ — chỗ hiện video tự lùi về video_url.
+assert.deepEqual(toDb(vidMatch({ video_url: 'https://youtu.be/old' }), { clubId: 'CL1' }).matches[0].videos, [])
 
 // Buổi đột xuất của toàn CLB: DB lưu group_id NULL, client gọi là 'ALL'. Đi được cả hai chiều.
 const allRaw = {

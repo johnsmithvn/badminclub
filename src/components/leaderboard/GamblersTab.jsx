@@ -4,7 +4,7 @@ import { Empty } from '#ui'
 import RankMedalIcon from '#components/leaderboard/RankMedalIcon.jsx'
 import { gamblerBoard } from '#lib/challenge.js'
 import { useTheme } from '#contexts/ThemeContext.jsx'
-import cfg from '#config/app.json'
+import cfg from '#config/app.js'
 import { t } from '#i18n'
 
 // Danh hiệu: icon, màu chữ (tối / sáng), chỉ số hiện trên thẻ. Thứ tự key = thứ tự thẻ trên màn hình.

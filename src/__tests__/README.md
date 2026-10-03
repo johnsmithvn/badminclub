@@ -40,6 +40,7 @@ Code chạm Supabase/React không có mặt trong bộ này — kiểm tay trên
 | Lỗi đồng bộ nào thử lại được, lỗi nào phải nạp lại DB | `sync/fatal.test.js` |
 | CLB vừa tạo (mọi bảng rỗng) không được throw / NaN / Infinity | `smoke/empty.test.js` |
 | Không sót key i18n, không còn chữ cứng trong code, không có số lọt vào `vi.json` | `smoke/i18n.test.js` |
+| 🚨 **Component/hook không import thẳng `.json`** — đi qua `#config/<tên>.js`, không thì lint bỏ qua cả file (giấu lỗi hook) | `smoke/json_import.test.js` |
 | 🚨 **Tên dài đẩy lệch màn hình mobile**: cấm cột `fr` trần (`1fr` = `minmax(auto, 1fr)`) · nợ cũ chỉ được giảm. Đỏ thì sửa code, đọc `DESIGN.md` §8.4 | `smoke/layout_overflow.test.js` · `components/season_race_name_overflow.test.js` |
 | Sinh link VietQR, parse thông tin ngân hàng từ QR | `lib/vietqr.test.js` |
 | Khách giao lưu đi cùng: logic đồng hành, gom nhóm | `money/companion_guest.test.js` |
