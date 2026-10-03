@@ -59,7 +59,6 @@ export default function Badges() {
   const [selectedBadge, setSelectedBadge] = useState(null)
   const [showShelfModal, setShowShelfModal] = useState(false)
   const [unlockingBadge, setUnlockingBadge] = useState(null)
-  const [showRulesModal, setShowRulesModal] = useState(false)
   const [highlightedBadgeId, setHighlightedBadgeId] = useState(null)
 
   // Sửa châm ngôn cá nhân
@@ -824,50 +823,6 @@ export default function Badges() {
               ))}
             </select>
           </div>
-
-          {/* Nút Sắp lại kệ — chỉ trên hồ sơ của chính mình */}
-          {isViewingSelf && <button
-            type="button"
-            onClick={() => setShowShelfModal(true)}
-            style={{
-              font: '600 11.5px/1 Oswald, sans-serif',
-              letterSpacing: '.12em',
-              padding: '10px 16px',
-              clipPath: NOTCH_S_CLIP,
-              background: 'rgba(255,255,255,.06)',
-              border: 'none',
-              borderTop: '1px solid #8B2BFF',
-              color: '#D9A8FF',
-              cursor: 'pointer',
-              transition: 'background 0.15s ease',
-            }}
-            onMouseEnter={(e) => (e.currentTarget.style.background = 'rgba(255,255,255,.12)')}
-            onMouseLeave={(e) => (e.currentTarget.style.background = 'rgba(255,255,255,.06)')}
-          >
-            {t('badges.reorderShelf')}
-          </button>}
-
-          {/* Nút Luật danh hiệu */}
-          <button
-            type="button"
-            onClick={() => setShowRulesModal(true)}
-            style={{
-              font: '600 11.5px/1 Oswald, sans-serif',
-              letterSpacing: '.12em',
-              padding: '10px 16px',
-              clipPath: NOTCH_S_CLIP,
-              background: 'rgba(255,255,255,.06)',
-              border: 'none',
-              borderTop: '1px solid #8B2BFF',
-              color: '#D9A8FF',
-              cursor: 'pointer',
-              transition: 'background 0.15s ease',
-            }}
-            onMouseEnter={(e) => (e.currentTarget.style.background = 'rgba(255,255,255,.12)')}
-            onMouseLeave={(e) => (e.currentTarget.style.background = 'rgba(255,255,255,.06)')}
-          >
-            {t('badges.rulesBtn')}
-          </button>
         </div>
       </div>
 
@@ -1896,91 +1851,6 @@ export default function Badges() {
                       </div>
                     )
                   })}
-              </div>
-            </div>
-          </div>
-        </div>
-      )}
-
-      {/* ═══ MODAL LUẬT DANH HIỆU (Rules Modal) ═══ */}
-      {showRulesModal && (
-        <div
-          role="dialog"
-          aria-modal="true"
-          style={{
-            position: 'fixed',
-            inset: 0,
-            zIndex: 9999,
-            display: 'flex',
-            alignItems: 'center',
-            justifyContent: 'center',
-            background: 'rgba(7,3,15,.85)',
-            backdropFilter: 'blur(8px)',
-            padding: 16,
-          }}
-          onClick={() => setShowRulesModal(false)}
-        >
-          <div
-            style={{
-              position: 'relative',
-              width: '100%',
-              maxWidth: 580,
-              padding: 1,
-              clipPath: NOTCH_CLIP,
-              background: 'linear-gradient(135deg, #FF2E7E, #FFE24B 60%, #6D14FF)',
-            }}
-            onClick={(e) => e.stopPropagation()}
-          >
-            <div
-              style={{
-                clipPath: NOTCH_CLIP,
-                background: '#120823',
-                padding: '24px 26px',
-                display: 'flex',
-                flexDirection: 'column',
-                gap: 18,
-              }}
-            >
-              <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between' }}>
-                <span style={{ font: '700 20px/1 Oswald, sans-serif', color: '#FFFFFF' }}>
-                  {t('badges.rulesModalTitle')}
-                </span>
-                <button
-                  type="button"
-                  onClick={() => setShowRulesModal(false)}
-                  style={{
-                    background: 'transparent',
-                    border: 'none',
-                    color: '#9C8ABE',
-                    cursor: 'pointer',
-                    fontSize: 20,
-                  }}
-                >
-                  ✕
-                </button>
-              </div>
-
-              <div style={{ display: 'flex', flexDirection: 'column', gap: 12 }}>
-                {badgesConfig.bounty?.rules?.map((rule, idx) => (
-                  <div
-                    key={idx}
-                    style={{
-                      display: 'flex',
-                      gap: 12,
-                      padding: '10px 14px',
-                      clipPath: NOTCH_S_CLIP,
-                      background: 'rgba(255,255,255,.04)',
-                      borderLeft: '2px solid #FF2E7E',
-                    }}
-                  >
-                    <span style={{ font: "700 13px/1 'IBM Plex Mono', monospace", color: '#FFC46B' }}>
-                      0{idx + 1}
-                    </span>
-                    <span style={{ font: "400 13px/1.4 'Be Vietnam Pro', sans-serif", color: '#E6CFDE' }}>
-                      {rule}
-                    </span>
-                  </div>
-                ))}
               </div>
             </div>
           </div>
