@@ -538,9 +538,10 @@ export default function ArenaChallengeCard({
         <div
           style={{
             display: 'grid',
+            // Cột giữa: tối thiểu như cũ nhưng nới theo tỷ số — cố định 46px làm "19 - 21" gãy 2 dòng trên điện thoại
             gridTemplateColumns: isMobile
-              ? 'minmax(0, 1fr) 46px minmax(0, 1fr)'
-              : (isFeatured ? 'minmax(0, 1fr) 120px minmax(0, 1fr)' : 'minmax(0, 1fr) 80px minmax(0, 1fr)'),
+              ? 'minmax(0, 1fr) minmax(46px, auto) minmax(0, 1fr)'
+              : (isFeatured ? 'minmax(0, 1fr) minmax(120px, auto) minmax(0, 1fr)' : 'minmax(0, 1fr) minmax(80px, auto) minmax(0, 1fr)'),
             alignItems: 'center',
             gap: isFeatured ? (isMobile ? 4 : 16) : (isMobile ? 4 : 10),
             minWidth: 0,
@@ -613,29 +614,18 @@ export default function ArenaChallengeCard({
           {/* CỘT GIỮA: VS & TỈ SỐ / KHOẢNG CÁCH (4E CHO KÈO ĐÃ ĐẤU) */}
           <div style={{ display: 'flex', flexDirection: 'column', alignItems: 'center', justifyContent: 'center', gap: 3, textAlign: 'center', minWidth: 0, overflow: 'hidden' }}>
             {isPlayed ? (
-              <div style={{ display: 'flex', flexDirection: 'column', alignItems: 'center', gap: 1 }}>
-                <span
-                  style={{
-                    font: isFeatured
-                      ? (isMobile ? '800 30px/1 "Barlow Condensed", system-ui, sans-serif' : '800 46px/1 "Barlow Condensed", system-ui, sans-serif')
-                      : (isMobile ? '800 26px/1 "Barlow Condensed", system-ui, sans-serif' : '800 30px/1 "Barlow Condensed", system-ui, sans-serif'),
-                    color: '#F4F7FB',
-                    letterSpacing: '0.02em',
-                  }}
-                >
-                  {setScore}
-                </span>
-                <span
-                  style={{
-                    font: '500 11px/1 "IBM Plex Mono", monospace',
-                    color: '#8494AA',
-                    whiteSpace: 'nowrap',
-                    textTransform: 'lowercase',
-                  }}
-                >
-                  {t(setsList.length > 1 || isBoSeries ? 'challenge.setScoreLabel' : 'challenge.matchScoreLabel')}
-                </span>
-              </div>
+              <span
+                style={{
+                  font: isFeatured
+                    ? (isMobile ? '800 30px/1 "Barlow Condensed", system-ui, sans-serif' : '800 46px/1 "Barlow Condensed", system-ui, sans-serif')
+                    : (isMobile ? '800 26px/1 "Barlow Condensed", system-ui, sans-serif' : '800 30px/1 "Barlow Condensed", system-ui, sans-serif'),
+                  color: '#F4F7FB',
+                  letterSpacing: '0.02em',
+                  whiteSpace: 'nowrap',
+                }}
+              >
+                {setScore}
+              </span>
             ) : (
               <>
                 <span

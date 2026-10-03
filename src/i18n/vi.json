@@ -3135,8 +3135,6 @@
     "potDistributed": "đã chia hũ",
     "betPotPoints": "{{points}}",
     "btnRevenge": "Phục thù",
-    "setScoreLabel": "tỉ số set",
-    "matchScoreLabel": "điểm số",
     "youAcceptedWaitingShort": "Đã nhận · Chờ đối thủ",
     "wonBadgeShort": "Thắng",
     "createChallengeBtn": "Tạo kèo mới",
@@ -4295,7 +4293,6 @@
     "leaderboard": {
       "title": "Xếp hạng sưu tập",
       "sub": "xếp theo Điểm sưu tập · không tính danh hiệu tự phong",
-      "subMobile": "THEO ĐIỂM SƯU TẬP · TỰ PHONG 0 ĐIỂM",
       "badgeCountUnit": "{{count}} huy hiệu",
       "noOneUnlocked": "chưa ai mở",
       "ownersCount": "{{count}} người",

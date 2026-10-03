@@ -1,4 +1,7 @@
 import { useState, useMemo } from 'react'
+import { Icon } from '#ds'
+import { useTheme } from '#contexts/ThemeContext.jsx'
+import NotificationBell from '#components/notification/NotificationBell.jsx'
 import BadgeHex from '../BadgeHex.jsx'
 import TierBackdrop from '../TierBackdrop.jsx'
 import BountyHeroPoster from '../BountyHeroPoster.jsx'
@@ -21,8 +24,9 @@ const SECTION_TITLE = {
 const COUNT_MONO = { flex: '0 0 auto', font: '400 12px/1 var(--font-mono)', color: '#8E83A8' }
 const COUNT_CHIP = { flex: '0 0 auto', font: '600 11px/1 var(--font-mono)', padding: '4px 8px', borderRadius: 4 }
 const SELECT = {
-  maxWidth: 210,
-  padding: '10px 14px',
+  flex: '1 1 0',
+  minWidth: 0,
+  padding: '9px 10px',
   borderRadius: 10,
   border: '1px solid #2B3A8A',
   background: '#0B0820',
@@ -32,8 +36,95 @@ const SELECT = {
 const OPTION = { background: '#0B0820', color: '#FFFFFF' }
 
 /**
+ * Thanh trên cùng màn Danh hiệu (điện thoại) — thay header chung của app (AppHeader ẩn ở route này
+ * trên điện thoại): chọn mùa (chỗ của bộ chọn tháng), chọn người xem, đổi sáng/tối, chuông.
+ * Nền tối cố định như cả màn Danh hiệu, không theo theme — chuông vẽ chữ sáng, đặt trên nền sáng là mất.
+ */
+export function MobileBadgeTopBar({
+  allSeasons = [],
+  seasonValue = '',
+  onSelectSeason,
+  allMembers = [],
+  activeMemberId = '',
+  currentMemberId,
+  onSelectMember,
+}) {
+  const { isDark, toggleTheme } = useTheme()
+  return (
+    <div style={TOP_BAR}>
+      {allSeasons.length > 0 && (
+        <select
+          aria-label={t('season.filterSeason')}
+          value={seasonValue}
+          onChange={(e) => onSelectSeason && onSelectSeason(e.target.value)}
+          style={{ ...SELECT, font: '600 13px/1.2 var(--font-sans)', color: '#5FDBD3' }}
+        >
+          {allSeasons.map((s) => (
+            <option key={s.id || s.code} value={s.id || s.code} style={OPTION}>
+              {s.code || s.name} {s.active ? `(${t('season.activeCurrent')})` : ''}
+            </option>
+          ))}
+        </select>
+      )}
+      {allMembers.length > 1 && (
+        <select
+          aria-label={t('badges.selectMember')}
+          value={activeMemberId}
+          onChange={(e) => onSelectMember && onSelectMember(e.target.value)}
+          style={{ ...SELECT, font: '500 13px/1.2 var(--font-sans)', color: '#E9EFF7' }}
+        >
+          {allMembers.map((m) => (
+            <option key={m.id} value={m.id} style={OPTION}>
+              {shortName(m.name)} {m.id === currentMemberId ? `(${t('badges.collectorProfile.rankMe')})` : ''}
+            </option>
+          ))}
+        </select>
+      )}
+      <button
+        type="button"
+        aria-label={isDark ? t('common.themeLight') : t('common.themeDark')}
+        title={isDark ? t('common.themeLight') : t('common.themeDark')}
+        onClick={toggleTheme}
+        style={TOP_ICON_BTN}
+      >
+        <Icon name={isDark ? 'sun' : 'moon'} size={15} />
+      </button>
+      <NotificationBell />
+    </div>
+  )
+}
+
+const TOP_BAR = {
+  width: '100%',
+  maxWidth: 480,
+  boxSizing: 'border-box',
+  margin: '0 auto 10px',
+  padding: 8,
+  display: 'flex',
+  alignItems: 'center',
+  gap: 6,
+  borderRadius: 16,
+  border: '1px solid #2A1F4A',
+  background: 'linear-gradient(180deg,#1A0C3A,#0D0820)',
+}
+const TOP_ICON_BTN = {
+  width: 32,
+  height: 32,
+  flex: '0 0 auto',
+  padding: 0,
+  borderRadius: 999,
+  border: '1px solid #3A2C5C',
+  background: 'rgba(255,255,255,.06)',
+  color: '#C9BFDC',
+  display: 'grid',
+  placeItems: 'center',
+  cursor: 'pointer',
+}
+
+/**
  * AM1 · Bộ sưu tập (mobile) — thiết kế "Danh hiệu · Bộ sưu tập mobile (hiệu ứng mới)".
- * - Header: tiêu đề, mùa, nút Sắp lại kệ, chọn mùa / người xem, 2 tab (Bộ sưu tập · Xếp hạng)
+ * - Đầu thẻ: chỉ 2 tab (Bộ sưu tập · Xếp hạng). Chọn mùa / người xem nằm ở MobileBadgeTopBar; nút
+ *   Sắp lại kệ nằm cạnh tiêu đề Kệ danh hiệu
  * - Banner truy nã (khi CLB đang có chuỗi bị treo thưởng) — thay cho trang Truy nã riêng đã bỏ
  * - Thẻ hồ sơ: nền hiệu ứng theo cấp (TierBackdrop compact) ở nửa trên, chữ và chỉ số nằm trên
  *   nền tối ở nửa dưới
@@ -44,7 +135,6 @@ export default function MobileBadgeCollection({
   activeMember,
   currentMember,
   isViewingSelf = true,
-  currentSeason,
   memberXpData,
   memberSeasonData,
   memberBadges,
@@ -55,10 +145,6 @@ export default function MobileBadgeCollection({
   onReorderShelf,
   onSelectMember,
   onEditSignature,
-  allMembers = [],
-  allSeasons = [],
-  selectedSeasonId = null,
-  onSelectSeason,
   heroBounty = null,
   onChallengeBounty,
 }) {
@@ -229,104 +315,15 @@ export default function MobileBadgeCollection({
         color: '#FFFFFF',
       }}
     >
-      {/* ═══ HEADER: tiêu đề · mùa · bộ chọn · 3 tab ═══ */}
+      {/* ═══ ĐẦU THẺ: 2 tab — tiêu đề, chọn mùa / người xem đã lên MobileBadgeTopBar ═══ */}
       <div
         style={{
           position: 'relative',
           flex: '0 0 auto',
-          padding: '18px 16px 16px',
-          display: 'flex',
-          flexDirection: 'column',
-          gap: 12,
+          padding: 12,
           background: 'linear-gradient(180deg,#1A0C3A,#0D0820)',
         }}
       >
-        <div style={{ display: 'flex', alignItems: 'flex-start', gap: 10 }}>
-          <div style={{ flex: 1, minWidth: 0, display: 'flex', flexDirection: 'column', gap: 4 }}>
-            <span
-              style={{
-                font: "700 32px/1 'Oswald', sans-serif",
-                letterSpacing: '.04em',
-                textTransform: 'uppercase',
-                color: '#FFFFFF',
-              }}
-            >
-              {t('badges.title')}
-            </span>
-            <span
-              style={{
-                font: '400 12px/1.3 var(--font-mono)',
-                letterSpacing: '.14em',
-                textTransform: 'uppercase',
-                color: '#9A90AD',
-              }}
-            >
-              {currentSeason?.name || t('badges.seasonHeader')}
-            </span>
-          </div>
-
-          {/* Nút SẮP KỆ — chỉ trên hồ sơ của chính mình (modal gắn/gỡ kệ của người đăng nhập) */}
-          {isViewingSelf && (
-            <button
-              type="button"
-              onClick={onReorderShelf}
-              style={{
-                flex: '0 0 auto',
-                font: "700 11px/1 'Oswald', sans-serif",
-                letterSpacing: '.14em',
-                padding: '9px 12px',
-                borderRadius: 6,
-                border: 'none',
-                background: 'rgba(120,70,220,.3)',
-                color: '#C8A8F0',
-                cursor: 'pointer',
-              }}
-            >
-              {t('badges.reorderShelf')}
-            </button>
-          )}
-        </div>
-
-        {/* Bộ chọn mùa giải */}
-        {allSeasons && allSeasons.length > 0 && (
-          <div style={{ display: 'flex', alignItems: 'center', gap: 10 }}>
-            <span style={{ flex: 1, minWidth: 0, font: '400 13px/1.2 var(--font-sans)', color: '#9A90AD' }}>
-              {t('season.filterSeason')}
-            </span>
-            <select
-              value={currentSeason?.id || currentSeason?.code || selectedSeasonId || ''}
-              onChange={(e) => onSelectSeason && onSelectSeason(e.target.value)}
-              style={{ ...SELECT, font: '600 13px/1.2 var(--font-sans)', color: '#5FDBD3' }}
-            >
-              {allSeasons.map((s) => (
-                <option key={s.id || s.code} value={s.id || s.code} style={OPTION}>
-                  {s.code || s.name} {s.active ? `(${t('season.activeCurrent')})` : ''}
-                </option>
-              ))}
-            </select>
-          </div>
-        )}
-
-        {/* Bộ chọn thành viên xem (nếu muốn xem hồ sơ người khác) */}
-        {allMembers && allMembers.length > 1 && (
-          <div style={{ display: 'flex', alignItems: 'center', gap: 10 }}>
-            <span style={{ flex: 1, minWidth: 0, font: '400 13px/1.2 var(--font-sans)', color: '#9A90AD' }}>
-              {t('badges.selectMember')}
-            </span>
-            <select
-              value={activeMember?.id || ''}
-              onChange={(e) => onSelectMember && onSelectMember(e.target.value)}
-              style={{ ...SELECT, font: '500 13px/1.2 var(--font-sans)', color: '#E9EFF7' }}
-            >
-              {allMembers.map((m) => (
-                <option key={m.id} value={m.id} style={OPTION}>
-                  {shortName(m.name)} {m.id === currentMember?.id ? `(${t('badges.collectorProfile.rankMe')})` : ''}
-                </option>
-              ))}
-            </select>
-          </div>
-        )}
-
         {/* Sub-tabs: BỘ SƯU TẬP | XẾP HẠNG */}
         <div style={{ display: 'grid', gridTemplateColumns: 'repeat(2, minmax(0, 1fr))', gap: 6 }}>
           {[
@@ -612,6 +609,27 @@ export default function MobileBadgeCollection({
             <span style={{ width: 3, height: 16, flex: '0 0 auto', background: 'linear-gradient(180deg,#FF3D77,#8E4CF5)' }} />
             <span style={SECTION_TITLE}>{t('badges.myShelfTitle')}</span>
             <span style={COUNT_MONO}>{shelfBadges.length} / 3</span>
+            {/* Chỉ trên hồ sơ của chính mình (modal gắn/gỡ kệ của người đăng nhập) */}
+            {isViewingSelf && (
+              <button
+                type="button"
+                onClick={onReorderShelf}
+                style={{
+                  marginLeft: 'auto',
+                  flex: '0 0 auto',
+                  font: "700 11px/1 'Oswald', sans-serif",
+                  letterSpacing: '.14em',
+                  padding: '8px 11px',
+                  borderRadius: 6,
+                  border: 'none',
+                  background: 'rgba(120,70,220,.3)',
+                  color: '#C8A8F0',
+                  cursor: 'pointer',
+                }}
+              >
+                {t('badges.reorderShelf')}
+              </button>
+            )}
           </div>
 
           <div style={{ display: 'grid', gridTemplateColumns: 'repeat(3, minmax(0, 1fr))', gap: 8 }}>
