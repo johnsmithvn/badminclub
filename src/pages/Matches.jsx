@@ -1729,11 +1729,6 @@ export default function Matches() {
                 <div style={{ font: isMobile ? "600 13px/1.2 'IBM Plex Sans', sans-serif" : "600 15px/1.25 'IBM Plex Sans', sans-serif", color: 'var(--text-primary)' }}>
                   {t('matchVideo.recentMatchesHeader', { n: searchResults.length })}
                 </div>
-                {!isMobile && (
-                  <div style={{ font: "400 11.5px/1.3 'IBM Plex Mono', monospace", color: 'var(--text-muted)' }}>
-                    {t('matchVideo.recentMatchesSub')}
-                  </div>
-                )}
               </div>
 
               {/* Dòng cuộn ngang các pills duy nhất */}

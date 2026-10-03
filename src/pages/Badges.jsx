@@ -1036,7 +1036,7 @@ export default function Badges() {
                         color: '#FFFFFF',
                       }}
                     >
-                      {activeMember.name} {isViewingSelf ? `· ${t('season.youBadge')}` : ''}
+                      {activeMember.name}
                     </span>
                     <span
                       style={{
@@ -1144,11 +1144,6 @@ export default function Badges() {
                     }}
                   />
                 </div>
-                <span style={{ font: '400 11px/1.4 var(--font-mono)', color: '#8E83A8' }}>
-                  {t('badges.collectorProfile.nextLevelHint', {
-                    remain: Math.max(0, memberXpData.nextLevelXp - memberXpData.totalXp).toLocaleString('vi-VN'),
-                  })}
-                </span>
 
                 {/* 3 ô chỉ số thật từ DB (XP tích luỹ · Điểm mùa · Điểm sưu tập) */}
                 <div style={{ display: 'grid', gridTemplateColumns: 'repeat(3, minmax(0, 1fr))', gap: 10, marginTop: 2 }}>
@@ -1157,7 +1152,7 @@ export default function Badges() {
                       key: 'xp',
                       label: t('badges.collectorProfile.xpAccumulated'),
                       value: memberXpData.totalXp.toLocaleString('vi-VN'),
-                      note: t('badges.collectorProfile.xpNote'),
+                      note: '',
                       color: '#F6A03C',
                       ink: '#F6A03C',
                       bg: 'rgba(246,160,60,.08)',
@@ -1198,7 +1193,7 @@ export default function Badges() {
                         {s.label}
                       </span>
                       <span style={{ font: "700 22px/1 'Oswald', sans-serif", color: '#FFFFFF' }}>{s.value}</span>
-                      <span style={{ font: '400 10px/1.3 var(--font-mono)', color: '#8E83A8' }}>{s.note}</span>
+                      <span style={{ font: '400 10px/1.3 var(--font-mono)', color: '#8E83A8', minHeight: 13 }}>{s.note || '\u00A0'}</span>
                     </div>
                   ))}
                 </div>

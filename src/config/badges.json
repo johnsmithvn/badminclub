@@ -880,18 +880,6 @@
       }
     },
     {
-      "id": "sat_gio",
-      "groupId": 0,
-      "tier": "rare",
-      "glyph": "fang",
-      "checkType": "last_match_win",
-      "threshold": 3,
-      "reward": {
-        "xp": 60,
-        "seasonPts": 8
-      }
-    },
-    {
       "id": "bat_bai_mot_buoi",
       "groupId": 0,
       "tier": "elite",

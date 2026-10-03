@@ -4123,7 +4123,7 @@
     "wantedTag": "TRUY NÃ",
     "bountyActive": "ĐANG BỊ TREO THƯỞNG",
     "bountyOpenedMeta": "bounty mở {{time}} · {{tries}} đã thử",
-    "bountyHeadline": "{{name}} đang thắng {{streak}} trận liền — ai hạ được nhận trọn phần thưởng",
+    "bountyHeadline": "{{name}} đang thắng {{streak}} trận liền",
     "streak": "CHUỖI",
     "bountyNotice": "Elo vẫn tính bình thường theo chênh lệch trình độ. Bounty chỉ cộng thêm XP và Điểm mùa.",
     "challengeNow": "GẠ KÈO NGAY",
@@ -4140,11 +4140,11 @@
       "nextLevelProgress": "{{current}} / {{target}} XP",
       "nextLevelHint": "còn {{remain}} XP · một buổi có ghi tỷ số trả khoảng 60–90 XP",
       "xpAccumulated": "XP TÍCH LUỸ",
-      "xpNote": "chỉ tăng, không reset",
+      "xpNote": "",
       "seasonPoints": "ĐIỂM MÙA",
-      "seasonPointsNote": "hạng {{rank}} · reset mỗi mùa",
+      "seasonPointsNote": "hạng {{rank}}",
       "collectionPoints": "ĐIỂM SƯU TẬP",
-      "collectionPointsNote": "hạng {{rank}} · tự phong 0 điểm",
+      "collectionPointsNote": "hạng {{rank}}",
       "rankMe": "Tôi"
     },
     "sixTiersTitle": "SÁU BẬC · KHUNG LỤC GIÁC",
@@ -4616,10 +4616,6 @@
       "thuc_khuya": {
         "name": "Thức khuya",
         "cond": "Thắng một trận đấu ghi sau 22h"
-      },
-      "sat_gio": {
-        "name": "Sát giờ",
-        "cond": "Thắng trận đấu cuối của mình trong buổi sinh hoạt 3 lần"
       },
       "bat_bai_mot_buoi": {
         "name": "Bất bại một buổi",
