@@ -130,10 +130,7 @@ export default function BountyHeroPoster({ bounty, onChallenge }) {
             >
               {t('badges.bountyActive')}
             </span>
-            {/* `tries` luôn được getActiveBounties đếm sẵn — 0 là 0, đừng rơi về số bịa */}
-            <span style={{ font: '400 12px/1 var(--font-mono)', color: '#C9BFDC' }}>
-              {t('badges.bountyOpenedMeta', { time: t('badges.seasonLabel'), tries: bounty.tries ?? 0 })}
-            </span>
+
           </div>
 
           <div
@@ -175,9 +172,7 @@ export default function BountyHeroPoster({ bounty, onChallenge }) {
             <span style={{ font: '600 13px/1 var(--font-mono)', color: GOLD }}>{streak} / 10</span>
           </div>
 
-          <div style={{ font: '400 13px/1.5 var(--font-sans)', color: '#C9BFDC' }}>
-            {t('badges.bountyNotice')}
-          </div>
+
         </div>
 
         {/* Cụm phần thưởng và nút GẠ KÈO bên phải */}
@@ -234,9 +229,7 @@ export default function BountyHeroPoster({ bounty, onChallenge }) {
             {t('badges.challengeNow')}
           </button>
 
-          <span style={{ textAlign: 'center', font: '400 11px/1.4 var(--font-mono)', color: '#8E83A8' }}>
-            {t('badges.streakMoreBountyHint')}
-          </span>
+
         </div>
       </div>
     </div>

@@ -1055,19 +1055,6 @@ export function calculateMemberBadges(
     return mt.sets.some((s) => Array.isArray(s) && s[0] >= 20 && s[1] >= 20 && Math.abs(s[0] - s[1]) === 2)
   }).length
 
-  // 4. Số trận thắng trận cuối của mình trong một buổi tập
-  let lastMatchWinsCount = 0
-  sessionTotalMap.forEach((tot, sid) => {
-    const sessMatches = memberMatches
-      .filter((mt) => mt.sessionId === sid)
-      .sort((a, b) => getMatchTimestamp(a, db) - getMatchTimestamp(b, db))
-    const lastM = sessMatches[sessMatches.length - 1]
-    if (lastM) {
-      const inA = (lastM.teamA || []).includes(memberId)
-      const won = (inA && lastM.winnerTeam === 'A') || (!inA && lastM.winnerTeam === 'B')
-      if (won) lastMatchWinsCount++
-    }
-  })
 
   // Các trận của thành viên theo thứ tự tăng dần thời gian cho các kiểm tra O(M)
   const ascMemberMatches = sortMatchesAsc(memberMatches, db)
@@ -1215,12 +1202,6 @@ export function calculateMemberBadges(
         pct = isUnlocked ? 100 : 0
         break
 
-      case 'last_match_win':
-        currentVal = lastMatchWinsCount
-        isUnlocked = currentVal >= badge.threshold
-        progressStr = `${currentVal} / ${badge.threshold}`
-        pct = Math.min(100, Math.round((currentVal / badge.threshold) * 100))
-        break
 
       case 'perfect_session_4': {
         const hasPerf4 = Array.from(sessionTotalMap.entries()).some(([sid, tot]) => tot >= 4 && (sessionWinsMap.get(sid) || 0) === tot)
