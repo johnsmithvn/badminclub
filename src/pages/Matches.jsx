@@ -271,7 +271,6 @@ export default function Matches() {
   const [dateTo, setDateTo] = useState('')
   const [sourceFilter, setSourceFilter] = useState('all')
   const [onlyVideoFilter, setOnlyVideoFilter] = useState(() => searchParams.get('video') === 'true')
-  const [viewerFilter, setViewerFilter] = useState('all')
   const [sortOption, setSortOption] = useState('latest') // 'latest' | 'dramatic' | 'elo_swing'
   const [searchCardLimit, setSearchCardLimit] = useState(10)
   const [expandedVideoMatchId, setExpandedVideoMatchId] = useState(null)
@@ -463,12 +462,6 @@ export default function Matches() {
         return sourceFilter === 'challenge' ? isFromChal : !isFromChal
       })
     }
-    if (viewerFilter !== 'all') {
-      list = list.filter((m) => {
-        const viewers = m.videoViewers || {}
-        return (Number(viewers[viewerFilter]) || 0) > 0
-      })
-    }
 
     // Sắp xếp
     if (sortOption === 'dramatic') {
@@ -486,7 +479,7 @@ export default function Matches() {
     }
 
     return list
-  }, [db.matches, playerA, playerB, searchMode, activePairs, qualityFilter, onlyVideoFilter, viewerFilter, courtFilter, dateFrom, dateTo, sessionDateById, sourceFilter, sortOption, db.playerRatings, activeMembers, db.levels, db.sessions])
+  }, [db.matches, playerA, playerB, searchMode, activePairs, qualityFilter, onlyVideoFilter, courtFilter, dateFrom, dateTo, sessionDateById, sourceFilter, sortOption, db.playerRatings, activeMembers, db.levels, db.sessions])
 
   const dayGroups = useMemo(() => {
     const groups = []
@@ -620,12 +613,11 @@ export default function Matches() {
   // Số trên nút Bộ lọc = số nhóm trong popover đang khác mặc định. Kèo tính cả khi bật từ chip ngoài
   // vì hai chỗ là một trạng thái.
   const activeFilterCount = (searchMode !== 'vs') + (sourceFilter !== 'all') + (courtFilter !== 'all')
-    + (viewerFilter !== 'all') + Boolean(dateFrom || dateTo)
+    + Boolean(dateFrom || dateTo)
   const resetPopoverFilters = () => {
     setSearchMode('vs')
     setSourceFilter('all')
     setCourtFilter('all')
-    setViewerFilter('all')
     setDateFrom('')
     setDateTo('')
   }
@@ -1660,22 +1652,6 @@ export default function Matches() {
                         options={[
                           { value: 'all', label: t('matchVideo.filterAllCourts') },
                           ...(db.courts || []).map((c) => ({ value: c.id, label: c.name })),
-                        ]}
-                      />
-                    </div>
-                  )}
-
-                  {isAdmin && (
-                    <div style={{ display: 'grid', gap: 6 }}>
-                      <Overline>{t('matchVideo.filterViewer')}</Overline>
-                      <Select
-                        size="sm"
-                        value={viewerFilter}
-                        onChange={(e) => setViewerFilter(e.target.value)}
-                        options={[
-                          { value: 'all', label: t('matchVideo.allViewers') },
-                          { value: 'guest', label: t('matchVideo.guestViewer') },
-                          ...(db.members || []).map((m) => ({ value: m.id, label: m.name })),
                         ]}
                       />
                     </div>
