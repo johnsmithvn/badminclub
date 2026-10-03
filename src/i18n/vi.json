@@ -4846,7 +4846,7 @@
     "h2hWinsLosses": "{{wins}} thắng · {{losses}} thua · {{videos}} trận có video",
     "h2hLastMet": " · gần nhất {{date}}",
     "recentMatchesHeader": "{{n}} trận đấu gần nhất",
-    "recentMatchesTotal": "/ {{total}} · nhóm theo ngày",
+    "recentMatchesTotal": "/ {{total}}",
     "filterView": "Góc nhìn",
     "filterSourceChallenge": "Có kèo",
     "filterSourceSession": "Không kèo",

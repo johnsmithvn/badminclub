@@ -33,6 +33,8 @@ function normalizeStr(str) {
  * - `style`: style của container
  * - `menuWidth`: độ rộng menu dropdown
  * - `levels`: thang trình độ truyền vào LevelChip
+ * - `hideSelectedLevel`: ẩn chip trình độ ở giá trị ĐÃ CHỌN (single), danh sách xổ xuống vẫn hiện —
+ *   cho ô hẹp mà tên quan trọng hơn trình độ (thanh tìm tab Lịch sử)
  */
 export function SearchSelect({
   options = [],
@@ -48,6 +50,7 @@ export function SearchSelect({
   style,
   menuWidth,
   levels,
+  hideSelectedLevel = false,
 }) {
   const [isOpen, setIsOpen] = useState(false)
   const [search, setSearch] = useState('')
@@ -308,7 +311,7 @@ export function SearchSelect({
             minWidth: 0,
             overflow: 'hidden',
           }}>
-            {singleSelectedOption.level && (
+            {singleSelectedOption.level && !hideSelectedLevel && (
               <LevelChip level={singleSelectedOption.level} levels={levels || singleSelectedOption.levels} />
             )}
             <span
@@ -347,7 +350,9 @@ export function SearchSelect({
             fontSize: size === 'sm' ? 12 : 13,
             color: 'var(--text-primary)',
             padding: 0,
-            minWidth: 50,
+            // Đã chọn một giá trị và chưa gõ thì ô gõ vô hình — đừng giữ 50px, ô hẹp (mobile ~150px)
+            // là tên bị ép còn một chữ. Bấm vào ô vẫn focus được nên gõ tìm không mất.
+            minWidth: !multiple && singleSelectedOption && !search ? 4 : 50,
             flex: 1,
             cursor: disabled ? 'not-allowed' : 'text',
           }}

@@ -592,7 +592,8 @@ export default function Matches() {
     const r = filterBtnRef.current?.getBoundingClientRect()
     if (!r) return
     const width = Math.min(380, window.innerWidth - 32)
-    setFilterPos({ top: r.bottom + 6, left: Math.max(16, Math.min(r.left, window.innerWidth - width - 16)), width })
+    // Nút nằm ngoài cùng bên phải → popover canh mép phải theo nút, không tràn khỏi màn.
+    setFilterPos({ top: r.bottom + 6, left: Math.max(16, Math.min(r.right - width, window.innerWidth - width - 16)), width })
   }
   // Toạ độ chốt lúc mở — trang cuộn / đổi cỡ thì đóng, không để popover trôi khỏi nút.
   // Cuộn bên trong chính popover (nhiều sân, màn thấp) thì giữ nguyên.
@@ -1377,7 +1378,7 @@ export default function Matches() {
               }}
             >
               {/* Cụm chọn Người chơi A ⇄ Người chơi B */}
-              <div style={{ display: 'flex', alignItems: 'center', gap: 5, flex: isMobile ? '1 1 100%' : '0 1 420px', minWidth: 0 }}>
+              <div style={{ display: 'flex', alignItems: 'center', gap: 5, flex: isMobile ? '1 1 100%' : '1 1 auto', minWidth: 0 }}>
                 <div style={{ flex: 1, minWidth: 0 }}>
                   <SearchSelect
                     size="sm"
@@ -1386,6 +1387,7 @@ export default function Matches() {
                     value={playerA}
                     onChange={(val) => setPlayerA(val || '')}
                     clearable
+                    hideSelectedLevel
                     menuWidth={220}
                   />
                 </div>
@@ -1425,12 +1427,34 @@ export default function Matches() {
                     value={playerB}
                     onChange={(val) => setPlayerB(val || '')}
                     clearable
+                    hideSelectedLevel
                     menuWidth={220}
                   />
                 </div>
               </div>
 
-              {/* Bộ lọc: Góc nhìn · Kèo · Sân (· Người xem) gom vào một popover; nút hiện số lọc đang bật */}
+              {/* Sắp xếp: dropdown, đứng trước nút Bộ lọc */}
+              <div style={{ position: 'relative', flex: isMobile ? '1 1 0' : '0 0 auto', minWidth: 0 }}>
+                <Icon
+                  name="chevrons-up-down"
+                  size={14}
+                  style={{ position: 'absolute', left: 10, top: '50%', transform: 'translateY(-50%)', color: 'var(--text-muted)', pointerEvents: 'none', zIndex: 1 }}
+                />
+                <Select
+                  size="sm"
+                  aria-label={t('common.sort')}
+                  value={sortOption}
+                  onChange={(e) => setSortOption(e.target.value)}
+                  options={[
+                    { value: 'latest', label: t('matchVideo.sortLatest') },
+                    { value: 'dramatic', label: t('matchVideo.sortDramatic') },
+                    { value: 'elo_swing', label: t('matchVideo.sortEloSwing') },
+                  ]}
+                  style={{ paddingLeft: 30, fontWeight: 600 }}
+                />
+              </div>
+
+              {/* Bộ lọc ngoài cùng bên phải: Góc nhìn · Kèo · Sân (· Người xem) gom vào một popover; nút hiện số lọc đang bật */}
               <button
                 ref={filterBtnRef}
                 type="button"
@@ -1478,27 +1502,6 @@ export default function Matches() {
                 )}
                 <Icon name={filterPos ? 'chevron-up' : 'chevron-down'} size={14} />
               </button>
-
-              {/* Sắp xếp: một dropdown ở mép phải */}
-              <div style={{ position: 'relative', marginLeft: 'auto', flex: isMobile ? '1 1 0' : '0 0 auto', minWidth: 0 }}>
-                <Icon
-                  name="chevrons-up-down"
-                  size={14}
-                  style={{ position: 'absolute', left: 10, top: '50%', transform: 'translateY(-50%)', color: 'var(--text-muted)', pointerEvents: 'none', zIndex: 1 }}
-                />
-                <Select
-                  size="sm"
-                  aria-label={t('common.sort')}
-                  value={sortOption}
-                  onChange={(e) => setSortOption(e.target.value)}
-                  options={[
-                    { value: 'latest', label: t('matchVideo.sortLatest') },
-                    { value: 'dramatic', label: t('matchVideo.sortDramatic') },
-                    { value: 'elo_swing', label: t('matchVideo.sortEloSwing') },
-                  ]}
-                  style={{ paddingLeft: 30, fontWeight: 600 }}
-                />
-              </div>
             </div>
 
             {/* Popover Bộ lọc: đưa ra document.body vì thẻ này overflow:hidden — lọc ra ít trận thì
@@ -1679,11 +1682,15 @@ export default function Matches() {
                 background: 'var(--surface-card)',
               }}
             >
-              <div style={{ display: 'flex', alignItems: 'baseline', gap: 6, flexWrap: 'wrap', minWidth: 0 }}>
-                <div style={{ font: isMobile ? "600 13px/1.2 'IBM Plex Sans', sans-serif" : "600 15px/1.25 'IBM Plex Sans', sans-serif", color: 'var(--text-primary)' }}>
-                  {t('matchVideo.recentMatchesHeader', { n: searchResults.length })}
-                </div>
-                <span style={{ font: "400 11.5px/1.2 'IBM Plex Mono', monospace", color: 'var(--text-muted)', whiteSpace: 'nowrap' }}>
+              {/* Chỉ để số: số trận đang hiện nổi lên, tổng mờ phía sau. Câu đầy đủ nằm ở title. */}
+              <div
+                title={t('matchVideo.recentMatchesHeader', { n: searchResults.length })}
+                style={{ display: 'flex', alignItems: 'baseline', gap: 6, minWidth: 0, whiteSpace: 'nowrap' }}
+              >
+                <span style={{ font: `700 ${isMobile ? 20 : 22}px/1 'IBM Plex Mono', monospace`, color: isDark ? '#5FDBD3' : 'var(--teal-700)' }}>
+                  {searchResults.length}
+                </span>
+                <span style={{ font: "500 12.5px/1 'IBM Plex Mono', monospace", color: 'var(--text-muted)' }}>
                   {t('matchVideo.recentMatchesTotal', { total: baseMatchCount })}
                 </span>
               </div>

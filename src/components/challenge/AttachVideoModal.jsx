@@ -610,8 +610,10 @@ export function MatchVideoInlineExpander({
         </div>
       </div>
 
-      <div style={{ display: 'grid', gridTemplateColumns: 'minmax(0,1fr) 140px 150px', gap: 10, alignItems: 'end' }}>
-        <div style={{ display: 'flex', flexDirection: 'column', gap: 6 }}>
+      {/* Hàng tự xuống dòng, canh mép TRÊN. Trước đây là lưới cột giờ 140px + canh đáy: 8 nút tua
+          gãy thành 3 hàng, cột giờ cao vọt và kéo ô link / ghi chú tụt xuống đáy, để trống cả góc trên. */}
+      <div style={{ display: 'flex', flexWrap: 'wrap', gap: 10, alignItems: 'flex-start' }}>
+        <div style={{ display: 'flex', flexDirection: 'column', gap: 6, flex: '1 1 280px', minWidth: 0 }}>
           <div style={{ font: '600 10.5px/1.2 "IBM Plex Sans", sans-serif', letterSpacing: '0.08em', textTransform: 'uppercase', color: 'var(--text-muted)', display: 'flex', alignItems: 'center', gap: 6 }}>
             <span>{t('matchVideo.fieldUrl')}</span>
             {provider === 'youtube' && <span style={{ color: '#FF4E45', font: '600 10px/1 "IBM Plex Sans", sans-serif' }}>● YouTube</span>}
@@ -638,14 +640,15 @@ export function MatchVideoInlineExpander({
           />
         </div>
 
-        <div style={{ display: 'flex', flexDirection: 'column', gap: 6 }}>
+        {/* ~330px: đủ cho 8 nút tua trên một hàng */}
+        <div style={{ display: 'flex', flexDirection: 'column', gap: 6, flex: '0 1 330px', minWidth: 0 }}>
           <div style={{ font: '600 10.5px/1.2 "IBM Plex Sans", sans-serif', letterSpacing: '0.08em', textTransform: 'uppercase', color: 'var(--text-muted)' }}>
             {t('matchVideo.fieldTimestamp')}
           </div>
           <QuickTimestampPicker value={timestamp} onChange={setTimestamp} isMobile={false} compact />
         </div>
 
-        <div style={{ display: 'flex', flexDirection: 'column', gap: 6 }}>
+        <div style={{ display: 'flex', flexDirection: 'column', gap: 6, flex: '1 1 180px', minWidth: 0 }}>
           <div style={{ font: '600 10.5px/1.2 "IBM Plex Sans", sans-serif', letterSpacing: '0.08em', textTransform: 'uppercase', color: 'var(--text-muted)' }}>
             {t('matchVideo.fieldNote')}
           </div>
@@ -698,10 +701,11 @@ export function MatchVideoInlineExpander({
             padding: '0 14px',
             borderRadius: 7,
             border: 'none',
-            background: 'var(--teal-500)',
+            background: 'var(--action-accent-bg)',
             font: '600 12.5px/1 "IBM Plex Sans", sans-serif',
-            color: 'var(--navy-900, #04302C)',
+            color: 'var(--action-accent-fg)',
             cursor: 'pointer',
+            whiteSpace: 'nowrap',
           }}
         >
           {t('matchVideo.saveLink')}
