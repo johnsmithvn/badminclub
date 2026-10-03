@@ -4853,7 +4853,6 @@
     "partLabel": "Part {{n}}",
     "addPart": "Thêm part",
     "removePart": "Bỏ part này",
-    "partsTag": "{{label}} · {{n}} part",
     "filterView": "Góc nhìn",
     "filterSourceChallenge": "Có kèo",
     "filterSourceSession": "Không kèo",

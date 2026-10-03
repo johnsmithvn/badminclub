@@ -1,7 +1,6 @@
 /**
  * Tiện ích xử lý URL Video, Timestamp và Mốc thời gian trận đấu
  */
-import { t } from '#i18n'
 
 /**
  * Phân loại nền tảng video từ URL
@@ -129,15 +128,14 @@ export function matchVideosOf(match) {
 }
 
 /**
- * Nhãn ngắn trên nút ▶: nguồn video của Part 1, kèm số phần khi nhiều hơn một ("YouTube · 2 part").
+ * Nhãn ngắn trên nút ▶ ở danh sách: chỉ nguồn video của Part 1. Không ghi số phần — vào trình xem mới hiện Part 1, Part 2.
  * @param {object} match
  * @returns {string}
  */
 export function videoTagLabelOf(match) {
   const parts = matchVideosOf(match)
   const p = parseVideoProvider(parts[0]?.url)
-  const base = p === 'youtube' ? 'YouTube' : p === 'drive' ? 'Drive' : p === 'icloud' ? 'iCloud' : 'Video'
-  return parts.length > 1 ? t('matchVideo.partsTag', { label: base, n: parts.length }) : base
+  return p === 'youtube' ? 'YouTube' : p === 'drive' ? 'Drive' : p === 'icloud' ? 'iCloud' : 'Video'
 }
 
 /**

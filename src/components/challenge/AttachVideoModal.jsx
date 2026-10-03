@@ -576,6 +576,15 @@ function VideoPartsEditor({ parts, onChange, isMobile, lockCount = 0, large = fa
   const [pastedIdx, setPastedIdx] = useState(null)
   const multi = parts.length > 1
   const h = large ? 46 : 36
+  // Nhiều phần: mỗi phần một hàng lưới cố định — link co giãn, mốc 136px, ✕ 32px — để ✕ không rớt
+  // xuống dòng riêng trong modal 460px. Điện thoại: link chiếm cả hàng, mốc + ✕ xuống hàng dưới.
+  // Một phần: giữ hàng tự xuống dòng như cũ (ô mốc rộng, có dải nút tua).
+  const rowStyle = multi
+    ? { display: 'grid', gridTemplateColumns: isMobile ? 'minmax(0, 1fr) 32px' : 'minmax(0, 1fr) 136px 32px', gap: 8, alignItems: 'end' }
+    : { display: 'flex', flexWrap: 'wrap', gap: 8, alignItems: 'flex-start' }
+  // minmax(0, 1fr): cột 'auto' mặc định bị ô <input> (bề rộng mặc định ~20 ký tự) nong ra — ô mốc
+  // từng tràn khỏi modal và kéo theo thanh cuộn ngang (DESIGN.md §8.4).
+  const cellStyle = { minWidth: 0, display: 'grid', gridTemplateColumns: 'minmax(0, 1fr)', gap: 6 }
   const setPart = (i, patch) => onChange(parts.map((p, j) => (j === i ? { ...p, ...patch } : p)))
 
   const paste = async (i) => {
@@ -596,8 +605,8 @@ function VideoPartsEditor({ parts, onChange, isMobile, lockCount = 0, large = fa
       {parts.map((p, i) => {
         const provider = parseVideoProvider(p.url)
         return (
-          <div key={i} style={{ display: 'flex', flexWrap: 'wrap', gap: 8, alignItems: 'flex-start' }}>
-            <div style={{ flex: '1 1 260px', minWidth: 0, display: 'grid', gap: 6 }}>
+          <div key={i} style={rowStyle}>
+            <div style={multi ? { ...cellStyle, gridColumn: isMobile ? '1 / -1' : 'auto' } : { ...cellStyle, flex: '1 1 260px' }}>
               <div style={{ ...PART_LABEL_STYLE, display: 'flex', alignItems: 'center', gap: 6 }}>
                 <span>{multi ? t('matchVideo.partLabel', { n: i + 1 }) : t('matchVideo.fieldUrl')}</span>
                 {provider === 'youtube' && <span style={{ color: '#FF4E45', font: '600 10px/1 "IBM Plex Sans", sans-serif' }}>● YouTube</span>}
@@ -650,7 +659,7 @@ function VideoPartsEditor({ parts, onChange, isMobile, lockCount = 0, large = fa
               </div>
             </div>
 
-            <div style={{ flex: multi ? '0 0 150px' : '0 1 330px', minWidth: 0, display: 'grid', gap: 6 }}>
+            <div style={multi ? cellStyle : { ...cellStyle, flex: '0 1 330px' }}>
               <div style={PART_LABEL_STYLE}>{t('matchVideo.fieldTimestamp')}</div>
               <QuickTimestampPicker
                 value={p.start}
@@ -668,7 +677,6 @@ function VideoPartsEditor({ parts, onChange, isMobile, lockCount = 0, large = fa
                 title={t('matchVideo.removePart')}
                 aria-label={t('matchVideo.removePart')}
                 style={{
-                  alignSelf: 'flex-end',
                   width: 32,
                   height: large ? 46 : 36,
                   borderRadius: 7,
