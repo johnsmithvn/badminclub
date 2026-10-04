@@ -28,7 +28,6 @@ import RivalGoalCard from '#components/home/personal/RivalGoalCard.jsx'
 import SeasonRaceCard from '#components/home/personal/SeasonRaceCard.jsx'
 import RecentMatchesCard from '#components/home/personal/RecentMatchesCard.jsx'
 import SynergyBadgesCard from '#components/home/personal/SynergyBadgesCard.jsx'
-import UpcomingSessionCard from '#components/home/personal/UpcomingSessionCard.jsx'
 import ClubFeedCard from '#components/home/personal/ClubFeedCard.jsx'
 import NearbyStandingsCard from '#components/home/personal/NearbyStandingsCard.jsx'
 import MyOpponentsCard from '#components/home/personal/MyOpponentsCard.jsx'
@@ -172,17 +171,15 @@ export default function MyStats() {
     }
   }
   const handleViewLeaderboard = () => a.go('leaderboard')
-  // Vé buổi tới của tôi — nằm ở tab Sân đấu, ngay trên card phân tích buổi tới của CLB.
-  const upcomingCard = (mobile) => (
-    <UpcomingSessionCard
-      session={upcomingSession}
-      isMobile={mobile}
-      onViewSchedule={handleViewSchedule}
-      onViewAssignment={handleViewAssignment}
-      onChallenge={handleLogMatch}
-      onOpenChallenge={handleOpenChallenge}
-    />
-  )
+  // Thẻ Buổi tới của tôi — tab Sân đấu dựng thẻ và gộp thêm phần tóm tắt buổi của CLB.
+  const upcomingProps = (mobile) => ({
+    session: upcomingSession,
+    isMobile: mobile,
+    onViewSchedule: handleViewSchedule,
+    onViewAssignment: handleViewAssignment,
+    onChallenge: handleLogMatch,
+    onOpenChallenge: handleOpenChallenge,
+  })
 
   // Nếu người dùng chưa phải thành viên trong CLB này
   if (!currentMember) {
@@ -243,7 +240,7 @@ export default function MyStats() {
         </TabTrack>
 
         {tab === 'match' ? (
-          <HomeMatchTab upcoming={upcomingCard(true)} />
+          <HomeMatchTab upcoming={upcomingProps(true)} />
         ) : tab === 'activity' ? (
           <ActivityTab />
         ) : (
@@ -371,7 +368,7 @@ export default function MyStats() {
       </TabTrack>
 
       {tab === 'match' ? (
-        <HomeMatchTab upcoming={upcomingCard(false)} />
+        <HomeMatchTab upcoming={upcomingProps(false)} />
       ) : tab === 'activity' ? (
         <ActivityTab />
       ) : (

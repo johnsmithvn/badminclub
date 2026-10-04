@@ -63,7 +63,9 @@ test('Mobile Responsiveness & Confidence Progression Tests', async (t) => {
     assert.equal(r5.isMax, true)
   })
 
-  await t.test('Mobile Home page renders all 10 personal dashboard cards without omissions', async () => {
+  // 2026-10-04 (chủ dự án duyệt): thẻ Buổi tới chuyển từ tab Thành tích sang tab Sân đấu, gộp với phần
+  // tóm tắt buổi của CLB. Tab Thành tích còn 9 thẻ; tab Sân đấu nhận props của vé qua `upcoming`.
+  await t.test('Mobile Home page renders all 9 personal dashboard cards + Buổi tới ở tab Sân đấu', async () => {
     const fs = await import('node:fs/promises')
     const path = await import('node:path')
     const myStatsPath = path.resolve('src/pages/MyStats.jsx')
@@ -83,7 +85,6 @@ test('Mobile Responsiveness & Confidence Progression Tests', async (t) => {
       'NearbyStandingsCard',
       'SynergyBadgesCard',
       'MyOpponentsCard',
-      'UpcomingSessionCard',
       'ClubFeedCard',
     ]
 
@@ -93,6 +94,11 @@ test('Mobile Responsiveness & Confidence Progression Tests', async (t) => {
         `Mobile home container must include ${card}`,
       )
     }
+
+    // Thẻ Buổi tới: tab Sân đấu trên mobile nhận đủ props của vé, và HomeMatchTab thật sự vẽ vé
+    assert.ok(mobileContent.includes('<HomeMatchTab upcoming={upcomingProps(true)} />'), 'tab Sân đấu mobile phải nhận vé Buổi tới')
+    const matchTab = await fs.readFile(path.resolve('src/components/home/HomeMatchTab.jsx'), 'utf8')
+    assert.ok(matchTab.includes('<UpcomingSessionCard'), 'HomeMatchTab phải vẽ thẻ Buổi tới')
   })
 
   await t.test('Recent matches query retrieves up to 3 matches for mobile and desktop feeds', async () => {

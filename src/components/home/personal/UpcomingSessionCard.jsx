@@ -65,6 +65,7 @@ export default function UpcomingSessionCard({
   onViewAssignment,
   onChallenge,
   onOpenChallenge,
+  club = null,
 }) {
   if (!session) {
     return (
@@ -196,6 +197,9 @@ export default function UpcomingSessionCard({
         </div>
       )}
 
+      {/* Tóm tắt buổi của CLB (tab Sân đấu truyền vào) */}
+      {club && <div style={S.club}>{club}</div>}
+
       <div style={S.footer}>
         <button type="button" onClick={onViewAssignment} style={S.footPrimary}>
           {t('home.personal.viewCourtAssignment')}
@@ -218,6 +222,13 @@ const S = {
     flexDirection: 'column',
     // Bo góc cho dải nút dán đáy. Trong thẻ không có popover nào nên cắt tràn là an toàn.
     overflow: 'hidden',
+  },
+  club: {
+    display: 'grid',
+    gridTemplateColumns: 'minmax(0, 1fr)',
+    gap: 10,
+    padding: '12px 16px',
+    borderTop: '1px solid var(--border-subtle)',
   },
   emptyCard: {
     padding: '16px 16px',

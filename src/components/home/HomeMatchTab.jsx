@@ -1,55 +1,56 @@
-import { useMemo } from 'react'
+import { useMemo, useState } from 'react'
 import { useNavigate } from 'react-router-dom'
 import { LevelChip } from '#ui'
 import { useApp } from '#contexts/AppContext.jsx'
 import { useTheme } from '#contexts/ThemeContext.jsx'
 import { useMobile } from '#hooks/useMobile.js'
-import { dd, wd, todayISO } from '#utils/dates.js'
+import { addMonth, dd, isoOf, todayISO } from '#utils/dates.js'
 import { pathOf } from '#routes'
 
 import { playerName, isPresent, shortName } from '#lib/money.js'
-import { getPlayerRating } from '#lib/rating.js'
-import { neverMetPairs, neverMetWithSessionCount } from '#lib/matchSearch.js'
+import { getPlayerRating, matchCodeOf } from '#lib/rating.js'
+import { matchPrediction, neverMetPairs, neverMetWithSessionCount } from '#lib/matchSearch.js'
 import { pickNextSession } from '#lib/homePersonal.js'
+import { avgCourtBalance, closeRate, matchMonthOf, pickWatchable, ratingSpread } from '#lib/homeMatch.js'
+import UpcomingSessionCard from '#components/home/personal/UpcomingSessionCard.jsx'
+import cfg from '#config/app.js'
 import { t } from '#i18n'
 
-/** `upcoming`: vé buổi tới của chính người xem (MyStats dựng) — đặt ngay trên card "Buổi tới" của CLB. */
+/**
+ * `upcoming`: props thẻ Buổi tới của chính người xem (MyStats dựng). Tab này vẽ thẻ đó và gộp vào phần tóm tắt
+ * buổi của CLB (số người, sân, trải rating, cảnh báo lệch trình) — một thẻ thay cho hai.
+ */
 export default function HomeMatchTab({ upcoming = null }) {
   const { db, a } = useApp()
   const { isDark } = useTheme()
   const navigate = useNavigate()
   const isMobile = useMobile(768)
-  const month = db.month || new Date().toISOString().slice(0, 7)
+  const month = db.month || todayISO().slice(0, 7)
   const activeMembers = useMemo(() => (db.members || []).filter((m) => m.active !== false), [db.members])
   const matches = useMemo(() => db.matches || [], [db.matches])
   const sessions = useMemo(() => db.sessions || [], [db.sessions])
 
-  // Trận trong tháng
-  const monthMatches = useMemo(() => {
-    return matches.filter((m) => {
-      const mMonth = m.createdAt ? m.createdAt.slice(0, 7) : (m.at ? new Date(m.at).toISOString().slice(0, 7) : '')
-      return mMonth === month
-    })
-  }, [matches, month])
+  // Trận trong tháng (theo giờ địa phương)
+  const monthMatches = useMemo(() => matches.filter((m) => matchMonthOf(m) === month), [matches, month])
 
   const monthSessionsList = useMemo(() => {
     return sessions.filter((s) => (s.date || '').slice(0, 7) === month)
   }, [sessions, month])
 
-  // 1. Bốn chỉ số StatCard
+  // Rating hiện tại của mọi người (thành viên + khách) — dùng cho điểm chia sân và dự đoán trận
+  const ratingsMap = useMemo(() => {
+    const map = {}
+    ;[...(db.members || []), ...(db.guests || [])].forEach((p) => {
+      map[p.id] = getPlayerRating(db.playerRatings, p.id, p, db.levels).rating
+    })
+    return map
+  }, [db.members, db.guests, db.playerRatings, db.levels])
+
+  // 1. Bốn chỉ số StatCard — số thật, không có giá trị dự phòng bịa
   const stats = useMemo(() => {
     const totalMonthMatches = monthMatches.length
-    const sessCount = monthSessionsList.length || 1
-    const avgPerSess = Math.round(totalMonthMatches / sessCount)
-
-    // Trận sát điểm: có set chênh lệch <= 3 điểm
-    const closeCount = monthMatches.filter((m) => {
-      return (m.sets || []).some(([sa, sb]) => Math.abs(sa - sb) <= 3)
-    }).length
-    const closePct = totalMonthMatches > 0 ? Math.round((closeCount / totalMonthMatches) * 100) : 23
-
-    // Điểm chia sân trung bình
-    const balanceScore = 84
+    const sessCount = monthSessionsList.length
+    const balance = avgCourtBalance(monthMatches, ratingsMap)
 
     // Số người rating chưa chắc (< 10 trận)
     let uncertainCount = 0
@@ -61,16 +62,17 @@ export default function HomeMatchTab({ upcoming = null }) {
     return {
       totalMonthMatches,
       sessCount,
-      avgPerSess,
-      closePct,
-      balanceScore,
+      avgPerSess: sessCount ? Math.round(totalMonthMatches / sessCount) : 0,
+      closePct: closeRate(monthMatches),
+      prevClosePct: closeRate(matches.filter((m) => matchMonthOf(m) === addMonth(month, -1))),
+      balanceScore: balance.score,
+      balanceSessions: balance.sessionCount,
       uncertainCount,
     }
-  }, [monthMatches, monthSessionsList, activeMembers, db.playerRatings, db.levels])
+  }, [monthMatches, monthSessionsList, matches, month, ratingsMap, activeMembers, db.playerRatings, db.levels])
 
-  // 2. Buổi tiếp theo & Histogram 9 cột
+  // 2. Buổi tiếp theo của CLB: người đã nhận, sân, phân bố rating (cùng luật chọn buổi với thẻ Buổi tới)
   const nextSessionData = useMemo(() => {
-    // Cùng một luật chọn buổi với thẻ Buổi tới ở tab Thành tích
     const next = pickNextSession(sessions, db.today || todayISO())
     if (!next) return null
 
@@ -79,58 +81,19 @@ export default function HomeMatchTab({ upcoming = null }) {
     const attendMap = db.attendance?.[next.id] || {}
     const goingIds = Object.keys(attendMap).filter((id) => isPresent(attendMap[id]))
     const allRosterIds = Array.from(new Set([...fixedIds, ...goingIds]))
-
     const ratings = allRosterIds.map((id) => {
       const mem = (db.members || []).find((m) => m.id === id)
       return getPlayerRating(db.playerRatings, id, mem, db.levels).rating
-    }).sort((a1, b1) => a1 - b1)
-
-    const minR = ratings.length ? ratings[0] : 1479
-    const maxR = ratings.length ? ratings[ratings.length - 1] : 1682
-
-    // Chia thành 9 bins
-    const binCount = 9
-    const step = Math.max(20, Math.ceil((maxR - minR || 200) / binCount))
-    const bins = Array.from({ length: binCount }, (_, i) => ({
-      min: minR + i * step,
-      max: minR + (i + 1) * step,
-      count: 0,
-    }))
-
-    ratings.forEach((r) => {
-      let bIdx = Math.floor((r - minR) / step)
-      if (bIdx >= binCount) bIdx = binCount - 1
-      if (bIdx < 0) bIdx = 0
-      bins[bIdx].count++
     })
-
-    const maxBinCount = Math.max(1, ...bins.map((b) => b.count))
-
-    // Số người trên 1650 và dưới 1500
-    const highCount = ratings.filter((r) => r >= 1650).length
-    const lowCount = ratings.filter((r) => r <= 1500).length
-
-    // Số ngày còn lại
-    let diffDays = 0
-    if (next.date) {
-      const targetTime = new Date(`${next.date}T00:00:00`).getTime()
-      const nowTime = new Date().setHours(0, 0, 0, 0)
-      diffDays = Math.ceil((targetTime - nowTime) / (1000 * 60 * 60 * 24))
-    }
 
     return {
       session: next,
-      rosterCount: allRosterIds.length || 18,
-      courtCount: (next.courts || []).filter((c) => !c.sold).length || 3,
-      minR,
-      maxR,
-      bins,
-      maxBinCount,
-      highCount: highCount || 4,
-      lowCount: lowCount || 2,
-      diffDays,
+      rosterCount: allRosterIds.length,
+      courtCount: (next.courts || []).filter((c) => !c.sold).length,
+      spread: ratingSpread(ratings),
     }
   }, [sessions, db.today, db.groups, db.attendance, db.members, db.playerRatings, db.levels])
+  const [spreadOpen, setSpreadOpen] = useState(false)
 
   // 3. Người của tháng (Top Elo gainer trong tháng)
   const topGainers = useMemo(() => {
@@ -253,68 +216,9 @@ export default function HomeMatchTab({ upcoming = null }) {
       .slice(0, 6)
   }, [monthMatches])
 
-  // 7. Trận đáng xem trong tháng (Upset & Close)
-  const watchableMatches = useMemo(() => {
-    const list = []
-    const seenIds = new Set()
-    const upsets = []
-    const closes = []
-
-    monthMatches.forEach((m) => {
-      const ra = m.initialRatingA || 0
-      const rb = m.initialRatingB || 0
-      const gap = Math.abs(ra - rb)
-      const aWon = m.winnerTeam === 'A'
-
-      // Upset: đội yếu hơn thắng khi chênh lệch >= 60
-      if (gap >= 60 && ((ra < rb && aWon) || (rb < ra && !aWon))) {
-        upsets.push({ match: m, gap, type: 'upset' })
-      }
-
-      // Close match: điểm set sát nút (cách <= 3 điểm) hoặc đấu 3 set
-      if (m.sets && m.sets.length) {
-        let minDiff = 99
-        m.sets.forEach(([sa, sb]) => {
-          const d = Math.abs(sa - sb)
-          if (d < minDiff) minDiff = d
-        })
-        if (minDiff <= 3 || m.sets.length >= 3) {
-          closes.push({ match: m, minDiff, type: 'close' })
-        }
-      }
-    })
-
-    upsets.sort((a1, b1) => b1.gap - a1.gap)
-    closes.sort((a1, b1) => a1.minDiff - b1.minDiff)
-
-    let u = 0
-    let c = 0
-    while (list.length < 5 && (u < upsets.length || c < closes.length)) {
-      if (u < upsets.length) {
-        const item = upsets[u++]
-        if (!seenIds.has(item.match.id)) {
-          seenIds.add(item.match.id)
-          list.push(item)
-        }
-      }
-      if (list.length < 5 && c < closes.length) {
-        const item = closes[c++]
-        if (!seenIds.has(item.match.id)) {
-          seenIds.add(item.match.id)
-          list.push(item)
-        }
-      }
-    }
-
-    // Nếu dữ liệu ít, fallback lấy các trận mới nhất trong tháng
-    if (list.length === 0 && monthMatches.length > 0) {
-      monthMatches.slice(0, 3).forEach((m) => {
-        list.push({ match: m, minDiff: 2, type: 'close' })
-      })
-    }
-
-    return list
-  }, [monthMatches])
+  // 7. Trận đáng xem trong tháng: kèo dưới thắng + trận sát / 3 set (luật ở #lib/homeMatch.js)
+  const watchableMatches = useMemo(() => pickWatchable(monthMatches), [monthMatches])
+  const ratingOf = (id) => ratingsMap[id] ?? getPlayerRating(db.playerRatings, id, null, db.levels).rating
 
   return (
     <div style={{ display: 'flex', flexDirection: 'column', gap: 16 }}>
@@ -336,11 +240,11 @@ export default function HomeMatchTab({ upcoming = null }) {
         <div style={S.statCard}>
           <span style={S.statLabel}>{t('home.tightMatches')}</span>
           <div style={{ display: 'flex', alignItems: 'baseline', gap: 6 }}>
-            <span style={{ ...S.statValue, color: '#5FDBD3' }}>{stats.closePct}</span>
-            <span style={S.statUnit}>%</span>
+            <span style={{ ...S.statValue, color: '#5FDBD3' }}>{stats.closePct ?? '—'}</span>
+            {stats.closePct != null && <span style={S.statUnit}>%</span>}
           </div>
           <span style={S.statSub}>
-            {t('home.tightMatchesSub', { pct: 17 })}
+            {stats.prevClosePct != null ? t('home.tightMatchesSub', { n: cfg.match?.closeMatchMaxDiff ?? 3, pct: stats.prevClosePct }) : t('home.tightMatchesSubNoPrev', { n: cfg.match?.closeMatchMaxDiff ?? 3 })}
           </span>
         </div>
 
@@ -348,11 +252,11 @@ export default function HomeMatchTab({ upcoming = null }) {
         <div style={S.statCard}>
           <span style={S.statLabel}>{t('home.courtScore')}</span>
           <div style={{ display: 'flex', alignItems: 'baseline', gap: 6 }}>
-            <span style={{ ...S.statValue, color: '#5FD9A2' }}>{stats.balanceScore}</span>
-            <span style={S.statUnit}>/100</span>
+            <span style={{ ...S.statValue, color: '#5FD9A2' }}>{stats.balanceScore ?? '—'}</span>
+            {stats.balanceScore != null && <span style={S.statUnit}>/100</span>}
           </div>
           <span style={S.statSub}>
-            {t('home.courtScoreSub', { n: stats.sessCount || 12 })}
+            {t('home.courtScoreSub', { n: stats.balanceSessions })}
           </span>
         </div>
 
@@ -377,83 +281,74 @@ export default function HomeMatchTab({ upcoming = null }) {
         }}
       >
 
-        {/* Ô 1: vé buổi tới của tôi (từ tab Thành tích) + phân tích buổi tới của CLB, xếp chồng */}
-        {(upcoming || nextSessionData) && (
-          <div style={{ display: 'grid', gridTemplateColumns: 'minmax(0, 1fr)', gap: 16, alignContent: 'start' }}>
-            {upcoming}
-
-            {/* CARD 1: Buổi tới */}
-          {nextSessionData && (
-            <div style={S.card}>
-              <div style={S.cardHeader}>
-                <div style={{ display: 'flex', flexDirection: 'column', gap: 2 }}>
-                  <span style={{ font: "600 16px/1.25 'IBM Plex Sans', sans-serif", color: 'var(--text-primary)' }}>
-                    {t('home.nextSessionTitle', { date: `${dd(nextSessionData.session.date)} ${wd(nextSessionData.session.date)}` })}
-                  </span>
-                  <span style={{ font: "400 13px/1.4 'IBM Plex Sans', sans-serif", color: 'var(--text-muted)' }}>
+        {/* CARD 1: Buổi tới — thẻ của tôi (giờ, sân, kèo) + tóm tắt buổi của CLB gộp làm một */}
+        {upcoming && (
+          <UpcomingSessionCard
+            {...upcoming}
+            club={nextSessionData && (
+              <>
+                <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'baseline', gap: 10, flexWrap: 'wrap' }}>
+                  <span style={{ font: "400 13px/1.4 'IBM Plex Sans', sans-serif", color: 'var(--text-secondary)' }}>
                     {t('home.nextSessionSub', { rosterCount: nextSessionData.rosterCount, courtCount: nextSessionData.courtCount })}
                   </span>
-                </div>
-                <span style={{ font: "400 13px/1.2 'IBM Plex Mono', monospace", color: 'var(--text-muted)', whiteSpace: 'nowrap' }}>
-                  {nextSessionData.diffDays <= 0 ? t('home.daysRemainingToday') : t('home.daysRemaining', { n: nextSessionData.diffDays })}
-                </span>
-              </div>
-
-              <div style={{ padding: '12px 14px', display: 'grid', gap: 10 }}>
-                {/* Histogram 9 cột */}
-                <div style={S.insetBox}>
-                  <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
-                    <span style={{ font: "600 11px/1.2 'IBM Plex Sans', sans-serif", letterSpacing: '0.08em', textTransform: 'uppercase', color: 'var(--text-muted)' }}>
-                      {t('home.ratingSpread')}
+                  {nextSessionData.spread && (
+                    <span style={{ font: "400 13px/1.2 'IBM Plex Mono', monospace", color: 'var(--text-primary)', whiteSpace: 'nowrap' }}>
+                      {`${nextSessionData.spread.minR} → ${nextSessionData.spread.maxR}`}
                     </span>
-                    <span style={{ font: "400 13px/1.2 'IBM Plex Mono', monospace", color: 'var(--text-primary)' }}>
-                      {`${nextSessionData.minR} → ${nextSessionData.maxR}`}
-                    </span>
-                  </div>
-
-                  {/* 9 vertical bars */}
-                  <div style={{ display: 'flex', alignItems: 'flex-end', gap: 4, height: 44, paddingTop: 4 }}>
-                    {nextSessionData.bins.map((b, idx) => {
-                      const hPct = Math.max(16, Math.round((b.count / nextSessionData.maxBinCount) * 100))
-                      const isPeak = b.count === nextSessionData.maxBinCount
-                      return (
-                        <div
-                          key={idx}
-                          title={t('home.histogramTooltip', { min: b.min, max: b.max, count: b.count })}
-                          style={{
-                            flex: 1,
-                            height: `${hPct}%`,
-                            borderRadius: '3px 3px 0 0',
-                            background: isPeak ? '#00B2A9' : 'var(--navy-600, #2E3E5C)',
-                            transition: 'height 0.2s ease',
-                          }}
-                        />
-                      )
-                    })}
-                  </div>
-
-                  <span style={{ font: "400 12.5px/1.4 'IBM Plex Sans', sans-serif", color: 'var(--text-muted)' }}>
-                    {t('home.histogramPeakDesc', { val: `${nextSessionData.minR + 50}–${nextSessionData.maxR - 50}` })}
-                  </span>
+                  )}
                 </div>
 
-                {/* Dải cảnh báo lệch trình */}
-                <div style={S.alertStrip}>
-                  {t('home.nextSessionAlert', { high: nextSessionData.highCount, low: nextSessionData.lowCount })}
-                </div>
+                {/* Lệch trình thật (mạnh nhất – yếu nhất vượt ngưỡng) mới cảnh báo */}
+                {nextSessionData.spread?.imbalanced && (
+                  <div style={S.alertStrip}>
+                    {t('home.nextSessionAlert', { gap: nextSessionData.spread.gap })}
+                  </div>
+                )}
 
-                {/* Nút đến buổi tới */}
-                <button
-                  type="button"
-                  onClick={() => a.go('session', nextSessionData.session.id)}
-                  style={S.primaryBtn}
-                >
-                  {t('home.goToNextSession')}
-                </button>
-              </div>
-            </div>
-          )}
-          </div>
+                {/* Phân bố rating 9 cột — mặc định thu gọn */}
+                {nextSessionData.spread && (
+                  <div style={S.insetBox}>
+                    <button
+                      type="button"
+                      onClick={() => setSpreadOpen((v) => !v)}
+                      aria-expanded={spreadOpen}
+                      style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', gap: 8, width: '100%', minHeight: isMobile ? 44 : 32, padding: 0, background: 'none', border: 'none', cursor: 'pointer', color: 'inherit' }}
+                    >
+                      <span style={{ font: "600 11px/1.2 'IBM Plex Sans', sans-serif", letterSpacing: '0.08em', textTransform: 'uppercase', color: 'var(--text-muted)' }}>
+                        {t('home.ratingSpread')}
+                      </span>
+                      <span style={{ display: 'inline-flex', alignItems: 'center', gap: 4, font: "600 12px/1 'IBM Plex Sans', sans-serif", color: 'var(--text-link)' }}>
+                        {spreadOpen ? t('scoreModal.collapseChanges') : t('scoreModal.expandChanges')}
+                        <span style={{ fontSize: 13, transform: spreadOpen ? 'rotate(180deg)' : 'none', transition: 'transform 0.15s ease' }}>▾</span>
+                      </span>
+                    </button>
+                    {spreadOpen && (
+                      <>
+                        <div style={{ display: 'flex', alignItems: 'flex-end', gap: 4, height: 44, paddingTop: 4 }}>
+                          {nextSessionData.spread.bins.map((b, idx) => (
+                            <div
+                              key={idx}
+                              title={t('home.histogramTooltip', { min: b.min, max: b.max, count: b.count })}
+                              style={{
+                                flex: 1,
+                                height: `${Math.max(16, Math.round((b.count / nextSessionData.spread.maxBinCount) * 100))}%`,
+                                borderRadius: '3px 3px 0 0',
+                                background: b === nextSessionData.spread.peak ? '#00B2A9' : 'var(--navy-600, #2E3E5C)',
+                                transition: 'height 0.2s ease',
+                              }}
+                            />
+                          ))}
+                        </div>
+                        <span style={{ font: "400 12.5px/1.4 'IBM Plex Sans', sans-serif", color: 'var(--text-muted)' }}>
+                          {t('home.histogramPeakDesc', { val: `${nextSessionData.spread.peak.min}–${nextSessionData.spread.peak.max}` })}
+                        </span>
+                      </>
+                    )}
+                  </div>
+                )}
+              </>
+            )}
+          />
         )}
         {/* CARD 2: Người của tháng */}
         <div style={S.card}>
@@ -725,8 +620,10 @@ export default function HomeMatchTab({ upcoming = null }) {
             </div>
 
             <div style={{ padding: '12px 14px', display: 'grid', gap: 10 }}>
-              {watchableMatches.map(({ match: m, type, gap }) => {
+              {watchableMatches.map(({ match: m, type }) => {
                 const isUpset = type === 'upset'
+                const pred = matchPrediction(m, ratingOf)
+                const playedDate = m.playedAt || m.createdAt || (m.at ? isoOf(new Date(m.at)) : null)
                 const winnerIsA = m.winnerTeam === 'A'
                 const winTeam = winnerIsA ? m.teamA : m.teamB
                 const loseTeam = winnerIsA ? m.teamB : m.teamA
@@ -738,7 +635,7 @@ export default function HomeMatchTab({ upcoming = null }) {
                   ? (isDark ? '#FF9A8F' : 'var(--text-danger, #C42B1C)')
                   : (isDark ? '#F0B75C' : '#B26A00')
 
-                const scoreDisplay = m.scoreText || (m.sets && m.sets.map(([sa, sb]) => `${sa}–${sb}`).join(', ')) || '21–19'
+                const scoreDisplay = m.scoreText || (m.sets && m.sets.map(([sa, sb]) => `${sa}–${sb}`).join(', ')) || ''
 
                 return (
                   <div
@@ -760,11 +657,13 @@ export default function HomeMatchTab({ upcoming = null }) {
                   >
                     <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
                       <span style={{ font: "500 13px/1.2 'IBM Plex Mono', monospace", color: 'var(--text-secondary)' }}>
-                        {`${m.code || 'M-0000'}${m.playedAt || m.createdAt ? ` · ${dd(m.playedAt || m.createdAt)}` : ''}`}
+                        {`${matchCodeOf(db, m)}${playedDate ? ` · ${dd(playedDate)}` : ''}`}
                       </span>
-                      <span style={{ font: "600 10.5px/1 'IBM Plex Sans', sans-serif", padding: '3px 8px', borderRadius: 999, background: tagBg, color: tagColor }}>
-                        {isUpset ? t('leaderboard.predUpset') : t('leaderboard.predClose')}
-                      </span>
+                      {type !== 'recent' && (
+                        <span style={{ font: "600 10.5px/1 'IBM Plex Sans', sans-serif", padding: '3px 8px', borderRadius: 999, background: tagBg, color: tagColor }}>
+                          {isUpset ? t('leaderboard.predUpset') : t('leaderboard.predClose')}
+                        </span>
+                      )}
                     </div>
                     <div style={{ display: 'flex', alignItems: 'center', gap: 10 }}>
                       <span
@@ -785,7 +684,11 @@ export default function HomeMatchTab({ upcoming = null }) {
                     </div>
                     <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
                       <span style={{ font: "400 12.5px/1.4 'IBM Plex Sans', sans-serif", color: 'var(--text-secondary)' }}>
-                        {isUpset ? t('home.watchablePredUpset', { pct: Math.min(85, Math.round(50 + (gap || 60) / 5)) }) : t('home.watchablePredClose', { pct: 51 })}
+                        {isUpset
+                          ? t('home.watchablePredUpset', { pct: 100 - pred.predPct })
+                          : type === 'close'
+                            ? t('home.watchablePredClose', { pct: pred.predPct, other: 100 - pred.predPct })
+                            : t('matchVideo.predFormat', { pct: pred.predPct, status: pred.isCorrect ? t('matchVideo.predCorrect') : t('matchVideo.predWrong') })}
                       </span>
                       <span style={{ font: "500 12px/1 'IBM Plex Sans', sans-serif", color: 'var(--text-link)', display: 'inline-flex', alignItems: 'center', gap: 4 }}>
                         {t('home.viewMatchHistory')} →
@@ -848,14 +751,6 @@ const S = {
     gap: 12,
     flexWrap: 'wrap',
   },
-  newBadge: {
-    font: "600 10px/1 'IBM Plex Sans', sans-serif",
-    padding: '4px 8px',
-    borderRadius: 999,
-    background: 'rgba(224,138,0,.18)',
-    color: '#F0B75C',
-    whiteSpace: 'nowrap',
-  },
   insetBox: {
     display: 'grid',
     gap: 6,
@@ -888,31 +783,6 @@ const S = {
     borderTop: '1px solid var(--border-subtle)',
     paddingTop: 8,
     marginTop: 2,
-  },
-  primaryBtn: {
-    flex: 1,
-    height: 36,
-    display: 'flex',
-    alignItems: 'center',
-    justifyContent: 'center',
-    borderRadius: 6,
-    background: '#1D50A0',
-    border: 'none',
-    font: "600 13px/1 'IBM Plex Sans', sans-serif",
-    color: '#fff',
-    cursor: 'pointer',
-  },
-  ghostBtn: {
-    height: 36,
-    display: 'flex',
-    alignItems: 'center',
-    padding: '0 14px',
-    borderRadius: 6,
-    background: 'var(--surface-card)',
-    border: '1px solid var(--border-default)',
-    font: "600 13px/1 'IBM Plex Sans', sans-serif",
-    color: 'var(--text-secondary)',
-    cursor: 'pointer',
   },
   ghostBtnWide: {
     height: 32,
