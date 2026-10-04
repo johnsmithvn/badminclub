@@ -12,12 +12,12 @@
 
 import { useState, useMemo } from 'react'
 import { useNavigate } from 'react-router-dom'
-import { Avatar, Button, Card, Icon, Input, Select } from '#ds'
+import { Avatar, Button, Card, Icon, IconButton, Input, Select } from '#ds'
 import { AvatarUpload, Empty, LevelChip, Mono, Overline } from '#ui'
 import { useApp } from '#contexts/AppContext.jsx'
 import { useAuth } from '#contexts/AuthContext.jsx'
 import { useMobile } from '#hooks/useMobile.js'
-import { genderTxt, nextLevelStep, playerName, shortName } from '#lib/money.js'
+import { genderTxt, nextLevelStep, playerName } from '#lib/money.js'
 import { roleName } from '#lib/roles.js'
 import { getPlayerRating, rankTierOf, confidenceProgress, MIN_RATING } from '#lib/rating.js'
 import { ddmy } from '#utils/dates.js'
@@ -167,14 +167,13 @@ export default function Profile() {
   return (
     <div style={{
       display: 'grid',
-      gridTemplateColumns: isMobile ? '1fr' : 'minmax(340px, 390px) minmax(0, 1fr)',
+      gridTemplateColumns: isMobile ? 'minmax(0, 1fr)' : 'minmax(340px, 390px) minmax(0, 1fr)',
       gap: 16,
       alignItems: 'start',
     }}>
       {/* Cột trái: Hồ sơ cá nhân trong CLB, xin đổi thông tin và tài khoản */}
       <div style={{ display: 'grid', gap: 16 }}>
-        <MeCard me={me} myGroups={myGroups} db={db} a={a} profile={profile} />
-        <ChangeCard me={me} pending={pending} db={db} a={a} />
+        <MeCard me={me} myGroups={myGroups} pending={pending} db={db} a={a} profile={profile} />
         <AccountCard myClubs={myClubs} setActiveClub={setActiveClub} db={db} navigate={navigate} />
       </div>
 
@@ -183,7 +182,7 @@ export default function Profile() {
         <MemberPerformanceCard me={me} stats={stats} />
         <div style={{
           display: 'grid',
-          gridTemplateColumns: isMobile ? '1fr' : 'repeat(auto-fit, minmax(280px, 1fr))',
+          gridTemplateColumns: isMobile ? 'minmax(0, 1fr)' : 'repeat(auto-fit, minmax(280px, 1fr))',
           gap: 16,
           alignItems: 'start',
         }}>
@@ -195,9 +194,13 @@ export default function Profile() {
   )
 }
 
-/* ---------------- bản ghi của tôi + đổi tên ---------------- */
+/* ---------------- hồ sơ của tôi trong CLB ---------------- */
 
 /**
+ * Một thẻ, mỗi thông tin hiện đúng một lần (trước là thẻ hồ sơ + khối "Đổi tên & ảnh" lặp lại ảnh và
+ * tên + thẻ "Đổi thông tin" riêng): ảnh và tên sửa tại chỗ, phần còn lại chỉ xem, SĐT / trình độ
+ * thì gửi yêu cầu ngay bên dưới.
+ *
  * Hai tên, và chỉ hai tên này là tự sửa được:
  *   · TÊN HIỂN THỊ (`name`) — cái nằm trên bảng điểm danh, bảng chia tiền, báo cáo Zalo;
  *   · TÊN ĐẦY ĐỦ (`full_name`) — chỉ để đối chiếu, hiện nhỏ bên dưới, không thay tên hiển thị
@@ -205,13 +208,20 @@ export default function Profile() {
  *
  * `a.renameMe` ghi thẳng DB rồi `reload()` chứ không đi qua đồng bộ ngầm — lý do nằm ở chính
  * action đó (upsert cần policy INSERT mà thành viên thường không có).
+ *
+ * Xin đổi: hai trường thôi, đúng bộ mà `appActions.requestChange` + `approveChange` xử lý được —
+ * SĐT (duyệt xong áp dụng ngay) và trình độ (áp dụng từ tháng sau). Thêm ô ở đây mà không thêm
+ * nhánh ở `approveChange` thì yêu cầu gửi đi rồi duyệt xong không có gì đổi.
  */
-function MeCard({ me, myGroups, db, a, profile }) {
+function MeCard({ me, myGroups, pending, db, a, profile }) {
+  const isMobile = useMobile()
   const [loadedFor, setLoadedFor] = useState(null)
   const [name, setName] = useState('')
   const [full, setFull] = useState('')
   const [avatarUrl, setAvatarUrl] = useState('')
   const [saving, setSaving] = useState(false)
+  const [level, setLevel] = useState('')
+  const [phone, setPhone] = useState('')
 
   // Nạp một lần cho mỗi bản ghi, không dùng effect: `me` là phần tử của `db.members` nên đổi
   // tham chiếu mỗi lần đồng bộ, effect sẽ hất mất chữ đang gõ dở.
@@ -234,132 +244,101 @@ function MeCard({ me, myGroups, db, a, profile }) {
     setSaving(false)
   }
 
+  // Nút gửi yêu cầu: điện thoại chỉ còn icon, chữ "Gửi yêu cầu" ăn mất nửa ô nhập
+  const sendBtn = (disabled, onClick) => (isMobile
+    ? <IconButton icon="send" variant="outline" label={t('profile.changeSend')} disabled={disabled} onClick={onClick} />
+    : (
+      <Button variant="secondary" size="md" icon="send" disabled={disabled} onClick={onClick} style={{ marginBottom: 1 }}>
+        {t('profile.changeSend')}
+      </Button>
+    ))
+
   return (
     <Card title={t('profile.meTitle')} subtitle={db.club.name} icon="user-round" padding="16px 18px">
       {!me
         ? <Empty icon="unlink" title={t('profile.changeNoMember')} hint={t('profile.changeNoMemberHint')} />
-        : <div style={{ display: 'grid', gap: 13 }}>
+        : <div style={{ display: 'grid', gridTemplateColumns: 'minmax(0, 1fr)', gap: 13 }}>
+            {/* Ảnh (bấm để đổi) + vai trò. Chưa có ảnh riêng trong CLB thì hiện tạm ảnh tài khoản. */}
             <div style={S.idRow}>
-              <Avatar name={me.name} src={avatarUrl || me.avatarUrl || (profile && (profile.avatar_url || profile.avatarUrl))} size={46} />
-              <div style={{ minWidth: 0 }}>
-                <div style={S.h3} title={me.name}>{shortName(me.name)}</div>
-                {me.fullName && <div style={S.caption}>{me.fullName}</div>}
-                <Mono color="var(--text-muted)">{me.phone || t('common.notYet')}</Mono>
-              </div>
+              <AvatarUpload
+                name={name || me.name}
+                value={avatarUrl}
+                fallbackSrc={profile ? (profile.avatar_url || profile.avatarUrl || '') : ''}
+                size={56}
+                onChange={(url) => setAvatarUrl(url)}
+              />
               <div style={{ flex: 1 }} />
               <span style={S.rolePill}>{roleName(me.role)}</span>
             </div>
 
-            {me.email && <Row label={t('members.fEmail')}><Mono>{me.email}</Mono></Row>}
-            <Row label={t('auth.fGender')}>{genderTxt(me.gender)}</Row>
-            <Row label={t('auth.fLevel')}>
-              <LevelChip level={me.level} levels={db.levels} />
-              {nextLevelStep(me, db.month) && (
-                <span style={S.caption}>
-                  {t('profile.levelPending', {
-                    level: nextLevelStep(me, db.month).level,
-                    month: nextLevelStep(me, db.month).from,
-                  })}
-                </span>
-              )}
-            </Row>
-            <Row label={t('profile.fJoined')}><Mono>{ddmy(me.joined)}</Mono></Row>
-            <Row label={t('profile.fGroups')}>
-              {myGroups.length === 0
-                ? <span style={S.caption}>{t('profile.groupsNone')}</span>
-                : myGroups.map((g) => <span key={g.id} style={S.groupPill}>{g.name}</span>)}
-            </Row>
-
-            <div style={{ display: 'grid', gap: 11, paddingTop: 12, borderTop: '1px solid var(--border-subtle)' }}>
-              <Overline>{t('profile.editInfoTitle')}</Overline>
-              <div style={{ display: 'flex', flexDirection: 'column', gap: 6 }}>
-                <div style={{ font: 'var(--type-caption)', color: 'var(--text-muted)' }}>
-                  {t('profile.fAvatar')}
-                </div>
-                <AvatarUpload
-                  name={name || me.name}
-                  value={avatarUrl}
-                  size={54}
-                  onChange={(url) => setAvatarUrl(url)}
-                />
-                <span style={S.caption}>{t('profile.fAvatarHint')}</span>
-              </div>
-              <Input label={t('profile.fDisplayName')} hint={t('profile.fDisplayNameHint')}
-                value={name} onChange={(e) => setName(e.target.value)} />
-              <Input label={t('members.fFull')} hint={t('members.fFullHint')}
-                value={full} onChange={(e) => setFull(e.target.value)} />
-              <div style={{ display: 'flex', justifyContent: 'flex-end' }}>
-                <Button variant={dirty ? 'primary' : 'secondary'} size="sm" icon="circle-check"
-                  disabled={saving || !dirty || !name.trim()} onClick={save}>
-                  {saving ? t('account.saving') : t('common.save')}
-                </Button>
-              </div>
+            <Input label={t('profile.fDisplayName')} value={name} onChange={(e) => setName(e.target.value)} />
+            <Input label={t('members.fFull')} value={full} onChange={(e) => setFull(e.target.value)} />
+            <div style={{ display: 'flex', justifyContent: 'flex-end' }}>
+              <Button variant={dirty ? 'primary' : 'secondary'} size="sm" icon="circle-check"
+                disabled={saving || !dirty || !name.trim()} onClick={save}>
+                {saving ? t('account.saving') : t('common.save')}
+              </Button>
             </div>
 
-            <div style={S.note}>
-              <Icon name="info" size={14} />
-              <span>{t('profile.snapshotNote')}</span>
+            {/* Chỉ xem — SĐT và trình độ đổi qua yêu cầu bên dưới */}
+            <div style={{ display: 'grid', gap: 13, paddingTop: 12, borderTop: '1px solid var(--border-subtle)' }}>
+              <Row label={t('members.fPhone')}><Mono>{me.phone || t('common.notYet')}</Mono></Row>
+              {me.email && <Row label={t('members.fEmail')}><Mono>{me.email}</Mono></Row>}
+              <Row label={t('auth.fGender')}>{genderTxt(me.gender)}</Row>
+              <Row label={t('auth.fLevel')}>
+                <LevelChip level={me.level} levels={db.levels} />
+                {nextLevelStep(me, db.month) && (
+                  <span style={S.caption}>
+                    {t('profile.levelPending', {
+                      level: nextLevelStep(me, db.month).level,
+                      month: nextLevelStep(me, db.month).from,
+                    })}
+                  </span>
+                )}
+              </Row>
+              <Row label={t('profile.fJoined')}><Mono>{ddmy(me.joined)}</Mono></Row>
+              <Row label={t('profile.fGroups')}>
+                {myGroups.length === 0
+                  ? <span style={S.caption}>{t('profile.groupsNone')}</span>
+                  : myGroups.map((g) => <span key={g.id} style={S.groupPill}>{g.name}</span>)}
+              </Row>
+            </div>
+
+            {/* Xin đổi SĐT / trình độ — chủ CLB duyệt */}
+            <div style={{ display: 'grid', gap: 11, paddingTop: 12, borderTop: '1px solid var(--border-subtle)' }}>
+              <Overline>{t('profile.changeTitle')}</Overline>
+              {pending.length > 0 && (
+                <div style={S.pendingBox}>
+                  {pending.map((c) => (
+                    <div key={c.id}>
+                      {t('profile.changePending', { field: t('members.changeField.' + c.field), to: c.to })}
+                    </div>
+                  ))}
+                </div>
+              )}
+
+              <div style={{ display: 'flex', gap: 8, alignItems: 'flex-end' }}>
+                <div style={{ flex: 1, minWidth: 0 }}>
+                  <Select label={t('profile.changeLevel')} value={level} onChange={(e) => setLevel(e.target.value)}
+                    options={[{ value: '', label: t('profile.changePick') }]
+                      .concat((db.levels || []).map((l) => ({ value: l, label: l })))} />
+                </div>
+                {sendBtn(!level, () => { a.requestChange('level', level); setLevel('') })}
+              </div>
+
+              <div style={{ display: 'flex', gap: 8, alignItems: 'flex-end' }}>
+                <div style={{ flex: 1, minWidth: 0 }}>
+                  <Input label={t('profile.changePhone')} mono value={phone} onChange={(e) => setPhone(e.target.value)} />
+                </div>
+                {sendBtn(!phone.trim(), () => { a.requestChange('phone', phone); setPhone('') })}
+              </div>
+
+              <div style={S.note}>
+                <Icon name="info" size={14} style={{ flexShrink: 0, marginTop: 1 }} />
+                <span>{t('profile.changeNote')}</span>
+              </div>
             </div>
           </div>}
-    </Card>
-  )
-}
-
-/* ---------------- xin đổi thông tin ---------------- */
-
-/**
- * Hai trường thôi, đúng bộ mà `appActions.requestChange` + `approveChange` xử lý được:
- * SĐT (duyệt xong áp dụng ngay) và trình độ (áp dụng từ tháng sau). Thêm ô ở đây mà không thêm
- * nhánh ở `approveChange` thì yêu cầu gửi đi rồi duyệt xong không có gì đổi.
- */
-function ChangeCard({ me, pending, db, a }) {
-  const [level, setLevel] = useState('')
-  const [phone, setPhone] = useState('')
-
-  if (!me) return null
-
-  return (
-    <Card title={t('profile.changeTitle')} subtitle={t('profile.changeSub')} icon="settings-2" padding="16px 18px">
-      <div style={{ display: 'grid', gap: 14 }}>
-        {pending.length > 0 && (
-          <div style={S.pendingBox}>
-            {pending.map((c) => (
-              <div key={c.id}>
-                {t('profile.changePending', { field: t('members.changeField.' + c.field), to: c.to })}
-              </div>
-            ))}
-          </div>
-        )}
-
-        <div style={{ display: 'flex', gap: 8, alignItems: 'flex-end' }}>
-          <div style={{ flex: 1, minWidth: 0 }}>
-            <Select label={t('profile.changeLevel')} value={level} onChange={(e) => setLevel(e.target.value)}
-              options={[{ value: '', label: t('profile.changePick') }]
-                .concat((db.levels || []).map((l) => ({ value: l, label: l })))} />
-          </div>
-          <Button variant="secondary" size="md" icon="send" disabled={!level}
-            onClick={() => { a.requestChange('level', level); setLevel('') }}
-            style={{ marginBottom: 1 }}>
-            {t('profile.changeSend')}
-          </Button>
-        </div>
-
-        <div style={{ display: 'flex', gap: 8, alignItems: 'flex-end' }}>
-          <div style={{ flex: 1, minWidth: 0 }}>
-            <Input label={t('profile.changePhone')} mono value={phone} onChange={(e) => setPhone(e.target.value)} />
-          </div>
-          <Button variant="secondary" size="md" icon="send" disabled={!phone.trim()}
-            onClick={() => { a.requestChange('phone', phone); setPhone('') }}
-            style={{ marginBottom: 1 }}>
-            {t('profile.changeSend')}
-          </Button>
-        </div>
-
-        <div style={S.note}>
-          <Icon name="info" size={14} />
-          <span>{t('profile.changeNote')}</span>
-        </div>
-      </div>
     </Card>
   )
 }
@@ -511,7 +490,6 @@ function AccountCard({ myClubs, setActiveClub, db, navigate }) {
         <Button variant="secondary" icon="user-round-cog" onClick={() => navigate(PUBLIC_PATHS.account)}>
           {t('profile.accountBtn')}
         </Button>
-        <span style={S.caption}>{t('profile.accountNote')}</span>
 
         <div style={{ display: 'grid', gap: 8, marginTop: 4 }}>
           {myClubs.length === 0
@@ -731,11 +709,11 @@ const S = {
   rowLabel: { font: 'var(--type-caption)', color: 'var(--text-muted)' },
   rolePill: {
     font: '600 10px/1 var(--font-sans)', padding: '5px 9px', borderRadius: 99, whiteSpace: 'nowrap',
-    background: 'var(--surface-brand-soft)', color: 'var(--navy-700)',
+    background: 'var(--surface-brand-soft)', color: 'var(--text-link)',
   },
   groupPill: {
     font: '600 11px/1 var(--font-sans)', padding: '4px 8px', borderRadius: 6,
-    background: 'var(--surface-accent-soft)', color: 'var(--teal-700)',
+    background: 'var(--surface-accent-soft)', color: 'var(--text-accent)',
   },
   clubRow: {
     display: 'flex', flexDirection: 'column', alignItems: 'stretch', gap: 6, padding: '12px 14px', borderRadius: 8,
@@ -744,7 +722,7 @@ const S = {
   },
   note: {
     display: 'flex', alignItems: 'flex-start', gap: 8, padding: '9px 11px', borderRadius: 8,
-    background: 'var(--surface-brand-soft)', color: 'var(--navy-700)', font: 'var(--type-caption)',
+    background: 'var(--surface-brand-soft)', color: 'var(--text-link)', font: 'var(--type-caption)',
   },
   pendingBox: {
     display: 'grid', gap: 4, padding: '9px 11px', borderRadius: 8,

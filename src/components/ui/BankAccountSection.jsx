@@ -253,7 +253,7 @@ export function BankAccountSection({
         </div>
       ) : (
         /* Chế độ chỉ đọc (Read-only view) */
-        <div style={{ display: 'grid', gridTemplateColumns: autoVietQrUrl ? '1fr 140px' : '1fr', gap: 14, alignItems: 'center' }}>
+        <div style={{ display: 'grid', gridTemplateColumns: autoVietQrUrl ? 'minmax(0, 1fr) 140px' : 'minmax(0, 1fr)', gap: 14, alignItems: 'center' }}>
           <div style={{ display: 'grid', gap: 8 }}>
             <div style={{ display: 'grid', gap: 2 }}>
               <Overline>{t('settings.fBankHolder')}</Overline>

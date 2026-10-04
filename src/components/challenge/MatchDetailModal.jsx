@@ -261,7 +261,7 @@ export default function MatchDetailModal({ match, onClose, onEdit }) {
       title: t('matchDetail.tierH2H'),
       sub: t('matchDetail.tierH2HSub'),
       desc: t('matchDetail.h2hHistoryOnlyNote'),
-      value: `${h2hP1} ${h2hWins1}–${h2hWins2} ${h2hP2}`,
+      value: `${shortName(h2hP1)} ${h2hWins1}–${h2hWins2} ${shortName(h2hP2)}`,
       color: '#8494AA',
     },
   ], [t, expA, isUpset, playerDeltas.listA, winPairName, synGames, actualWinPct, expWinPct, synBefore, synAfter, match?.ratingEnabled, seasonDelta, losePairName, matchupGames, matchupConf, h2hP1, h2hWins1, h2hWins2, h2hP2])
@@ -329,8 +329,8 @@ export default function MatchDetailModal({ match, onClose, onEdit }) {
               alignItems: 'center',
             }}
           >
-            <div style={{ display: 'grid', gap: 3 }}>
-              <div style={{ font: isMobile ? "600 13px/1.3 'IBM Plex Sans', sans-serif" : "600 14px/1.3 'IBM Plex Sans', sans-serif", color: aWon ? '#5FDBD3' : '#A8B7CB' }}>
+            <div style={{ display: 'grid', gridTemplateColumns: 'minmax(0, 1fr)', gap: 3 }}>
+              <div title={nameTeamA} style={{ ...TEAM_NAME_CLAMP, font: isMobile ? "600 13px/1.3 'IBM Plex Sans', sans-serif" : "600 14px/1.3 'IBM Plex Sans', sans-serif", color: aWon ? '#5FDBD3' : '#A8B7CB' }}>
                 {nameTeamA}
               </div>
               <div style={{ font: isMobile ? "400 10.5px/1.35 'IBM Plex Mono', monospace" : "400 11px/1.35 'IBM Plex Mono', monospace", color: '#8494AA' }}>
@@ -364,8 +364,8 @@ export default function MatchDetailModal({ match, onClose, onEdit }) {
                 </div>
               )}
             </div>
-            <div style={{ display: 'grid', gap: 3, textAlign: 'right' }}>
-              <div style={{ font: isMobile ? "600 13px/1.3 'IBM Plex Sans', sans-serif" : "600 14px/1.3 'IBM Plex Sans', sans-serif", color: !aWon ? '#5FDBD3' : '#A8B7CB' }}>
+            <div style={{ display: 'grid', gridTemplateColumns: 'minmax(0, 1fr)', gap: 3, textAlign: 'right' }}>
+              <div title={nameTeamB} style={{ ...TEAM_NAME_CLAMP, font: isMobile ? "600 13px/1.3 'IBM Plex Sans', sans-serif" : "600 14px/1.3 'IBM Plex Sans', sans-serif", color: !aWon ? '#5FDBD3' : '#A8B7CB' }}>
                 {nameTeamB}
               </div>
               <div style={{ font: isMobile ? "400 10.5px/1.35 'IBM Plex Mono', monospace" : "400 11px/1.35 'IBM Plex Mono', monospace", color: '#8494AA' }}>
@@ -497,12 +497,13 @@ export default function MatchDetailModal({ match, onClose, onEdit }) {
                         gap: 8,
                       }}
                     >
-                      <div style={{ display: 'flex', alignItems: 'center', gap: 6, flexWrap: 'wrap' }}>
-                        <span style={{ font: "600 13px/1.2 'IBM Plex Sans', sans-serif", color: '#E9EFF7' }}>
+                      <div style={{ display: 'flex', alignItems: 'center', gap: 6, flexShrink: 0 }}>
+                        <span style={{ font: "600 13px/1.2 'IBM Plex Sans', sans-serif", color: '#E9EFF7', whiteSpace: 'nowrap' }}>
                           {tier.title}
                         </span>
                         <span
                           style={{
+                            whiteSpace: 'nowrap',
                             font: "500 10.5px/1 'IBM Plex Mono', monospace",
                             color: '#8494AA',
                             background: '#101927',
@@ -516,10 +517,11 @@ export default function MatchDetailModal({ match, onClose, onEdit }) {
                       </div>
                       <div
                         style={{
-                          font: "600 12px/1.2 'IBM Plex Mono', monospace",
+                          minWidth: 0,
+                          font: "600 12px/1.3 'IBM Plex Mono', monospace",
                           color: tier.color,
                           textAlign: 'right',
-                          flexShrink: 0,
+                          overflowWrap: 'anywhere',
                         }}
                       >
                         {tier.value}
@@ -674,14 +676,14 @@ export default function MatchDetailModal({ match, onClose, onEdit }) {
               paddingTop: 6,
             }}
           >
-            <Button variant="ghost" onClick={onClose} style={{ flex: isMobile ? 1 : undefined }}>
+            <Button variant="ghost" onClick={onClose} style={{ flex: isMobile ? '1 1 auto' : undefined, whiteSpace: 'nowrap' }}>
               {t('matchDetail.btnClose')}
             </Button>
             {hasVideo && (
               <Button
                 variant="secondary"
                 onClick={() => setWatchingVideo(true)}
-                style={{ flex: isMobile ? 1 : undefined }}
+                style={{ flex: isMobile ? '1 1 auto' : undefined, whiteSpace: 'nowrap' }}
               >
                 <span style={{ fontSize: 11 }}>▶</span>
                 <span>{t('matchVideo.btnWatch')}{Number(liveMatch?.videoViews) > 0 ? ` · ${liveMatch.videoViews}` : ''}</span>
@@ -694,7 +696,7 @@ export default function MatchDetailModal({ match, onClose, onEdit }) {
                   onClose()
                   onEdit(liveMatch)
                 }}
-                style={{ flex: isMobile ? 1 : undefined }}
+                style={{ flex: isMobile ? '1 1 auto' : undefined, whiteSpace: 'nowrap' }}
               >
                 <Icon name="pencil" size={14} />
                 <span>{t('matchDetail.btnEditScore')}</span>
@@ -713,4 +715,13 @@ export default function MatchDetailModal({ match, onClose, onEdit }) {
     )}
     </>
   )
+}
+
+// Tên đội trong khung tỷ số: tối đa 3 dòng rồi "…" — tên thành viên có khi dài cả câu
+const TEAM_NAME_CLAMP = {
+  overflow: 'hidden',
+  display: '-webkit-box',
+  WebkitLineClamp: 3,
+  WebkitBoxOrient: 'vertical',
+  overflowWrap: 'anywhere',
 }

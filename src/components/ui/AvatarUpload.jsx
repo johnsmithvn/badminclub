@@ -1,5 +1,6 @@
 import { useRef, useState } from 'react'
-import { Avatar, Button, Icon } from '#ds'
+import { Avatar, Button, Icon, IconButton } from '#ds'
+import { useMobile } from '#hooks/useMobile.js'
 import { uploadImage } from '#utils/image.js'
 import { t } from '#i18n'
 
@@ -10,11 +11,16 @@ import { t } from '#i18n'
  * @param {object} props
  * @param {string} [props.name] Tên để hiển thị chữ cái đầu khi chưa có ảnh
  * @param {string} [props.value] URL ảnh hiện tại (Base64 hoặc link)
+ * @param {string} [props.fallbackSrc] Ảnh chỉ để HIỂN THỊ khi chưa có `value` (vd. ảnh tài khoản) — không
+ *   tính là đã có ảnh, nên không hiện nút Xoá
  * @param {number} [props.size=64] Kích thước hiển thị pixel
  * @param {boolean} [props.disabled=false]
  * @param {function} props.onChange Callback khi đổi ảnh (trả về dataUrl hoặc '')
  */
-export function AvatarUpload({ name = '', value = '', size = 64, disabled = false, onChange }) {
+export function AvatarUpload({ name = '', value = '', fallbackSrc = '', size = 64, disabled = false, onChange }) {
+  // Điện thoại: hai nút chỉ còn icon (máy ảnh / thùng rác) — chữ "Đổi ảnh đại diện" chiếm hết hàng,
+  // đẩy ô tên bên cạnh ra ngoài màn hình
+  const isMobile = useMobile()
   const fileRef = useRef(null)
   const [loading, setLoading] = useState(false)
   const [err, setErr] = useState('')
@@ -49,7 +55,7 @@ export function AvatarUpload({ name = '', value = '', size = 64, disabled = fals
         onClick={() => !disabled && fileRef.current && fileRef.current.click()}
         title={disabled ? '' : t('common.changeAvatar')}
       >
-        <Avatar name={name} src={value} size={size} />
+        <Avatar name={name} src={value || fallbackSrc} size={size} />
 
         {!disabled && (
           <div
@@ -84,29 +90,50 @@ export function AvatarUpload({ name = '', value = '', size = 64, disabled = fals
 
       {!disabled && (
         <div style={{ display: 'flex', flexDirection: 'column', gap: 4 }}>
-          <div style={{ display: 'flex', gap: 8, alignItems: 'center' }}>
-            <Button
-              variant="secondary"
-              size="sm"
-              icon="camera"
-              disabled={loading}
-              onClick={() => fileRef.current && fileRef.current.click()}
-            >
-              {value ? t('common.changeAvatar') : t('common.uploadAvatar')}
-            </Button>
-            {value && (
-              <Button
-                variant="ghost"
-                size="sm"
-                icon="trash-2"
-                style={{ color: 'var(--status-incident)' }}
+          {isMobile ? (
+            <div style={{ display: 'flex', gap: 6, alignItems: 'center' }}>
+              <IconButton
+                icon="camera"
+                variant="outline"
+                label={value ? t('common.changeAvatar') : t('common.uploadAvatar')}
                 disabled={loading}
-                onClick={() => onChange('')}
+                onClick={() => fileRef.current && fileRef.current.click()}
+              />
+              {value && (
+                <IconButton
+                  icon="trash-2"
+                  label={t('common.removeAvatar')}
+                  style={{ color: 'var(--status-incident)' }}
+                  disabled={loading}
+                  onClick={() => onChange('')}
+                />
+              )}
+            </div>
+          ) : (
+            <div style={{ display: 'flex', gap: 8, alignItems: 'center' }}>
+              <Button
+                variant="secondary"
+                size="sm"
+                icon="camera"
+                disabled={loading}
+                onClick={() => fileRef.current && fileRef.current.click()}
               >
-                {t('common.removeAvatar')}
+                {value ? t('common.changeAvatar') : t('common.uploadAvatar')}
               </Button>
-            )}
-          </div>
+              {value && (
+                <Button
+                  variant="ghost"
+                  size="sm"
+                  icon="trash-2"
+                  style={{ color: 'var(--status-incident)' }}
+                  disabled={loading}
+                  onClick={() => onChange('')}
+                >
+                  {t('common.removeAvatar')}
+                </Button>
+              )}
+            </div>
+          )}
           {err && <span style={{ fontSize: 11, color: 'var(--status-incident)' }}>{err}</span>}
         </div>
       )}

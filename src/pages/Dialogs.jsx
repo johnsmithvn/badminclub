@@ -162,7 +162,9 @@ function Shell({ title, desc, width, onSubmit, submitLabel, submitIcon, children
   const isMobile = useMobile()
   return (
     <Dialog open sheet={isMobile} title={title} description={desc} width={width || 560} onClose={() => a.closeDialog()}>
-      <div style={{ display: 'grid', gap: 12 }}>
+      {/* minmax(0, 1fr): cột 'auto' mặc định nở theo ô rộng nhất (hàng ảnh + nút có chữ) và kéo cả
+          hộp thoại tràn ngang trên điện thoại (DESIGN.md §8.4) */}
+      <div style={{ display: 'grid', gridTemplateColumns: 'minmax(0, 1fr)', gap: 12 }}>
         {children}
         <div style={{
           display: 'flex',
@@ -626,16 +628,16 @@ function AddMemberDialog() {
         </div>
       </div>
 
-      <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 10 }}>
+      <div style={{ display: 'grid', gridTemplateColumns: 'repeat(2, minmax(0, 1fr))', gap: 10 }}>
         <Input label={t('members.fPhone')} mono value={f.mPhone || ''} onChange={(e) => a.setF('mPhone', e.target.value)} />
-        <Input label={t('members.fEmail')} hint={t('members.fEmailHint')}
+        <Input label={t('members.fEmail')}
           value={f.mEmail || ''} onChange={(e) => a.setF('mEmail', e.target.value)} />
       </div>
 
-      <Input label={t('members.fFull')} hint={t('members.fFullHint')}
+      <Input label={t('members.fFull')}
         value={f.mFull || ''} onChange={(e) => a.setF('mFull', e.target.value)} />
 
-      <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 10 }}>
+      <div style={{ display: 'grid', gridTemplateColumns: 'repeat(2, minmax(0, 1fr))', gap: 10 }}>
         <Select label={t('members.fGender')} value={f.mGender}
           options={cfg.genders.map((g) => ({ value: g, label: genderTxt(g) }))}
           onChange={(e) => a.setF('mGender', e.target.value)} />
@@ -720,16 +722,16 @@ function EditMemberDialog() {
         </div>
       </div>
 
-      <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 10 }}>
+      <div style={{ display: 'grid', gridTemplateColumns: 'repeat(2, minmax(0, 1fr))', gap: 10 }}>
         <Input label={t('members.fPhone')} mono value={f.ePhone || ''} onChange={(e) => a.setF('ePhone', e.target.value)} />
-        <Input label={t('members.fEmail')} hint={t('members.fEmailHint')}
+        <Input label={t('members.fEmail')}
           value={f.eEmail || ''} onChange={(e) => a.setF('eEmail', e.target.value)} />
       </div>
 
-      <Input label={t('members.fFull')} hint={t('members.fFullHint')}
+      <Input label={t('members.fFull')}
         value={f.eFull || ''} onChange={(e) => a.setF('eFull', e.target.value)} />
 
-      <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 10 }}>
+      <div style={{ display: 'grid', gridTemplateColumns: 'repeat(2, minmax(0, 1fr))', gap: 10 }}>
         <Select label={t('members.fGender')} value={f.eGender}
           options={cfg.genders.map((g) => ({ value: g, label: genderTxt(g) }))}
           onChange={(e) => a.setF('eGender', e.target.value)} />

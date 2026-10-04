@@ -12,7 +12,7 @@ import BadgeDetailModal from '#components/badges/BadgeDetailModal.jsx'
 import BadgeUnlockModal from '#components/badges/BadgeUnlockModal.jsx'
 import CollectorLeaderboardTab from '#components/badges/CollectorLeaderboardTab.jsx'
 import { useMobile } from '#hooks/useMobile.js'
-import MobileBadgeCollection from '#components/badges/mobile/MobileBadgeCollection.jsx'
+import MobileBadgeCollection, { MobileBadgeTopBar } from '#components/badges/mobile/MobileBadgeCollection.jsx'
 import TierBackdrop from '#components/badges/TierBackdrop.jsx'
 import { TIER_FX, levelTier } from '#components/badges/tierFx.js'
 import {
@@ -466,13 +466,25 @@ export default function Badges() {
   if (isMobile) {
     return (
       <div style={{ padding: '0 0 30px', color: '#FFFFFF' }}>
+        {/* Thay header chung (AppHeader ẩn ở route này trên điện thoại): chọn mùa thế chỗ bộ chọn tháng */}
+        <MobileBadgeTopBar
+          allSeasons={allSeasons}
+          seasonValue={currentSeason?.id || currentSeason?.code || selectedSeasonId || ''}
+          onSelectSeason={(sId) => setSelectedSeasonId(sId)}
+          allMembers={db?.members || []}
+          activeMemberId={activeMember?.id || ''}
+          currentMemberId={currentMember?.id}
+          onSelectMember={(memberId) => {
+            setViewingMemberId(memberId === currentMember?.id ? null : memberId)
+            setActiveTab('collection')
+          }}
+        />
         {activeTab === 'collection' ? (
           /* AM1: Màn Bộ sưu tập mobile */
           <MobileBadgeCollection
             activeMember={activeMember}
             currentMember={currentMember}
             isViewingSelf={isViewingSelf}
-            currentSeason={currentSeason}
             memberXpData={memberXpData}
             memberSeasonData={memberSeasonData}
             memberBadges={memberBadges}
@@ -486,10 +498,6 @@ export default function Badges() {
               setSignatureDraft(currentMember?.signature || '')
               setIsEditingSignature(true)
             }}
-            allMembers={db?.members || []}
-            allSeasons={allSeasons}
-            selectedSeasonId={selectedSeasonId}
-            onSelectSeason={(sId) => setSelectedSeasonId(sId)}
             heroBounty={heroBounty}
             onChallengeBounty={goChallenge}
           />
@@ -509,24 +517,13 @@ export default function Badges() {
               minHeight: '844px',
             }}
           >
-            {/* Header cùng kiểu màn Bộ sưu tập (MobileBadgeCollection): tiêu đề + 2 tab */}
+            {/* Đầu thẻ cùng kiểu màn Bộ sưu tập (MobileBadgeCollection): chỉ 2 tab, không tiêu đề */}
             <div
               style={{
-                padding: '18px 16px 16px',
-                display: 'flex',
-                flexDirection: 'column',
-                gap: 12,
+                padding: 12,
                 background: 'linear-gradient(180deg,#1A0C3A,#0D0820)',
               }}
             >
-              <div style={{ display: 'flex', flexDirection: 'column', gap: 6 }}>
-                <span style={{ font: "700 32px/1 'Oswald', sans-serif", letterSpacing: '.04em', textTransform: 'uppercase', color: '#FFFFFF' }}>
-                  {t('badges.leaderboard.title')}
-                </span>
-                <span style={{ font: '400 12px/1.4 var(--font-mono)', color: '#9A90AD' }}>
-                  {t('badges.leaderboard.subMobile')}
-                </span>
-              </div>
               <div style={{ display: 'grid', gridTemplateColumns: 'repeat(2, minmax(0, 1fr))', gap: 6 }}>
                 {[
                   { id: 'collection', label: t('badges.tabCollection') },
