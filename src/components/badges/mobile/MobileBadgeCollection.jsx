@@ -23,15 +23,33 @@ const SECTION_TITLE = {
 }
 const COUNT_MONO = { flex: '0 0 auto', font: '400 12px/1 var(--font-mono)', color: '#8E83A8' }
 const COUNT_CHIP = { flex: '0 0 auto', font: '600 11px/1 var(--font-mono)', padding: '4px 8px', borderRadius: 4 }
+// Ô chọn tự vẽ: bỏ mũi tên gốc của trình duyệt (Android đặt lệch, cao thấp khác nút bên cạnh),
+// thay bằng chevron đặt tuyệt đối; cao cố định 36px cho thẳng hàng với nút sáng/tối và chuông.
+const SELECT_WRAP = { position: 'relative', flex: '1 1 0', minWidth: 0, display: 'flex' }
 const SELECT = {
-  flex: '1 1 0',
+  width: '100%',
   minWidth: 0,
-  padding: '9px 10px',
+  height: 36,
+  boxSizing: 'border-box',
+  padding: '0 28px 0 12px',
   borderRadius: 10,
   border: '1px solid #2B3A8A',
   background: '#0B0820',
   outline: 'none',
   cursor: 'pointer',
+  appearance: 'none',
+  WebkitAppearance: 'none',
+  whiteSpace: 'nowrap',
+  overflow: 'hidden',
+  textOverflow: 'ellipsis',
+}
+const SELECT_CHEVRON = {
+  position: 'absolute',
+  right: 9,
+  top: '50%',
+  transform: 'translateY(-50%)',
+  color: '#8E83A8',
+  pointerEvents: 'none',
 }
 const OPTION = { background: '#0B0820', color: '#FFFFFF' }
 
@@ -53,32 +71,38 @@ export function MobileBadgeTopBar({
   return (
     <div style={TOP_BAR}>
       {allSeasons.length > 0 && (
-        <select
-          aria-label={t('season.filterSeason')}
-          value={seasonValue}
-          onChange={(e) => onSelectSeason && onSelectSeason(e.target.value)}
-          style={{ ...SELECT, font: '600 13px/1.2 var(--font-sans)', color: '#5FDBD3' }}
-        >
-          {allSeasons.map((s) => (
-            <option key={s.id || s.code} value={s.id || s.code} style={OPTION}>
-              {s.code || s.name} {s.active ? `(${t('season.activeCurrent')})` : ''}
-            </option>
-          ))}
-        </select>
+        <div style={SELECT_WRAP}>
+          <select
+            aria-label={t('season.filterSeason')}
+            value={seasonValue}
+            onChange={(e) => onSelectSeason && onSelectSeason(e.target.value)}
+            style={{ ...SELECT, font: '600 13px/34px var(--font-sans)', color: '#5FDBD3' }}
+          >
+            {allSeasons.map((s) => (
+              <option key={s.id || s.code} value={s.id || s.code} style={OPTION}>
+                {s.code || s.name} {s.active ? `(${t('season.activeCurrent')})` : ''}
+              </option>
+            ))}
+          </select>
+          <Icon name="chevron-down" size={14} style={SELECT_CHEVRON} />
+        </div>
       )}
       {allMembers.length > 1 && (
-        <select
-          aria-label={t('badges.selectMember')}
-          value={activeMemberId}
-          onChange={(e) => onSelectMember && onSelectMember(e.target.value)}
-          style={{ ...SELECT, font: '500 13px/1.2 var(--font-sans)', color: '#E9EFF7' }}
-        >
-          {allMembers.map((m) => (
-            <option key={m.id} value={m.id} style={OPTION}>
-              {shortName(m.name)} {m.id === currentMemberId ? `(${t('badges.collectorProfile.rankMe')})` : ''}
-            </option>
-          ))}
-        </select>
+        <div style={SELECT_WRAP}>
+          <select
+            aria-label={t('badges.selectMember')}
+            value={activeMemberId}
+            onChange={(e) => onSelectMember && onSelectMember(e.target.value)}
+            style={{ ...SELECT, font: '500 13px/34px var(--font-sans)', color: '#E9EFF7' }}
+          >
+            {allMembers.map((m) => (
+              <option key={m.id} value={m.id} style={OPTION}>
+                {shortName(m.name)} {m.id === currentMemberId ? `(${t('badges.collectorProfile.rankMe')})` : ''}
+              </option>
+            ))}
+          </select>
+          <Icon name="chevron-down" size={14} style={SELECT_CHEVRON} />
+        </div>
       )}
       <button
         type="button"
@@ -108,8 +132,8 @@ const TOP_BAR = {
   background: 'linear-gradient(180deg,#1A0C3A,#0D0820)',
 }
 const TOP_ICON_BTN = {
-  width: 32,
-  height: 32,
+  width: 36,
+  height: 36,
   flex: '0 0 auto',
   padding: 0,
   borderRadius: 999,
