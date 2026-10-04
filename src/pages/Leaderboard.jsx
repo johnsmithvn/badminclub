@@ -1,11 +1,12 @@
 import { useState, useMemo, useEffect } from 'react'
 import { useNavigate, useSearchParams } from 'react-router-dom'
 import { Alert, Button, Dialog, Icon } from '#ds'
-import { TabBar } from '#ui'
+import { TabBar, ModalOverlay } from '#ui'
 import { useApp } from '#contexts/AppContext.jsx'
 import { useTheme } from '#contexts/ThemeContext.jsx'
 import { getPlayerRating, DEFAULT_RATING, rankPairs } from '#lib/rating.js'
 import { myMember } from '#lib/money.js'
+import { can } from '#lib/roles.js'
 import { useMobile } from '#hooks/useMobile.js'
 import { t } from '#i18n'
 import NotificationBell from '#components/notification/NotificationBell.jsx'
@@ -64,7 +65,7 @@ export default function Leaderboard() {
 
   const myMem = myMember(db)
   const role = db.viewAs || myMem?.role || 'member'
-  const isAdmin = role === 'owner' || role === 'treasurer'
+  const isAdmin = can(role, 'assign')
 
   const allSeasons = useMemo(() => {
     return Array.isArray(db.seasons) && db.seasons.length > 0
@@ -572,20 +573,7 @@ export default function Leaderboard() {
 
       {/* Modal Chi tiết Hồ sơ & Biểu đồ Elo của thành viên */}
       {selectedMemberId && currentMember && (
-        <div
-          style={{
-            position: 'fixed',
-            inset: 0,
-            zIndex: 9999,
-            background: 'rgba(0,0,0,.65)',
-            backdropFilter: 'blur(4px)',
-            display: 'flex',
-            alignItems: 'center',
-            justifyContent: 'center',
-            padding: isMobile ? 8 : 20,
-          }}
-          onClick={() => setSelectedMemberId(null)}
-        >
+        <ModalOverlay onClose={() => setSelectedMemberId(null)} padding={isMobile ? 8 : 20}>
           <div
             data-screen-label="Member Profile & Rating Chart Modal"
             style={{
@@ -650,7 +638,7 @@ export default function Leaderboard() {
               />
             </div>
           </div>
-        </div>
+        </ModalOverlay>
       )}
     </div>
   )

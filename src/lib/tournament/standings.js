@@ -9,9 +9,7 @@
  *   4. Vẫn hoà → `ties`, BTC quyết ở bước "Chốt giai đoạn". Không tự phân xử.
  */
 
-import { freeSetWinner } from '#lib/tournament/scoring.js'
-
-const HAS_RESULT = new Set(['done', 'walkover', 'retired'])
+import { freeSetWinner, hasResult } from '#lib/tournament/scoring.js'
 
 /**
  * Set / điểm của một trận đã có kết quả.
@@ -62,7 +60,7 @@ export function computeStats(teamId, matches) {
   matches.forEach((m) => {
     const inA = m.teamAId === teamId
     if (!inA && m.teamBId !== teamId) return
-    if (!HAS_RESULT.has(m.status)) return
+    if (!hasResult(m)) return
     const r = resolveMatchResult(m)
     const [me, op] = inA ? ['A', 'B'] : ['B', 'A']
     s.played++
@@ -78,7 +76,7 @@ export function computeStats(teamId, matches) {
 
 /** Đối đầu trực tiếp: 1 = A hơn, -1 = B hơn, 0 = chưa phân định (chưa gặp, hoặc 2 lượt hoà nhau hoàn toàn). */
 function headToHead(idA, idB, matches) {
-  const direct = matches.filter((m) => HAS_RESULT.has(m.status)
+  const direct = matches.filter((m) => hasResult(m)
     && ((m.teamAId === idA && m.teamBId === idB) || (m.teamAId === idB && m.teamBId === idA)))
   if (!direct.length) return 0
   const a = computeStats(idA, direct)
@@ -143,7 +141,7 @@ export function rankTied(rows, matches) {
 export function groupStandings(group, matches) {
   const teamIds = (group.teams || []).map((t) => (typeof t === 'string' ? t : t.teamId))
   const own = matches.filter((m) => m.groupId === group.id)
-  const done = own.filter((m) => HAS_RESULT.has(m.status))
+  const done = own.filter((m) => hasResult(m))
 
   const stats = teamIds.map((id) => computeStats(id, own))
   const order = []

@@ -5,6 +5,7 @@ import { parseVoiceMatch, mapVoiceResultToCourt } from '#utils/voiceMatchParser.
 import { playerName } from '#lib/money.js'
 import { useApp } from '#contexts/AppContext.jsx'
 import { t } from '#i18n'
+import { ModalOverlay } from '#ui'
 
 export default function VoiceMatchModal({
   open,
@@ -147,20 +148,7 @@ export default function VoiceMatchModal({
     .join(' · ') || t('quickMatch.teamB')
 
   return (
-    <div
-      style={{
-        position: 'fixed',
-        inset: 0,
-        zIndex: 9999,
-        background: 'rgba(0,0,0,0.65)',
-        backdropFilter: 'blur(4px)',
-        display: 'flex',
-        alignItems: 'center',
-        justifyContent: 'center',
-        padding: 16,
-      }}
-      onClick={onClose}
-    >
+    <ModalOverlay onClose={onClose}>
       <div
         style={{
           width: 500,
@@ -447,6 +435,6 @@ export default function VoiceMatchModal({
           )}
         </div>
       </div>
-    </div>
+    </ModalOverlay>
   )
 }

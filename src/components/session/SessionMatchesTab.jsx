@@ -3,18 +3,19 @@ import { useSearchParams } from 'react-router-dom'
 import { useApp } from '#contexts/AppContext.jsx'
 import { courtOf, myMember, playerName, playerOf, shortName } from '#lib/money.js'
 import { expectedScore, getPlayerRating, matchCodeOf } from '#lib/rating.js'
-import { searchMatches } from '#lib/matchSearch.js'
+import { isCloseMatch, isUpsetMatch, matchSides, searchMatches } from '#lib/matchSearch.js'
 import { can } from '#lib/roles.js'
 
 import { useMobile } from '#hooks/useMobile.js'
 import { Icon } from '#ds'
-import { getChallengeAcceptanceProgress, canMemberAcceptChallenge, getChallengeSeriesProgress, challengeExpiryAt, challengeCountdown, isChallengeAccepted } from '#lib/challenge.js'
+import { getChallengeAcceptanceProgress, canMemberAcceptChallenge, challengeExpiryAt, challengeCountdown, isChallengeAccepted, challengeOdds, challengeResultOf } from '#lib/challenge.js'
 import { t } from '#i18n'
 import CreateChallengeModal from '#components/challenge/CreateChallengeModal.jsx'
 import EditScoreModal from '#components/challenge/EditScoreModal.jsx'
 import ChallengeDetailModal from '#components/challenge/ChallengeDetailModal.jsx'
 import ScoreModal from '#components/challenge/ScoreModal.jsx'
 import AttachVideoModal from '#components/challenge/AttachVideoModal.jsx'
+import MatchScoreLines from '#components/challenge/MatchScoreLines.jsx'
 import { VideoPlayerModal } from '#components/challenge/VideoPlayerModal.jsx'
 import { formatGapMinutes, calcSessionTimeStats, formatVideoDisplayLabel, videoTagLabelOf } from '#utils/videoUtils.js'
 
@@ -24,7 +25,7 @@ export default function SessionMatchesTab({ s, onSwitchTab }) {
   const myMem = myMember(db)
   const myId = myMem?.id || null
   const role = db.viewAs || myMem?.role || 'member'
-  const isAdmin = role === 'owner' || role === 'treasurer'
+  const isAdmin = can(role, 'assign')
   const [searchParams] = useSearchParams()
   const targetMatchId = searchParams.get('matchId')
   const [showCreate, setShowCreate] = useState(false)
@@ -324,21 +325,8 @@ export default function SessionMatchesTab({ s, onSwitchTab }) {
               {matchesWithGap.map((m) => {
                 const teamA = m.teamA || []
                 const teamB = m.teamB || []
-                const aWon = m.winnerTeam === 'A'
-                const winnerTeam = aWon ? teamA : teamB
-                const loserTeam = aWon ? teamB : teamA
-                const winnerNames = winnerTeam.map(shortNameOf).join(' · ')
-                const loserNames = loserTeam.map(shortNameOf).join(' · ')
-                const winnerFull = winnerTeam.map(memberNameOf).join(' · ')
-                const loserFull = loserTeam.map(memberNameOf).join(' · ')
-
-                const scoreSets = (m.sets || []).map(([a, b]) => ({
-                  winPts: aWon ? a : b,
-                  losePts: aWon ? b : a,
-                }))
-                const isMultiSet = scoreSets.length > 1
-                const winSetsCount = isMultiSet ? scoreSets.filter((s) => s.winPts > s.losePts).length : 0
-                const loseSetsCount = isMultiSet ? scoreSets.filter((s) => s.losePts > s.winPts).length : 0
+                const sides = matchSides(m, shortNameOf, memberNameOf)
+                const { aWon } = sides
 
                 const matchTime = m.at
                   ? new Date(m.at).toLocaleTimeString('vi-VN', { hour: '2-digit', minute: '2-digit' })
@@ -359,7 +347,7 @@ export default function SessionMatchesTab({ s, onSwitchTab }) {
                 const predPct = Math.round(winnerExp * 100)
                 const isCorrect = winnerExp >= 0.5
                 const isUpset = Math.abs(ra - rb) > 100 && ((ra < rb && aWon) || (rb < ra && !aWon))
-                const isClose = (m.sets || []).some((st) => st && st[0] != null && st[1] != null && Math.abs(st[0] - st[1]) <= 3)
+                const isClose = isCloseMatch(m)
                 const minDiff = (m.sets || []).reduce((min, st) => {
                   if (!st || st[0] == null || st[1] == null) return min
                   const diff = Math.abs(st[0] - st[1])
@@ -581,101 +569,7 @@ export default function SessionMatchesTab({ s, onSwitchTab }) {
                     )}
 
                     {/* Hàng 2: Người chơi & Điểm số (trên dưới) */}
-                    <div style={{ position: 'relative', display: 'flex', flexDirection: 'column', gap: 5, margin: '2px 0' }}>
-                      {/* Đội thắng */}
-                      <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', gap: 10 }}>
-                        <div style={{ display: 'flex', alignItems: 'center', gap: 8, minWidth: 0, flex: 1 }}>
-                          <span
-                            style={{
-                              width: 18,
-                              height: 18,
-                              flex: '0 0 auto',
-                              borderRadius: 5,
-                              background: 'rgba(0,178,169,.16)',
-                              border: '1px solid rgba(0,178,169,.42)',
-                              display: 'inline-flex',
-                              alignItems: 'center',
-                              justifyContent: 'center',
-                              fontSize: 10,
-                            }}
-                          >
-                            👑
-                          </span>
-                          <span
-                            style={{
-                              font: "600 14px/1.25 'IBM Plex Sans', sans-serif",
-                              color: '#5FDBD3',
-                              overflow: 'hidden',
-                              textOverflow: 'ellipsis',
-                              whiteSpace: 'nowrap',
-                            }}
-                          >
-                            <span title={winnerFull}>{winnerNames}</span>
-                          </span>
-                        </div>
-                        <div style={{ flex: '0 0 auto' }}>
-                          {isMultiSet ? (
-                            <div style={{ display: 'inline-flex', alignItems: 'center', gap: 5 }}>
-                              <span style={{ font: "700 16px/1 'IBM Plex Mono', monospace", color: '#8BEDE6' }}>{winSetsCount}</span>
-                              <span style={{ font: "500 11.5px/1 'IBM Plex Mono', monospace", color: '#5FDBD3', opacity: 0.85 }}>
-                                ({scoreSets.map((s) => s.winPts).join('-')})
-                              </span>
-                            </div>
-                          ) : (
-                            <span
-                              style={{
-                                display: 'inline-block',
-                                minWidth: 28,
-                                textAlign: 'right',
-                                font: "700 18px/1 'IBM Plex Mono', monospace",
-                                color: '#8BEDE6',
-                              }}
-                            >
-                              {scoreSets[0]?.winPts ?? ''}
-                            </span>
-                          )}
-                        </div>
-                      </div>
-
-                      {/* Đội thua */}
-                      <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', gap: 10 }}>
-                        <div style={{ display: 'flex', alignItems: 'center', gap: 8, minWidth: 0, flex: 1, paddingLeft: 26 }}>
-                          <span
-                            style={{
-                              font: "500 13.5px/1.25 'IBM Plex Sans', sans-serif",
-                              color: '#BFCDDE',
-                              overflow: 'hidden',
-                              textOverflow: 'ellipsis',
-                              whiteSpace: 'nowrap',
-                            }}
-                          >
-                            <span title={loserFull}>{loserNames}</span>
-                          </span>
-                        </div>
-                        <div style={{ flex: '0 0 auto' }}>
-                          {isMultiSet ? (
-                            <div style={{ display: 'inline-flex', alignItems: 'center', gap: 5 }}>
-                              <span style={{ font: "700 16px/1 'IBM Plex Mono', monospace", color: '#B3C2D6' }}>{loseSetsCount}</span>
-                              <span style={{ font: "500 11.5px/1 'IBM Plex Mono', monospace", color: '#8494AA' }}>
-                                ({scoreSets.map((s) => s.losePts).join('-')})
-                              </span>
-                            </div>
-                          ) : (
-                            <span
-                              style={{
-                                display: 'inline-block',
-                                minWidth: 28,
-                                textAlign: 'right',
-                                font: "700 18px/1 'IBM Plex Mono', monospace",
-                                color: '#B3C2D6',
-                              }}
-                            >
-                              {scoreSets[0]?.losePts ?? ''}
-                            </span>
-                          )}
-                        </div>
-                      </div>
-                    </div>
+                    <MatchScoreLines sides={sides} />
 
                     {/* Hàng 3 (Footer): Trái = Elo + Điểm mùa, Phải = Dự đoán (không có chia sân) */}
                     <div
@@ -769,35 +663,14 @@ export default function SessionMatchesTab({ s, onSwitchTab }) {
                 {/* Rows */}
                 <div style={{ display: 'grid' }}>
                   {matchesWithGap.map((m) => {
-                    const teamA = m.teamA || []
-                    const teamB = m.teamB || []
-                    const aWon = m.winnerTeam === 'A'
-                    const winnerTeam = aWon ? teamA : teamB
-                    const loserTeam = aWon ? teamB : teamA
-                    const winnerNames = winnerTeam.map(shortNameOf).join(' · ')
-                    const loserNames = loserTeam.map(shortNameOf).join(' · ')
-                    const winnerFull = winnerTeam.map(memberNameOf).join(' · ')
-                    const loserFull = loserTeam.map(memberNameOf).join(' · ')
-
-                    const scoreSets = (m.sets || []).map(([a, b]) => ({
-                      winPts: aWon ? a : b,
-                      losePts: aWon ? b : a,
-                    }))
-                    const isMultiSet = scoreSets.length > 1
-                    // Hai const này khai báo ở khối .map() phía trên (dòng ~308) nhưng khối NÀY
-                    // là khối anh em, không nhìn thấy chúng — dòng 863/867 bên dưới đọc thẳng
-                    // nên hễ gặp trận nhiều set là ReferenceError, trắng màn Trận trong buổi.
-                    const winSetsCount = isMultiSet ? scoreSets.filter((x) => x.winPts > x.losePts).length : 0
-                    const loseSetsCount = isMultiSet ? scoreSets.filter((x) => x.losePts > x.winPts).length : 0
+                    const { winnerTeam, loserTeam, winnerNames, loserNames, winnerFull, loserFull, scoreSets, isMultiSet, winSetsCount, loseSetsCount } = matchSides(m, shortNameOf, memberNameOf)
                     const absDelta = Math.abs(m.eloDelta != null ? m.eloDelta : 8)
                     const isRated = m.ratingEnabled !== false
                     const winnerDeltaStr = isRated ? (winnerTeam.length > 1 ? `+${absDelta} · +${absDelta}` : `+${absDelta}`) : t('challenge.casual')
                     const loserDeltaStr = isRated ? (loserTeam.length > 1 ? `−${absDelta} · −${absDelta}` : `−${absDelta}`) : t('challenge.casual')
 
-                    const ra = m.initialRatingA || 0
-                    const rb = m.initialRatingB || 0
-                    const isUpset = Math.abs(ra - rb) > 100 && ((ra < rb && aWon) || (rb < ra && !aWon))
-                    const isClose = (m.sets || []).some((st) => st && st[0] != null && st[1] != null && Math.abs(st[0] - st[1]) <= 3)
+                    const isUpset = isUpsetMatch(m)
+                    const isClose = isCloseMatch(m)
                     const isStreak = (m.brokenStreak || 0) >= 3
 
                     const courtObj = (s.courts || [])[m.courtIdx]
@@ -1368,12 +1241,7 @@ export default function SessionMatchesTab({ s, onSwitchTab }) {
               const teamB = c.teamB || []
               const namesA = teamA.map(shortNameOf).join(' · ')
               const namesB = teamB.length ? teamB.map(shortNameOf).join(' · ') : t('challenge.teamEmptyHint')
-              const ratA = teamA.length ? Math.round(teamA.reduce((sum, id) => sum + getRating(id), 0) / teamA.length) : 0
-              const ratB = teamB.length ? Math.round(teamB.reduce((sum, id) => sum + getRating(id), 0) / teamB.length) : 0
-              const gap = Math.abs(ratA - ratB)
-              const pA = expectedScore(ratA, ratB || ratA)
-              const pctA = Math.round(pA * 100)
-              const pctB = 100 - pctA
+              const { ratA, ratB, gap, pctA, pctB } = challengeOdds(teamA, teamB, getRating)
 
               const pA1 = teamA[0]
               const pB1 = teamB[0]
@@ -1404,26 +1272,7 @@ export default function SessionMatchesTab({ s, onSwitchTab }) {
                     : cd.kind === 'hour' ? `${cd.n} ${t('units.hour')}`
                       : cd.text
 
-              const isBoSeries = (c.bestOf || 1) > 1
-              const seriesProg = isBoSeries ? getChallengeSeriesProgress(c, db.matches || []) : null
-              const hasPlayedSets = seriesProg && seriesProg.totalSetsPlayed > 0
-
-              const chalProg = seriesProg || getChallengeSeriesProgress(c, db.matches || [])
-              const winnerTeam = chalProg.winnerTeam || c.winnerTeam
-              const playedMts = chalProg.playedMatches || []
-              const firstMatch = playedMts[0] || (c.matchId ? (db.matches || []).find((m) => m.id === c.matchId) : null)
-              let singleScoreA = null
-              let singleScoreB = null
-              if (firstMatch) {
-                if (firstMatch.sets && firstMatch.sets.length > 0) {
-                  singleScoreA = firstMatch.sets[0][0]
-                  singleScoreB = firstMatch.sets[0][1]
-                } else if (firstMatch.scoreText && firstMatch.scoreText.includes('-')) {
-                  const [sa, sb] = firstMatch.scoreText.split('-').map((v) => Number(v.trim()))
-                  singleScoreA = sa
-                  singleScoreB = sb
-                }
-              }
+              const { isBoSeries, seriesProg, hasPlayedSets, chalProg, winnerTeam, playedMts, singleScoreA, singleScoreB } = challengeResultOf(c, db.matches || [])
               const setsDetailText = isBoSeries
                 ? playedMts.map((m) => (m.sets?.[0] ? `${m.sets[0][0]}:${m.sets[0][1]}` : m.scoreText)).filter(Boolean).join(', ')
                 : ''

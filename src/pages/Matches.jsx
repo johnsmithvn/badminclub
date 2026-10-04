@@ -9,11 +9,12 @@ import { useMobile } from '#hooks/useMobile.js'
 import { t } from '#i18n'
 import NotificationBell from '#components/notification/NotificationBell.jsx'
 import { playerName, courtOf, myMember, playerOf, timeTxt, courtTxt, presentCount, shortName } from '#lib/money.js'
+import { can } from '#lib/roles.js'
 import { dd, ddmy, isoOf, todayISO, weekdayOf, wd } from '#utils/dates.js'
 import { getPlayerRating, matchCodeOf } from '#lib/rating.js'
 import {
   searchMatches, headToHeadMatrix, neverMetPairs, topDisparatePairs, neverMetWithSessionCount,
-  isCloseMatch, isThreeSetMatch, isUpsetMatch,
+  isCloseMatch, isThreeSetMatch, isUpsetMatch, matchSides,
 } from '#lib/matchSearch.js'
 import { formatGapMinutes, videoTagLabelOf, matchVideosOf } from '#utils/videoUtils.js'
 import { isChallengeAccepted } from '#lib/challenge.js'
@@ -23,6 +24,7 @@ import MatchDetailModal from '#components/challenge/MatchDetailModal.jsx'
 import ChallengeDetailModal from '#components/challenge/ChallengeDetailModal.jsx'
 import ScoreModal from '#components/challenge/ScoreModal.jsx'
 import AttachVideoModal, { MatchVideoInlineExpander } from '#components/challenge/AttachVideoModal.jsx'
+import MatchScoreLines from '#components/challenge/MatchScoreLines.jsx'
 import { VideoPlayerModal } from '#components/challenge/VideoPlayerModal.jsx'
 import ArenaChallengeCard from '#components/challenge/ArenaChallengeCard.jsx'
 
@@ -62,7 +64,7 @@ export default function Matches() {
   const myMem = myMember(db)
   const myId = myMem?.id || null
   const role = db.viewAs || myMem?.role || 'member'
-  const isAdmin = role === 'owner' || role === 'treasurer'
+  const isAdmin = can(role, 'assign')
 
   // Tab: 'challenges' (Sàn kèo) | 'search' (Lịch sử & Video) | 'matrix' (Ma trận đối đầu)
   // Tương thích ngược: nếu URL có tab=history thì map về 'search'
@@ -1937,23 +1939,7 @@ export default function Matches() {
                     {/* Danh sách các card trận trong ngày */}
                     <div style={{ display: 'flex', flexDirection: 'column', gap: 10 }}>
                       {group.matches.map((m) => {
-                        const teamA = m.teamA || []
-                        const teamB = m.teamB || []
-                        const aWon = m.winnerTeam === 'A'
-                        const winnerTeam = aWon ? teamA : teamB
-                        const loserTeam = aWon ? teamB : teamA
-                        const winnerNames = winnerTeam.map(shortNameOf).join(' · ')
-                        const loserNames = loserTeam.map(shortNameOf).join(' · ')
-                        const winnerFull = winnerTeam.map(memberNameOf).join(' · ')
-                        const loserFull = loserTeam.map(memberNameOf).join(' · ')
-
-                        const scoreSets = (m.sets || []).map(([a, b]) => ({
-                          winPts: aWon ? a : b,
-                          losePts: aWon ? b : a,
-                        }))
-                        const isMultiSet = scoreSets.length > 1
-                        const winSetsCount = isMultiSet ? scoreSets.filter((s) => s.winPts > s.losePts).length : 0
-                        const loseSetsCount = isMultiSet ? scoreSets.filter((s) => s.losePts > s.winPts).length : 0
+                        const sides = matchSides(m, shortNameOf, memberNameOf)
 
                         const absDelta = Math.abs(m.eloDelta != null ? m.eloDelta : 8)
                         const isRated = m.ratingEnabled !== false
@@ -2237,101 +2223,7 @@ export default function Matches() {
                             )}
 
                             {/* Hàng 2: Người chơi & Điểm số (trên dưới) */}
-                            <div style={{ position: 'relative', display: 'flex', flexDirection: 'column', gap: 5, margin: '2px 0' }}>
-                              {/* Đội thắng */}
-                              <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', gap: 10 }}>
-                                <div style={{ display: 'flex', alignItems: 'center', gap: 8, minWidth: 0, flex: 1 }}>
-                                  <span
-                                    style={{
-                                      width: 18,
-                                      height: 18,
-                                      flex: '0 0 auto',
-                                      borderRadius: 5,
-                                      background: 'rgba(0,178,169,.16)',
-                                      border: '1px solid rgba(0,178,169,.42)',
-                                      display: 'inline-flex',
-                                      alignItems: 'center',
-                                      justifyContent: 'center',
-                                      fontSize: 10,
-                                    }}
-                                  >
-                                    👑
-                                  </span>
-                                  <span
-                                    style={{
-                                      font: "600 14px/1.25 'IBM Plex Sans', sans-serif",
-                                      color: '#5FDBD3',
-                                      overflow: 'hidden',
-                                      textOverflow: 'ellipsis',
-                                      whiteSpace: 'nowrap',
-                                    }}
-                                  >
-                                    <span title={winnerFull}>{winnerNames}</span>
-                                  </span>
-                                </div>
-                                <div style={{ flex: '0 0 auto' }}>
-                                  {isMultiSet ? (
-                                    <div style={{ display: 'inline-flex', alignItems: 'center', gap: 5 }}>
-                                      <span style={{ font: "700 16px/1 'IBM Plex Mono', monospace", color: '#8BEDE6' }}>{winSetsCount}</span>
-                                      <span style={{ font: "500 11.5px/1 'IBM Plex Mono', monospace", color: '#5FDBD3', opacity: 0.85 }}>
-                                        ({scoreSets.map((s) => s.winPts).join('-')})
-                                      </span>
-                                    </div>
-                                  ) : (
-                                    <span
-                                      style={{
-                                        display: 'inline-block',
-                                        minWidth: 28,
-                                        textAlign: 'right',
-                                        font: "700 18px/1 'IBM Plex Mono', monospace",
-                                        color: '#8BEDE6',
-                                      }}
-                                    >
-                                      {scoreSets[0]?.winPts ?? ''}
-                                    </span>
-                                  )}
-                                </div>
-                              </div>
-
-                              {/* Đội thua */}
-                              <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', gap: 10 }}>
-                                <div style={{ display: 'flex', alignItems: 'center', gap: 8, minWidth: 0, flex: 1, paddingLeft: 26 }}>
-                                  <span
-                                    style={{
-                                      font: "500 13.5px/1.25 'IBM Plex Sans', sans-serif",
-                                      color: '#BFCDDE',
-                                      overflow: 'hidden',
-                                      textOverflow: 'ellipsis',
-                                      whiteSpace: 'nowrap',
-                                    }}
-                                  >
-                                    <span title={loserFull}>{loserNames}</span>
-                                  </span>
-                                </div>
-                                <div style={{ flex: '0 0 auto' }}>
-                                  {isMultiSet ? (
-                                    <div style={{ display: 'inline-flex', alignItems: 'center', gap: 5 }}>
-                                      <span style={{ font: "700 16px/1 'IBM Plex Mono', monospace", color: '#B3C2D6' }}>{loseSetsCount}</span>
-                                      <span style={{ font: "500 11.5px/1 'IBM Plex Mono', monospace", color: '#8494AA' }}>
-                                        ({scoreSets.map((s) => s.losePts).join('-')})
-                                      </span>
-                                    </div>
-                                  ) : (
-                                    <span
-                                      style={{
-                                        display: 'inline-block',
-                                        minWidth: 28,
-                                        textAlign: 'right',
-                                        font: "700 18px/1 'IBM Plex Mono', monospace",
-                                        color: '#B3C2D6',
-                                      }}
-                                    >
-                                      {scoreSets[0]?.losePts ?? ''}
-                                    </span>
-                                  )}
-                                </div>
-                              </div>
-                            </div>
+                            <MatchScoreLines sides={sides} />
 
                             {/* Hàng 3 (Footer): Trái = Elo + Điểm mùa, Phải = Dự đoán */}
                             <div
@@ -2463,23 +2355,7 @@ export default function Matches() {
 
                     {/* Các dòng trận trong ngày */}
                     {group.matches.map((m) => {
-                      const teamA = m.teamA || []
-                      const teamB = m.teamB || []
-                      const aWon = m.winnerTeam === 'A'
-                      const winnerTeam = aWon ? teamA : teamB
-                      const loserTeam = aWon ? teamB : teamA
-                      const winnerNames = winnerTeam.map(shortNameOf).join(' · ')
-                      const loserNames = loserTeam.map(shortNameOf).join(' · ')
-                      const winnerFull = winnerTeam.map(memberNameOf).join(' · ')
-                      const loserFull = loserTeam.map(memberNameOf).join(' · ')
-
-                      const scoreSets = (m.sets || []).map(([a, b]) => ({
-                        winPts: aWon ? a : b,
-                        losePts: aWon ? b : a,
-                      }))
-                      const isMultiSet = scoreSets.length > 1
-                      const winSetsCount = isMultiSet ? scoreSets.filter((s) => s.winPts > s.losePts).length : 0
-                      const loseSetsCount = isMultiSet ? scoreSets.filter((s) => s.losePts > s.winPts).length : 0
+                      const { winnerTeam, loserTeam, winnerNames, loserNames, winnerFull, loserFull, scoreSets, isMultiSet, winSetsCount, loseSetsCount } = matchSides(m, shortNameOf, memberNameOf)
                       const fullScoreStr = isMultiSet
                         ? `${winSetsCount}–${loseSetsCount} (${scoreSets.map((s) => `${s.winPts}-${s.losePts}`).join(', ')})`
                         : (scoreSets.length > 0 ? `${scoreSets[0].winPts} – ${scoreSets[0].losePts}` : '')

@@ -1,6 +1,7 @@
 import { useState, useMemo } from 'react'
 import { Avatar } from '#ds'
 import { t } from '#i18n'
+import SegToggle from '#components/home/personal/SegToggle.jsx'
 import { isFemalePlayer } from '#lib/rating.js'
 
 export default function MyOpponentsCard({
@@ -54,29 +55,12 @@ export default function MyOpponentsCard({
   const getOpponentAvatar = (opp) => opp?.opponent?.avatarUrl || ''
 
   const genderToggle = (
-    <div style={S.genderToggle}>
-      <button
-        type="button"
-        onClick={() => setGenderFilter('all')}
-        style={genderFilter === 'all' ? S.genderBtnActive : S.genderBtn}
-      >
-        {t('home.personal.allShort')}
-      </button>
-      <button
-        type="button"
-        onClick={() => setGenderFilter('nam')}
-        style={genderFilter === 'nam' ? S.genderBtnActive : S.genderBtn}
-      >
-        {t('gender.nam')}
-      </button>
-      <button
-        type="button"
-        onClick={() => setGenderFilter('nu')}
-        style={genderFilter === 'nu' ? S.genderBtnActive : S.genderBtn}
-      >
-        {t('gender.nu')}
-      </button>
-    </div>
+    <SegToggle
+      variant="pill"
+      options={[['all', t('home.personal.allShort')], ['nam', t('gender.nam')], ['nu', t('gender.nu')]]}
+      value={genderFilter}
+      onChange={setGenderFilter}
+    />
   )
 
   return (
@@ -167,45 +151,6 @@ const S = {
     justifyContent: 'space-between',
     gap: 8,
     flexWrap: 'wrap',
-  },
-  genderToggle: {
-    display: 'inline-flex',
-    padding: 2,
-    borderRadius: 999,
-    background: 'var(--surface-inset)',
-    border: '1px solid var(--border-subtle)',
-    gap: 1.5,
-    flexShrink: 0,
-  },
-  genderBtn: {
-    background: 'none',
-    border: 'none',
-    padding: '3px 7px',
-    borderRadius: 999,
-    font: '600 11px/1 var(--font-sans)',
-    color: 'var(--text-muted)',
-    cursor: 'pointer',
-    whiteSpace: 'nowrap',
-    transition: 'all 0.15s ease',
-    minHeight: 26,
-    display: 'inline-flex',
-    alignItems: 'center',
-    justifyContent: 'center',
-  },
-  genderBtnActive: {
-    background: 'var(--surface-card)',
-    border: '1px solid var(--border-default)',
-    padding: '3px 7px',
-    borderRadius: 999,
-    font: '600 11px/1 var(--font-sans)',
-    color: 'var(--text-primary)',
-    boxShadow: 'var(--shadow-sm)',
-    cursor: 'default',
-    whiteSpace: 'nowrap',
-    minHeight: 26,
-    display: 'inline-flex',
-    alignItems: 'center',
-    justifyContent: 'center',
   },
   label: {
     font: '600 11px/1.1 var(--font-sans)',

@@ -9,20 +9,12 @@ import { ddmy, monthOf, wd } from '#utils/dates.js'
 import {
   adjustRows, adjustSessions, advanceRows, clubDebtCounts, courtTxt, dueState, duesOf, duesTotal, fmt, fmtK,
   genderTxt, groupOf, guestOf, intOf, memberOf, monthSessions, myDebtCounts, myMember, pendingClaims,
-  sessionOf, timeTxt,
+  normalizeText, sessionOf, timeTxt,
   shortName,
 } from '#lib/money.js'
 import { can } from '#lib/roles.js'
 import { useMobile } from '#hooks/useMobile.js'
 import { t } from '#i18n'
-
-const norm = (s) =>
-  (s || '')
-    .toLowerCase()
-    .normalize('NFD')
-    .replace(/[\u0300-\u036f]/g, '')
-    .replace(/đ/g, 'd') // i18n-ok: chuẩn hoá chữ để tìm kiếm, không phải chữ hiện ra
-    .trim()
 
 /**
  * Nhãn + màu trạng thái một khoản. Ba trạng thái chứ không phải hai kể từ migration 0018:
@@ -427,11 +419,11 @@ function SessionDebts({ canMoney, selectedPersonId, onSelectPerson }) {
 
     // 3. Tìm kiếm (Search)
     if (search.trim()) {
-      const q = norm(search)
-      const matchName = norm(p.name).includes(q)
-      const matchInviter = norm(p.invitedBy ? memberOf(db, p.invitedBy).name : '').includes(q)
+      const q = normalizeText(search)
+      const matchName = normalizeText(p.name).includes(q)
+      const matchInviter = normalizeText(p.invitedBy ? memberOf(db, p.invitedBy).name : '').includes(q)
       const matchSession = p.items.some((it) =>
-        norm(it.timeVenue).includes(q) || norm(it.groupName).includes(q) || it.date.includes(q)
+        normalizeText(it.timeVenue).includes(q) || normalizeText(it.groupName).includes(q) || it.date.includes(q)
       )
       if (!matchName && !matchInviter && !matchSession) return false
     }
@@ -1945,11 +1937,11 @@ function Dues({ dues, canMoney }) {
 
     // 3. Tìm kiếm
     if (search.trim()) {
-      const q = norm(search)
+      const q = normalizeText(search)
       const mb = memberOf(db, d.memberId)
-      const matchName = norm(mb.name).includes(q)
-      const matchPhone = norm(mb.phone).includes(q)
-      const matchGroup = norm(groupOf(db, d.groupId)?.name).includes(q)
+      const matchName = normalizeText(mb.name).includes(q)
+      const matchPhone = normalizeText(mb.phone).includes(q)
+      const matchGroup = normalizeText(groupOf(db, d.groupId)?.name).includes(q)
       if (!matchName && !matchPhone && !matchGroup) return false
     }
 

@@ -4,12 +4,12 @@ import { Icon } from '#ds'
 import { t } from '#i18n'
 import { dd } from '#utils/dates.js'
 import {
-  IMBALANCE_THRESHOLD, expectedScore,
+  IMBALANCE_THRESHOLD,
 } from '#lib/rating.js'
 import {
   getChallengeAcceptanceProgress, canMemberAcceptChallenge, getChallengeSeriesProgress,
   getPredictionStats, challengeExpiryAt, challengeCountdown, isChallengeExpired, isChallengeAccepted,
-  getChallengeMatchTags,
+  getChallengeMatchTags, challengeOdds, challengeResultOf,
 } from '#lib/challenge.js'
 import { sessionMembers, sGuests, isPresent, playerName } from '#lib/money.js'
 import { sessionPlayers } from '#lib/assign.js'
@@ -261,12 +261,7 @@ export default function ArenaChallengeCard({
 
   const teamA = c.teamA || []
   const teamB = c.teamB || []
-  const ratA = teamA.length ? Math.round(teamA.reduce((sum, id) => sum + getRating(id), 0) / teamA.length) : 0
-  const ratB = teamB.length ? Math.round(teamB.reduce((sum, id) => sum + getRating(id), 0) / teamB.length) : 0
-  const gap = Math.abs(ratA - ratB)
-  const pA = expectedScore(ratA, ratB || ratA)
-  const pctA = Math.round(pA * 100)
-  const pctB = 100 - pctA
+  const { ratA, ratB, gap, pctA, pctB } = challengeOdds(teamA, teamB, getRating)
 
   const isPlayed = c.status === 'played'
   const isPending = c.status === 'pending'
@@ -291,26 +286,7 @@ export default function ArenaChallengeCard({
           : cd.text
   }
 
-  const isBoSeries = (c.bestOf || 1) > 1
-  const seriesProg = isBoSeries ? getChallengeSeriesProgress(c, db.matches || []) : null
-  const hasPlayedSets = seriesProg && seriesProg.totalSetsPlayed > 0
-
-  const chalProg = seriesProg || getChallengeSeriesProgress(c, db.matches || [])
-  const winnerTeam = chalProg.winnerTeam || c.winnerTeam
-  const playedMts = chalProg.playedMatches || []
-  const firstMatch = playedMts[0] || (c.matchId ? (db.matches || []).find((m) => m.id === c.matchId) : null)
-  let singleScoreA = null
-  let singleScoreB = null
-  if (firstMatch) {
-    if (firstMatch.sets && firstMatch.sets.length > 0) {
-      singleScoreA = firstMatch.sets[0][0]
-      singleScoreB = firstMatch.sets[0][1]
-    } else if (firstMatch.scoreText && firstMatch.scoreText.includes('-')) {
-      const [sa, sb] = firstMatch.scoreText.split('-').map((v) => Number(v.trim()))
-      singleScoreA = sa
-      singleScoreB = sb
-    }
-  }
+  const { isBoSeries, seriesProg, hasPlayedSets, chalProg, winnerTeam, singleScoreA, singleScoreB } = challengeResultOf(c, db.matches || [])
 
   // Danh sách séc đấu và tỉ số theo phong cách 4e
   const setsList = getChallengeSetsList(c, db.matches || [])

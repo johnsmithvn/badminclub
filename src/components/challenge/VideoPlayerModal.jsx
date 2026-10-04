@@ -10,6 +10,7 @@ import { t } from '#i18n'
 import { useMobile } from '#hooks/useMobile.js'
 import { useApp } from '#contexts/AppContext.jsx'
 import { playerName, myMember } from '#lib/money.js'
+import { can } from '#lib/roles.js'
 import AttachVideoModal from './AttachVideoModal.jsx'
 
 // Bộ nhớ phiên làm việc (kết hợp sessionStorage và in-memory Set) để tránh spam view kể cả khi F5
@@ -85,7 +86,7 @@ export function VideoPlayerModal({ match, matchCode, onClose }) {
 
   const myMem = myMember(db)
   const role = db.viewAs || myMem?.role || 'member'
-  const isAdmin = role === 'owner' || role === 'treasurer'
+  const isAdmin = can(role, 'assign')
 
   // Sửa bớt phần khi đang mở thì partIdx có thể vượt — kẹp về phần cuối.
   const curIdx = Math.min(partIdx, parts.length - 1)

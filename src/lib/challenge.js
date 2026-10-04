@@ -1,5 +1,6 @@
 import cfg from '#config/app.json' with { type: 'json' }
 import { isoOf } from '#utils/dates.js'
+import { expectedScore } from '#lib/rating.js'
 
 /** Sinh mã kèo kế tiếp dạng C-0125 */
 export function nextChallengeCode(existingChallenges = []) {
@@ -787,4 +788,50 @@ export function getChallengeMatchTags(challenge, matches = [], ratA = 0, ratB = 
   }
 
   return tags
+}
+
+
+/**
+ * Tỉ lệ thắng để vẽ thẻ kèo: TB rating mỗi đội (làm tròn), độ chênh, % thắng của A theo Elo (B = phần còn lại).
+ * Kèo mở chưa có đội B thì so A với chính nó (50/50). Chung cho thẻ kèo trang Trận đấu và khung kèo của buổi.
+ */
+export function challengeOdds(teamA, teamB, getRating) {
+  const avg = (team) => (team.length ? Math.round(team.reduce((sum, id) => sum + getRating(id), 0) / team.length) : 0)
+  const ratA = avg(teamA)
+  const ratB = avg(teamB)
+  const pctA = Math.round(expectedScore(ratA, ratB || ratA) * 100)
+  return { ratA, ratB, gap: Math.abs(ratA - ratB), pctA, pctB: 100 - pctA }
+}
+
+/**
+ * Kết quả một kèo để vẽ thẻ: tiến độ chuỗi (BO3/BO5), đội thắng, các trận đã đánh và tỉ số ván đầu theo phía
+ * A/B (trận cũ chỉ có `scoreText` "21 - 15" cũng đọc được). Chung cho thẻ kèo trang Trận đấu và khung kèo của buổi.
+ */
+export function challengeResultOf(c, matches) {
+  const isBoSeries = (c.bestOf || 1) > 1
+  const seriesProg = isBoSeries ? getChallengeSeriesProgress(c, matches || []) : null
+  const chalProg = seriesProg || getChallengeSeriesProgress(c, matches || [])
+  const playedMts = chalProg.playedMatches || []
+  const firstMatch = playedMts[0] || (c.matchId ? (matches || []).find((m) => m.id === c.matchId) : null)
+  let singleScoreA = null
+  let singleScoreB = null
+  if (firstMatch) {
+    if (firstMatch.sets && firstMatch.sets.length > 0) {
+      singleScoreA = firstMatch.sets[0][0]
+      singleScoreB = firstMatch.sets[0][1]
+    } else if (firstMatch.scoreText && firstMatch.scoreText.includes('-')) {
+      ;[singleScoreA, singleScoreB] = firstMatch.scoreText.split('-').map((v) => Number(v.trim()))
+    }
+  }
+  return {
+    isBoSeries,
+    seriesProg,
+    hasPlayedSets: seriesProg && seriesProg.totalSetsPlayed > 0,
+    chalProg,
+    winnerTeam: chalProg.winnerTeam || c.winnerTeam,
+    playedMts,
+    firstMatch,
+    singleScoreA,
+    singleScoreB,
+  }
 }

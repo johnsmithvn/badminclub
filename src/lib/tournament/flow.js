@@ -8,8 +8,7 @@ import { groupSizes } from '#lib/tournament/format.js'
 import { progressOf } from '#lib/tournament/bracketView.js'
 import { eventTeams } from '#lib/tournament/pairing.js'
 import { deChampion, isDouble } from '#lib/tournament/doubleElim.js'
-
-const hasResult = (m) => m.status === 'done' || m.status === 'walkover' || m.status === 'retired'
+import { hasResult } from '#lib/tournament/scoring.js'
 
 /**
  * Key i18n tên giai đoạn (khi BTC không đặt tên riêng `title`) — mọi màn gọi cùng một kiểu:

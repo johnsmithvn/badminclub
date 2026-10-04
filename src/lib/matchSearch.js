@@ -32,6 +32,34 @@ export function isUpsetMatch(m) {
 }
 
 /**
+ * Hai phía của một trận để vẽ thẻ / hàng trận: đội thắng, đội thua, tên rút gọn (`shortOf`) và đầy đủ
+ * (`fullOf`, để hover), điểm từng set theo phía thắng/thua và số set mỗi bên khi đánh nhiều set.
+ * Một bản cho tab Trận của buổi lẫn trang Trận đấu — trước đây chép 4 nơi và đã có lần chép thiếu biến.
+ */
+export function matchSides(m, shortOf, fullOf) {
+  const teamA = m.teamA || []
+  const teamB = m.teamB || []
+  const aWon = m.winnerTeam === 'A'
+  const winnerTeam = aWon ? teamA : teamB
+  const loserTeam = aWon ? teamB : teamA
+  const scoreSets = (m.sets || []).map(([a, b]) => ({ winPts: aWon ? a : b, losePts: aWon ? b : a }))
+  const isMultiSet = scoreSets.length > 1
+  return {
+    aWon,
+    winnerTeam,
+    loserTeam,
+    winnerNames: winnerTeam.map(shortOf).join(' · '),
+    loserNames: loserTeam.map(shortOf).join(' · '),
+    winnerFull: winnerTeam.map(fullOf).join(' · '),
+    loserFull: loserTeam.map(fullOf).join(' · '),
+    scoreSets,
+    isMultiSet,
+    winSetsCount: isMultiSet ? scoreSets.filter((s) => s.winPts > s.losePts).length : 0,
+    loseSetsCount: isMultiSet ? scoreSets.filter((s) => s.losePts > s.winPts).length : 0,
+  }
+}
+
+/**
  * Lọc danh sách trận đấu theo các tiêu chí đa chiều.
  */
 export function filterMatches(matches, { playerA, playerB, mode = 'h2h', quality = 'all', fromDate, toDate, pairs } = {}) {

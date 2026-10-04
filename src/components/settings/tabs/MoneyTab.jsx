@@ -9,6 +9,7 @@ import {
 } from '#components/settings/SettingsComponents.jsx'
 import { fmtK, intOf } from '#lib/money.js'
 import { t } from '#i18n'
+import cfg from '#config/app.js'
 
 export default function MoneyTab({
   data,
@@ -283,7 +284,7 @@ export default function MoneyTab({
               onChange={(checked) => {
                 onChange('hasMemberExtraDiscount', checked)
                 if (checked && (!memberExtraDiscount || intOf(memberExtraDiscount) === 0)) {
-                  onChange('memberExtraDiscount', '5000')
+                  onChange('memberExtraDiscount', String(cfg.money.memberExtraDiscount))
                 }
               }}
             />
@@ -309,7 +310,7 @@ export default function MoneyTab({
                 <Input
                   mono
                   suffix={t('units.dong')}
-                  placeholder="5000"
+                  placeholder={String(cfg.money.memberExtraDiscount)}
                   value={String(memberExtraDiscount)}
                   disabled={!canEdit}
                   onChange={(e) => onChange('memberExtraDiscount', e.target.value)}

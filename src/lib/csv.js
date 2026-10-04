@@ -2,6 +2,7 @@
 // Hỗ trợ RFC 4180, dấu phẩy/chấm phẩy/tab, UTF-8 BOM, nhận diện cột linh hoạt.
 
 import { t } from '#i18n'
+import { normalizeText } from '#lib/money.js'
 
 /**
  * Phân tích chuỗi CSV thô thành mảng các mảng chuỗi string[][].
@@ -92,15 +93,7 @@ export function parseCsvRows(text) {
 }
 
 /** Chuẩn hóa tiêu đề cột để nhận diện linh hoạt. */
-export function normHeader(h) {
-  return String(h || '')
-    .toLowerCase()
-    .replace(/đ/g, 'd') // i18n-ok: chuẩn hoá tên cột để so khớp, không phải chữ hiện ra
-    .replace(/Đ/g, 'd') // i18n-ok
-    .normalize('NFD')
-    .replace(/[\u0300-\u036f]/g, '')
-    .replace(/[^a-z0-9]/g, '')
-}
+export const normHeader = (h) => normalizeText(h).replace(/[^a-z0-9]/g, '')
 
 // i18n-ok: đây là HỢP ĐỒNG ĐỊNH DẠNG FILE, không phải chữ trên màn hình. Mọi file CSV người
 // dùng đang có mang đúng những tên cột này; dịch chúng theo locale là từ chối hàng loạt file cũ.

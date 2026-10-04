@@ -1947,6 +1947,18 @@ export function getMemberHighestBadge(memberId, db, season = null, preloadedSeas
 }
 
 /**
+ * Chụp trạng thái danh hiệu của một thành viên — MỘT nguồn cho modal ghi điểm, modal sửa điểm và
+ * GlobalBadgeUnlockHost. Phải tính ĐỦ season / seasonMatches / clubStats giống trang Danh hiệu: gọi trần
+ * thì thành nguồn sự thật thứ hai và modal chúc mừng danh hiệu mà trang Danh hiệu không công nhận.
+ */
+export function badgesSnapshotOf(memberId, dbSnapshot) {
+  const season = resolveSeason(dbSnapshot)
+  const seasonMatches = seasonMatchesOf(dbSnapshot, season) || []
+  const clubStats = computeClubBadgeStats(dbSnapshot, season, seasonMatches)
+  return calculateMemberBadges(memberId, dbSnapshot, season, seasonMatches, clubStats)
+}
+
+/**
  * Tra cứu thông tin cấu hình danh hiệu theo ID
  * @param {string} badgeId
  * @returns {Object|null}

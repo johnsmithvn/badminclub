@@ -12,7 +12,7 @@
 
 import { useState, useMemo } from 'react'
 import { useNavigate } from 'react-router-dom'
-import { Avatar, Button, Card, Icon, IconButton, Input, Select } from '#ds'
+import { Button, Card, Icon, IconButton, Input, Select } from '#ds'
 import { AvatarUpload, Empty, LevelChip, Mono, Overline } from '#ui'
 import { useApp } from '#contexts/AppContext.jsx'
 import { useAuth } from '#contexts/AuthContext.jsx'

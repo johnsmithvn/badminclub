@@ -13,9 +13,9 @@
  */
 
 import { bucketsBy, computeStats, rankTied } from '#lib/tournament/standings.js'
+import { hasResult } from '#lib/tournament/scoring.js'
 
-const HAS_RESULT = new Set(['done', 'walkover', 'retired'])
-const finished = (m) => HAS_RESULT.has(m.status) || m.status === 'bye'
+const finished = (m) => hasResult(m) || m.status === 'bye'
 const pairKey = (a, b) => (a < b ? `${a}|${b}` : `${b}|${a}`)
 // Quay lui tối đa từng này bước rồi thôi — đủ cho giải CLB (≤ 32 đội); quá thì cho gặp lại thay vì treo máy.
 const SEARCH_BUDGET = 20000
@@ -73,7 +73,7 @@ export function swissStandings(group, matches) {
   const byes = new Map(teamIds.map((id) => [id, own.filter((m) => m.status === 'bye' && (m.teamAId === id || m.teamBId === id)).length]))
   const stats = new Map(teamIds.map((id) => [id, computeStats(id, real)]))
   const score = (id) => stats.get(id).won + byes.get(id)
-  const opponents = (id) => real.filter((m) => HAS_RESULT.has(m.status) && (m.teamAId === id || m.teamBId === id))
+  const opponents = (id) => real.filter((m) => hasResult(m) && (m.teamAId === id || m.teamBId === id))
     .map((m) => (m.teamAId === id ? m.teamBId : m.teamAId))
   const rows = teamIds.map((id) => ({
     ...stats.get(id), won: score(id), wins: stats.get(id).won, byes: byes.get(id),
@@ -89,7 +89,7 @@ export function swissStandings(group, matches) {
     ties.push(...sub.ties)
   })
   const tied = new Set(ties.flat())
-  const done = real.filter((m) => HAS_RESULT.has(m.status))
+  const done = real.filter((m) => hasResult(m))
   return {
     rows: order.map((r, i) => ({ ...r, rank: i + 1, tied: tied.has(r.teamId) })),
     ties,

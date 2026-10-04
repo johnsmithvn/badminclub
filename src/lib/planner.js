@@ -9,6 +9,43 @@ import { t } from '#i18n'
 export const DEFAULT_ROUND_MINUTES = 18
 export const DEFAULT_TOTAL_ROUNDS = 10
 
+/** Bảng key → người chơi đang có trong planner (key của người hoặc id). */
+export const plannerPlayerMap = (players) => {
+  const map = {}
+  ;(players || []).forEach((p) => { map[p.key || p.id] = p })
+  return map
+}
+
+/** Tên hiện trong planner: ưu tiên danh sách đang xếp, rồi tra db; UUID không ra tên → "Khách". */
+export function plannerName(db, pMap, k) {
+  if (!k) return '?'
+  if (pMap[k]?.name && pMap[k].name !== k) return pMap[k].name
+  if (db) {
+    const resolved = playerName(db, k)
+    if (resolved && resolved !== k) return resolved
+    const pObj = playerOf(db, k)
+    if (pObj?.name && pObj.name !== k) return pObj.name
+  }
+  if (typeof k === 'string' && /^[0-9a-f]{8}-[0-9a-f]{4}/i.test(k)) {
+    return t('planner.defaultGuestName')
+  }
+  return k
+}
+
+/** Ảnh đại diện trong planner — cùng thứ tự tra như `plannerName`. */
+export function plannerAvatar(db, pMap, k) {
+  if (!k || k === '?') return ''
+  if (pMap[k]?.avatarUrl) return pMap[k].avatarUrl
+  if (db) {
+    const pObj = playerOf(db, k)
+    if (pObj?.avatarUrl) return pObj.avatarUrl
+    if (pObj?.avatar_url) return pObj.avatar_url
+    if (pObj?.profile?.avatar_url) return pObj.profile.avatar_url
+    if (pObj?.profile?.avatarUrl) return pObj.profile.avatarUrl
+  }
+  return ''
+}
+
 /**
  * Tính mốc giờ bắt đầu và kết thúc của từng vòng.
  * @param {string} startTime - Giờ bắt đầu dạng 'HH:MM' (ví dụ '19:00')

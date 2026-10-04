@@ -1,6 +1,7 @@
 import { useState, useMemo } from 'react'
 import { t } from '#i18n'
 import { initialRatingOf, confidenceProgress, confidenceOf } from '#lib/rating.js'
+import { isFemaleGender } from '#lib/money.js'
 
 /**
  * Biểu đồ SVG đường rating qua các buổi tập kèm dải mờ độ tin cậy (Confidence Interval).
@@ -27,16 +28,9 @@ export default function RatingLineChart({
   }, [members])
 
   const isFemale = (id, m) => {
-    if (m?.genders?.[id]) {
-      const g = String(m.genders[id]).toLowerCase().trim()
-      return g === 'nu' || g === 'nữ' || g === 'female' || g === 'f' // i18n-ok: data matching
-    }
+    if (m?.genders?.[id]) return isFemaleGender(m.genders[id])
     const mem = membersMap[id]
-    if (mem) {
-      const g = String(mem.gender || mem.sex || '').toLowerCase().trim()
-      return g === 'nu' || g === 'nữ' || g === 'female' || g === 'f' // i18n-ok: data matching
-    }
-    return false
+    return mem ? isFemaleGender(mem.gender || mem.sex) : false
   }
 
   // 1. Thống kê theo 4 ngữ cảnh cho các Card ở dưới (GD3)

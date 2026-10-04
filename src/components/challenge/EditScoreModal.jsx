@@ -5,24 +5,10 @@ import { useApp } from '#contexts/AppContext.jsx'
 import { useMobile } from '#hooks/useMobile.js'
 import { playerName, myMember } from '#lib/money.js'
 import { matchCodeOf, teamRating, calcPlayerDeltas, getPlayerRating, DEFAULT_RATING } from '#lib/rating.js'
-import { getBadgeById, calculateMemberBadges, computeClubBadgeStats, newlyUnlockedBadges, cleanShelf } from '#lib/badges.js'
-import { resolveSeason, seasonMatchesOf } from '#lib/season.js'
+import { badgesSnapshotOf, getBadgeById, newlyUnlockedBadges, cleanShelf } from '#lib/badges.js'
 import { seenBadgesKey, markBadgeSeen } from '#utils/seenBadges.js'
 import BadgeUnlockModal from '#components/badges/BadgeUnlockModal.jsx'
 import { t } from '#i18n'
-
-/**
- * Chụp trạng thái danh hiệu của một thành viên.
- * Phải truyền ĐỦ season / seasonMatches / clubStats giống trang Danh hiệu và
- * GlobalBadgeUnlockHost — gọi trần thì đây thành nguồn sự thật thứ hai và modal sẽ chúc mừng
- * danh hiệu mà trang Danh hiệu không công nhận.
- */
-function badgesSnapshotOf(memberId, dbSnapshot) {
-  const season = resolveSeason(dbSnapshot)
-  const seasonMatches = seasonMatchesOf(dbSnapshot, season) || []
-  const clubStats = computeClubBadgeStats(dbSnapshot, season, seasonMatches)
-  return calculateMemberBadges(memberId, dbSnapshot, season, seasonMatches, clubStats)
-}
 
 export default function EditScoreModal({ match: initialMatch, onClose, onSaved, onNavigateMatch }) {
   const { db, a } = useApp()

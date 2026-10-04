@@ -2,6 +2,7 @@ import { useState } from 'react'
 import { t } from '#i18n'
 import { useTheme } from '#contexts/ThemeContext.jsx'
 import { Avatar } from '#ds'
+import { ModalOverlay } from '#ui'
 
 export default function SeasonSettingsModal({
   season = {
@@ -90,20 +91,7 @@ export default function SeasonSettingsModal({
   }
 
   return (
-    <div
-      style={{
-        position: 'fixed',
-        inset: 0,
-        zIndex: 9999,
-        background: 'rgba(0,0,0,.65)',
-        backdropFilter: 'blur(4px)',
-        display: 'flex',
-        alignItems: 'center',
-        justifyContent: 'center',
-        padding: 16,
-      }}
-      onClick={onClose}
-    >
+    <ModalOverlay onClose={onClose}>
       <div
         data-screen-label="CE4 Cai dat mua giai"
         style={{
@@ -646,6 +634,6 @@ export default function SeasonSettingsModal({
           </>
         )}
       </div>
-    </div>
+    </ModalOverlay>
   )
 }

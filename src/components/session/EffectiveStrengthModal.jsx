@@ -1,6 +1,7 @@
 import { t } from '#i18n'
 import { useTheme } from '#contexts/ThemeContext.jsx'
 import { DEFAULT_RATING } from '#lib/rating.js'
+import { ModalOverlay } from '#ui'
 
 export default function EffectiveStrengthModal({
   player = {
@@ -28,20 +29,7 @@ export default function EffectiveStrengthModal({
   const eloPct = 100 - seedPct
 
   return (
-    <div
-      style={{
-        position: 'fixed',
-        inset: 0,
-        zIndex: 9999,
-        background: 'rgba(0,0,0,.65)',
-        backdropFilter: 'blur(4px)',
-        display: 'flex',
-        alignItems: 'center',
-        justifyContent: 'center',
-        padding: 16,
-      }}
-      onClick={onClose}
-    >
+    <ModalOverlay onClose={onClose}>
       <div
         data-screen-label="CE3 Effective strength"
         style={{
@@ -215,6 +203,6 @@ export default function EffectiveStrengthModal({
           {t('season.effectiveStrengthNote', { name })}
         </div>
       </div>
-    </div>
+    </ModalOverlay>
   )
 }

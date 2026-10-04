@@ -53,9 +53,6 @@ export default function Fund() {
   const [editingDateTxId, setEditingDateTxId] = useState(null)
   const [editDateValue, setEditDateValue] = useState('')
 
-  useEffect(() => {
-    setEditingDateTxId(null)
-  }, [selectedId])
   const filterRef = useRef(null)
   const timeRef = useRef(null)
 
@@ -444,6 +441,7 @@ export default function Fund() {
   // Xử lý chọn giao dịch
   const handleSelectTx = (it) => {
     setSelectedId(it.id)
+    setEditingDateTxId(null)
     if (isMobile) setMobileDetailOpen(true)
   }
 
@@ -1075,7 +1073,7 @@ export default function Fund() {
                   <span style={S.detailOverline}>{t('fund.txDetail')}</span>
                   <button
                     type="button"
-                    onClick={() => setSelectedId(null)}
+                    onClick={() => { setSelectedId(null); setEditingDateTxId(null) }}
                     style={S.closeDetailBtn}
                     aria-label={t('common.close')}
                   >
@@ -2256,7 +2254,6 @@ const S = {
     width: 20,
     height: 20,
     borderRadius: 4,
-    border: 'none',
     background: 'var(--surface-card, #fff)',
     border: '1px solid var(--border-subtle, #E7E5E4)',
     color: 'var(--text-muted, #78716C)',

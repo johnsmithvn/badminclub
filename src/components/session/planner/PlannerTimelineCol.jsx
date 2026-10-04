@@ -1,6 +1,7 @@
 import { useMemo } from 'react'
 import { t } from '#i18n'
-import { playerName, playerOf, shortName } from '#lib/money.js'
+import { shortName } from '#lib/money.js'
+import { plannerAvatar, plannerName, plannerPlayerMap } from '#lib/planner.js'
 import { Avatar } from '#ds'
 
 export default function PlannerTimelineCol({
@@ -10,39 +11,9 @@ export default function PlannerTimelineCol({
   highlightRoundIndex = null,
   onDropPlayer,
 }) {
-  const pMap = useMemo(() => {
-    const map = {}
-    ;(players || []).forEach((p) => { map[p.key || p.id] = p })
-    return map
-  }, [players])
-
-  const pName = (k) => {
-    if (!k) return '?'
-    if (pMap[k]?.name && pMap[k].name !== k) return pMap[k].name
-    if (db) {
-      const resolved = playerName(db, k)
-      if (resolved && resolved !== k) return resolved
-      const pObj = playerOf(db, k)
-      if (pObj?.name && pObj.name !== k) return pObj.name
-    }
-    if (typeof k === 'string' && /^[0-9a-f]{8}-[0-9a-f]{4}/i.test(k)) {
-      return t('planner.defaultGuestName')
-    }
-    return k
-  }
-
-  const pAvatar = (k) => {
-    if (!k || k === '?') return ''
-    if (pMap[k]?.avatarUrl) return pMap[k].avatarUrl
-    if (db) {
-      const pObj = playerOf(db, k)
-      if (pObj?.avatarUrl) return pObj.avatarUrl
-      if (pObj?.avatar_url) return pObj.avatar_url
-      if (pObj?.profile?.avatar_url) return pObj.profile.avatar_url
-      if (pObj?.profile?.avatarUrl) return pObj.profile.avatarUrl
-    }
-    return ''
-  }
+  const pMap = useMemo(() => plannerPlayerMap(players), [players])
+  const pName = (k) => plannerName(db, pMap, k)
+  const pAvatar = (k) => plannerAvatar(db, pMap, k)
 
   return (
     <div style={S.colWrap}>

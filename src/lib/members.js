@@ -6,7 +6,7 @@
 //   2. cột "Quỹ tháng" và bộ lọc "trạng thái đóng" phải đọc CÙNG một hàm, không thì lọc
 //      "Chưa đóng" ra một tập, còn cột lại tô màu theo tập khác.
 
-import { dueState, levelOf, rosterStatus } from '#lib/money.js'
+import { dueState, isFemaleGender, levelOf, rosterStatus } from '#lib/money.js'
 // Cùng phép chuẩn hoá với lúc đọc tiêu đề CSV: bỏ dấu, bỏ khoảng trắng, hạ chữ thường.
 // "Thuy" tìm ra "Thúy", "0327 279 292" tìm ra "0327279292". Đừng viết lại phép này lần hai.
 import { normHeader as norm } from '#lib/csv.js'
@@ -175,11 +175,6 @@ export function attendanceTier(state) {
   if (state === true) return 2
   if (state === false) return 3
   return 1
-}
-
-const isFemaleGender = (gender) => {
-  const g = String(gender || '').toLowerCase()
-  return g === 'nu' || g === 'female' || g === 'f' || g === 'nữ' // i18n-ok: check gender data
 }
 
 /**

@@ -2,15 +2,11 @@
 import { supabase } from '#supabase'
 
 /**
- * Nén ảnh và trả về Blob.
+ * Đọc file ảnh và vẽ lại lên canvas, co giữ nguyên tỷ lệ để vừa khung maxWidth × maxHeight.
  * @param {File} file File ảnh từ input
- * @param {object} options
- * @param {number} [options.maxWidth=600]
- * @param {number} [options.maxHeight=600]
- * @param {number} [options.quality=0.85]
- * @returns {Promise<Blob>}
+ * @returns {Promise<HTMLCanvasElement>}
  */
-export function compressImageToBlob(file, { maxWidth = 600, maxHeight = 600, quality = 0.85 } = {}) {
+function drawResized(file, maxWidth, maxHeight) {
   return new Promise((resolve, reject) => {
     if (!file || !file.type.startsWith('image/')) {
       return reject(new Error('File không phải là định dạng hình ảnh hợp lệ.'))
@@ -40,15 +36,7 @@ export function compressImageToBlob(file, { maxWidth = 600, maxHeight = 600, qua
         ctx.imageSmoothingEnabled = true
         ctx.imageSmoothingQuality = 'high'
         ctx.drawImage(img, 0, 0, width, height)
-
-        canvas.toBlob(
-          (blob) => {
-            if (blob) resolve(blob)
-            else resolve(file)
-          },
-          'image/webp',
-          quality
-        )
+        resolve(canvas)
       }
       img.src = e.target.result
     }
@@ -57,55 +45,34 @@ export function compressImageToBlob(file, { maxWidth = 600, maxHeight = 600, qua
 }
 
 /**
- * Đọc file ảnh và nén/resize về dạng Base64 Data URL.
+ * Nén ảnh và trả về Blob (webp; trình duyệt không xuất được thì trả lại file gốc).
+ * @param {File} file File ảnh từ input
+ * @param {object} options
+ * @param {number} [options.maxWidth=600]
+ * @param {number} [options.maxHeight=600]
+ * @param {number} [options.quality=0.85]
+ * @returns {Promise<Blob>}
+ */
+export async function compressImageToBlob(file, { maxWidth = 600, maxHeight = 600, quality = 0.85 } = {}) {
+  const canvas = await drawResized(file, maxWidth, maxHeight)
+  return new Promise((resolve) => canvas.toBlob((blob) => resolve(blob || file), 'image/webp', quality))
+}
+
+/**
+ * Đọc file ảnh và nén/resize về dạng Base64 Data URL (webp, không hỗ trợ thì jpeg).
  * @param {File} file File ảnh từ input[type="file"]
  * @param {object} options
  * @returns {Promise<string>} Chuỗi Base64 Data URL
  */
-export function compressImage(file, { maxWidth = 600, maxHeight = 600, quality = 0.85 } = {}) {
-  return new Promise((resolve, reject) => {
-    if (!file || !file.type.startsWith('image/')) {
-      return reject(new Error('File không phải là định dạng hình ảnh hợp lệ.'))
-    }
-
-    const reader = new FileReader()
-    reader.onerror = () => reject(new Error('Không thể đọc file ảnh.'))
-    reader.onload = (e) => {
-      const img = new Image()
-      img.onerror = () => reject(new Error('Không thể tải dữ liệu ảnh.'))
-      img.onload = () => {
-        let width = img.width
-        let height = img.height
-
-        if (width > maxWidth || height > maxHeight) {
-          const ratio = Math.min(maxWidth / width, maxHeight / height)
-          width = Math.round(width * ratio)
-          height = Math.round(height * ratio)
-        }
-
-        const canvas = document.createElement('canvas')
-        canvas.width = width
-        canvas.height = height
-
-        const ctx = canvas.getContext('2d')
-        ctx.imageSmoothingEnabled = true
-        ctx.imageSmoothingQuality = 'high'
-        ctx.drawImage(img, 0, 0, width, height)
-
-        try {
-          const dataUrl = canvas.toDataURL('image/webp', quality)
-          if (dataUrl.startsWith('data:image/webp')) {
-            return resolve(dataUrl)
-          }
-        } catch {
-          // Bỏ qua nếu không hỗ trợ webp
-        }
-        resolve(canvas.toDataURL('image/jpeg', quality))
-      }
-      img.src = e.target.result
-    }
-    reader.readAsDataURL(file)
-  })
+export async function compressImage(file, { maxWidth = 600, maxHeight = 600, quality = 0.85 } = {}) {
+  const canvas = await drawResized(file, maxWidth, maxHeight)
+  try {
+    const dataUrl = canvas.toDataURL('image/webp', quality)
+    if (dataUrl.startsWith('data:image/webp')) return dataUrl
+  } catch {
+    // Bỏ qua nếu không hỗ trợ webp
+  }
+  return canvas.toDataURL('image/jpeg', quality)
 }
 
 /**

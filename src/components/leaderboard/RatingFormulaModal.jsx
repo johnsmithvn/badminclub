@@ -1,21 +1,9 @@
 import { t } from '#i18n'
+import { ModalOverlay } from '#ui'
 
 export default function RatingFormulaModal({ onClose, totalMatches = 214 }) {
   return (
-    <div
-      style={{
-        position: 'fixed',
-        inset: 0,
-        zIndex: 9999,
-        background: 'rgba(0,0,0,.65)',
-        backdropFilter: 'blur(4px)',
-        display: 'flex',
-        alignItems: 'center',
-        justifyContent: 'center',
-        padding: 16,
-      }}
-      onClick={onClose}
-    >
+    <ModalOverlay onClose={onClose}>
       <div
         data-screen-label="EA2 Cai dat rating"
         style={{
@@ -435,6 +423,6 @@ export default function RatingFormulaModal({ onClose, totalMatches = 214 }) {
           </div>
         </div>
       </div>
-    </div>
+    </ModalOverlay>
   )
 }

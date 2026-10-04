@@ -1,6 +1,6 @@
 import test from 'node:test'
 import assert from 'node:assert/strict'
-import { setWinner, matchWinner, validateSets, scoreFlags, ruleFor } from '#lib/tournament/scoring.js'
+import { setWinner, matchWinner, validateSets, ruleFor } from '#lib/tournament/scoring.js'
 
 test('Module Giải đấu - Kiểm thử logic tính điểm scoring.js', async (t) => {
   // Luật 1: 1x21 cách 2 trần 30 (Vòng loại Đôi nam nữ quy chế mùa 1)
@@ -111,49 +111,6 @@ test('Module Giải đấu - Kiểm thử logic tính điểm scoring.js', async
     const setsDangling = [[15, 10], [10, 8]]
     assert.equal(matchWinner(setsDangling, rule3x15), null, 'Set 2 đang đánh dở (10-8) thì matchWinner phải là null (chưa xong)')
     assert.equal(validateSets(setsDangling, rule3x15), 'tournament.err.incompleteSet', 'validateSets phải trả incompleteSet khi có set dở dang')
-  })
-
-  await t.test('6. scoreFlags: Tính cờ Deuce, Set Point và Match Point độc lập cho cả A và B', () => {
-    // Ca 1: Trận 1 set 21 điểm (Đôi nam nữ), tỉ số 20-20 -> Deuce
-    const state1 = { currentScore: [20, 20], sets: [] }
-    const flags1 = scoreFlags(state1, rule21WinBy2)
-    assert.equal(flags1.deuce, true, '20-20 winBy2 phải báo deuce = true')
-    assert.deepEqual(flags1.setPoint, { A: false, B: false }, '20-20 chưa bên nào có set point')
-    assert.deepEqual(flags1.matchPoint, { A: false, B: false }, '20-20 chưa bên nào có match point')
-
-    // Ca 2: Trận 1 set 21 điểm, tỉ số 20-19 -> Chỉ A có set point và match point
-    const state2 = { currentScore: [20, 19], sets: [] }
-    const flags2 = scoreFlags(state2, rule21WinBy2)
-    assert.equal(flags2.deuce, false, '20-19 không còn ở thế cân bằng deuce')
-    assert.deepEqual(flags2.setPoint, { A: true, B: false }, 'A được 1 quả nữa (21-19) là thắng set')
-    assert.deepEqual(flags2.matchPoint, { A: true, B: false }, 'Vì là trận 1 set, A thắng set là thắng luôn trận')
-
-    // Ca 2b (KHÔI PHỤC CA BỊ THIẾU): Trận 3 set 15 điểm, set 1 đang 14-10 -> A có set point nhưng CHƯA có match point
-    const stateSet1 = { currentScore: [14, 10], sets: [] }
-    const flagsSet1 = scoreFlags(stateSet1, rule3x15)
-    assert.deepEqual(flagsSet1.setPoint, { A: true, B: false }, 'Set 1 dẫn 14-10: A có set point')
-    assert.deepEqual(flagsSet1.matchPoint, { A: false, B: false }, 'Set 1 dẫn 14-10: A CHƯA thể có match point vì cần thắng 2 set mới xong trận')
-
-    // Ca 3 (LỖI THẬT ĐÃ SỬA): 29-29 trong luật 21 trần 30 (1 set) -> CẢ HAI bên cùng có set point và match point
-    const state3 = { currentScore: [29, 29], sets: [] }
-    const flags3 = scoreFlags(state3, rule21WinBy2)
-    assert.equal(flags3.deuce, true, '29-29 vẫn là deuce sát trần')
-    assert.deepEqual(flags3.setPoint, { A: true, B: true }, '29-29: Ai ăn quả tới cũng chạm 30 và thắng set')
-    assert.deepEqual(flags3.matchPoint, { A: true, B: true }, '29-29: Trận 1 set, ai ăn quả tới cũng thắng cả trận')
-
-    // Ca 4 (LỖI THẬT ĐÃ SỬA): 29-29 trong luật 30 chạm (1 set) -> CẢ HAI bên cùng có set point và match point, KHÔNG có deuce
-    const state4 = { currentScore: [29, 29], sets: [] }
-    const flags4 = scoreFlags(state4, rule30Sudden)
-    assert.equal(flags4.deuce, false, '29-29 luật chạm 30 không có winBy2 nên deuce = false')
-    assert.deepEqual(flags4.setPoint, { A: true, B: true }, '29-29 chạm 30: Cả hai bên đều có set point')
-    assert.deepEqual(flags4.matchPoint, { A: true, B: true }, '29-29 chạm 30: Cả hai bên đều có match point')
-
-    // Ca 5 (LỖI THẬT ĐÃ SỬA): Trận 3 set 15 điểm. Set 1 A đã thắng (15-10). Set 2 đang hòa 14-14
-    // -> A có match point (và set point), B có set point (nhưng CHƯA có match point vì mới là set 1 của B)
-    const state5 = { currentScore: [14, 14], sets: [[15, 10]] }
-    const flags5 = scoreFlags(state5, rule3x15)
-    assert.deepEqual(flags5.setPoint, { A: true, B: true }, '14-14: Cả A và B đều đang có set point ở set 2')
-    assert.deepEqual(flags5.matchPoint, { A: true, B: false }, 'A ăn quả này là thắng trận 2-0 (match point); B ăn quả này chỉ gỡ 1-1 (không có match point)')
   })
 
   await t.test('7. ruleFor: Lấy đúng luật chuẩn camelCase và ném lỗi khi thiếu dữ liệu', () => {

@@ -3,10 +3,8 @@ import assert from 'node:assert/strict'
 import { buildKnockout } from '#lib/tournament/bracket.js'
 import { applyCommit } from '#lib/tournament/advance.js'
 import { CHAMP_KEY, activeRoundKey, flightsOf, koRounds, progressOf, queueOf, sideScores, slotKey } from '#lib/tournament/bracketView.js'
-import { boardReducer, boardView, emptyBoard, parseDraft } from '#lib/tournament/scoreboard.js'
 
 const R30 = { sets: 1, points: 30, winBy2: false, cap: 30 }
-const R21 = { sets: 1, points: 21, winBy2: true, cap: 30 }
 const R3x15 = { sets: 3, points: 15, winBy2: false, cap: 15 }
 let n = 0
 const bracket = (teams = 5) => buildKnockout({
@@ -66,39 +64,6 @@ test('điểm từng bên để hiện trên thẻ trận', () => {
   assert.deepEqual(sideScores(undefined, 'A'), [])
 })
 
-test('bảng ghi điểm: cộng quả, hết set tự chốt và đổi sân, xong trận thì khoá; hoàn tác lùi đúng một quả', () => {
-  const play = (s, side, k, rule) => { for (let i = 0; i < k; i++) s = boardReducer(s, { type: 'point', side }, rule); return s }
-  let s = play(emptyBoard(), 'A', 14, R3x15)
-  s = play(s, 'B', 14, R3x15)
-  assert.deepEqual(boardView(s, R3x15).flags.setPoint, { A: true, B: true }, '14-14 chạm 15: ai ăn quả tới là thắng set')
-  s = play(s, 'A', 1, R3x15)
-  assert.deepEqual(s.sets, [[15, 14]])
-  assert.deepEqual(s.cur, [0, 0])
-  assert.equal(s.swapped, true, 'quy chế: thắng sec, đổi sân')
-  assert.equal(boardView(s, R3x15).justSwitched, true)
-  assert.equal(boardView(s, R3x15).setNo, 2)
-
-  const undone = boardReducer(s, { type: 'undo' }, R3x15)
-  assert.deepEqual([undone.sets, undone.cur, undone.swapped], [[], [15 - 1, 14], false], 'hoàn tác quả chốt set → về 14-14 set 1')
-
-  s = play(s, 'A', 15, R3x15)
-  assert.equal(boardView(s, R3x15).winner, 'A')
-  assert.equal(boardReducer(s, { type: 'point', side: 'B' }, R3x15), s, 'xong trận rồi thì không ghi thêm quả nào')
-  assert.equal(boardView(s, R3x15).flags, null)
-})
-
-test('bảng ghi điểm: luật 21 cách 2 — 29-29 ai được 30 thắng; trừ quả; không trừ dưới 0', () => {
-  let s = { ...emptyBoard(), cur: [29, 29] }
-  s = boardReducer(s, { type: 'point', side: 'B' }, R21)
-  assert.deepEqual(s.sets, [[29, 30]])
-  assert.equal(boardView(s, R21).winner, 'B')
-  const m = boardReducer({ ...emptyBoard(), cur: [3, 0] }, { type: 'minus', side: 'A' }, R21)
-  assert.deepEqual(m.cur, [2, 0])
-  const z = emptyBoard()
-  assert.equal(boardReducer(z, { type: 'minus', side: 'B' }, R21), z)
-  assert.equal(boardReducer(z, { type: 'undo' }, R21), z)
-})
-
 test('activeRoundKey: nhãn vòng/giai đoạn đang diễn ra cho thẻ nội dung', () => {
   assert.equal(activeRoundKey({ stages: [], matches: [] }, 'e1'), null, 'chưa có giai đoạn nào thì không có nhãn')
 
@@ -119,11 +84,4 @@ test('activeRoundKey: nhãn vòng/giai đoạn đang diễn ra cho thẻ nội d
 
   const other = { stages: [{ id: 's1', eventId: 'e1', seq: 1, type: 'round_robin', status: 'pending' }], matches: [] }
   assert.equal(activeRoundKey(other, 'e1'), null, 'chưa chạy giai đoạn nào (còn pending) thì không có nhãn')
-})
-
-test('bản nháp đọc từ máy: hỏng thì bắt đầu lại, không làm sập bảng điểm', () => {
-  assert.deepEqual(parseDraft('{"sets":[[15,10]],"cur":[3,4],"swapped":true}'), { sets: [[15, 10]], cur: [3, 4], swapped: true, history: [] })
-  assert.deepEqual(parseDraft('rác'), emptyBoard())
-  assert.deepEqual(parseDraft('{"cur":[1,"x"],"sets":[]}'), emptyBoard())
-  assert.deepEqual(parseDraft(null), emptyBoard())
 })

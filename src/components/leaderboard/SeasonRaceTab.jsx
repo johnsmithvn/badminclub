@@ -8,6 +8,7 @@ import { getBadgeById, cleanShelf, calculateMemberBadges, computeClubBadgeStats 
 import { seasonMatchesOf } from '#lib/season.js'
 import RankMedalIcon from '#components/leaderboard/RankMedalIcon.jsx'
 import { STAT_COLORS } from '#components/leaderboard/statColors.js'
+import GenderFilterTabs from '#components/leaderboard/GenderFilterTabs.jsx'
 import WinRatePill from '#components/leaderboard/WinRatePill.jsx'
 import StreakTag from '#components/leaderboard/StreakTag.jsx'
 
@@ -327,127 +328,13 @@ export default function SeasonRaceTab({
         )}
 
         {/* Bộ lọc giới tính Nam / Nữ */}
-        <div
-          style={{
-            display: 'flex',
-            alignItems: 'center',
-            justifyContent: 'space-between',
-            gap: 8,
-            flexWrap: 'wrap',
-          }}
-        >
-          <div
-            style={{
-              display: 'inline-flex',
-              alignItems: 'center',
-              background: 'var(--surface-card)',
-              border: '1px solid var(--border-subtle)',
-              borderRadius: 8,
-              padding: 3,
-              gap: 2,
-              boxShadow: 'var(--shadow-xs)',
-            }}
-          >
-            <button
-              type="button"
-              onClick={() => onGenderFilterChange && onGenderFilterChange('all')}
-              style={{
-                font: "600 12px/1 'IBM Plex Sans', sans-serif",
-                padding: '6px 12px',
-                borderRadius: 6,
-                border: 'none',
-                cursor: 'pointer',
-                display: 'inline-flex',
-                alignItems: 'center',
-                gap: 6,
-                background: genderFilter === 'all' ? (isDark ? 'var(--navy-700)' : '#00B2A9') : 'transparent',
-                color: genderFilter === 'all' ? '#FFFFFF' : 'var(--text-secondary)',
-                fontWeight: genderFilter === 'all' ? 700 : 500,
-                transition: 'all 0.15s ease',
-              }}
-            >
-              <span>{t('gender.all')}</span>
-              <span
-                style={{
-                  fontSize: 10,
-                  fontFamily: "'IBM Plex Mono', monospace",
-                  padding: '2px 6px',
-                  borderRadius: 999,
-                  background: genderFilter === 'all' ? 'rgba(255,255,255,.22)' : 'var(--surface-inset)',
-                  color: genderFilter === 'all' ? '#FFFFFF' : 'var(--text-muted)',
-                }}
-              >
-                {totalCount}
-              </span>
-            </button>
-
-            <button
-              type="button"
-              onClick={() => onGenderFilterChange && onGenderFilterChange('nam')}
-              style={{
-                font: "600 12px/1 'IBM Plex Sans', sans-serif",
-                padding: '6px 12px',
-                borderRadius: 6,
-                border: 'none',
-                cursor: 'pointer',
-                display: 'inline-flex',
-                alignItems: 'center',
-                gap: 6,
-                background: genderFilter === 'nam' ? '#1D50A0' : 'transparent',
-                color: genderFilter === 'nam' ? '#FFFFFF' : 'var(--text-secondary)',
-                fontWeight: genderFilter === 'nam' ? 700 : 500,
-                transition: 'all 0.15s ease',
-              }}
-            >
-              <span>♂ {t('gender.nam')}</span>
-              <span
-                style={{
-                  fontSize: 10,
-                  fontFamily: "'IBM Plex Mono', monospace",
-                  padding: '2px 6px',
-                  borderRadius: 999,
-                  background: genderFilter === 'nam' ? 'rgba(255,255,255,.22)' : 'var(--surface-inset)',
-                  color: genderFilter === 'nam' ? '#FFFFFF' : 'var(--text-muted)',
-                }}
-              >
-                {maleCount}
-              </span>
-            </button>
-
-            <button
-              type="button"
-              onClick={() => onGenderFilterChange && onGenderFilterChange('nu')}
-              style={{
-                font: "600 12px/1 'IBM Plex Sans', sans-serif",
-                padding: '6px 12px',
-                borderRadius: 6,
-                border: 'none',
-                cursor: 'pointer',
-                display: 'inline-flex',
-                alignItems: 'center',
-                gap: 6,
-                background: genderFilter === 'nu' ? '#D946EF' : 'transparent',
-                color: genderFilter === 'nu' ? '#FFFFFF' : 'var(--text-secondary)',
-                fontWeight: genderFilter === 'nu' ? 700 : 500,
-                transition: 'all 0.15s ease',
-              }}
-            >
-              <span>♀ {t('gender.nu')}</span>
-              <span
-                style={{
-                  fontSize: 10,
-                  fontFamily: "'IBM Plex Mono', monospace",
-                  padding: '2px 6px',
-                  borderRadius: 999,
-                  background: genderFilter === 'nu' ? 'rgba(255,255,255,.22)' : 'var(--surface-inset)',
-                  color: genderFilter === 'nu' ? '#FFFFFF' : 'var(--text-muted)',
-                }}
-              >
-                {femaleCount}
-              </span>
-            </button>
-          </div>
-        </div>
+        <GenderFilterTabs
+          value={genderFilter}
+          onChange={onGenderFilterChange}
+          counts={{ all: totalCount, nam: maleCount, nu: femaleCount }}
+          isDark={isDark}
+          allActiveBg="#00B2A9"
+        />
 
         {/* 2. Podium Top 3 */}
         {filteredLeaderboard.length >= 3 && (

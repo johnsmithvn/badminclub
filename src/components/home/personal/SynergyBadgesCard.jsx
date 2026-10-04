@@ -1,6 +1,7 @@
 import { useState, useMemo } from 'react'
 import { Avatar, Icon } from '#ds'
 import { t } from '#i18n'
+import SegToggle from '#components/home/personal/SegToggle.jsx'
 import { isFemalePlayer } from '#lib/rating.js'
 
 export default function SynergyBadgesCard({
@@ -65,29 +66,12 @@ export default function SynergyBadgesCard({
   )
 
   const genderToggle = (
-    <div style={S.genderToggle}>
-      <button
-        type="button"
-        onClick={() => setGenderFilter('all')}
-        style={genderFilter === 'all' ? S.genderBtnActive : S.genderBtn}
-      >
-        {t('home.personal.allShort')}
-      </button>
-      <button
-        type="button"
-        onClick={() => setGenderFilter('nam')}
-        style={genderFilter === 'nam' ? S.genderBtnActive : S.genderBtn}
-      >
-        {t('gender.nam')}
-      </button>
-      <button
-        type="button"
-        onClick={() => setGenderFilter('nu')}
-        style={genderFilter === 'nu' ? S.genderBtnActive : S.genderBtn}
-      >
-        {t('gender.nu')}
-      </button>
-    </div>
+    <SegToggle
+      variant="pill"
+      options={[['all', t('home.personal.allShort')], ['nam', t('gender.nam')], ['nu', t('gender.nu')]]}
+      value={genderFilter}
+      onChange={setGenderFilter}
+    />
   )
 
   // Layout đồng bộ Mobile & Desktop: Hiển thị tối đa 4 người mỗi tab, header wrap chống tràn
@@ -216,45 +200,6 @@ const S = {
     font: '600 11px/1 var(--font-sans)',
     color: 'var(--text-primary)',
     whiteSpace: 'nowrap',
-  },
-  genderToggle: {
-    display: 'inline-flex',
-    padding: 2,
-    borderRadius: 999,
-    background: 'var(--surface-inset)',
-    border: '1px solid var(--border-subtle)',
-    gap: 1.5,
-    flexShrink: 0,
-  },
-  genderBtn: {
-    background: 'none',
-    border: 'none',
-    padding: '3px 7px',
-    borderRadius: 999,
-    font: '600 11px/1 var(--font-sans)',
-    color: 'var(--text-muted)',
-    cursor: 'pointer',
-    whiteSpace: 'nowrap',
-    minHeight: 26,
-    display: 'inline-flex',
-    alignItems: 'center',
-    justifyContent: 'center',
-    transition: 'all 0.15s ease',
-  },
-  genderBtnActive: {
-    background: 'var(--surface-card)',
-    border: '1px solid var(--border-default)',
-    padding: '3px 7px',
-    borderRadius: 999,
-    font: '600 11px/1 var(--font-sans)',
-    color: 'var(--text-primary)',
-    boxShadow: 'var(--shadow-sm)',
-    cursor: 'default',
-    whiteSpace: 'nowrap',
-    minHeight: 26,
-    display: 'inline-flex',
-    alignItems: 'center',
-    justifyContent: 'center',
   },
   label: {
     font: '600 11px/1.1 var(--font-sans)',

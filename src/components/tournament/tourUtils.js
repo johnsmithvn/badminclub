@@ -48,9 +48,6 @@ export function teamName(tour, db, teamId) {
   return names.length ? names.join(' / ') : t('common.unknown')
 }
 
-/** Khoá bản nháp bảng điểm trên máy trọng tài (plan §4.5). */
-export const draftKey = (matchId) => 'tourScore:' + matchId
-
 /** Tên giai đoạn hiển thị: tên BTC đặt trên sơ đồ, không có thì tên theo vai (vòng bảng / nhánh chính / phụ). */
 export function stageName(stage, eventStages) {
   return stage.title || t(stageLabelKey(stage, eventStages))

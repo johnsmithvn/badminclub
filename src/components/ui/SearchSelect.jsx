@@ -2,19 +2,7 @@ import { useState, useRef, useEffect, useMemo } from 'react'
 import { Icon } from '#ds'
 import { LevelChip } from './index.jsx'
 import { t } from '#i18n'
-
-/**
- * Chuẩn hoá chuỗi tiếng Việt để tìm kiếm không dấu, không phân biệt hoa thường.
- */
-function normalizeStr(str) {
-  if (!str) return ''
-  return String(str)
-    .toLowerCase()
-    .normalize('NFD')
-    .replace(/[\u0300-\u036f]/g, '')
-    .replace(/đ/g, 'd') // i18n-ok: chuẩn hoá chữ để tìm kiếm, không phải chữ hiện ra
-    .trim()
-}
+import { normalizeText } from '#lib/money.js'
 
 /**
  * Combobox / Searchable Select & Tag Multi-Select trực tiếp.
@@ -82,11 +70,11 @@ export function SearchSelect({
   // Lọc options theo từ khoá tìm kiếm
   const filteredOptions = useMemo(() => {
     if (!search.trim()) return options
-    const q = normalizeStr(search)
+    const q = normalizeText(search)
     return options.filter((o) => {
-      const matchLabel = normalizeStr(o.label).includes(q)
-      const matchSub = o.sub && normalizeStr(o.sub).includes(q)
-      const matchLevel = o.level && normalizeStr(o.level).includes(q)
+      const matchLabel = normalizeText(o.label).includes(q)
+      const matchSub = o.sub && normalizeText(o.sub).includes(q)
+      const matchLevel = o.level && normalizeText(o.level).includes(q)
       return matchLabel || matchSub || matchLevel
     })
   }, [options, search])

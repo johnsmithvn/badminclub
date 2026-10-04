@@ -5,48 +5,8 @@ import cfg from '#config/app.js'
 import { t } from '#i18n'
 import { useTheme } from '#contexts/ThemeContext.jsx'
 import { useMobile } from '#hooks/useMobile.js'
-
-function getTierPill(gap, gapText, isDark) {
-  const g = typeof gap === 'number' ? gap : 0
-  if (g >= 150) {
-    return {
-      text: t('season.tierPillHeavyFavored', { gap: gapText }),
-      color: isDark ? '#5FDBD3' : '#0F766E',
-      bg: isDark ? 'rgba(0, 178, 169, 0.20)' : 'rgba(13, 148, 136, 0.14)',
-      border: isDark ? '1px solid rgba(0, 178, 169, 0.40)' : '1px solid rgba(13, 148, 136, 0.28)',
-    }
-  }
-  if (g >= 50) {
-    return {
-      text: t('season.tierPillFavored', { gap: gapText }),
-      color: isDark ? '#5FDBD3' : '#0F766E',
-      bg: isDark ? 'rgba(0, 178, 169, 0.16)' : 'rgba(13, 148, 136, 0.12)',
-      border: isDark ? '1px solid rgba(0, 178, 169, 0.32)' : '1px solid rgba(13, 148, 136, 0.22)',
-    }
-  }
-  if (g > -50) {
-    return {
-      text: t('season.tierPillBalanced', { gap: gapText }),
-      color: isDark ? '#94A3B8' : '#475569',
-      bg: isDark ? 'rgba(148, 163, 184, 0.16)' : 'rgba(148, 163, 184, 0.12)',
-      border: isDark ? '1px solid rgba(148, 163, 184, 0.30)' : '1px solid rgba(148, 163, 184, 0.22)',
-    }
-  }
-  if (g > -150) {
-    return {
-      text: t('season.tierPillUnderdog', { gap: gapText }),
-      color: isDark ? '#FB923C' : '#EA580C',
-      bg: isDark ? 'rgba(249, 115, 22, 0.18)' : 'rgba(249, 115, 22, 0.12)',
-      border: isDark ? '1px solid rgba(249, 115, 22, 0.35)' : '1px solid rgba(249, 115, 22, 0.25)',
-    }
-  }
-  return {
-    text: t('season.tierPillDeepUnderdog', { gap: gapText }),
-    color: isDark ? '#FF9A8F' : '#DC2626',
-    bg: isDark ? 'rgba(225, 68, 52, 0.20)' : 'rgba(220, 38, 38, 0.14)',
-    border: isDark ? '1px solid rgba(225, 68, 52, 0.40)' : '1px solid rgba(220, 38, 38, 0.30)',
-  }
-}
+import { getTierPill } from '#components/leaderboard/statColors.js'
+import { ModalOverlay } from '#ui'
 
 export default function MemberSeasonLedgerModal({
   memberId,
@@ -90,20 +50,7 @@ export default function MemberSeasonLedgerModal({
   const pUpsets = Math.max(0, 100 - pMatchNet - pStreak)
 
   return (
-    <div
-      style={{
-        position: 'fixed',
-        inset: 0,
-        zIndex: 9999,
-        background: 'rgba(0,0,0,.65)',
-        backdropFilter: 'blur(4px)',
-        display: 'flex',
-        alignItems: isMobile ? 'flex-end' : 'center',
-        justifyContent: 'center',
-        padding: isMobile ? 0 : 16,
-      }}
-      onClick={onClose}
-    >
+    <ModalOverlay onClose={onClose} align={isMobile ? 'flex-end' : 'center'} padding={isMobile ? 0 : 16}>
       <div
         data-screen-label={isMobile ? 'SS3-M So diem mua giai' : 'SS3 So diem mua giai'}
         style={{
@@ -515,6 +462,6 @@ export default function MemberSeasonLedgerModal({
           </div>
         </div>
       </div>
-    </div>
+    </ModalOverlay>
   )
 }

@@ -22,6 +22,8 @@ import SessionStatsSheet from '#components/session/SessionStatsSheet.jsx'
 import BalanceScore from '#components/session/BalanceScore.jsx'
 import VoiceMatchModal from '#components/session/VoiceMatchModal.jsx'
 import ScoreModal from '#components/challenge/ScoreModal.jsx'
+import ScorePicker from '#components/challenge/ScorePicker.jsx'
+import { scoreStateFrom } from '#lib/scorePicker.js'
 
 // `preset`: đội hình nạp sẵn khi bấm "Nạp vào mặt sân" từ nút Đấu lại ở tab Trận. Chỉ đọc lúc
 // mount — SessionDetail xoá nó ở lần đổi tab kế tiếp.
@@ -78,11 +80,9 @@ export default function CourtAssignmentTab({ s, preset }) {
     return getChallengeSeriesProgress(activeLoadedChallenge, db.matches || [])
   }, [activeLoadedChallenge, db.matches])
 
-  // Tỷ số & Đội thắng
-  const [winnerTeam, setWinnerTeam] = useState('A')
-  const [presetScore, setPresetScore] = useState('21-19') // '21-19' | '21-15' | '21-11' | 'custom'
-  const [scoreA, setScoreA] = useState(21)
-  const [scoreB, setScoreB] = useState(19)
+  // Tỷ số & Đội thắng — logic chuyển trạng thái nằm ở #lib/scorePicker.js, UI ở ScorePicker
+  const [score, setScore] = useState(scoreStateFrom)
+  const { winnerTeam, scoreA, scoreB } = score
   const [isBo3, setIsBo3] = useState(false)
   const [bo3Sets] = useState([
     [21, 19],
@@ -98,7 +98,6 @@ export default function CourtAssignmentTab({ s, preset }) {
   const [showStatsSheet, setShowStatsSheet] = useState(false)
   const [showBalanceSheet, setShowBalanceSheet] = useState(false)
   const [showClubChallengesModal, setShowClubChallengesModal] = useState(false)
-  const [showChangesBox, setShowChangesBox] = useState(false)
   const [showVoiceModal, setShowVoiceModal] = useState(false)
   const [sortOption, setSortOption] = useState('az') // 'az' | 'fewest' | 'wait' | 'level'
   const [filters, setFilters] = useState({
@@ -559,89 +558,6 @@ export default function CourtAssignmentTab({ s, preset }) {
     a.toast(t('quickMatch.loadChalSuccess', { code: c.code || '' }))
   }
 
-  // Đổi đội thắng (1 chạm)
-  const handleSelectWinner = (team) => {
-    setWinnerTeam(team)
-    if (presetScore === '21-19') {
-      setScoreA(team === 'A' ? 21 : 19)
-      setScoreB(team === 'B' ? 21 : 19)
-    } else if (presetScore === '21-15') {
-      setScoreA(team === 'A' ? 21 : 15)
-      setScoreB(team === 'B' ? 21 : 15)
-    } else if (presetScore === '21-11') {
-      setScoreA(team === 'A' ? 21 : 11)
-      setScoreB(team === 'B' ? 21 : 11)
-    } else if (presetScore === 'custom') {
-      if (team === 'A' && scoreA < scoreB) {
-        const tmp = scoreA
-        setScoreA(scoreB)
-        setScoreB(tmp)
-      } else if (team === 'B' && scoreB < scoreA) {
-        const tmp = scoreA
-        setScoreA(scoreB)
-        setScoreB(tmp)
-      }
-    }
-  }
-
-  // Chọn preset tỷ số nhanh (21-19, 21-15, 21-11, Khác)
-  const handleSelectPreset = (preset) => {
-    setPresetScore(preset)
-    if (preset === '21-19') {
-      setScoreA(winnerTeam === 'A' ? 21 : 19)
-      setScoreB(winnerTeam === 'B' ? 21 : 19)
-    } else if (preset === '21-15') {
-      setScoreA(winnerTeam === 'A' ? 21 : 15)
-      setScoreB(winnerTeam === 'B' ? 21 : 15)
-    } else if (preset === '21-11') {
-      setScoreA(winnerTeam === 'A' ? 21 : 11)
-      setScoreB(winnerTeam === 'B' ? 21 : 11)
-    }
-  }
-
-  // Tăng/giảm tỷ số tùy chỉnh
-  const updateCustomScore = (team, delta) => {
-    setPresetScore('custom')
-    if (team === 'A') {
-      const next = Math.max(0, Math.min(30, Number(scoreA || 0) + delta))
-      setScoreA(next)
-      if (next > scoreB) setWinnerTeam('A')
-      else if (next < scoreB) setWinnerTeam('B')
-    } else {
-      const next = Math.max(0, Math.min(30, Number(scoreB || 0) + delta))
-      setScoreB(next)
-      if (next > scoreA) setWinnerTeam('B')
-      else if (next < scoreA) setWinnerTeam('A')
-    }
-  }
-
-  // Nhập điểm trực tiếp qua ô input
-  const setCustomScoreDirect = (team, valStr) => {
-    setPresetScore('custom')
-    const val = parseInt(valStr, 10)
-    const safeVal = isNaN(val) ? 0 : Math.max(0, Math.min(30, val))
-    if (team === 'A') {
-      setScoreA(safeVal)
-      if (safeVal > scoreB) setWinnerTeam('A')
-      else if (safeVal < scoreB) setWinnerTeam('B')
-    } else {
-      setScoreB(safeVal)
-      if (safeVal > scoreA) setWinnerTeam('B')
-      else if (safeVal < scoreA) setWinnerTeam('A')
-    }
-  }
-
-  // Hoán đổi điểm hai bên
-  const handleSwapCustomScore = () => {
-    setPresetScore('custom')
-    const prevA = scoreA
-    const prevB = scoreB
-    setScoreA(prevB)
-    setScoreB(prevA)
-    if (prevB > prevA) setWinnerTeam('A')
-    else if (prevA > prevB) setWinnerTeam('B')
-  }
-
   // ---------------- TÍNH TOÁN RATING, BALANCE & EFFECTIVE RATING ----------------
   const ratingA = useMemo(() => teamRating(teamA, ratingsMap), [teamA, ratingsMap])
   const ratingB = useMemo(() => teamRating(teamB, ratingsMap), [teamB, ratingsMap])
@@ -862,10 +778,7 @@ export default function CourtAssignmentTab({ s, preset }) {
     setTeamA([])
     setTeamB([])
     setSelectedChallengeId(null)
-    setWinnerTeam('A')
-    setPresetScore('21-19')
-    setScoreA(21)
-    setScoreB(19)
+    setScore(scoreStateFrom())
     a.toast(t('quickMatch.saveSuccess'))
   }
 
@@ -881,10 +794,12 @@ export default function CourtAssignmentTab({ s, preset }) {
   const handleApplyVoiceResult = ({ teamA: nextA, teamB: nextB, scoreA: nextSa, scoreB: nextSb, winnerTeam: nextW }) => {
     if (nextA?.length) setTeamA(nextA)
     if (nextB?.length) setTeamB(nextB)
-    if (nextSa != null) setScoreA(nextSa)
-    if (nextSb != null) setScoreB(nextSb)
-    if (nextW) setWinnerTeam(nextW)
-    setPresetScore('custom')
+    setScore((sc) => ({
+      winnerTeam: nextW || sc.winnerTeam,
+      presetScore: 'custom',
+      scoreA: nextSa != null ? nextSa : sc.scoreA,
+      scoreB: nextSb != null ? nextSb : sc.scoreB,
+    }))
   }
 
   // Xử lý xác nhận và lưu trực tiếp từ Voice Recognition
@@ -917,10 +832,7 @@ export default function CourtAssignmentTab({ s, preset }) {
     setTeamA([])
     setTeamB([])
     setSelectedChallengeId(null)
-    setWinnerTeam('A')
-    setPresetScore('21-19')
-    setScoreA(21)
-    setScoreB(19)
+    setScore(scoreStateFrom())
     a.toast(t('quickMatch.saveSuccess'))
   }
 
@@ -2563,316 +2475,19 @@ export default function CourtAssignmentTab({ s, preset }) {
                 </div>
               )}
 
-              {/* 2 Thẻ Đội A và Đội B */}
-              <div style={{ ...S.teamsChoiceGrid, gridTemplateColumns: isMobile ? '1fr' : 'repeat(auto-fit, minmax(200px, 1fr))' }}>
-                {/* Thẻ Đội A */}
-                <div
-                  onClick={() => handleSelectWinner('A')}
-                  style={{
-                    ...S.teamChoiceCard,
-                    ...(winnerTeam === 'A' ? S.teamChoiceCardWon : {}),
-                  }}
-                >
-                  <div style={{ flex: 1, minWidth: 0, overflow: 'hidden' }}>
-                    <div
-                      style={{
-                        font: '600 15px/1.25 "IBM Plex Sans", sans-serif',
-                        color: winnerTeam === 'A' ? 'var(--text-primary)' : 'var(--text-secondary)',
-                        whiteSpace: isMobile ? 'nowrap' : 'normal',
-                        overflow: 'hidden',
-                        textOverflow: 'ellipsis',
-                      }}
-                      title={teamA.map((k) => playerName(db, k)).join(' · ')}
-                    >
-                      {teamA.map((k) => playerName(db, k)).join(' · ')}
-                    </div>
-                    <div style={{ font: '400 12px/1.3 "IBM Plex Mono", monospace', color: winnerTeam === 'A' ? 'var(--status-transit-fg)' : 'var(--text-muted)' }}>
-                      {t('scoreModal.teamAvg', { t: 'A', r: ratingA })}
-                    </div>
-                  </div>
-                  <div
-                    onClick={(e) => {
-                      e.stopPropagation()
-                      setPresetScore('custom')
-                    }}
-                    style={{ display: 'flex', alignItems: 'center', gap: 8, cursor: 'pointer' }}
-                    title={t('scoreModal.customScoreTitle')}
-                  >
-                    {winnerTeam === 'A' && <span style={S.wonBadge}>{t('scoreModal.winnerTag')}</span>}
-                    <div style={winnerTeam === 'A' ? S.bigScoreWon : S.bigScoreLost}>
-                      {scoreA}
-                    </div>
-                  </div>
-                </div>
-
-                {/* Thẻ Đội B */}
-                <div
-                  onClick={() => handleSelectWinner('B')}
-                  style={{
-                    ...S.teamChoiceCard,
-                    ...(winnerTeam === 'B' ? S.teamChoiceCardWon : {}),
-                  }}
-                >
-                  <div style={{ flex: 1, minWidth: 0, overflow: 'hidden' }}>
-                    <div
-                      style={{
-                        font: '600 15px/1.25 "IBM Plex Sans", sans-serif',
-                        color: winnerTeam === 'B' ? 'var(--text-primary)' : 'var(--text-secondary)',
-                        whiteSpace: isMobile ? 'nowrap' : 'normal',
-                        overflow: 'hidden',
-                        textOverflow: 'ellipsis',
-                      }}
-                      title={teamB.map((k) => playerName(db, k)).join(' · ')}
-                    >
-                      {teamB.map((k) => playerName(db, k)).join(' · ')}
-                    </div>
-                    <div style={{ font: '400 12px/1.3 "IBM Plex Mono", monospace', color: winnerTeam === 'B' ? 'var(--status-transit-fg)' : 'var(--text-muted)' }}>
-                      {t('scoreModal.teamAvg', { t: 'B', r: ratingB })}
-                    </div>
-                  </div>
-                  <div
-                    onClick={(e) => {
-                      e.stopPropagation()
-                      setPresetScore('custom')
-                    }}
-                    style={{ display: 'flex', alignItems: 'center', gap: 8, cursor: 'pointer' }}
-                    title={t('scoreModal.customScoreTitle')}
-                  >
-                    {winnerTeam === 'B' && <span style={S.wonBadge}>{t('scoreModal.winnerTag')}</span>}
-                    <div style={winnerTeam === 'B' ? S.bigScoreWon : S.bigScoreLost}>
-                      {scoreB}
-                    </div>
-                  </div>
-                </div>
-              </div>
-
-              {/* 4 Nút preset tỷ số nhanh */}
-              <div style={S.presetRow}>
-                {['21-19', '21-15', '21-11'].map((p) => (
-                  <button
-                    key={p}
-                    type="button"
-                    onClick={() => handleSelectPreset(p)}
-                    style={{
-                      ...S.presetBtn,
-                      ...(presetScore === p ? S.presetBtnActive : {}),
-                    }}
-                  >
-                    {p}
-                  </button>
-                ))}
-                <button
-                  type="button"
-                  onClick={() => handleSelectPreset('custom')}
-                  style={{
-                    ...S.presetBtn,
-                    ...(presetScore === 'custom' ? S.presetBtnActive : {}),
-                  }}
-                >
-                  {t('scoreModal.presetOther')}
-                </button>
-              </div>
-
-              {/* Bộ nhập tỷ số tùy chỉnh khi bấm "Khác" */}
-              {presetScore === 'custom' && (
-                <div style={{ ...S.customScoreBox, padding: isMobile ? '10px 8px' : '12px' }}>
-                  <div style={S.customScoreHeader}>
-                    <span style={{ font: '600 12px/1 "IBM Plex Sans", sans-serif', color: 'var(--text-secondary)' }}>
-                      {t('scoreModal.customScoreTitle')}
-                    </span>
-                    {Number(scoreA) === Number(scoreB) && (
-                      <span style={{ color: 'var(--status-delayed-fg)', fontSize: 11.5, fontWeight: 500 }}>
-                        {t('quickMatch.errTie')}
-                      </span>
-                    )}
-                  </div>
-
-                  <div style={{ ...S.customScoreRow, gap: isMobile ? 6 : 12 }}>
-                    {/* Cột điểm Đội A */}
-                    <div style={S.customTeamCol}>
-                      <span
-                        style={{ ...S.customTeamName, fontSize: isMobile ? 12 : 13 }}
-                        title={teamA.map((k) => playerName(db, k)).join(' · ')}
-                      >
-                        {teamA.map((k) => playerName(db, k)).join(' · ')}
-                      </span>
-                      <div style={S.stepperBox}>
-                        <button
-                          type="button"
-                          onClick={() => updateCustomScore('A', -1)}
-                          style={{ ...S.stepBtn, ...(isMobile ? S.stepBtnMobile : {}) }}
-                          title="-1"
-                        >−</button>
-                        <input
-                          type="number"
-                          min={0}
-                          max={30}
-                          value={scoreA}
-                          onChange={(e) => setCustomScoreDirect('A', e.target.value)}
-                          style={{
-                            ...S.scoreBox,
-                            ...(isMobile ? S.scoreBoxMobile : {}),
-                            borderColor: winnerTeam === 'A' ? 'var(--teal-700)' : 'var(--border-default)',
-                            color: winnerTeam === 'A' ? 'var(--status-transit-fg)' : 'var(--text-primary)',
-                          }}
-                        />
-                        <button
-                          type="button"
-                          onClick={() => updateCustomScore('A', 1)}
-                          style={{ ...S.stepBtn, ...(isMobile ? S.stepBtnMobile : {}) }}
-                          title="+1"
-                        >+</button>
-                      </div>
-                    </div>
-
-                    {/* Nút đổi điểm */}
-                    <button
-                      type="button"
-                      title={t('scoreModal.swapScore')}
-                      onClick={handleSwapCustomScore}
-                      style={{ ...S.swapBtn, ...(isMobile ? S.swapBtnMobile : {}) }}
-                    >
-                      ⇄
-                    </button>
-
-                    {/* Cột điểm Đội B */}
-                    <div style={S.customTeamCol}>
-                      <span
-                        style={{ ...S.customTeamName, fontSize: isMobile ? 12 : 13 }}
-                        title={teamB.map((k) => playerName(db, k)).join(' · ')}
-                      >
-                        {teamB.map((k) => playerName(db, k)).join(' · ')}
-                      </span>
-                      <div style={S.stepperBox}>
-                        <button
-                          type="button"
-                          onClick={() => updateCustomScore('B', -1)}
-                          style={{ ...S.stepBtn, ...(isMobile ? S.stepBtnMobile : {}) }}
-                          title="-1"
-                        >−</button>
-                        <input
-                          type="number"
-                          min={0}
-                          max={30}
-                          value={scoreB}
-                          onChange={(e) => setCustomScoreDirect('B', e.target.value)}
-                          style={{
-                            ...S.scoreBox,
-                            ...(isMobile ? S.scoreBoxMobile : {}),
-                            borderColor: winnerTeam === 'B' ? 'var(--teal-700)' : 'var(--border-default)',
-                            color: winnerTeam === 'B' ? 'var(--status-transit-fg)' : 'var(--text-primary)',
-                          }}
-                        />
-                        <button
-                          type="button"
-                          onClick={() => updateCustomScore('B', 1)}
-                          style={{ ...S.stepBtn, ...(isMobile ? S.stepBtnMobile : {}) }}
-                          title="+1"
-                        >+</button>
-                      </div>
-                    </div>
-                  </div>
-
-                  {/* Preset điểm bổ sung */}
-                  <div style={S.subPresetRow}>
-                    <span style={{ fontSize: 11, color: 'var(--text-muted)' }}>
-                      {t('scoreModal.quickPresets')}:
-                    </span>
-                    {[
-                      [21, 18],
-                      [21, 16],
-                      [21, 14],
-                      [21, 12],
-                      [21, 0],
-                      [30, 29],
-                    ].map(([pa, pb]) => (
-                      <button
-                        key={`${pa}-${pb}`}
-                        type="button"
-                        onClick={() => {
-                          if (winnerTeam === 'B') {
-                            setScoreA(pb)
-                            setScoreB(pa)
-                          } else {
-                            setScoreA(pa)
-                            setScoreB(pb)
-                          }
-                        }}
-                        style={S.subPresetBtn}
-                      >
-                        {winnerTeam === 'B' ? `${pb}–${pa}` : `${pa}–${pb}`}
-                      </button>
-                    ))}
-                  </div>
-                </div>
-              )}
-
-
-
-              {/* Box thay đổi Elo & XP - Dạng Collapsible Accordion (mặc định đóng) */}
-              <div style={S.changesBox}>
-                <div
-                  role="button"
-                  tabIndex={0}
-                  onClick={() => setShowChangesBox((prev) => !prev)}
-                  onKeyDown={(e) => { if (e.key === 'Enter' || e.key === ' ') setShowChangesBox((prev) => !prev) }}
-                  style={S.changesToggleHeader}
-                >
-                  <div style={{ display: 'flex', alignItems: 'center', gap: 6, minWidth: 0, flex: 1 }}>
-                    <span style={{ font: '600 11px/1.2 "IBM Plex Sans", sans-serif', letterSpacing: '0.08em', textTransform: 'uppercase', color: 'var(--text-secondary)' }}>
-                      {t('scoreModal.postMatchChanges')}
-                    </span>
-                    <span style={{ font: '500 11px/1 "IBM Plex Mono", monospace', color: 'var(--text-muted)' }}>
-                      · {ratingEnabled ? t('scoreModal.changesPreviewTag') : t('scoreModal.unratedChange')}
-                    </span>
-                  </div>
-                  <div style={{ display: 'flex', alignItems: 'center', gap: 4, font: '600 12px/1 "IBM Plex Sans", sans-serif', color: 'var(--teal-600, #00B2A9)' }}>
-                    <span>{showChangesBox ? t('scoreModal.collapseChanges') : t('scoreModal.expandChanges')}</span>
-                    <span style={{ fontSize: 13, transform: showChangesBox ? 'rotate(180deg)' : 'none', transition: 'transform 0.15s ease' }}>▾</span>
-                  </div>
-                </div>
-
-                {showChangesBox && (
-                  <div style={{ marginTop: 8, paddingTop: 8, borderTop: '1px solid var(--border-subtle)' }}>
-                    <div style={{ display: 'grid', gap: 6 }}>
-                      {[...teamA, ...teamB].map((k) => {
-                        const inA = teamA.includes(k)
-                        const isWon = (inA && winnerTeam === 'A') || (!inA && winnerTeam === 'B')
-                        const dVal = playerDeltas[k]
-                        const deltaTxt = dVal != null ? (dVal > 0 ? `+${dVal}` : `${dVal}`) : '—'
-                        const sVal = seasonDeltas[k]
-                        const seasonTxt = sVal != null ? (sVal > 0 ? `+${sVal}` : `${sVal}`) : '—'
-                        return (
-                          <div key={k} style={S.changeRow}>
-                            <span style={{ font: '600 14px "IBM Plex Sans", sans-serif', color: isWon ? 'var(--text-primary)' : 'var(--text-secondary)' }}>
-                              {playerName(db, k)}
-                            </span>
-                            <div style={{ display: 'flex', alignItems: 'center', gap: 12 }}>
-                              {ratingEnabled ? (
-                                <span style={{ font: '600 12.5px "IBM Plex Mono", monospace', color: isWon ? 'var(--status-delivered-fg)' : 'var(--status-incident-fg)' }}>
-                                  {t('scoreModal.ratingChange', { d: deltaTxt })}
-                                </span>
-                              ) : (
-                                <span style={{ font: '500 12px "IBM Plex Sans", sans-serif', color: 'var(--text-muted)' }}>
-                                  {t('scoreModal.unratedChange')}
-                                </span>
-                              )}
-                              {ratingEnabled && (
-                                <span style={{ font: '600 12.5px "IBM Plex Mono", monospace', color: sVal > 0 ? 'var(--status-delivered-fg)' : 'var(--status-incident-fg)' }}>
-                                  {t('scoreModal.seasonPointChange', { pts: seasonTxt })}
-                                </span>
-                              )}
-                            </div>
-                          </div>
-                        )
-                      })}
-                    </div>
-                    <div style={{ font: '400 12px/1.45 "IBM Plex Sans", sans-serif', color: 'var(--text-muted)', marginTop: 6 }}>
-                      {ratingEnabled ? t('scoreModal.seasonPointExplain') : t('scoreModal.unratedExplain')}
-                    </div>
-                  </div>
-                )}
-              </div>
+              <ScorePicker
+                db={db}
+                teamA={teamA}
+                teamB={teamB}
+                ratingA={ratingA}
+                ratingB={ratingB}
+                ratingEnabled={ratingEnabled}
+                playerDeltas={playerDeltas}
+                seasonDeltas={seasonDeltas}
+                isMobile={isMobile}
+                value={score}
+                onChange={setScore}
+              />
 
               {/* NÚT LƯU KẾT QUẢ */}
               <button
@@ -4002,215 +3617,6 @@ const S = {
     flexDirection: 'column',
     gap: 12,
   },
-  teamsChoiceGrid: {
-    display: 'grid',
-    gridTemplateColumns: 'repeat(auto-fit, minmax(0, 1fr))',
-    gap: 10,
-    width: '100%',
-    minWidth: 0,
-  },
-  teamChoiceCard: {
-    borderRadius: 10,
-    padding: '12px',
-    background: 'var(--surface-sunken)',
-    border: '1.5px solid var(--border-subtle)',
-    display: 'flex',
-    alignItems: 'center',
-    justifyContent: 'space-between',
-    gap: 10,
-    cursor: 'pointer',
-    transition: 'all 0.15s ease',
-    minWidth: 0,
-    overflow: 'hidden',
-  },
-  teamChoiceCardWon: {
-    background: 'var(--status-transit-bg)',
-    borderColor: 'var(--status-transit-fg)',
-  },
-  wonBadge: {
-    font: '600 11px/1 "IBM Plex Sans", sans-serif',
-    padding: '4px 8px',
-    borderRadius: 999,
-    background: 'var(--action-accent-bg, #00B2A9)',
-    color: 'var(--action-accent-fg, #04302C)',
-  },
-  bigScoreWon: {
-    minWidth: 48,
-    height: 40,
-    display: 'flex',
-    alignItems: 'center',
-    justifyContent: 'center',
-    borderRadius: 6,
-    background: 'var(--surface-card)',
-    border: '1.5px solid var(--action-accent-bg, #00B2A9)',
-    font: '700 24px/1 Barlow, sans-serif',
-    color: 'var(--status-transit-fg)',
-  },
-  bigScoreLost: {
-    minWidth: 48,
-    height: 40,
-    display: 'flex',
-    alignItems: 'center',
-    justifyContent: 'center',
-    borderRadius: 6,
-    background: 'var(--surface-card)',
-    border: '1px solid var(--border-subtle)',
-    font: '700 24px/1 Barlow, sans-serif',
-    color: 'var(--text-muted)',
-  },
-  presetRow: {
-    display: 'grid',
-    gridTemplateColumns: 'repeat(4, 1fr)',
-    gap: 8,
-  },
-  presetBtn: {
-    minHeight: 40,
-    display: 'flex',
-    alignItems: 'center',
-    justifyContent: 'center',
-    borderRadius: 6,
-    background: 'var(--surface-sunken)',
-    border: '1px solid var(--border-subtle)',
-    font: '600 13px/1 "IBM Plex Mono", monospace',
-    color: 'var(--text-secondary)',
-    cursor: 'pointer',
-  },
-  presetBtnActive: {
-    background: 'var(--action-primary-bg)',
-    borderColor: 'var(--action-primary-bg)',
-    color: 'var(--action-primary-fg)',
-  },
-  customScoreBox: {
-    background: 'var(--surface-sunken)',
-    border: '1px solid var(--border-subtle)',
-    borderRadius: 8,
-    padding: '12px',
-    display: 'flex',
-    flexDirection: 'column',
-    gap: 10,
-    overflow: 'hidden',
-  },
-  customScoreHeader: {
-    display: 'flex',
-    alignItems: 'center',
-    justifyContent: 'space-between',
-    gap: 8,
-    flexWrap: 'wrap',
-  },
-  customScoreRow: {
-    display: 'flex',
-    alignItems: 'center',
-    justifyContent: 'center',
-    gap: 12,
-    width: '100%',
-    minWidth: 0,
-  },
-  customTeamCol: {
-    display: 'flex',
-    flexDirection: 'column',
-    alignItems: 'center',
-    gap: 6,
-    flex: 1,
-    minWidth: 0,
-    maxWidth: '100%',
-    overflow: 'hidden',
-  },
-  customTeamName: {
-    font: '600 13px/1.2 "IBM Plex Sans", sans-serif',
-    color: 'var(--text-secondary)',
-    textAlign: 'center',
-    whiteSpace: 'nowrap',
-    overflow: 'hidden',
-    textOverflow: 'ellipsis',
-    maxWidth: '100%',
-    width: '100%',
-    display: 'block',
-  },
-  stepperBox: {
-    display: 'flex',
-    alignItems: 'center',
-    background: 'var(--surface-card)',
-    borderRadius: 'var(--radius-md)',
-    padding: 2,
-    border: '1px solid var(--border-subtle)',
-    gap: 2,
-  },
-  stepBtn: {
-    display: 'inline-flex',
-    alignItems: 'center',
-    justifyContent: 'center',
-    width: 38,
-    height: 38,
-    border: 'none',
-    background: 'transparent',
-    color: 'var(--text-secondary)',
-    fontFamily: 'var(--font-mono)',
-    fontSize: 18,
-    fontWeight: 700,
-    cursor: 'pointer',
-    borderRadius: 'var(--radius-sm)',
-  },
-  stepBtnMobile: {
-    width: 32,
-    height: 34,
-    fontSize: 16,
-  },
-  scoreBox: {
-    width: 52,
-    height: 38,
-    border: '1px solid var(--border-default)',
-    borderRadius: 'var(--radius-sm)',
-    background: 'var(--surface-card)',
-    fontFamily: 'var(--font-mono)',
-    fontSize: 20,
-    fontWeight: 700,
-    textAlign: 'center',
-    padding: 0,
-    outline: 'none',
-  },
-  scoreBoxMobile: {
-    width: 40,
-    height: 34,
-    fontSize: 18,
-  },
-  swapBtn: {
-    display: 'inline-flex',
-    alignItems: 'center',
-    justifyContent: 'center',
-    width: 36,
-    height: 36,
-    borderRadius: 'var(--radius-md)',
-    background: 'var(--surface-card)',
-    border: '1px solid var(--border-subtle)',
-    color: 'var(--text-muted)',
-    fontSize: 16,
-    cursor: 'pointer',
-    flexShrink: 0,
-    marginTop: 20,
-  },
-  swapBtnMobile: {
-    width: 30,
-    height: 30,
-    fontSize: 13,
-    marginTop: 18,
-  },
-  subPresetRow: {
-    display: 'flex',
-    alignItems: 'center',
-    gap: 6,
-    flexWrap: 'wrap',
-    paddingTop: 4,
-    borderTop: '1px solid var(--border-subtle)',
-  },
-  subPresetBtn: {
-    padding: '3px 8px',
-    borderRadius: 4,
-    background: 'var(--surface-card)',
-    border: '1px solid var(--border-subtle)',
-    font: '600 12px/1 "IBM Plex Mono", monospace',
-    color: 'var(--text-secondary)',
-    cursor: 'pointer',
-  },
   preMatchBox: {
     background: 'var(--surface-inset)',
     border: '1px solid var(--border-subtle)',
@@ -4235,34 +3641,6 @@ const S = {
     overflow: 'hidden',
     background: 'var(--border-subtle)',
     marginTop: 2,
-  },
-  changesBox: {
-    background: 'var(--surface-sunken)',
-    border: '1px solid var(--border-subtle)',
-    borderRadius: 8,
-    padding: '10px 12px',
-    display: 'flex',
-    flexDirection: 'column',
-    gap: 4,
-  },
-  changesToggleHeader: {
-    display: 'flex',
-    alignItems: 'center',
-    justifyContent: 'space-between',
-    cursor: 'pointer',
-    userSelect: 'none',
-    gap: 8,
-    minHeight: 26,
-  },
-  changeRow: {
-    display: 'flex',
-    alignItems: 'center',
-    justifyContent: 'space-between',
-    gap: 8,
-    padding: '8px 10px',
-    borderRadius: 6,
-    background: 'var(--surface-card)',
-    border: '1px solid var(--border-subtle)',
   },
   bigSaveBtn: {
     minHeight: 56,

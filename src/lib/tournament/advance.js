@@ -7,13 +7,11 @@
  * Mọi hàm trả `{ matches, error }` — lỗi là key i18n, `matches` giữ nguyên khi có lỗi.
  */
 
-import { freeSetWinner, resultWinner, validateResult } from '#lib/tournament/scoring.js'
+import { RESULT_STATUSES, freeSetWinner, hasResult, resultWinner, validateResult } from '#lib/tournament/scoring.js'
 
-const RESULT = ['done', 'walkover', 'retired']
 // Trận đích đang đánh hoặc đã có kết quả → gỡ đội ra là xoá trận người ta đang/đã đánh.
-const BLOCKS_UNDO = ['live', ...RESULT]
+const BLOCKS_UNDO = ['live', ...RESULT_STATUSES]
 
-const hasResult = (m) => RESULT.includes(m.status)
 const blank = (s) => !s || !String(s).trim()
 
 /**

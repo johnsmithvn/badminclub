@@ -5,9 +5,7 @@ import { useMobile } from '#hooks/useMobile.js'
 import { offRule, resultWinner, validateResult } from '#lib/tournament/scoring.js'
 import { t } from '#i18n'
 import { Seg } from './TourBits.jsx'
-import { draftKey, matchCode, ruleLabel, teamName } from './tourUtils.js'
-
-const dropDraft = (id) => { try { localStorage.removeItem(draftKey(id)) } catch { /* bỏ qua */ } }
+import { matchCode, ruleLabel, teamName } from './tourUtils.js'
 
 // Tab ghi điểm dùng lần trước (theo máy). Mặc định là manual (Ghi điểm kiểu sân).
 const TAB_KEY = 'tour.sb.tab'
@@ -219,7 +217,6 @@ export function ScoreDialog({ match, tour, db, next, onNext, onClose, onCommit, 
   const commit = async (payload, goNext) => {
     const ok = await onCommit(payload)
     if (ok) {
-      dropDraft(match.id)
       if (goNext && chain) onNext(chain.id)
       else onClose()
     }

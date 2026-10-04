@@ -4489,7 +4489,7 @@ export function makeActions({ setDb, setUi, dbRef, uiRef, navRef, toast, reload,
 
     // Gửi thông báo tới Chủ CLB & Thủ quỹ
     const managers = (d0.members || [])
-      .filter((m) => (m.role === 'owner' || m.role === 'treasurer') && m.id !== myId)
+      .filter((m) => can(m.role, 'sessions') && m.id !== myId)
       .map((m) => m.id)
 
     if (managers.length > 0 && status !== 'removeExtra') {

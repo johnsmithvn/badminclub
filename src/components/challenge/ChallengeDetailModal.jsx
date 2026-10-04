@@ -3,6 +3,7 @@ import { Dialog, Icon } from '#ds'
 import { useApp } from '#contexts/AppContext.jsx'
 import { useMobile } from '#hooks/useMobile.js'
 import { courtOf, myMember, playerName, playerOf, shortName } from '#lib/money.js'
+import { can } from '#lib/roles.js'
 import { expectedScore, getPlayerRating, matchCodeOf } from '#lib/rating.js'
 import { getChallengeAcceptanceProgress, canMemberAcceptChallenge, canAdminForceAcceptChallenge, challengeCloserOf, validateStakePoints, getPredictionStats, getMemberPrediction, canMemberPredict, availableSeasonPoints, stakeBaseOf, isChallengeExpired, challengeExpiryAt, isChallengeAccepted } from '#lib/challenge.js'
 import { calculateSeasonLeaderboard, calcSeasonMatchDeltaFinal, challengeMultiplierOf } from '#lib/season.js'
@@ -28,7 +29,7 @@ export default function ChallengeDetailModal({ challenge, session, onClose, onSc
   const myMem = myMember(db)
   const myId = myMem?.id || null
   const role = db.viewAs || myMem?.role || 'member'
-  const isAdmin = role === 'owner' || role === 'treasurer'
+  const isAdmin = can(role, 'assign')
 
   const teamA = useMemo(() => c?.teamA || [], [c.teamA])
   const teamB = useMemo(() => c?.teamB || [], [c.teamB])

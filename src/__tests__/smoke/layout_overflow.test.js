@@ -31,14 +31,16 @@ const KNOWN_DEBT = {
   'components/challenge/ChallengeDetailModal.jsx': 1,
   'components/challenge/EditScoreModal.jsx': 3,
   'components/challenge/MatchDetailModal.jsx': 1,
-  'components/challenge/ScoreModal.jsx': 2,
+  // Chuyển nguyên từ ScoreModal (2) + CourtAssignmentTab (2) khi gom khối nhập tỉ số (2026-10-04) — không phải
+  // nợ mới: tổng 4 → 2. Giữ nguyên giao diện theo quyết định của chủ dự án (đang không tràn).
+  'components/challenge/ScorePicker.jsx': 2,
   'components/home/HomeMatchTab.jsx': 2,
   'components/home/personal/UpcomingSessionCard.jsx': 1,
   'components/layout/MobileFooterNav.jsx': 1,
   'components/leaderboard/MemberSeasonLedgerModal.jsx': 1,
   'components/leaderboard/PairH2HTab.jsx': 5,
   'components/profile/MemberProfileTab.jsx': 9,
-  'components/session/CourtAssignmentTab.jsx': 5,
+  'components/session/CourtAssignmentTab.jsx': 3,
   'components/session/SessionMatchesTab.jsx': 2,
   'components/settings/tabs/AccessTab.jsx': 2,
   'components/settings/tabs/CourtsTab.jsx': 2,

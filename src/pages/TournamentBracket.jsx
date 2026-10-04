@@ -18,7 +18,7 @@ import { isDouble } from '#lib/tournament/doubleElim.js'
 import { roundsOf, swissProgress, swissStandings } from '#lib/tournament/swiss.js'
 import TourModuleNav from '#components/tournament/TourModuleNav.jsx'
 import { EditScoreDialog, ScoreDialog, UndoDialog } from '#components/tournament/MatchDialogs.jsx'
-import { draftKey, matchCode, ruleLabel, stageName, teamName } from '#components/tournament/tourUtils.js'
+import { matchCode, ruleLabel, stageName, teamName } from '#components/tournament/tourUtils.js'
 
 /**
  * Nhánh đấu trực tiếp của một nội dung (handoff "Nhánh đấu trực tiếp"). Ghi điểm / hoàn tác / sửa điểm
@@ -54,15 +54,6 @@ export default function TournamentBracket() {
 
   const loaded = Boolean(tour && tour.id === id)
   useTourPoll(loaded, a.tourPoll)
-
-  // Nháp bảng điểm của trận đã chốt ở máy khác / đã bị làm lại lịch: xoá, không thì mở lại thấy điểm cũ.
-  useEffect(() => {
-    if (!loaded) return
-    try {
-      const open = new Set(tour.matches.filter((m) => m.status === 'ready' || m.status === 'live').map((m) => draftKey(m.id)))
-      Object.keys(localStorage).filter((k) => k.startsWith(draftKey('')) && !open.has(k)).forEach((k) => localStorage.removeItem(k))
-    } catch { /* localStorage bị chặn — không có nháp để dọn */ }
-  }, [loaded, tour])
 
   const toHub = () => navigate(pathOf('tournament', id))
   if (missingId === id) {

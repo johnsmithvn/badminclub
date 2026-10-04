@@ -2,6 +2,7 @@ import { useState } from 'react'
 import { Button, Dialog, Icon } from '#ds'
 import { useApp } from '#contexts/AppContext.jsx'
 import { playerName, myMember } from '#lib/money.js'
+import { can } from '#lib/roles.js'
 import { useMobile } from '#hooks/useMobile.js'
 import { t } from '#i18n'
 import {
@@ -889,7 +890,7 @@ export default function AttachVideoModal({ match, matchCode, onClose, onSave, on
 
   const myMem = myMember(db)
   const role = db.viewAs || myMem?.role || 'member'
-  const isAdmin = role === 'owner' || role === 'treasurer'
+  const isAdmin = can(role, 'assign')
 
   // Chuẩn hoá (bỏ dòng trống, mốc mm:ss) nằm ở appActions.attachMatchVideo → cleanVideoParts.
   const handleSave = () => {

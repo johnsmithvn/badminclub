@@ -3,8 +3,7 @@
  * Dựng nhánh để HIỂN THỊ + dữ liệu cho hiệu ứng "đội thắng bay lên". Thuần: không React, không DOM.
  */
 
-const RESULT = new Set(['done', 'walkover', 'retired'])
-export const hasResult = (m) => RESULT.has(m.status)
+import { hasResult } from '#lib/tournament/scoring.js'
 
 /** Khoá ô của một đội trong một trận — component gắn vào `data-k` để hiệu ứng tìm ra ô. */
 export const slotKey = (matchId, side) => `${matchId}:${side}`

@@ -2,9 +2,14 @@ node_modules
 dist
 .env.local
 
-# File nháp khi dựng màn hình (trích HTML từ handoff, script phân tích).
-# Các file scratch cũ đã lỡ vào git — muốn gỡ khỏi repo mà vẫn giữ trên đĩa:
-#   git rm -r --cached scratch scratch_*.html scratch_*.js
+# File nháp khi dựng màn hình (trích HTML từ handoff, script phân tích) + bản HTML handoff
+# mà các script đó đọc. Chỉ nằm trên máy, không vào repo.
 scratch/
 scratch_*.html
 scratch_*.js
+.design_handoff.html
+design_match_video.html
+
+# Trạng thái cục bộ của Supabase CLI
+supabase/.branches/
+supabase/.temp/

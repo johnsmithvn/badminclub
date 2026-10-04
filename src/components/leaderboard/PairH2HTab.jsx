@@ -1,7 +1,7 @@
 import { useState, useMemo } from 'react'
 import { t } from '#i18n'
 import { calcMatchupEdge, rankPairs } from '#lib/rating.js'
-import { shortName } from '#lib/money.js'
+import { isFemaleGender, shortName } from '#lib/money.js'
 import { useMobile } from '#hooks/useMobile.js'
 import { useTheme } from '#contexts/ThemeContext.jsx'
 import { SearchSelect } from '#ui'
@@ -171,11 +171,7 @@ export default function PairH2HTab({
   const clubRivalries = useMemo(() => {
     if (!matches || matches.length === 0) return []
 
-    const checkFemale = (id) => {
-      const m = membersMap?.[id]
-      const g = String(m?.gender || '').toLowerCase().trim()
-      return g === 'nu' || g === 'nữ' || g === 'female' || g === 'f' // i18n-ok: gender check
-    }
+    const checkFemale = (id) => isFemaleGender(membersMap?.[id]?.gender)
 
     const getFormatOfPair = (pairIds) => {
       const isF1 = checkFemale(pairIds[0])

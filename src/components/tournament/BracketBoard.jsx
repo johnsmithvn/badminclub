@@ -2,11 +2,11 @@ import { useLayoutEffect, useRef, useState } from 'react'
 import { Button, Icon } from '#ds'
 import { Mono, Overline } from '#ui'
 import { canUndo } from '#lib/tournament/advance.js'
-import { CHAMP_KEY, flightsOf, hasResult, linkShape, sideScores, slotKey } from '#lib/tournament/bracketView.js'
+import { CHAMP_KEY, flightsOf, linkShape, sideScores, slotKey } from '#lib/tournament/bracketView.js'
 import { deView, isDouble } from '#lib/tournament/doubleElim.js'
 import { finalRows, groupStandings, swapUpInTie } from '#lib/tournament/standings.js'
 import { roundsOf, swissProgress, swissStandings } from '#lib/tournament/swiss.js'
-import { closeScoreOf, freeSetWinner } from '#lib/tournament/scoring.js'
+import { closeScoreOf, freeSetWinner, hasResult } from '#lib/tournament/scoring.js'
 import { t } from '#i18n'
 import { Seg } from './TourBits.jsx'
 import { matchCode, ruleLabel, teamName } from './tourUtils.js'
@@ -275,7 +275,7 @@ function GroupCard({ g, tour, db, canEdit, edit, isMobile, wide, stage, advanceP
         </div>
       )}
 
-      <div style={{ display: 'grid', gridTemplateColumns: isMobile ? '1fr' : 'minmax(260px, 380px) 1fr', gap: 14, alignItems: 'start', minWidth: 0 }}>
+      <div style={{ display: 'grid', gridTemplateColumns: wide ? 'minmax(260px, 380px) 1fr' : '1fr', gap: 14, alignItems: 'start', minWidth: 0 }}>
         {/* BẢNG XẾP HẠNG (Standings) */}
         <div style={{
           borderRadius: 8, background: 'var(--surface-card)', border: '1px solid var(--border-subtle)',

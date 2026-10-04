@@ -18,10 +18,7 @@
  */
 
 import { buildKnockout } from '#lib/tournament/bracket.js'
-import { ruleFor } from '#lib/tournament/scoring.js'
-
-const HAS_RESULT = new Set(['done', 'walkover', 'retired'])
-const hasResult = (m) => HAS_RESULT.has(m.status)
+import { hasResult, ruleFor } from '#lib/tournament/scoring.js'
 
 export const isDouble = (stage) => stage?.type === 'knockout' && stage?.config?.bracket === 'double'
 const wbRound = (r) => 4 * r

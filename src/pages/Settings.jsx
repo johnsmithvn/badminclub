@@ -19,6 +19,45 @@ import AccessTab from '#components/settings/tabs/AccessTab.jsx'
 
 const TABS = ['general', 'money', 'courts', 'groups', 'schedules', 'access']
 
+/** Nhóm mang bảng giá chung của CLB: nhóm không đặt giá riêng, không có thì nhóm đầu tiên. */
+const defaultGroupOf = (groups) =>
+  (groups || []).find((g) => g.hasCustomPricing === false) ||
+  (groups || []).find((g) => !g.hasCustomPricing) ||
+  groups?.[0] ||
+  {}
+
+/** Bản nháp tab Chung dựng từ dữ liệu đã lưu — dùng lúc mở, lúc đồng bộ và lúc Hoàn tác. */
+const generalDraftOf = (db) => ({
+  name: db.club?.name || '',
+  avatarUrl: db.club?.avatarUrl || '',
+  code: db.club?.code || '',
+  lockDay: db.club?.lockDay || cfg.club.defaultLockDay,
+  seeDebtEachOther: Boolean(db.club?.seeDebtEachOther),
+  seeFund: Boolean(db.club?.seeFund),
+  roundUnit: Boolean(db.club?.roundUnit),
+  debtBanner: db.club?.debtBanner || 'slim',
+  bank: {
+    holder: db.club?.bank?.holder || '',
+    no: db.club?.bank?.no || '',
+    bank: db.club?.bank?.bank || '',
+  },
+  levels: db.levels || cfg.levelsDefault,
+})
+
+/** Bản nháp tab Biểu phí dựng từ dữ liệu đã lưu + nhóm giá chung. */
+const moneyDraftOf = (db, dg) => ({
+  hasMonthlyFee: Boolean(intOf(dg.feeNam) > 0 || intOf(dg.feeNu) > 0),
+  feeNam: String(dg.feeNam || ''),
+  feeNu: String(dg.feeNu || ''),
+  hasRefund: dg.hasRefund !== false && dg.unitNam !== -1,
+  customRefundUnit: Boolean(intOf(dg.unitNam) > 0 || intOf(dg.unitNu) > 0),
+  unitNam: String(dg.unitNam > 0 ? dg.unitNam : ''),
+  unitNu: String(dg.unitNu > 0 ? dg.unitNu : ''),
+  hasMemberExtraDiscount: Boolean(db.club?.hasMemberExtraDiscount),
+  memberExtraDiscount: String(db.club?.memberExtraDiscount != null ? db.club.memberExtraDiscount : cfg.money.memberExtraDiscount),
+  guestPrices: db.guestPrices || [],
+})
+
 export default function Settings() {
   const { db, ui, a } = useApp()
   const { activeClub } = useAuth()
@@ -27,44 +66,11 @@ export default function Settings() {
   const pending = db.joinRequests || []
 
   // ----------------- Baseline & Draft State Management -----------------
-  const defGroup = useMemo(
-    () =>
-      (db.groups || []).find((g) => g.hasCustomPricing === false) ||
-      (db.groups || []).find((g) => !g.hasCustomPricing) ||
-      db.groups?.[0] ||
-      {},
-    [db.groups]
-  )
+  const defGroup = useMemo(() => defaultGroupOf(db.groups), [db.groups])
 
-  const [generalDraft, setGeneralDraft] = useState({
-    name: db.club?.name || '',
-    avatarUrl: db.club?.avatarUrl || '',
-    code: db.club?.code || '',
-    lockDay: db.club?.lockDay || cfg.club.defaultLockDay,
-    seeDebtEachOther: Boolean(db.club?.seeDebtEachOther),
-    seeFund: Boolean(db.club?.seeFund),
-    roundUnit: Boolean(db.club?.roundUnit),
-    debtBanner: db.club?.debtBanner || 'slim',
-    bank: {
-      holder: db.club?.bank?.holder || '',
-      no: db.club?.bank?.no || '',
-      bank: db.club?.bank?.bank || '',
-    },
-    levels: db.levels || cfg.levelsDefault,
-  })
+  const [generalDraft, setGeneralDraft] = useState(() => generalDraftOf(db))
 
-  const [moneyDraft, setMoneyDraft] = useState({
-    hasMonthlyFee: Boolean(intOf(defGroup.feeNam) > 0 || intOf(defGroup.feeNu) > 0),
-    feeNam: String(defGroup.feeNam || ''),
-    feeNu: String(defGroup.feeNu || ''),
-    hasRefund: defGroup.hasRefund !== false && defGroup.unitNam !== -1,
-    customRefundUnit: Boolean(intOf(defGroup.unitNam) > 0 || intOf(defGroup.unitNu) > 0),
-    unitNam: String(defGroup.unitNam > 0 ? defGroup.unitNam : ''),
-    unitNu: String(defGroup.unitNu > 0 ? defGroup.unitNu : ''),
-    hasMemberExtraDiscount: Boolean(db.club?.hasMemberExtraDiscount),
-    memberExtraDiscount: String(db.club?.memberExtraDiscount != null ? db.club.memberExtraDiscount : 5000),
-    guestPrices: db.guestPrices || [],
-  })
+  const [moneyDraft, setMoneyDraft] = useState(() => moneyDraftOf(db, defGroup))
 
   const [courtsDraft, setCourtsDraft] = useState(db.courts || [])
   const [groupsDraft, setGroupsDraft] = useState(db.groups || [])
@@ -126,7 +132,7 @@ export default function Settings() {
               moneyDraft.unitNu !== String(defGroup.unitNu > 0 ? defGroup.unitNu : '')))))
 
     const curHasMemberExtraDiscount = Boolean(db.club?.hasMemberExtraDiscount)
-    const curMemberExtraDiscount = db.club?.memberExtraDiscount != null ? intOf(db.club.memberExtraDiscount) : 5000
+    const curMemberExtraDiscount = db.club?.memberExtraDiscount != null ? intOf(db.club.memberExtraDiscount) : cfg.money.memberExtraDiscount
     const isMemberDiscountChanged =
       moneyDraft.hasMemberExtraDiscount !== curHasMemberExtraDiscount ||
       (moneyDraft.hasMemberExtraDiscount && intOf(moneyDraft.memberExtraDiscount) !== curMemberExtraDiscount)
@@ -160,42 +166,11 @@ export default function Settings() {
   const syncCleanDrafts = useCallback(() => {
     // Chỉ reset draft nếu tab đó KHÔNG dirty
     if (dirtyGeneral.length === 0) {
-      setGeneralDraft({
-        name: db.club?.name || '',
-        avatarUrl: db.club?.avatarUrl || '',
-        code: db.club?.code || '',
-        lockDay: db.club?.lockDay || cfg.club.defaultLockDay,
-        seeDebtEachOther: Boolean(db.club?.seeDebtEachOther),
-        seeFund: Boolean(db.club?.seeFund),
-        roundUnit: Boolean(db.club?.roundUnit),
-        debtBanner: db.club?.debtBanner || 'slim',
-        bank: {
-          holder: db.club?.bank?.holder || '',
-          no: db.club?.bank?.no || '',
-          bank: db.club?.bank?.bank || '',
-        },
-        levels: db.levels || cfg.levelsDefault,
-      })
+      setGeneralDraft(generalDraftOf(db))
     }
 
     if (dirtyMoney.length === 0) {
-      const dg =
-        (db.groups || []).find((g) => g.hasCustomPricing === false) ||
-        (db.groups || []).find((g) => !g.hasCustomPricing) ||
-        db.groups?.[0] ||
-        {}
-      setMoneyDraft({
-        hasMonthlyFee: Boolean(intOf(dg.feeNam) > 0 || intOf(dg.feeNu) > 0),
-        feeNam: String(dg.feeNam || ''),
-        feeNu: String(dg.feeNu || ''),
-        hasRefund: dg.hasRefund !== false && dg.unitNam !== -1,
-        customRefundUnit: Boolean(intOf(dg.unitNam) > 0 || intOf(dg.unitNu) > 0),
-        unitNam: String(dg.unitNam > 0 ? dg.unitNam : ''),
-        unitNu: String(dg.unitNu > 0 ? dg.unitNu : ''),
-        hasMemberExtraDiscount: Boolean(db.club?.hasMemberExtraDiscount),
-        memberExtraDiscount: String(db.club?.memberExtraDiscount != null ? db.club.memberExtraDiscount : 5000),
-        guestPrices: db.guestPrices || [],
-      })
+      setMoneyDraft(moneyDraftOf(db, defaultGroupOf(db.groups)))
     }
 
     if (dirtyCourts.length === 0) setCourtsDraft(db.courts || [])
@@ -204,40 +179,9 @@ export default function Settings() {
 
   // ----------------- Xử lý Hoàn tác & Lưu thay đổi -----------------
   const handleRevert = useCallback(() => {
-    setGeneralDraft({
-      name: db.club?.name || '',
-      avatarUrl: db.club?.avatarUrl || '',
-      code: db.club?.code || '',
-      lockDay: db.club?.lockDay || cfg.club.defaultLockDay,
-      seeDebtEachOther: Boolean(db.club?.seeDebtEachOther),
-      seeFund: Boolean(db.club?.seeFund),
-      roundUnit: Boolean(db.club?.roundUnit),
-      debtBanner: db.club?.debtBanner || 'slim',
-      bank: {
-        holder: db.club?.bank?.holder || '',
-        no: db.club?.bank?.no || '',
-        bank: db.club?.bank?.bank || '',
-      },
-      levels: db.levels || cfg.levelsDefault,
-    })
+    setGeneralDraft(generalDraftOf(db))
 
-    const dg =
-      (db.groups || []).find((g) => g.hasCustomPricing === false) ||
-      (db.groups || []).find((g) => !g.hasCustomPricing) ||
-      db.groups?.[0] ||
-      {}
-    setMoneyDraft({
-      hasMonthlyFee: Boolean(intOf(dg.feeNam) > 0 || intOf(dg.feeNu) > 0),
-      feeNam: String(dg.feeNam || ''),
-      feeNu: String(dg.feeNu || ''),
-      hasRefund: dg.hasRefund !== false && dg.unitNam !== -1,
-      customRefundUnit: Boolean(intOf(dg.unitNam) > 0 || intOf(dg.unitNu) > 0),
-      unitNam: String(dg.unitNam > 0 ? dg.unitNam : ''),
-      unitNu: String(dg.unitNu > 0 ? dg.unitNu : ''),
-      hasMemberExtraDiscount: Boolean(db.club?.hasMemberExtraDiscount),
-      memberExtraDiscount: String(db.club?.memberExtraDiscount != null ? db.club.memberExtraDiscount : 5000),
-      guestPrices: db.guestPrices || [],
-    })
+    setMoneyDraft(moneyDraftOf(db, defaultGroupOf(db.groups)))
 
     setCourtsDraft(db.courts || [])
     setGroupsDraft(db.groups || [])
@@ -339,7 +283,7 @@ export default function Settings() {
           unitNu: newClubUnitNu,
           guestPrices: moneyDraft.guestPrices,
           hasMemberExtraDiscount: moneyDraft.hasMemberExtraDiscount,
-          memberExtraDiscount: intOf(moneyDraft.memberExtraDiscount) || 5000,
+          memberExtraDiscount: intOf(moneyDraft.memberExtraDiscount) || cfg.money.memberExtraDiscount,
         })
       }
 

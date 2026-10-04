@@ -1,5 +1,6 @@
 import { useState, useMemo } from 'react'
 import { t } from '#i18n'
+import SegToggle from '#components/home/personal/SegToggle.jsx'
 import { SearchSelect } from '#ui'
 import { calcSeasonRaceHistory, getClubEloLeaderboard } from '#lib/homePersonal.js'
 import { calculateSeasonLeaderboard } from '#lib/season.js'
@@ -84,22 +85,11 @@ export default function SeasonRaceCard({
               ? t('home.personal.seasonRaceTitle', { weeks: activeData?.weeks || 6 })
               : t('home.personal.eloRaceTitle', { weeks: activeData?.weeks || 6 })}
           </span>
-          <div style={S.modeToggle}>
-            <button
-              type="button"
-              onClick={() => setMode('season')}
-              style={isSeason ? S.modeBtnActive : S.modeBtn}
-            >
-              {t('home.personal.seasonTab')}
-            </button>
-            <button
-              type="button"
-              onClick={() => setMode('elo')}
-              style={!isSeason ? S.modeBtnActive : S.modeBtn}
-            >
-              {t('home.personal.eloTab')}
-            </button>
-          </div>
+          <SegToggle
+            options={[['season', t('home.personal.seasonTab')], ['elo', t('home.personal.eloTab')]]}
+            value={isSeason ? 'season' : 'elo'}
+            onChange={setMode}
+          />
         </div>
         <div style={S.emptyState}>{t('home.personal.emptyMatches')}</div>
       </div>
@@ -145,22 +135,11 @@ export default function SeasonRaceCard({
 
           <div style={S.actionsRow}>
             {/* Toggle Mùa giải | Elo */}
-            <div style={S.modeToggle}>
-              <button
-                type="button"
-                onClick={() => setMode('season')}
-                style={isSeason ? S.modeBtnActive : S.modeBtn}
-              >
-                {t('home.personal.seasonTab')}
-              </button>
-              <button
-                type="button"
-                onClick={() => setMode('elo')}
-                style={!isSeason ? S.modeBtnActive : S.modeBtn}
-              >
-                {t('home.personal.eloTab')}
-              </button>
-            </div>
+            <SegToggle
+              options={[['season', t('home.personal.seasonTab')], ['elo', t('home.personal.eloTab')]]}
+              value={isSeason ? 'season' : 'elo'}
+              onChange={setMode}
+            />
 
             {/* Select Multiple Rivals với SearchSelect có sẵn */}
             {memberOptions.length > 0 && (
@@ -339,34 +318,6 @@ const S = {
   deltaRed: {
     font: '700 13px/1 var(--font-mono)',
     color: 'var(--status-incident-fg)',
-  },
-  modeToggle: {
-    display: 'inline-flex',
-    padding: 2,
-    borderRadius: 8,
-    background: 'var(--surface-inset)',
-    border: '1px solid var(--border-subtle)',
-    gap: 2,
-  },
-  modeBtn: {
-    background: 'none',
-    border: 'none',
-    padding: '3px 8px',
-    borderRadius: 6,
-    font: '600 11px/1 var(--font-sans)',
-    color: 'var(--text-muted)',
-    cursor: 'pointer',
-    transition: 'all 0.15s ease',
-  },
-  modeBtnActive: {
-    background: 'var(--surface-card)',
-    border: '1px solid var(--border-default)',
-    padding: '3px 8px',
-    borderRadius: 6,
-    font: '600 11px/1 var(--font-sans)',
-    color: 'var(--text-primary)',
-    boxShadow: 'var(--shadow-sm)',
-    cursor: 'default',
   },
   selectWrapper: {
     display: 'inline-flex',

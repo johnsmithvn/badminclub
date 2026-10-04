@@ -1,5 +1,6 @@
 import { Avatar } from '#ds'
 import { t } from '#i18n'
+import SegToggle from '#components/home/personal/SegToggle.jsx'
 import { shortName } from '#lib/money.js'
 
 export default function RivalGoalCard({ rivalData, rivalAnalysis, isMobile, onH2HClick, onChallenge, mode = 'elo', onModeChange, when }) {
@@ -9,14 +10,11 @@ export default function RivalGoalCard({ rivalData, rivalAnalysis, isMobile, onH2
   const isSeason = mode === 'season'
   // Cùng kiểu nút chuyển với thẻ Đua top (`SeasonRaceCard`).
   const modeToggle = onModeChange && (
-    <div style={S.modeToggle}>
-      <button type="button" onClick={() => onModeChange('season')} style={isSeason ? S.modeBtnActive : S.modeBtn}>
-        {t('home.personal.seasonTab')}
-      </button>
-      <button type="button" onClick={() => onModeChange('elo')} style={!isSeason ? S.modeBtnActive : S.modeBtn}>
-        {t('home.personal.eloTab')}
-      </button>
-    </div>
+    <SegToggle
+      options={[['season', t('home.personal.seasonTab')], ['elo', t('home.personal.eloTab')]]}
+      value={isSeason ? 'season' : 'elo'}
+      onChange={onModeChange}
+    />
   )
 
   // Đang đứng đầu bảng thì không có ai để đuổi. Vẫn giữ thẻ khi có nút chuyển — đứng đầu Elo
@@ -123,34 +121,6 @@ export default function RivalGoalCard({ rivalData, rivalAnalysis, isMobile, onH2
 }
 
 const S = {
-  modeToggle: {
-    display: 'inline-flex',
-    padding: 2,
-    borderRadius: 8,
-    background: 'var(--surface-inset)',
-    border: '1px solid var(--border-subtle)',
-    gap: 2,
-  },
-  modeBtn: {
-    background: 'none',
-    border: 'none',
-    padding: '3px 8px',
-    borderRadius: 6,
-    font: '600 11px/1 var(--font-sans)',
-    color: 'var(--text-muted)',
-    cursor: 'pointer',
-    transition: 'all 0.15s ease',
-  },
-  modeBtnActive: {
-    background: 'var(--surface-card)',
-    border: '1px solid var(--border-default)',
-    padding: '3px 8px',
-    borderRadius: 6,
-    font: '600 11px/1 var(--font-sans)',
-    color: 'var(--text-primary)',
-    boxShadow: 'var(--shadow-sm)',
-    cursor: 'default',
-  },
   card: {
     padding: '14px 15px',
     borderRadius: 'var(--radius-card, 14px)',

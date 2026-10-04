@@ -625,6 +625,7 @@ export { BankAccountSection } from './BankAccountSection.jsx'
 export { QrModal } from './QrModal.jsx'
 export { PayDebtsDialog } from '#components/ui/PayDebtsDialog.jsx'
 export { MyDebtPanel } from './MyDebtPanel.jsx'
+export { ModalOverlay } from './ModalOverlay.jsx'
 
 
 /* ---------- Header trang & thanh tab (một nguồn duy nhất) ---------- */

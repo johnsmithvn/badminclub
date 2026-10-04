@@ -15,6 +15,9 @@ import {
   isPlayerAbsent,
   validateChallengeAttendance,
   validateWishAttendance,
+  plannerPlayerMap,
+  plannerName,
+  plannerAvatar,
 } from '../../lib/planner.js'
 
 // 1. calcRoundTimes
@@ -425,6 +428,18 @@ bo3Plan.forEach((r) => {
 })
 assert.equal(bo3RoundIndices.length, 2, 'Kèo BO3 phải chiếm đúng 2 vòng')
 assert.equal(bo3RoundIndices[1], bo3RoundIndices[0] + 1, 'Kèo BO3 phải chiếm 2 vòng liên tiếp nhau')
+
+// Tên / ảnh người chơi trong planner: danh sách đang xếp → db → UUID lạ thì "Khách" → giữ nguyên key
+const pdb = { members: [{ id: 'm1', name: 'An', avatarUrl: 'm1.png' }, { id: 'm2', name: 'Bình', profile: { avatar_url: 'm2.png' } }], guests: [] }
+const pmap = plannerPlayerMap([{ key: 'm1', name: 'An (sân)' }, { id: 'g9', name: 'g9', avatarUrl: 'g9.png' }])
+assert.equal(plannerName(pdb, pmap, 'm1'), 'An (sân)', 'ưu tiên tên trong danh sách đang xếp')
+assert.equal(plannerName(pdb, pmap, 'm2'), 'Bình', 'không có trong danh sách thì tra db')
+assert.equal(plannerName(pdb, pmap, '1a2b3c4d-1111-2222'), 'Khách', 'UUID không ra tên → Khách')
+assert.equal(plannerName(pdb, pmap, 'abc'), 'abc', 'key lạ không phải UUID → giữ nguyên')
+assert.equal(plannerName(pdb, pmap, ''), '?')
+assert.equal(plannerAvatar(pdb, pmap, 'g9'), 'g9.png', 'ảnh trong danh sách đang xếp')
+assert.equal(plannerAvatar(pdb, pmap, 'm2'), 'm2.png', 'ảnh lồng trong profile')
+assert.equal(plannerAvatar(pdb, pmap, '?'), '')
 
 console.log('planner.test.js: All checks passed OK')
 

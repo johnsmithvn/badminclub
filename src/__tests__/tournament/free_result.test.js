@@ -2,7 +2,6 @@
 import test from 'node:test'
 import assert from 'node:assert/strict'
 import { freeSetWinner, inspectResult, offRule } from '#lib/tournament/scoring.js'
-import { boardReducer, boardView, emptyBoard } from '#lib/tournament/scoreboard.js'
 
 const R1x30 = { sets: 1, points: 30, winBy2: false, cap: 30 }
 const R3x21 = { sets: 3, points: 21, winBy2: true, cap: 30 }
@@ -26,20 +25,3 @@ test('trận: đủ số set thắng; không thừa set; set hoà chặn', () =>
   assert.equal(offRule([[21, 15], [15, 21], [11, 9]], R3x21), 1, 'chỉ set 11–9 lệch luật 21')
 })
 
-test('bảng ghi điểm: "Kết thúc set" chốt ở tỷ số hiện tại; hoà thì chưa chốt; chốt đủ set là xong trận', () => {
-  let s = emptyBoard()
-  for (let i = 0; i < 12; i++) s = boardReducer(s, { type: 'point', side: 'A' }, R1x30)
-  for (let i = 0; i < 10; i++) s = boardReducer(s, { type: 'point', side: 'B' }, R1x30)
-  assert.equal(boardView(s, R1x30).canEndSet, true)
-  s = boardReducer(s, { type: 'endSet' }, R1x30)
-  assert.deepEqual(s.sets, [[12, 10]])
-  assert.equal(boardView(s, R1x30).winner, 'A', 'luật 1 set: chốt set là xong trận')
-
-  let t = emptyBoard()
-  t = boardReducer(t, { type: 'point', side: 'A' }, R1x30)
-  t = boardReducer(t, { type: 'point', side: 'B' }, R1x30)
-  assert.equal(boardView(t, R1x30).canEndSet, false)
-  assert.deepEqual(boardReducer(t, { type: 'endSet' }, R1x30), t, 'hoà 1–1: không chốt được')
-  const back = boardReducer(boardReducer(s, { type: 'undo' }, R1x30), { type: 'undo' }, R1x30)
-  assert.equal(back.sets.length, 0, 'hoàn tác được cả thao tác kết thúc set')
-})

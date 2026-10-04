@@ -2,8 +2,7 @@ import React, { useState, useEffect, useMemo, useCallback } from 'react'
 import { useNavigate } from 'react-router-dom'
 import { useApp } from '#contexts/AppContext.jsx'
 import { myMember } from '#lib/money.js'
-import { calculateMemberBadges, computeClubBadgeStats, TIER_ORDER, cleanShelf } from '#lib/badges.js'
-import { resolveSeason, seasonMatchesOf } from '#lib/season.js'
+import { badgesSnapshotOf, TIER_ORDER, cleanShelf } from '#lib/badges.js'
 import cfgBadges from '#config/badges.js'
 import { seenBadgesKey, readSeenBadges, markBadgeSeen } from '#utils/seenBadges.js'
 import BadgeUnlockModal from './BadgeUnlockModal.jsx'
@@ -39,10 +38,7 @@ export default function GlobalBadgeUnlockHost() {
   // theo thứ tự catalog, không sắp sẵn.
   const unlockedBadges = useMemo(() => {
     if (!me?.id || !db) return []
-    const season = resolveSeason(db)
-    const seasonMatches = seasonMatchesOf(db, season) || []
-    const clubStats = computeClubBadgeStats(db, season, seasonMatches)
-    const res = calculateMemberBadges(me.id, db, season, seasonMatches, clubStats)
+    const res = badgesSnapshotOf(me.id, db)
     return (res?.officialUnlocked || []).slice().sort(
       (x, y) => (TIER_ORDER[y.tier] || 0) - (TIER_ORDER[x.tier] || 0),
     )

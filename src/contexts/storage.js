@@ -11,15 +11,9 @@
 
 import { supabase, unwrap } from '#supabase'
 import { clubRow, diff, toDb, toRows, toTour, toTourMatch, toTourMatchEdit, videosRow } from '#contexts/dbmap.js'
-import { monthOf } from '#utils/dates.js'
+import { monthOf, todayISO } from '#utils/dates.js'
 import { t } from '#i18n'
 import cfg from '#config/app.json' with { type: 'json' }
-
-/** Ngày hôm nay theo đồng hồ máy, dạng 'YYYY-MM-DD' (không dùng toISOString để không lệch múi giờ). */
-export function todayISO() {
-  const d = new Date()
-  return d.getFullYear() + '-' + String(d.getMonth() + 1).padStart(2, '0') + '-' + String(d.getDate()).padStart(2, '0')
-}
 
 /* ---------- ảnh chụp lần đồng bộ gần nhất ---------- */
 

@@ -6,9 +6,13 @@
  * HAI tầng (quyết định D11 — plan §1.1):
  *   · Ghi KẾT QUẢ (nhập tay, chốt, sửa điểm, xếp hạng): TỰ DO về điểm — chỉ cần mỗi set có bên cao điểm hơn,
  *     đủ số set thắng, không thừa set (`resultWinner` / `validateResult`). Đánh ngắn, dừng theo giờ… đều ghi được.
- *   · Luật điểm (`setWinner` / `validateSets` / `matchWinner`, chạm 30, cách 2, trần): chỉ để bảng ghi điểm từng
- *     quả tự chuyển set + báo deuce / set point, và để gợi ý "không khớp luật" (`offRule`) — KHÔNG chặn ghi kết quả.
+ *   · Luật điểm (`setWinner` / `validateSets` / `matchWinner`, chạm 30, cách 2, trần): chỉ để gợi ý "không khớp
+ *     luật" (`offRule`) và kiểm tỉ số mô phỏng — KHÔNG chặn ghi kết quả. (Bảng ghi điểm từng quả đã bỏ ở 45d0dd8.)
  */
+
+/** Trạng thái trận đã có kết quả (chốt điểm · xử thua · bỏ cuộc). Một nơi duy nhất cho cả module giải. */
+export const RESULT_STATUSES = new Set(['done', 'walkover', 'retired'])
+export const hasResult = (m) => RESULT_STATUSES.has(m.status)
 
 /**
  * Xác định bên thắng của 1 set đấu.
@@ -168,46 +172,6 @@ export function matchWinner(sets, rule) {
 export function validateSets(sets, rule) {
   const inspected = inspectSets(sets, rule)
   return inspected.error
-}
-
-/**
- * Tính toán các cờ thông báo cho Bảng điểm Live (Scoreboard):
- * - deuce: Đang hòa căng thẳng ở cuối set
- * - setPoint: { A: boolean, B: boolean }
- * - matchPoint: { A: boolean, B: boolean }
- *
- * @param {{ currentScore: [number, number], sets: Array<[number, number]> }} state
- * @param {{ sets: number, points: number, winBy2: boolean, cap: number }} rule
- * @returns {{
- *   deuce: boolean,
- *   setPoint: { A: boolean, B: boolean },
- *   matchPoint: { A: boolean, B: boolean }
- * }}
- */
-export function scoreFlags(state, rule) {
-  const [a, b] = state.currentScore || [0, 0]
-  const completedSets = state.sets || []
-  const needWins = Math.ceil(rule.sets / 2)
-  const inspected = inspectSets(completedSets, rule)
-  const winsA = inspected.winsA
-  const winsB = inspected.winsB
-
-  const isDeuce = rule.winBy2 && a >= rule.points - 1 && b >= rule.points - 1 && a < rule.cap && b < rule.cap
-
-  const aNext = setWinner(a + 1, b, rule)
-  const bNext = setWinner(a, b + 1, rule)
-
-  const aHasSetPoint = aNext === 'A'
-  const bHasSetPoint = bNext === 'B'
-
-  const aHasMatchPoint = aHasSetPoint && winsA + 1 >= needWins
-  const bHasMatchPoint = bHasSetPoint && winsB + 1 >= needWins
-
-  return {
-    deuce: isDeuce,
-    setPoint: { A: aHasSetPoint, B: bHasSetPoint },
-    matchPoint: { A: aHasMatchPoint, B: bHasMatchPoint }
-  }
 }
 
 /**
