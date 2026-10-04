@@ -16,7 +16,7 @@ import { dd, ddmy, monthOf, wd } from '#utils/dates.js'
 import {
   courtOf, dueState, duesOf,
   fmt, genderTxt, groupMembers, groupOf, guestOf, guestPrice, headCount, levelOf,
-  isAdhoc, isMemberCharge, memberOf, presentCount, rowCost, sGuests, sGuestsOnly, sessionMembers,
+  isAdhoc, isMemberCharge, memberOf, rowCost, sGuests, sGuestsOnly, sessionMembers,
   sessionOf, normalizeText, guestStats, myMember,
   shortName,
 } from '#lib/money.js'
@@ -757,7 +757,7 @@ export default function SessionDetail() {
                 ...S.tabBadgeMono,
                 color: activeTab === 'attend' ? '#5FDBD3' : 'var(--text-muted)',
               }}>
-                {presentCount(db, s)}/{members.length}
+                {dGoing}
               </span>
             </button>
             <button

@@ -347,13 +347,14 @@ export default function CourtAssignmentTab({ s, preset }) {
 
   // Lọc và sắp xếp người chờ (CS1 + CS2)
   const processedWaiting = useMemo(() => {
-    let list = [...waitingPlayers]
+    // Riêng danh sách chọn người này hiện TÊN ĐẦY ĐỦ (chưa khai mới dùng tên CLB) — hiển thị lẫn sắp A-Z
+    let list = waitingPlayers.map((p) => ({ ...p, clubName: p.name, name: p.fullName || p.name }))
 
-    // 1. Tìm kiếm theo tên hoặc trình độ
+    // 1. Tìm kiếm theo tên (đầy đủ hoặc tên CLB) hoặc trình độ
     if (searchQuery.trim()) {
       const q = searchQuery.toLowerCase()
       list = list.filter((p) => {
-        const nameMatch = (p.name || '').toLowerCase().includes(q)
+        const nameMatch = [p.name, p.clubName].some((n) => (n || '').toLowerCase().includes(q))
         const levelMatch = (p.level || '').toLowerCase().includes(q)
         return nameMatch || levelMatch
       })
