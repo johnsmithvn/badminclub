@@ -172,6 +172,17 @@ export default function MyStats() {
     }
   }
   const handleViewLeaderboard = () => a.go('leaderboard')
+  // Vé buổi tới của tôi — nằm ở tab Sân đấu, ngay trên card phân tích buổi tới của CLB.
+  const upcomingCard = (mobile) => (
+    <UpcomingSessionCard
+      session={upcomingSession}
+      isMobile={mobile}
+      onViewSchedule={handleViewSchedule}
+      onViewAssignment={handleViewAssignment}
+      onChallenge={handleLogMatch}
+      onOpenChallenge={handleOpenChallenge}
+    />
+  )
 
   // Nếu người dùng chưa phải thành viên trong CLB này
   if (!currentMember) {
@@ -232,7 +243,7 @@ export default function MyStats() {
         </TabTrack>
 
         {tab === 'match' ? (
-          <HomeMatchTab />
+          <HomeMatchTab upcoming={upcomingCard(true)} />
         ) : tab === 'activity' ? (
           <ActivityTab />
         ) : (
@@ -293,15 +304,6 @@ export default function MyStats() {
               isMobile={true}
             />
 
-            {/* Thẻ 07: Buổi tập sắp tới */}
-            <UpcomingSessionCard
-              session={upcomingSession}
-              isMobile={true}
-              onViewSchedule={handleViewSchedule}
-              onViewAssignment={handleViewAssignment}
-              onChallenge={handleLogMatch}
-              onOpenChallenge={handleOpenChallenge}
-            />
 
             {/* Thẻ 08: Hoạt động CLB hôm nay */}
             <ClubFeedCard
@@ -369,7 +371,7 @@ export default function MyStats() {
       </TabTrack>
 
       {tab === 'match' ? (
-        <HomeMatchTab />
+        <HomeMatchTab upcoming={upcomingCard(false)} />
       ) : tab === 'activity' ? (
         <ActivityTab />
       ) : (
@@ -415,15 +417,6 @@ export default function MyStats() {
 
           {/* Cột phụ (Phải - 352px) */}
           <div style={S.sideCol}>
-            {/* 06. Buổi tới */}
-            <UpcomingSessionCard
-              session={upcomingSession}
-              isMobile={false}
-              onViewSchedule={handleViewSchedule}
-              onViewAssignment={handleViewAssignment}
-              onChallenge={handleLogMatch}
-              onOpenChallenge={handleOpenChallenge}
-            />
 
             {/* 07. Quanh bạn trên BXH */}
             <NearbyStandingsCard

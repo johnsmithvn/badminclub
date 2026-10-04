@@ -1,28 +1,84 @@
 import { t } from '#i18n'
 import { ModalOverlay } from '#ui'
+import { useMobile } from '#hooks/useMobile.js'
 
-export default function RatingFormulaModal({ onClose, totalMatches = 214 }) {
+// Hệ số biên thắng: [nhãn, độ dài thanh, màu thanh, hệ số cũ, hệ số mới]
+const MOV_ROWS = [
+  ['rating.le4Pts', '6%', '#00786F', '×1.05', '×1.02'],
+  ['rating.pts5to8', '32%', '#00786F', '×1.20', '×1.10'],
+  ['rating.pts9to13', '52%', '#00B2A9', '×1.40', '×1.15'],
+  ['rating.ge14Pts', '76%', '#00B2A9', '×1.40', '×1.22'],
+]
+
+// Vai trò khi chia sân (tổng 100 điểm). `note` là chữ thô, `noteKey` là key i18n.
+const ROLE_ROWS = [
+  { label: 'rating.courtBalance', bar: '34%', barColor: '#00B2A9', note: '30 → 34', value: '34' },
+  { label: 'rating.fairTurns', bar: '20%', barColor: '#00B2A9', note: '15 → 20', value: '20' },
+  { label: 'rating.partnerOppDiversity', bar: '18%', barColor: '#3C74C4', noteKey: 'rating.combined2015', value: '18' },
+  { label: 'rating.synergyNew', isNew: true, bar: '16%', barColor: '#00786F', noteKey: 'rating.onlyWhenR2', value: '16', valueColor: '#5FDBD3' },
+  { label: 'rating.matchupNew', isNew: true, bar: '8%', barColor: '#00786F', noteKey: 'rating.onlyWhenR2', value: '8', valueColor: '#5FDBD3' },
+  { raw: 'H2H', labelColor: '#A8B7CB', bar: '4%', barColor: '#2E3E5C', note: '20 → 4', noteColor: '#F0B75C', value: '4', valueColor: '#A8B7CB' },
+]
+
+// Ngưỡng mẫu R1–R4: [mã, nền mã, màu mã, key số trận, key luật, viền thẻ]
+const THRESHOLDS = [
+  ['R1 ●○○○', 'rgba(214,59,43,.18)', '#F09A8E', 'rating.r1Matches', 'rating.r1Rule', '#22304A'],
+  ['R2 ●●○○', 'rgba(240,183,92,.16)', '#F0B75C', 'rating.r2Matches', 'rating.r2Rule', '#22304A'],
+  ['R3 ●●●○', 'rgba(0,178,169,.16)', '#5FDBD3', 'rating.r3Matches', 'rating.r3Rule', '#22304A'],
+  ['R4 ●●●●', 'rgba(0,178,169,.16)', '#5FDBD3', 'rating.r4Matches', 'rating.r4Rule', '#00786F'],
+]
+
+// Ví dụ đầu vào công thức: [key nhãn, giá trị, màu giá trị, chú thích, chú thích là key i18n?]
+const INPUTS = [
+  ['rating.rawSynergy', '+70', '#E9EFF7', 'Minh · Nam', false],
+  ['rating.pairStrength', '1752 → 1822', '#E9EFF7', 'rating.expectedToActual', true],
+  ['rating.synergyConvert', '×1.85', '#E9EFF7', 'rating.rawToSynergy91', true],
+  ['rating.impactDisplay', '+17pp', '#5FDBD3', '55% → 72%', false],
+]
+
+/**
+ * Popup "Công thức rating" (tab Cặp đôi). Desktop: hộp 820px giữa màn. Mobile: sheet dính đáy, bảng xếp 2 tầng
+ * (thanh % xuống dòng riêng — cùng thứ tự DOM, chỉ đặt lại vị trí trên lưới), thẻ 2 cột thay vì 4.
+ */
+export default function RatingFormulaModal({ onClose, totalMatches = 214, isMobile: isMobileProp }) {
+  const isMobileHook = useMobile()
+  const isMobile = isMobileProp !== undefined ? isMobileProp : isMobileHook
+  // Giá trị riêng cho mobile; desktop nhận `undefined` → React bỏ qua, giữ nguyên style cũ.
+  const mob = (v) => (isMobile ? v : undefined)
+  const block = (gap, border = '#22304A') => ({
+    background: '#141D2E',
+    border: `1px solid ${border}`,
+    borderRadius: 10,
+    padding: isMobile ? 12 : 15,
+    display: 'grid',
+    gap,
+    gridTemplateColumns: mob('minmax(0, 1fr)'),
+  })
+  const descFont = isMobile ? "400 14px/1.55 'IBM Plex Sans', sans-serif" : "400 12.5px/1.55 'IBM Plex Sans', sans-serif"
+  const movCols = isMobile ? 'minmax(0,1fr) 56px 56px' : '126px minmax(0,1fr) 92px 92px'
+
   return (
-    <ModalOverlay onClose={onClose}>
+    <ModalOverlay onClose={onClose} align={isMobile ? 'flex-end' : 'center'} padding={isMobile ? 0 : 16}>
       <div
         data-screen-label="EA2 Cai dat rating"
         style={{
-          width: 820,
+          width: isMobile ? '100%' : 820,
           maxWidth: '100%',
           background: '#0B1220',
           border: '1px solid #22304A',
-          borderRadius: 12,
-          padding: 20,
+          borderRadius: isMobile ? '18px 18px 0 0' : 12,
+          padding: isMobile ? '16px 14px calc(20px + env(safe-area-inset-bottom, 0px))' : 20,
           display: 'grid',
           gap: 14,
           boxShadow: '0 24px 60px rgba(0,0,0,.60)',
-          maxHeight: '90vh',
+          maxHeight: isMobile ? '88vh' : '90vh',
           overflowY: 'auto',
+          gridTemplateColumns: mob('minmax(0, 1fr)'),
         }}
         onClick={(e) => e.stopPropagation()}
       >
         {/* Header */}
-        <div style={{ display: 'flex', alignItems: 'baseline', gap: 10, flexWrap: 'wrap' }}>
+        <div style={{ display: 'flex', alignItems: isMobile ? 'center' : 'baseline', gap: 10, flexWrap: 'wrap' }}>
           <div style={{ font: '600 18px/1.25 Barlow, sans-serif', color: '#fff' }}>
             {t('rating.formulaTitle')}
           </div>
@@ -40,7 +96,13 @@ export default function RatingFormulaModal({ onClose, totalMatches = 214 }) {
               cursor: 'pointer',
               font: "600 16px/1 'IBM Plex Mono', monospace",
               color: '#8494AA',
-              padding: 4,
+              padding: isMobile ? 0 : 4,
+              width: mob(44),
+              height: mob(44),
+              display: mob('inline-flex'),
+              alignItems: mob('center'),
+              justifyContent: mob('center'),
+              marginRight: mob(-10),
             }}
           >
             ✕
@@ -48,16 +110,7 @@ export default function RatingFormulaModal({ onClose, totalMatches = 214 }) {
         </div>
 
         {/* Khối 1: Biên thắng làm mềm */}
-        <div
-          style={{
-            background: '#141D2E',
-            border: '1px solid #22304A',
-            borderRadius: 10,
-            padding: 15,
-            display: 'grid',
-            gap: 12,
-          }}
-        >
+        <div style={block(12)}>
           <div style={{ display: 'flex', alignItems: 'baseline', gap: 10, flexWrap: 'wrap' }}>
             <span style={{ font: "600 14px/1.2 'IBM Plex Sans', sans-serif", flex: 1, color: '#fff' }}>
               {t('rating.movMultiplier')}
@@ -75,14 +128,14 @@ export default function RatingFormulaModal({ onClose, totalMatches = 214 }) {
               {t('rating.movSoftened')}
             </span>
           </div>
-          <div style={{ font: "400 12.5px/1.55 'IBM Plex Sans', sans-serif", color: '#A8B7CB' }}>
+          <div style={{ font: descFont, color: '#A8B7CB' }}>
             {t('rating.movDesc')}
           </div>
           <div style={{ display: 'grid', gap: 8 }}>
             <div
               style={{
                 display: 'grid',
-                gridTemplateColumns: '126px minmax(0,1fr) 92px 92px',
+                gridTemplateColumns: movCols,
                 gap: 10,
                 alignItems: 'center',
                 font: "600 11px/1.2 'IBM Plex Sans', sans-serif",
@@ -92,120 +145,42 @@ export default function RatingFormulaModal({ onClose, totalMatches = 214 }) {
               }}
             >
               <span>{t('rating.pointsDiff')}</span>
-              <span />
+              <span style={isMobile ? { display: 'none' } : undefined} />
               <span style={{ textAlign: 'right' }}>{t('rating.oldCol')}</span>
               <span style={{ textAlign: 'right' }}>{t('rating.newCol')}</span>
             </div>
 
-            <div
-              style={{
-                display: 'grid',
-                gridTemplateColumns: '126px minmax(0,1fr) 92px 92px',
-                gap: 10,
-                alignItems: 'center',
-                padding: '9px 0',
-                borderTop: '1px solid #22304A',
-              }}
-            >
-              <span style={{ font: "400 12.5px/1.3 'IBM Plex Sans', sans-serif", color: '#E9EFF7' }}>
-                {t('rating.le4Pts')}
-              </span>
-              <span style={{ height: 8, borderRadius: 999, background: '#0B1220', overflow: 'hidden', display: 'flex' }}>
-                <span style={{ width: '6%', background: '#00786F' }} />
-              </span>
-              <span style={{ textAlign: 'right', font: "400 12px/1 'IBM Plex Mono', monospace", color: '#8494AA' }}>
-                ×1.05
-              </span>
-              <span style={{ textAlign: 'right', font: "600 13px/1 'IBM Plex Mono', monospace", color: '#5FDBD3' }}>
-                ×1.02
-              </span>
-            </div>
-
-            <div
-              style={{
-                display: 'grid',
-                gridTemplateColumns: '126px minmax(0,1fr) 92px 92px',
-                gap: 10,
-                alignItems: 'center',
-                padding: '9px 0',
-                borderTop: '1px solid #22304A',
-              }}
-            >
-              <span style={{ font: "400 12.5px/1.3 'IBM Plex Sans', sans-serif", color: '#E9EFF7' }}>
-                {t('rating.pts5to8')}
-              </span>
-              <span style={{ height: 8, borderRadius: 999, background: '#0B1220', overflow: 'hidden', display: 'flex' }}>
-                <span style={{ width: '32%', background: '#00786F' }} />
-              </span>
-              <span style={{ textAlign: 'right', font: "400 12px/1 'IBM Plex Mono', monospace", color: '#8494AA' }}>
-                ×1.20
-              </span>
-              <span style={{ textAlign: 'right', font: "600 13px/1 'IBM Plex Mono', monospace", color: '#5FDBD3' }}>
-                ×1.10
-              </span>
-            </div>
-
-            <div
-              style={{
-                display: 'grid',
-                gridTemplateColumns: '126px minmax(0,1fr) 92px 92px',
-                gap: 10,
-                alignItems: 'center',
-                padding: '9px 0',
-                borderTop: '1px solid #22304A',
-              }}
-            >
-              <span style={{ font: "400 12.5px/1.3 'IBM Plex Sans', sans-serif", color: '#E9EFF7' }}>
-                {t('rating.pts9to13')}
-              </span>
-              <span style={{ height: 8, borderRadius: 999, background: '#0B1220', overflow: 'hidden', display: 'flex' }}>
-                <span style={{ width: '52%', background: '#00B2A9' }} />
-              </span>
-              <span style={{ textAlign: 'right', font: "400 12px/1 'IBM Plex Mono', monospace", color: '#8494AA' }}>
-                ×1.40
-              </span>
-              <span style={{ textAlign: 'right', font: "600 13px/1 'IBM Plex Mono', monospace", color: '#5FDBD3' }}>
-                ×1.15
-              </span>
-            </div>
-
-            <div
-              style={{
-                display: 'grid',
-                gridTemplateColumns: '126px minmax(0,1fr) 92px 92px',
-                gap: 10,
-                alignItems: 'center',
-                padding: '9px 0',
-                borderTop: '1px solid #22304A',
-              }}
-            >
-              <span style={{ font: "400 12.5px/1.3 'IBM Plex Sans', sans-serif", color: '#E9EFF7' }}>
-                {t('rating.ge14Pts')}
-              </span>
-              <span style={{ height: 8, borderRadius: 999, background: '#0B1220', overflow: 'hidden', display: 'flex' }}>
-                <span style={{ width: '76%', background: '#00B2A9' }} />
-              </span>
-              <span style={{ textAlign: 'right', font: "400 12px/1 'IBM Plex Mono', monospace", color: '#8494AA' }}>
-                ×1.40
-              </span>
-              <span style={{ textAlign: 'right', font: "600 13px/1 'IBM Plex Mono', monospace", color: '#5FDBD3' }}>
-                ×1.22
-              </span>
-            </div>
+            {MOV_ROWS.map(([label, bar, barColor, oldX, newX]) => (
+              <div
+                key={label}
+                style={{
+                  display: 'grid',
+                  gridTemplateColumns: movCols,
+                  gap: isMobile ? '6px 10px' : 10,
+                  alignItems: 'center',
+                  padding: '9px 0',
+                  borderTop: '1px solid #22304A',
+                }}
+              >
+                <span style={{ font: isMobile ? "400 14px/1.3 'IBM Plex Sans', sans-serif" : "400 12.5px/1.3 'IBM Plex Sans', sans-serif", color: '#E9EFF7', gridColumn: mob(1), gridRow: mob(1) }}>
+                  {t(label)}
+                </span>
+                <span style={{ height: 8, borderRadius: 999, background: '#0B1220', overflow: 'hidden', display: 'flex', gridColumn: mob('1 / -1'), gridRow: mob(2) }}>
+                  <span style={{ width: bar, background: barColor }} />
+                </span>
+                <span style={{ textAlign: 'right', font: "400 12px/1 'IBM Plex Mono', monospace", color: '#8494AA', gridColumn: mob(2), gridRow: mob(1) }}>
+                  {oldX}
+                </span>
+                <span style={{ textAlign: 'right', font: "600 13px/1 'IBM Plex Mono', monospace", color: '#5FDBD3', gridColumn: mob(3), gridRow: mob(1) }}>
+                  {newX}
+                </span>
+              </div>
+            ))}
           </div>
         </div>
 
         {/* Khối 2: Vai trò khi chia sân */}
-        <div
-          style={{
-            background: '#141D2E',
-            border: '1px solid #22304A',
-            borderRadius: 10,
-            padding: 15,
-            display: 'grid',
-            gap: 12,
-          }}
-        >
+        <div style={block(12)}>
           <div style={{ display: 'flex', alignItems: 'baseline', gap: 10, flexWrap: 'wrap' }}>
             <span style={{ font: "600 14px/1.2 'IBM Plex Sans', sans-serif", flex: 1, color: '#fff' }}>
               {t('rating.courtRoleTitle')}
@@ -214,141 +189,50 @@ export default function RatingFormulaModal({ onClose, totalMatches = 214 }) {
               {t('rating.total100')}
             </span>
           </div>
-          <div style={{ font: "400 12.5px/1.55 'IBM Plex Sans', sans-serif", color: '#A8B7CB' }}>
+          <div style={{ font: descFont, color: '#A8B7CB' }}>
             {t('rating.courtRoleDesc')}
           </div>
-          <div style={{ display: 'grid', gap: 9 }}>
-            <div style={{ display: 'grid', gridTemplateColumns: '150px minmax(0,1fr) 96px 40px', gap: 10, alignItems: 'center' }}>
-              <span style={{ font: "600 12.5px/1.3 'IBM Plex Sans', sans-serif", color: '#E9EFF7' }}>{t('rating.courtBalance')}</span>
-              <span style={{ height: 10, borderRadius: 999, background: '#0B1220', border: '1px solid #22304A', overflow: 'hidden', display: 'flex' }}>
-                <span style={{ width: '34%', background: '#00B2A9' }} />
-              </span>
-              <span style={{ font: "400 11px/1.3 'IBM Plex Mono', monospace", color: '#8494AA' }}>30 → 34</span>
-              <span style={{ textAlign: 'right', font: "600 13px/1 'IBM Plex Mono', monospace", color: '#fff' }}>34</span>
-            </div>
-
-            <div style={{ display: 'grid', gridTemplateColumns: '150px minmax(0,1fr) 96px 40px', gap: 10, alignItems: 'center' }}>
-              <span style={{ font: "600 12.5px/1.3 'IBM Plex Sans', sans-serif", color: '#E9EFF7' }}>{t('rating.fairTurns')}</span>
-              <span style={{ height: 10, borderRadius: 999, background: '#0B1220', border: '1px solid #22304A', overflow: 'hidden', display: 'flex' }}>
-                <span style={{ width: '20%', background: '#00B2A9' }} />
-              </span>
-              <span style={{ font: "400 11px/1.3 'IBM Plex Mono', monospace", color: '#8494AA' }}>15 → 20</span>
-              <span style={{ textAlign: 'right', font: "600 13px/1 'IBM Plex Mono', monospace", color: '#fff' }}>20</span>
-            </div>
-
-            <div style={{ display: 'grid', gridTemplateColumns: '150px minmax(0,1fr) 96px 40px', gap: 10, alignItems: 'center' }}>
-              <span style={{ font: "600 12.5px/1.3 'IBM Plex Sans', sans-serif", color: '#E9EFF7' }}>{t('rating.partnerOppDiversity')}</span>
-              <span style={{ height: 10, borderRadius: 999, background: '#0B1220', border: '1px solid #22304A', overflow: 'hidden', display: 'flex' }}>
-                <span style={{ width: '18%', background: '#3C74C4' }} />
-              </span>
-              <span style={{ font: "400 11px/1.3 'IBM Plex Mono', monospace", color: '#8494AA' }}>{t('rating.combined2015')}</span>
-              <span style={{ textAlign: 'right', font: "600 13px/1 'IBM Plex Mono', monospace", color: '#fff' }}>18</span>
-            </div>
-
-            <div style={{ display: 'grid', gridTemplateColumns: '150px minmax(0,1fr) 96px 40px', gap: 10, alignItems: 'center' }}>
-              <span style={{ font: "600 12.5px/1.3 'IBM Plex Sans', sans-serif", color: '#E9EFF7' }}>
-                {t('rating.synergyNew')} <span style={{ font: "400 11px/1 'IBM Plex Mono', monospace", color: '#5FDBD3' }}>{t('rating.newBadge')}</span>
-              </span>
-              <span style={{ height: 10, borderRadius: 999, background: '#0B1220', border: '1px solid #22304A', overflow: 'hidden', display: 'flex' }}>
-                <span style={{ width: '16%', background: '#00786F' }} />
-              </span>
-              <span style={{ font: "400 11px/1.3 'IBM Plex Mono', monospace", color: '#8494AA' }}>{t('rating.onlyWhenR2')}</span>
-              <span style={{ textAlign: 'right', font: "600 13px/1 'IBM Plex Mono', monospace", color: '#5FDBD3' }}>16</span>
-            </div>
-
-            <div style={{ display: 'grid', gridTemplateColumns: '150px minmax(0,1fr) 96px 40px', gap: 10, alignItems: 'center' }}>
-              <span style={{ font: "600 12.5px/1.3 'IBM Plex Sans', sans-serif", color: '#E9EFF7' }}>
-                {t('rating.matchupNew')} <span style={{ font: "400 11px/1 'IBM Plex Mono', monospace", color: '#5FDBD3' }}>{t('rating.newBadge')}</span>
-              </span>
-              <span style={{ height: 10, borderRadius: 999, background: '#0B1220', border: '1px solid #22304A', overflow: 'hidden', display: 'flex' }}>
-                <span style={{ width: '8%', background: '#00786F' }} />
-              </span>
-              <span style={{ font: "400 11px/1.3 'IBM Plex Mono', monospace", color: '#8494AA' }}>{t('rating.onlyWhenR2')}</span>
-              <span style={{ textAlign: 'right', font: "600 13px/1 'IBM Plex Mono', monospace", color: '#5FDBD3' }}>8</span>
-            </div>
-
-            <div style={{ display: 'grid', gridTemplateColumns: '150px minmax(0,1fr) 96px 40px', gap: 10, alignItems: 'center' }}>
-              <span style={{ font: "600 12.5px/1.3 'IBM Plex Sans', sans-serif", color: '#A8B7CB' }}>H2H</span>
-              <span style={{ height: 10, borderRadius: 999, background: '#0B1220', border: '1px solid #22304A', overflow: 'hidden', display: 'flex' }}>
-                <span style={{ width: '4%', background: '#2E3E5C' }} />
-              </span>
-              <span style={{ font: "400 11px/1.3 'IBM Plex Mono', monospace", color: '#F0B75C' }}>20 → 4</span>
-              <span style={{ textAlign: 'right', font: "600 13px/1 'IBM Plex Mono', monospace", color: '#A8B7CB' }}>4</span>
-            </div>
+          <div style={{ display: 'grid', gap: isMobile ? 14 : 9 }}>
+            {ROLE_ROWS.map((r) => (
+              <div key={r.label || r.raw} style={{ display: 'grid', gridTemplateColumns: isMobile ? 'minmax(0,1fr) 40px' : '150px minmax(0,1fr) 96px 40px', gap: isMobile ? '6px 10px' : 10, alignItems: 'center' }}>
+                <span style={{ font: isMobile ? "600 14px/1.3 'IBM Plex Sans', sans-serif" : "600 12.5px/1.3 'IBM Plex Sans', sans-serif", color: r.labelColor || '#E9EFF7', gridColumn: mob(1), gridRow: mob(1) }}>
+                  {r.raw || t(r.label)}{r.isNew ? ' ' : null}{r.isNew && <span style={{ font: "400 11px/1 'IBM Plex Mono', monospace", color: '#5FDBD3' }}>{t('rating.newBadge')}</span>}
+                </span>
+                <span style={{ height: 10, borderRadius: 999, background: '#0B1220', border: '1px solid #22304A', overflow: 'hidden', display: 'flex', gridColumn: mob('1 / -1'), gridRow: mob(2) }}>
+                  <span style={{ width: r.bar, background: r.barColor }} />
+                </span>
+                <span style={{ font: "400 11px/1.3 'IBM Plex Mono', monospace", color: r.noteColor || '#8494AA', gridColumn: mob('1 / -1'), gridRow: mob(3) }}>{r.noteKey ? t(r.noteKey) : r.note}</span>
+                <span style={{ textAlign: 'right', font: "600 13px/1 'IBM Plex Mono', monospace", color: r.valueColor || '#fff', gridColumn: mob(2), gridRow: mob(1) }}>{r.value}</span>
+              </div>
+            ))}
           </div>
-          <div style={{ font: "400 12px/1.5 'IBM Plex Sans', sans-serif", color: '#8494AA', borderTop: '1px solid #22304A', paddingTop: 11 }}>
+          <div style={{ font: isMobile ? "400 13px/1.5 'IBM Plex Sans', sans-serif" : "400 12px/1.5 'IBM Plex Sans', sans-serif", color: '#8494AA', borderTop: '1px solid #22304A', paddingTop: 11 }}>
             {t('rating.h2hRoleNote')}
           </div>
         </div>
 
         {/* Khối 3: Ngưỡng mẫu */}
-        <div
-          style={{
-            background: '#141D2E',
-            border: '1px solid #22304A',
-            borderRadius: 10,
-            padding: 15,
-            display: 'grid',
-            gap: 11,
-          }}
-        >
+        <div style={block(11)}>
           <div style={{ font: "600 14px/1.2 'IBM Plex Sans', sans-serif", color: '#fff' }}>
             {t('rating.sampleThresholdTitle')}
           </div>
-          <div style={{ display: 'grid', gridTemplateColumns: 'repeat(4, minmax(0, 1fr))', gap: 10 }}>
-            <div style={{ padding: '11px 12px', borderRadius: 8, background: '#101927', border: '1px solid #22304A', display: 'grid', gap: 4 }}>
-              <span style={{ font: "600 10px/1 'IBM Plex Mono', monospace", padding: '4px 6px', borderRadius: 4, background: 'rgba(214,59,43,.18)', color: '#F09A8E', justifySelf: 'start' }}>
-                R1 ●○○○
-              </span>
-              <span style={{ font: "600 15px/1.2 'IBM Plex Sans', sans-serif", color: '#fff' }}>{t('rating.r1Matches')}</span>
-              <span style={{ font: "400 11.5px/1.4 'IBM Plex Sans', sans-serif", color: '#8494AA' }}>
-                {t('rating.r1Rule')}
-              </span>
-            </div>
-
-            <div style={{ padding: '11px 12px', borderRadius: 8, background: '#101927', border: '1px solid #22304A', display: 'grid', gap: 4 }}>
-              <span style={{ font: "600 10px/1 'IBM Plex Mono', monospace", padding: '4px 6px', borderRadius: 4, background: 'rgba(240,183,92,.16)', color: '#F0B75C', justifySelf: 'start' }}>
-                R2 ●●○○
-              </span>
-              <span style={{ font: "600 15px/1.2 'IBM Plex Sans', sans-serif", color: '#fff' }}>{t('rating.r2Matches')}</span>
-              <span style={{ font: "400 11.5px/1.4 'IBM Plex Sans', sans-serif", color: '#8494AA' }}>
-                {t('rating.r2Rule')}
-              </span>
-            </div>
-
-            <div style={{ padding: '11px 12px', borderRadius: 8, background: '#101927', border: '1px solid #22304A', display: 'grid', gap: 4 }}>
-              <span style={{ font: "600 10px/1 'IBM Plex Mono', monospace", padding: '4px 6px', borderRadius: 4, background: 'rgba(0,178,169,.16)', color: '#5FDBD3', justifySelf: 'start' }}>
-                R3 ●●●○
-              </span>
-              <span style={{ font: "600 15px/1.2 'IBM Plex Sans', sans-serif", color: '#fff' }}>{t('rating.r3Matches')}</span>
-              <span style={{ font: "400 11.5px/1.4 'IBM Plex Sans', sans-serif", color: '#8494AA' }}>
-                {t('rating.r3Rule')}
-              </span>
-            </div>
-
-            <div style={{ padding: '11px 12px', borderRadius: 8, background: '#101927', border: '1px solid #00786F', display: 'grid', gap: 4 }}>
-              <span style={{ font: "600 10px/1 'IBM Plex Mono', monospace", padding: '4px 6px', borderRadius: 4, background: 'rgba(0,178,169,.16)', color: '#5FDBD3', justifySelf: 'start' }}>
-                R4 ●●●●
-              </span>
-              <span style={{ font: "600 15px/1.2 'IBM Plex Sans', sans-serif", color: '#fff' }}>{t('rating.r4Matches')}</span>
-              <span style={{ font: "400 11.5px/1.4 'IBM Plex Sans', sans-serif", color: '#8494AA' }}>
-                {t('rating.r4Rule')}
-              </span>
-            </div>
+          <div style={{ display: 'grid', gridTemplateColumns: isMobile ? 'repeat(2, minmax(0, 1fr))' : 'repeat(4, minmax(0, 1fr))', gap: 10 }}>
+            {THRESHOLDS.map(([code, codeBg, codeColor, matchesKey, ruleKey, border]) => (
+              <div key={code} style={{ padding: '11px 12px', borderRadius: 8, background: '#101927', border: `1px solid ${border}`, display: 'grid', gap: 4 }}>
+                <span style={{ font: "600 10px/1 'IBM Plex Mono', monospace", padding: '4px 6px', borderRadius: 4, background: codeBg, color: codeColor, justifySelf: 'start' }}>
+                  {code}
+                </span>
+                <span style={{ font: "600 15px/1.2 'IBM Plex Sans', sans-serif", color: '#fff' }}>{t(matchesKey)}</span>
+                <span style={{ font: isMobile ? "400 12.5px/1.4 'IBM Plex Sans', sans-serif" : "400 11.5px/1.4 'IBM Plex Sans', sans-serif", color: '#8494AA' }}>
+                  {t(ruleKey)}
+                </span>
+              </div>
+            ))}
           </div>
         </div>
 
         {/* Khối 4: Đầu vào công thức */}
-        <div
-          style={{
-            background: '#141D2E',
-            border: '1px solid #2E3E5C',
-            borderRadius: 10,
-            padding: 15,
-            display: 'grid',
-            gap: 11,
-          }}
-        >
+        <div style={block(11, '#2E3E5C')}>
           <div style={{ display: 'flex', alignItems: 'center', gap: 9, flexWrap: 'wrap' }}>
             <span style={{ font: "600 14px/1.2 'IBM Plex Sans', sans-serif", flex: 1, color: '#fff' }}>
               {t('rating.formulaInputsTitle')}
@@ -366,30 +250,17 @@ export default function RatingFormulaModal({ onClose, totalMatches = 214 }) {
               {t('rating.formulaInputsAdminOnly')}
             </span>
           </div>
-          <div style={{ font: "400 12.5px/1.55 'IBM Plex Sans', sans-serif", color: '#A8B7CB' }}>
+          <div style={{ font: descFont, color: '#A8B7CB' }}>
             {t('rating.formulaInputsDesc')}
           </div>
-          <div style={{ display: 'grid', gridTemplateColumns: 'repeat(4, minmax(0, 1fr))', gap: 10 }}>
-            <div style={{ padding: '11px 12px', borderRadius: 8, background: '#101927', border: '1px solid #22304A', display: 'grid', gap: 4 }}>
-              <span style={{ font: "400 11.5px/1.3 'IBM Plex Sans', sans-serif", color: '#8494AA' }}>{t('rating.rawSynergy')}</span>
-              <span style={{ font: "400 16px/1.2 'IBM Plex Mono', monospace", color: '#E9EFF7' }}>+70</span>
-              <span style={{ font: "400 11px/1.4 'IBM Plex Sans', sans-serif", color: '#5B6B81' }}>Minh · Nam</span>
-            </div>
-            <div style={{ padding: '11px 12px', borderRadius: 8, background: '#101927', border: '1px solid #22304A', display: 'grid', gap: 4 }}>
-              <span style={{ font: "400 11.5px/1.3 'IBM Plex Sans', sans-serif", color: '#8494AA' }}>{t('rating.pairStrength')}</span>
-              <span style={{ font: "400 16px/1.2 'IBM Plex Mono', monospace", color: '#E9EFF7' }}>1752 → 1822</span>
-              <span style={{ font: "400 11px/1.4 'IBM Plex Sans', sans-serif", color: '#5B6B81' }}>{t('rating.expectedToActual')}</span>
-            </div>
-            <div style={{ padding: '11px 12px', borderRadius: 8, background: '#101927', border: '1px solid #22304A', display: 'grid', gap: 4 }}>
-              <span style={{ font: "400 11.5px/1.3 'IBM Plex Sans', sans-serif", color: '#8494AA' }}>{t('rating.synergyConvert')}</span>
-              <span style={{ font: "400 16px/1.2 'IBM Plex Mono', monospace", color: '#E9EFF7' }}>×1.85</span>
-              <span style={{ font: "400 11px/1.4 'IBM Plex Sans', sans-serif", color: '#5B6B81' }}>{t('rating.rawToSynergy91')}</span>
-            </div>
-            <div style={{ padding: '11px 12px', borderRadius: 8, background: '#101927', border: '1px solid #22304A', display: 'grid', gap: 4 }}>
-              <span style={{ font: "400 11.5px/1.3 'IBM Plex Sans', sans-serif", color: '#8494AA' }}>{t('rating.impactDisplay')}</span>
-              <span style={{ font: "400 16px/1.2 'IBM Plex Mono', monospace", color: '#5FDBD3' }}>+17pp</span>
-              <span style={{ font: "400 11px/1.4 'IBM Plex Sans', sans-serif", color: '#5B6B81' }}>55% → 72%</span>
-            </div>
+          <div style={{ display: 'grid', gridTemplateColumns: isMobile ? 'repeat(2, minmax(0, 1fr))' : 'repeat(4, minmax(0, 1fr))', gap: 10 }}>
+            {INPUTS.map(([labelKey, value, valueColor, sub, subIsKey]) => (
+              <div key={labelKey} style={{ padding: '11px 12px', borderRadius: 8, background: '#101927', border: '1px solid #22304A', display: 'grid', gap: 4 }}>
+                <span style={{ font: isMobile ? "400 12.5px/1.3 'IBM Plex Sans', sans-serif" : "400 11.5px/1.3 'IBM Plex Sans', sans-serif", color: '#8494AA' }}>{t(labelKey)}</span>
+                <span style={{ font: "400 16px/1.2 'IBM Plex Mono', monospace", color: valueColor, overflowWrap: mob('anywhere') }}>{value}</span>
+                <span style={{ font: "400 11px/1.4 'IBM Plex Sans', sans-serif", color: '#5B6B81' }}>{subIsKey ? t(sub) : sub}</span>
+              </div>
+            ))}
           </div>
         </div>
 
@@ -399,7 +270,7 @@ export default function RatingFormulaModal({ onClose, totalMatches = 214 }) {
             background: '#101927',
             border: '1px solid #22304A',
             borderRadius: 10,
-            padding: 14,
+            padding: isMobile ? 12 : 14,
             display: 'grid',
             gap: 9,
           }}
@@ -408,17 +279,13 @@ export default function RatingFormulaModal({ onClose, totalMatches = 214 }) {
             {t('rating.notEnabledTitle')}
           </div>
           <div style={{ display: 'flex', gap: 9, flexWrap: 'wrap' }}>
-            <span style={{ font: "400 12px/1.3 'IBM Plex Mono', monospace", color: '#8494AA', padding: '6px 10px', borderRadius: 6, background: '#0B1220', border: '1px solid #22304A' }}>
-              {t('rating.disabledGlicko')}
-            </span>
-            <span style={{ font: "400 12px/1.3 'IBM Plex Mono', monospace", color: '#8494AA', padding: '6px 10px', borderRadius: 6, background: '#0B1220', border: '1px solid #22304A' }}>
-              {t('rating.disabledTrueSkill')}
-            </span>
-            <span style={{ font: "400 12px/1.3 'IBM Plex Mono', monospace", color: '#8494AA', padding: '6px 10px', borderRadius: 6, background: '#0B1220', border: '1px solid #22304A' }}>
-              {t('rating.disabledGenderElo')}
-            </span>
+            {['rating.disabledGlicko', 'rating.disabledTrueSkill', 'rating.disabledGenderElo'].map((k) => (
+              <span key={k} style={{ font: "400 12px/1.3 'IBM Plex Mono', monospace", color: '#8494AA', padding: '6px 10px', borderRadius: 6, background: '#0B1220', border: '1px solid #22304A' }}>
+                {t(k)}
+              </span>
+            ))}
           </div>
-          <div style={{ font: "400 12px/1.5 'IBM Plex Sans', sans-serif", color: '#8494AA' }}>
+          <div style={{ font: isMobile ? "400 13px/1.5 'IBM Plex Sans', sans-serif" : "400 12px/1.5 'IBM Plex Sans', sans-serif", color: '#8494AA' }}>
             {t('rating.notEnabledNote', { count: totalMatches })}
           </div>
         </div>

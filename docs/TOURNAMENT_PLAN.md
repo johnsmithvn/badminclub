@@ -509,3 +509,31 @@ Code chạm Supabase (RPC, RLS) kiểm tay bằng `supabase/manual/0057_tourname
 - `schedule.js` là xếp thứ tự đơn giản, không tối ưu đường găng; BTC chỉnh tay.
 - Poll 15 s: người xem trễ tối đa 15 s — đủ cho giải CLB.
 - `rating_snapshot` chụp lúc đăng ký: Elo đổi sau đó không làm đổi cân bằng đã ghép (cố ý).
+
+## 11. Bug & việc tồn đọng — xử lý khi lên kế hoạch refactor giải (ghi 2026-10-04)
+
+> Phát hiện trong đợt dọn code chết / gom code lặp. Chủ dự án quyết **chưa sửa**, để gom xử lý một lượt khi
+> refactor module giải. Đọc mục này trước khi đụng tới ghi điểm / trạng thái trận.
+
+### 11.1 Trận giải không bao giờ chuyển sang "đang đánh" (`live`)
+
+- **Gốc:** commit `45d0dd8` bỏ tab LiveBoard (bảng ghi điểm từng quả) khỏi `ScoreDialog`. Trước đó quả đầu tiên
+  trên bảng điểm gọi `onStart` → `a.tourStartMatch` → RPC `tournament_start_match` để trận chuyển `live`. Từ đó
+  **không còn chỗ nào gọi** `tourStartMatch`: trận đi thẳng `ready` → `done`.
+- **Hệ quả** (UI có sẵn nhưng không bao giờ hiện): `liveCount` ở `OverviewTab.jsx` và `TourModuleNav.jsx`, viền /
+  nhãn "đang đánh" của thẻ trận trong `BracketBoard.jsx`. `BLOCKS_UNDO` trong `lib/tournament/advance.js` và
+  điều kiện hiện ô chọn sân trong `ScoreDialog` (`ready || live`) vẫn tính `live`.
+- **Dây nối còn giữ để khôi phục:** prop `onStart` của `ScoreDialog` (`components/tournament/MatchDialogs.jsx` —
+  nhận nhưng không dùng), được truyền từ `pages/TournamentBracket.jsx` và `pages/TournamentHub.jsx`; action
+  `tourStartMatch` trong `contexts/tournamentActions.js`.
+- **Cần quyết:** (a) thêm nút "Bắt đầu trận" (VD cạnh ô chọn sân trong `ScoreDialog`) để trận vào `live` như cũ,
+  hoặc (b) bỏ hẳn trạng thái `live` + phần UI / RPC liên quan.
+
+### 11.2 Tàn dư của bảng ghi điểm từng quả
+
+- §4.5 ở trên mô tả tính năng **đã gỡ** — viết lại theo luồng hiện tại (tab Nhập điểm / Xử thua) khi refactor.
+- Phần code đã dọn ngày 2026-10-04: `lib/tournament/scoreboard.js`, `scoreFlags` (`scoring.js`), đọc / dọn bản
+  nháp `localStorage['tourScore:*']` (`draftKey`, `dropDraft`).
+- Còn sót 13 key i18n không nơi nào dùng (cố ý chưa xoá): `tournament.sb.tab.live` · `endSet` · `previousSets` ·
+  `plusHint` · `minus` · `undo` · `keys` · `playing` · `switched` · `won` · `setPoint` · `matchPoint` · `deuce`
+  (đều dưới `tournament.sb.`). **Không** xoá `tournament.sb.wo.*` — đang được ghép động ở tab Xử thua.

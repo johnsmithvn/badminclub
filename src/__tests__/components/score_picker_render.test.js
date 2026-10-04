@@ -24,6 +24,12 @@ test('mặc định: tên hai đội, A thắng 21-19, đủ 4 nút preset, chư
   assert.doesNotMatch(s, /Tùy chỉnh tỷ số/)
 })
 
+test('thẻ đội hiện Elo trung bình của đội (cùng kiểu modal Sửa tỷ số)', () => {
+  const s = show(scoreStateFrom())
+  assert.match(s, /Rating TB: 820/)
+  assert.match(s, /Rating TB: 790/)
+})
+
 test('B thắng: nhãn Thắng chuyển sang đội B', () => {
   const s = show(scoreStateFrom([[15, 21]]))
   assert.match(s, /15 .* Thắng 21/)

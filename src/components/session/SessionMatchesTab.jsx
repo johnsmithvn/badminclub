@@ -2,8 +2,8 @@ import { useState, useMemo, useEffect } from 'react'
 import { useSearchParams } from 'react-router-dom'
 import { useApp } from '#contexts/AppContext.jsx'
 import { courtOf, myMember, playerName, playerOf, shortName } from '#lib/money.js'
-import { expectedScore, getPlayerRating, matchCodeOf } from '#lib/rating.js'
-import { isCloseMatch, isUpsetMatch, matchSides, searchMatches } from '#lib/matchSearch.js'
+import { getPlayerRating, matchCodeOf } from '#lib/rating.js'
+import { isCloseMatch, isUpsetMatch, matchPrediction, matchSides, minSetDiff, searchMatches } from '#lib/matchSearch.js'
 import { can } from '#lib/roles.js'
 
 import { useMobile } from '#hooks/useMobile.js'
@@ -323,8 +323,6 @@ export default function SessionMatchesTab({ s, onSwitchTab }) {
           {isMobile ? (
             <div style={{ display: 'flex', flexDirection: 'column', gap: 10, padding: 12 }}>
               {matchesWithGap.map((m) => {
-                const teamA = m.teamA || []
-                const teamB = m.teamB || []
                 const sides = matchSides(m, shortNameOf, memberNameOf)
                 const { aWon } = sides
 
@@ -340,19 +338,10 @@ export default function SessionMatchesTab({ s, onSwitchTab }) {
                 const hasVideo = Boolean(m.videoUrl)
                 const videoTagLabel = videoTagLabelOf(m)
 
-                const ra = m.initialRatingA != null ? m.initialRatingA : (teamA.reduce((sum, id) => sum + getRating(id), 0) / (teamA.length || 1))
-                const rb = m.initialRatingB != null ? m.initialRatingB : (teamB.reduce((sum, id) => sum + getRating(id), 0) / (teamB.length || 1))
-                const expA = expectedScore(ra, rb)
-                const winnerExp = aWon ? expA : (1 - expA)
-                const predPct = Math.round(winnerExp * 100)
-                const isCorrect = winnerExp >= 0.5
+                const { ra, rb, predPct, isCorrect } = matchPrediction(m, getRating)
                 const isUpset = Math.abs(ra - rb) > 100 && ((ra < rb && aWon) || (rb < ra && !aWon))
                 const isClose = isCloseMatch(m)
-                const minDiff = (m.sets || []).reduce((min, st) => {
-                  if (!st || st[0] == null || st[1] == null) return min
-                  const diff = Math.abs(st[0] - st[1])
-                  return min == null ? diff : Math.min(min, diff)
-                }, null)
+                const minDiff = minSetDiff(m)
 
                 let leftAccentColor = '#00B2A9'
                 let cardBorder = '1px solid var(--border-subtle, #2A3A56)'
@@ -664,10 +653,10 @@ export default function SessionMatchesTab({ s, onSwitchTab }) {
                 <div style={{ display: 'grid' }}>
                   {matchesWithGap.map((m) => {
                     const { winnerTeam, loserTeam, winnerNames, loserNames, winnerFull, loserFull, scoreSets, isMultiSet, winSetsCount, loseSetsCount } = matchSides(m, shortNameOf, memberNameOf)
-                    const absDelta = Math.abs(m.eloDelta != null ? m.eloDelta : 8)
+                    const absDelta = m.eloDelta != null ? Math.abs(m.eloDelta) : null // trận cũ chưa lưu số → "—", không bịa
                     const isRated = m.ratingEnabled !== false
-                    const winnerDeltaStr = isRated ? (winnerTeam.length > 1 ? `+${absDelta} · +${absDelta}` : `+${absDelta}`) : t('challenge.casual')
-                    const loserDeltaStr = isRated ? (loserTeam.length > 1 ? `−${absDelta} · −${absDelta}` : `−${absDelta}`) : t('challenge.casual')
+                    const winnerDeltaStr = isRated ? (absDelta == null ? '—' : winnerTeam.length > 1 ? `+${absDelta} · +${absDelta}` : `+${absDelta}`) : t('challenge.casual')
+                    const loserDeltaStr = isRated ? (absDelta == null ? '—' : loserTeam.length > 1 ? `−${absDelta} · −${absDelta}` : `−${absDelta}`) : t('challenge.casual')
 
                     const isUpset = isUpsetMatch(m)
                     const isClose = isCloseMatch(m)
@@ -851,7 +840,7 @@ export default function SessionMatchesTab({ s, onSwitchTab }) {
                           {/* Cột 8: Delta Elo */}
                           <div style={{ padding: '0 6px', textAlign: 'center' }}>
                             <span style={{ font: "600 12.5px/1 'IBM Plex Mono', monospace", color: isRated ? 'var(--status-delivered-fg)' : 'var(--text-muted)' }}>
-                              {isRated ? `+${absDelta}` : '—'}
+                              {isRated && absDelta != null ? `+${absDelta}` : '—'}
                             </span>
                           </div>
 

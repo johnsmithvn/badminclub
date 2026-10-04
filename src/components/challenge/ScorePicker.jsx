@@ -41,7 +41,7 @@ export default function ScorePicker({
           {namesOf(team)}
         </div>
         <div style={{ font: '400 12px/1.3 "IBM Plex Mono", monospace', color: winnerTeam === team ? 'var(--status-transit-fg)' : 'var(--text-muted)' }}>
-          {t('scoreModal.teamAvg', { t: team, r: rating })}
+          {rating > 0 ? `${t('scoreModal.teamAvg')}: ${rating}` : t('scoreModal.teamAvg')}
         </div>
       </div>
       <div

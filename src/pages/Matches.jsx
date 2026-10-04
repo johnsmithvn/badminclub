@@ -14,7 +14,7 @@ import { dd, ddmy, isoOf, todayISO, weekdayOf, wd } from '#utils/dates.js'
 import { getPlayerRating, matchCodeOf } from '#lib/rating.js'
 import {
   searchMatches, headToHeadMatrix, neverMetPairs, topDisparatePairs, neverMetWithSessionCount,
-  isCloseMatch, isThreeSetMatch, isUpsetMatch, matchSides,
+  isCloseMatch, isThreeSetMatch, isUpsetMatch, matchPrediction, matchSides, minSetDiff,
 } from '#lib/matchSearch.js'
 import { formatGapMinutes, videoTagLabelOf, matchVideosOf } from '#utils/videoUtils.js'
 import { isChallengeAccepted } from '#lib/challenge.js'
@@ -1941,7 +1941,7 @@ export default function Matches() {
                       {group.matches.map((m) => {
                         const sides = matchSides(m, shortNameOf, memberNameOf)
 
-                        const absDelta = Math.abs(m.eloDelta != null ? m.eloDelta : 8)
+                        const absDelta = m.eloDelta != null ? Math.abs(m.eloDelta) : null // trận cũ chưa lưu số → "—", không bịa
                         const isRated = m.ratingEnabled !== false
 
                         const ra = m.initialRatingA || 0
@@ -1959,8 +1959,7 @@ export default function Matches() {
                         const matchCode = matchCodeOf(db, m)
 
                         const isChallenge = Boolean(m.challengeId || m.sourceType === 'challenge')
-                        const predPct = isUpset ? '34%' : isClose ? '52%' : '50%'
-                        const isCorrect = !isUpset
+                        const { predPct, isCorrect } = matchPrediction(m, getRating)
                         const hasVideo = Boolean(m.videoUrl)
                         const videoTagLabel = videoTagLabelOf(m)
 
@@ -2210,7 +2209,7 @@ export default function Matches() {
                                   {t('matchVideo.tagCloseSession')}
                                 </span>
                                 <span style={{ font: "400 10.5px/1 'IBM Plex Mono', monospace", color: 'var(--text-muted, #8494AA)' }}>
-                                  {t('matchVideo.diffPoints', { n: 2 })}
+                                  {t('matchVideo.diffPoints', { n: minSetDiff(m) })}
                                 </span>
                               </div>
                             )}
@@ -2242,13 +2241,13 @@ export default function Matches() {
                               <div style={{ display: 'flex', alignItems: 'center', gap: 8, flexWrap: 'wrap' }}>
                                 <span style={{ font: "400 11.5px/1 'IBM Plex Mono', monospace", color: '#8494AA' }}>
                                   Elo{' '}
-                                  {isRated ? (
+                                  {isRated && absDelta != null ? (
                                     <>
                                       <span style={{ color: '#5FDBD3', fontWeight: 600 }}>+{absDelta}</span> /{' '}
                                       <span style={{ color: '#D99289', fontWeight: 600 }}>−{absDelta}</span>
                                     </>
                                   ) : (
-                                    <span style={{ color: 'var(--text-disabled)' }}>{t('challenge.casual')}</span>
+                                    <span style={{ color: 'var(--text-disabled)' }}>{isRated ? '—' : t('challenge.casual')}</span>
                                   )}
                                 </span>
                                 {m.seasonPointsDelta != null && (
@@ -2360,10 +2359,10 @@ export default function Matches() {
                         ? `${winSetsCount}–${loseSetsCount} (${scoreSets.map((s) => `${s.winPts}-${s.losePts}`).join(', ')})`
                         : (scoreSets.length > 0 ? `${scoreSets[0].winPts} – ${scoreSets[0].losePts}` : '')
 
-                      const absDelta = Math.abs(m.eloDelta != null ? m.eloDelta : 8)
+                      const absDelta = m.eloDelta != null ? Math.abs(m.eloDelta) : null // trận cũ chưa lưu số → "—", không bịa
                       const isRated = m.ratingEnabled !== false
-                      const winnerDeltaStr = isRated ? (winnerTeam.length > 1 ? `+${absDelta} · +${absDelta}` : `+${absDelta}`) : t('challenge.casual')
-                      const loserDeltaStr = isRated ? (loserTeam.length > 1 ? `−${absDelta} · −${absDelta}` : `−${absDelta}`) : t('challenge.casual')
+                      const winnerDeltaStr = isRated ? (absDelta == null ? '—' : winnerTeam.length > 1 ? `+${absDelta} · +${absDelta}` : `+${absDelta}`) : t('challenge.casual')
+                      const loserDeltaStr = isRated ? (absDelta == null ? '—' : loserTeam.length > 1 ? `−${absDelta} · −${absDelta}` : `−${absDelta}`) : t('challenge.casual')
 
                       const isUpset = isUpsetMatch(m)
                       const isClose = isCloseMatch(m)
@@ -2380,7 +2379,8 @@ export default function Matches() {
                       // Vạch màu trái và background
                       let leftBorderColor = 'transparent'
                       let rowBg = 'transparent'
-                      let tagLabel = t('matchVideo.tagCorrect')
+                      const { predPct, isCorrect } = matchPrediction(m, getRating)
+                      let tagLabel = isCorrect ? t('matchVideo.tagCorrect') : t('matchVideo.predWrong')
                       let tagBg = 'var(--surface-inset)'
                       let tagColor = 'var(--text-secondary)'
 
@@ -2411,7 +2411,6 @@ export default function Matches() {
                       }
 
                       const isChallenge = Boolean(m.challengeId || m.sourceType === 'challenge')
-                      const predPct = isUpset ? '34%' : isClose ? '52%' : '50%'
                       const hasVideo = Boolean(m.videoUrl)
                       const videoTagLabel = videoTagLabelOf(m)
 
@@ -2571,7 +2570,7 @@ export default function Matches() {
                             {/* Cột 8: Dự đoán */}
                             <div style={{ padding: '0 6px', display: 'flex', flexDirection: 'column', gap: 4, alignItems: 'center' }}>
                               <span style={{ font: "600 13px/1 'IBM Plex Mono', monospace", color: 'var(--text-primary)' }}>
-                                {predPct}
+                                {predPct}%
                               </span>
                               <span
                                 style={{

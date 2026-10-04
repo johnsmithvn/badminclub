@@ -1,6 +1,7 @@
 // Logic tìm kiếm trận đấu, lọc đối đầu & ma trận thi đấu (H2H Matrix) — Pure functions.
 import cfg from '#config/app.json' with { type: 'json' }
 import { pathOf } from '#routes'
+import { expectedScore } from '#lib/rating.js'
 
 /**
  * Ba tiêu chí chất lượng trận — nguồn sự thật DUY NHẤT cho cả bộ lọc lẫn nhãn hiển thị.
@@ -29,6 +30,28 @@ export function isUpsetMatch(m) {
   const minGap = cfg.match?.upsetMinGap ?? 100
   if (Math.abs(ra - rb) <= minGap) return false
   return (ra < rb && m.winnerTeam === 'A') || (rb < ra && m.winnerTeam === 'B')
+}
+
+/**
+ * Dự đoán của Elo trước trận: % thắng Elo dành cho đội ĐÃ thắng và Elo đoán trúng hay trật (≥ 50%).
+ * Dùng Elo lúc vào trận đã lưu trên trận; trận cũ chưa lưu thì lấy TB rating hiện tại từng đội (`getRating`).
+ */
+export function matchPrediction(m, getRating) {
+  const avg = (team) => team.reduce((sum, id) => sum + getRating(id), 0) / (team.length || 1)
+  const ra = m.initialRatingA != null ? m.initialRatingA : avg(m.teamA || [])
+  const rb = m.initialRatingB != null ? m.initialRatingB : avg(m.teamB || [])
+  const expA = expectedScore(ra, rb)
+  const winnerExp = m.winnerTeam === 'A' ? expA : 1 - expA
+  return { ra, rb, predPct: Math.round(winnerExp * 100), isCorrect: winnerExp >= 0.5 }
+}
+
+/** Chênh điểm nhỏ nhất giữa hai bên trong các set đủ điểm — null khi chưa có set nào. */
+export function minSetDiff(m) {
+  return (m.sets || []).reduce((min, st) => {
+    if (!st || st[0] == null || st[1] == null) return min
+    const diff = Math.abs(st[0] - st[1])
+    return min == null ? diff : Math.min(min, diff)
+  }, null)
 }
 
 /**
