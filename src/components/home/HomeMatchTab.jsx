@@ -7,11 +7,11 @@ import { useMobile } from '#hooks/useMobile.js'
 import { addMonth, dd, isoOf, todayISO } from '#utils/dates.js'
 import { pathOf } from '#routes'
 
-import { playerName, isPresent, shortName } from '#lib/money.js'
+import { myMember, playerName, isPresent, shortName } from '#lib/money.js'
 import { getPlayerRating, matchCodeOf } from '#lib/rating.js'
 import { matchPrediction, neverMetPairs, neverMetWithSessionCount } from '#lib/matchSearch.js'
 import { pickNextSession } from '#lib/homePersonal.js'
-import { avgCourtBalance, closeRate, matchMonthOf, pickWatchable, ratingSpread } from '#lib/homeMatch.js'
+import { avgCourtBalance, closeRate, matchMonthOf, monthRivals, neverMetForViewer, pickWatchable, ratingSpread } from '#lib/homeMatch.js'
 import UpcomingSessionCard from '#components/home/personal/UpcomingSessionCard.jsx'
 import cfg from '#config/app.js'
 import { t } from '#i18n'
@@ -21,10 +21,11 @@ import { t } from '#i18n'
  * buổi của CLB (số người, sân, trải rating, cảnh báo lệch trình) — một thẻ thay cho hai.
  */
 export default function HomeMatchTab({ upcoming = null }) {
-  const { db, a } = useApp()
+  const { db } = useApp()
   const { isDark } = useTheme()
   const navigate = useNavigate()
   const isMobile = useMobile(768)
+  const myId = myMember(db)?.id || null
   const month = db.month || todayISO().slice(0, 7)
   const activeMembers = useMemo(() => (db.members || []).filter((m) => m.active !== false), [db.members])
   const matches = useMemo(() => db.matches || [], [db.matches])
@@ -133,11 +134,11 @@ export default function HomeMatchTab({ upcoming = null }) {
     return sorted.slice(0, 4)
   }, [monthMatches, db])
 
-  // 4. Chưa gặp nhau lần nào (kèm số buổi cùng tham gia theo hàm neverMetWithSessionCount)
+  // 4. Chưa gặp nhau lần nào (kèm số buổi cùng đi): người xem chưa gặp ai lên trước, thiếu mới bù cặp khác
   const neverMet = useMemo(() => {
-    const rawPairs = neverMetPairs(activeMembers, matches)
-    return neverMetWithSessionCount(rawPairs, { sessions, attendance: db.attendance || {}, matches }, 3)
-  }, [activeMembers, matches, sessions, db.attendance])
+    const scored = neverMetWithSessionCount(neverMetPairs(activeMembers, matches), { sessions, attendance: db.attendance || {}, matches }, Infinity)
+    return neverMetForViewer(scored, myId, cfg.ui.homeCardRows)
+  }, [activeMembers, matches, sessions, db.attendance, myId])
 
   // 5. Lượt đánh chưa đều buổi gần nhất
   const latestSession = useMemo(() => {
@@ -207,16 +208,22 @@ export default function HomeMatchTab({ upcoming = null }) {
     })
 
     return Object.values(pairs)
-      .filter((p) => p.matches >= 2)
+      .filter((p) => p.matches >= cfg.ui.homeMinPairMatches)
       .map((p) => ({
         ...p,
         winRate: Math.round((p.wins / p.matches) * 100),
       }))
       .sort((a1, b1) => b1.winRate - a1.winRate || b1.matches - a1.matches)
-      .slice(0, 6)
+      .slice(0, cfg.ui.homeCardRows)
   }, [monthMatches])
 
-  // 7. Trận đáng xem trong tháng: kèo dưới thắng + trận sát / 3 set (luật ở #lib/homeMatch.js)
+  // 6b. Kình địch nhất tháng: hai người đứng hai bên lưới với nhau nhiều nhất (luật ở #lib/homeMatch.js)
+  const rivals = useMemo(
+    () => monthRivals(monthMatches, { minMeetings: cfg.ui.homeMinPairMatches, limit: cfg.ui.homeCardRows }),
+    [monthMatches],
+  )
+
+  // 7. Trận đáng xem trong tháng: trận có video — kèo dưới thắng + trận sát / 3 set (luật ở #lib/homeMatch.js)
   const watchableMatches = useMemo(() => pickWatchable(monthMatches), [monthMatches])
   const ratingOf = (id) => ratingsMap[id] ?? getPlayerRating(db.playerRatings, id, null, db.levels).rating
 
@@ -428,7 +435,7 @@ export default function HomeMatchTab({ upcoming = null }) {
                 {t('home.neverMetTitle')}
               </span>
               <span style={{ font: "400 13px/1.4 'IBM Plex Sans', sans-serif", color: 'var(--text-muted)' }}>
-                {t('home.neverMetSubNew')}
+                {neverMet.some((p) => p.isMine) ? t('home.neverMetSubMine') : t('home.neverMetSubNew')}
               </span>
             </div>
           </div>
@@ -453,7 +460,9 @@ export default function HomeMatchTab({ upcoming = null }) {
                   }}
                 >
                   <span style={{ flex: 1, minWidth: 0, font: "600 14px/1.3 'IBM Plex Sans', sans-serif", color: 'var(--text-primary)' }}>
-                    {`${playerName(db, pair.p1)} · ${playerName(db, pair.p2)}`}
+                    {pair.isMine
+                      ? `${t('home.personal.you')} · ${playerName(db, pair.p1 === myId ? pair.p2 : pair.p1)}`
+                      : `${playerName(db, pair.p1)} · ${playerName(db, pair.p2)}`}
                   </span>
                   <span style={{ font: "400 12.5px/1 'IBM Plex Mono', monospace", color: 'var(--text-muted)', whiteSpace: 'nowrap' }}>
                     {t('home.togetherCount', { n: pair.commonSessionsCount || 0 })}
@@ -469,10 +478,7 @@ export default function HomeMatchTab({ upcoming = null }) {
             </div>
             <button
               type="button"
-              onClick={() => {
-                a.setTab('leaderboard', 'matrix')
-                a.go('leaderboard')
-              }}
+              onClick={() => navigate(`${pathOf('matches')}?tab=matrix`)}
               style={S.ghostBtnWide}
             >
               {t('home.viewH2HMatrix')}
@@ -556,7 +562,7 @@ export default function HomeMatchTab({ upcoming = null }) {
                 {t('home.bestPairsTitle')}
               </span>
               <span style={{ font: "400 13px/1.4 'IBM Plex Sans', sans-serif", color: 'var(--text-muted)' }}>
-                {t('home.bestPairsSub')}
+                {t('home.bestPairsSub', { n: cfg.ui.homeMinPairMatches })}
               </span>
             </div>
           </div>
@@ -568,17 +574,11 @@ export default function HomeMatchTab({ upcoming = null }) {
               </div>
             ) : (
               bestPairs.map((pair, idx) => (
-                <div
+                <button
+                  type="button"
                   key={idx}
-                  style={{
-                    display: 'flex',
-                    alignItems: 'center',
-                    gap: 12,
-                    padding: '9px 12px',
-                    borderRadius: 8,
-                    background: 'var(--surface-sunken)',
-                    border: idx === 0 ? '1px solid #00786F' : '1px solid var(--border-subtle)',
-                  }}
+                  onClick={() => navigate(`${pathOf('leaderboard')}?tab=pairs`)}
+                  style={{ ...S.rowBtn, border: idx === 0 ? '1px solid #00786F' : S.rowBtn.border }}
                 >
                   <span style={{ flex: 1, minWidth: 0, font: "600 14px/1.3 'IBM Plex Sans', sans-serif", color: 'var(--text-primary)' }}>
                     {`${playerName(db, pair.p1)} + ${playerName(db, pair.p2)}`}
@@ -596,11 +596,55 @@ export default function HomeMatchTab({ upcoming = null }) {
                   >
                     {`${pair.winRate}%`}
                   </span>
-                </div>
+                </button>
               ))
             )}
             <div style={S.noteFoot}>
               {t('home.bestPairsNote')}
+            </div>
+          </div>
+        </div>
+
+        {/* CARD 5b: Kình địch nhất tháng — bấm một cặp để xem lịch sử đối đầu của hai người */}
+        <div style={S.card}>
+          <div style={S.cardHeader}>
+            <div style={{ display: 'flex', flexDirection: 'column', gap: 2 }}>
+              <span style={{ font: "600 16px/1.25 'IBM Plex Sans', sans-serif", color: 'var(--text-primary)' }}>
+                {t('home.rivalsTitle')}
+              </span>
+              <span style={{ font: "400 13px/1.4 'IBM Plex Sans', sans-serif", color: 'var(--text-muted)' }}>
+                {t('home.rivalsSub', { n: cfg.ui.homeMinPairMatches })}
+              </span>
+            </div>
+          </div>
+
+          <div style={{ padding: '12px 14px', display: 'grid', gap: 8 }}>
+            {rivals.length === 0 ? (
+              <div style={{ fontSize: 13, color: 'var(--text-muted)', textAlign: 'center', padding: '12px 0' }}>
+                {t('home.noRivals')}
+              </div>
+            ) : (
+              rivals.map((r, idx) => (
+                <button
+                  type="button"
+                  key={`${r.p1}|${r.p2}`}
+                  onClick={() => navigate(`${pathOf('matches')}?tab=history&playerA=${r.p1}&playerB=${r.p2}`)}
+                  style={{ ...S.rowBtn, border: idx === 0 ? '1px solid #00786F' : S.rowBtn.border }}
+                >
+                  <span style={{ flex: 1, minWidth: 0, font: "600 14px/1.3 'IBM Plex Sans', sans-serif", color: 'var(--text-primary)' }}>
+                    {`${playerName(db, r.p1)} vs ${playerName(db, r.p2)}`}
+                  </span>
+                  <span style={{ font: "400 12.5px/1 'IBM Plex Mono', monospace", color: 'var(--text-muted)', whiteSpace: 'nowrap' }}>
+                    {`${r.total} ${t('units.match')}`}
+                  </span>
+                  <span style={{ font: "700 14px/1 'IBM Plex Mono', monospace", color: 'var(--text-primary)', width: 48, textAlign: 'right', whiteSpace: 'nowrap' }}>
+                    {`${r.w1}–${r.w2}`}
+                  </span>
+                </button>
+              ))
+            )}
+            <div style={S.noteFoot}>
+              {t('home.rivalsNote')}
             </div>
           </div>
         </div>
@@ -783,6 +827,21 @@ const S = {
     borderTop: '1px solid var(--border-subtle)',
     paddingTop: 8,
     marginTop: 2,
+  },
+  // Dòng danh sách bấm được (cặp bài trùng, kình địch) — cùng dáng dòng thường, thêm reset của <button>
+  rowBtn: {
+    display: 'flex',
+    alignItems: 'center',
+    gap: 12,
+    width: '100%',
+    padding: '9px 12px',
+    borderRadius: 8,
+    background: 'var(--surface-sunken)',
+    border: '1px solid var(--border-subtle)',
+    font: 'inherit',
+    color: 'inherit',
+    textAlign: 'left',
+    cursor: 'pointer',
   },
   ghostBtnWide: {
     height: 32,

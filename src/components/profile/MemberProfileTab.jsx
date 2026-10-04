@@ -668,7 +668,7 @@ export default function MemberProfileTab({
                             : (isDark ? '1px solid rgba(225,68,52,.35)' : '1px solid rgba(239,68,68,.30)'),
                         }}
                       >
-                        {m.won ? 'T' : 'B'}
+                        {m.won ? 'W' : 'L'}
                       </div>
                     ))
                   )}

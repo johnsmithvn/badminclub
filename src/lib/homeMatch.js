@@ -50,10 +50,12 @@ export function avgCourtBalance(matches, ratingsMap) {
 }
 
 /**
- * Trận đáng xem: xen kẽ kèo dưới thắng (chênh lớn trước) và trận sát / đủ 3 set (sát trước), tối đa `limit`.
- * Không có trận nào như vậy thì lấy 3 trận đầu danh sách, gắn 'recent' — không giả làm trận sát điểm.
+ * Trận đáng xem: chỉ trận CÓ VIDEO. Xen kẽ kèo dưới thắng (chênh lớn trước) và trận sát / đủ 3 set (sát trước),
+ * tối đa `limit`. Không có trận nào như vậy thì lấy 3 trận có video đầu danh sách, gắn 'recent' — không giả làm
+ * trận sát điểm.
  */
-export function pickWatchable(matches, limit = 5) {
+export function pickWatchable(allMatches, limit = 5) {
+  const matches = allMatches.filter((m) => m.videoUrl)
   const upsets = matches.filter(isUpsetMatch)
     .map((m) => ({ match: m, gap: Math.abs((m.initialRatingA || 0) - (m.initialRatingB || 0)), type: 'upset' }))
     .sort((x, y) => y.gap - x.gap)
@@ -69,4 +71,39 @@ export function pickWatchable(matches, limit = 5) {
   }
   if (!list.length) return matches.slice(0, 3).map((m) => ({ match: m, minDiff: minSetDiff(m), type: 'recent' }))
   return list
+}
+
+/**
+ * Cặp chưa từng gặp cho người xem: cặp có `myId` lên trước (gắn `isMine`), thiếu mới bù cặp khác của CLB.
+ * `scored` đã xếp theo số buổi cùng đi (neverMetWithSessionCount) — thứ tự trong mỗi nhóm giữ nguyên.
+ */
+export function neverMetForViewer(scored, myId, limit) {
+  const isMine = (p) => !!myId && (p.p1 === myId || p.p2 === myId)
+  return [...scored.filter(isMine), ...scored.filter((p) => !isMine(p))]
+    .slice(0, limit)
+    .map((p) => ({ ...p, isMine: isMine(p) }))
+}
+
+/**
+ * Kình địch: hai người đứng HAI BÊN lưới với nhau nhiều nhất (trận đôi tính cả 4 cặp chéo), tối thiểu
+ * `minMeetings` lần. Gặp nhiều trước; cùng số lần thì tỷ số sát hơn trước. `p1` là người thắng nhiều hơn.
+ */
+export function monthRivals(matches, { minMeetings, limit }) {
+  const byKey = {}
+  matches.forEach((m) => {
+    if (m.winnerTeam !== 'A' && m.winnerTeam !== 'B') return
+    ;(m.teamA || []).forEach((a) => (m.teamB || []).forEach((b) => {
+      const [x, y] = a < b ? [a, b] : [b, a]
+      const r = (byKey[`${x}|${y}`] ||= { x, y, total: 0, xWins: 0 })
+      r.total++
+      if ((m.winnerTeam === 'A') === (x === a)) r.xWins++
+    }))
+  })
+  return Object.values(byKey)
+    .filter((r) => r.total >= minMeetings)
+    .map(({ x, y, total, xWins }) => (xWins >= total - xWins
+      ? { p1: x, p2: y, total, w1: xWins, w2: total - xWins }
+      : { p1: y, p2: x, total, w1: total - xWins, w2: xWins }))
+    .sort((r1, r2) => r2.total - r1.total || (r1.w1 - r1.w2) - (r2.w1 - r2.w2))
+    .slice(0, limit)
 }

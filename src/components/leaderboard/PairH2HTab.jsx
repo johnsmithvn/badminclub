@@ -1079,7 +1079,7 @@ export default function PairH2HTab({
                           : (isDark ? '#FF9A8F' : '#DC2626'),
                       }}
                     >
-                      {mItem.won ? 'T' : 'B'}
+                      {mItem.won ? 'W' : 'L'}
                     </span>
                     <span style={{ font: "400 12.5px/1 'IBM Plex Mono', monospace", color: textSecondary }}>
                       {dateStr}

@@ -184,7 +184,10 @@
     "topDebtCount": 5,
     "warnSessionCount": 5,
     "barChartHeight": 170,
-    "barMonthCount": 4
+    "barMonthCount": 4,
+    "homeCardRows": 6,
+    "homeMinPairMatches": 2,
+    "pairPageSize": 20
   },
   "tournament": {
     "_notePoll": "Trang nhánh / Hub khi giải đang chạy nạp lại bảng trận mỗi pollMs (Supabase free: poll thay realtime). Tab ẩn thì dừng.",

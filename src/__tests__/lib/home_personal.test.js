@@ -104,10 +104,10 @@ test('Home Personal Dashboard Logic Suite', async (t) => {
   await t.test('4. getPlayerForm5 extracts outcome array and streak', () => {
     const form = getPlayerForm5(mockDb, 'm1')
     assert.equal(form.matches.length, 3)
-    // Oldest is loss (B), then 2 wins (T, T)
-    assert.equal(form.matches[0].label, 'B')
-    assert.equal(form.matches[1].label, 'T')
-    assert.equal(form.matches[2].label, 'T')
+    // Oldest is loss (L), then 2 wins (W, W)
+    assert.equal(form.matches[0].label, 'L')
+    assert.equal(form.matches[1].label, 'W')
+    assert.equal(form.matches[2].label, 'W')
     assert.equal(form.winsCount, 2)
   })
 

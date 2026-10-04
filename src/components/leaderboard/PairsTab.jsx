@@ -9,6 +9,7 @@ import { useTheme } from '#contexts/ThemeContext.jsx'
 import PairDetailModal from './PairDetailModal.jsx'
 import RatingFormulaModal from './RatingFormulaModal.jsx'
 import PairH2HModal from './PairH2HModal.jsx'
+import cfg from '#config/app.js'
 
 // Số trận tối thiểu để một cặp rời nhóm tạm tính — khớp isProvisional() bên rating.js.
 const PAIR_OFFICIAL_MIN_GAMES = 5
@@ -157,6 +158,7 @@ export default function PairsTab({
   const [formulaModalOpen, setFormulaModalOpen] = useState(false)
   const [confidenceSheetOpen, setConfidenceSheetOpen] = useState(false)
   const [selectedH2HPair, setSelectedH2HPair] = useState(null)
+  const [pairLimit, setPairLimit] = useState(cfg.ui.pairPageSize)
 
   const bgOuter = isDark ? '#0B1220' : 'transparent'
   const bgCard = isDark ? '#141D2E' : 'var(--surface-card)'
@@ -209,6 +211,30 @@ export default function PairsTab({
   const hasQualified = useMemo(() => {
     return rankedPairs.some((p) => (p.gamesCount || 0) >= PAIR_OFFICIAL_MIN_GAMES)
   }, [rankedPairs])
+
+  // Bảng có thể cả trăm cặp — vẽ từng trang như danh sách trận ở Lịch sử. Đổi bộ lọc là về trang đầu.
+  const visiblePairs = rankedPairs.slice(0, pairLimit)
+  const morePairsBtn = rankedPairs.length > pairLimit && (
+    <button
+      type="button"
+      onClick={() => setPairLimit((n) => n + cfg.ui.pairPageSize)}
+      style={{
+        width: '100%',
+        minHeight: isMobile ? 44 : 32,
+        display: 'flex',
+        alignItems: 'center',
+        justifyContent: 'center',
+        borderRadius: 7,
+        background: isDark ? bgSunken : 'var(--surface-raised)',
+        border: `1px solid ${borderSunken}`,
+        font: "600 12.5px/1 'IBM Plex Sans', sans-serif",
+        color: textWhite,
+        cursor: 'pointer',
+      }}
+    >
+      {t('leaderboard.viewMorePairs', { n: Math.min(cfg.ui.pairPageSize, rankedPairs.length - pairLimit) })}
+    </button>
+  )
 
   // 3 Cặp dưới kỳ vọng nhiều nhất (để hiển thị ở card vệ tinh phải)
   const topUnderperformingList = useMemo(() => {
@@ -452,7 +478,7 @@ function getScoreVisuals(score, isTop, isDark = true) {
                 <button
                   key={item.key}
                   type="button"
-                  onClick={() => setFormatFilter(item.key)}
+                  onClick={() => { setFormatFilter(item.key); setPairLimit(cfg.ui.pairPageSize) }}
                   style={{
                     flex: 1,
                     font: "600 11.5px/1 'IBM Plex Sans', sans-serif",
@@ -612,7 +638,7 @@ function getScoreVisuals(score, isTop, isDark = true) {
                         textAlign: 'center',
                       }}
                     >
-                      {res === 'W' ? 'T' : 'B'}
+                      {res === 'W' ? 'W' : 'L'}
                     </span>
                   ))}
                 </span>
@@ -633,7 +659,7 @@ function getScoreVisuals(score, isTop, isDark = true) {
         <div data-screen-label="P1 Tab an y v1.1" style={{ display: 'flex', flexDirection: 'column', gap: 11, padding: '0 14px' }}>
           <div style={{ display: 'flex', flexDirection: 'column', gap: 11 }}>
             {rankedPairs.length > 0 ? (
-              rankedPairs.map((pair, idx) => {
+              visiblePairs.map((pair, idx) => {
                 const isTop = idx === 0
                 const isProvisional = (pair.gamesCount || 0) < 5
                 const displayScore = typeof pair.synergyScore === 'number' && !isNaN(pair.synergyScore)
@@ -885,7 +911,7 @@ function getScoreVisuals(score, isTop, isDark = true) {
                                 textAlign: 'center',
                               }}
                             >
-                              {res === 'W' ? 'T' : res === 'L' ? 'B' : '—'}
+                              {res === 'W' ? 'W' : res === 'L' ? 'L' : '—'}
                             </span>
                           ))}
                         </span>
@@ -903,6 +929,8 @@ function getScoreVisuals(score, isTop, isDark = true) {
                 {t('leaderboard.noPairsFound')}
               </div>
             )}
+
+            {morePairsBtn}
 
             <div style={{ font: "400 12px/1.55 'IBM Plex Sans', sans-serif", color: '#8494AA', padding: '4px 0 12px' }}>
               {t('leaderboard.dp1FooterNote')}
@@ -934,7 +962,7 @@ function getScoreVisuals(score, isTop, isDark = true) {
                   <button
                     key={item.key}
                     type="button"
-                    onClick={() => setFormatFilter(item.key)}
+                    onClick={() => { setFormatFilter(item.key); setPairLimit(cfg.ui.pairPageSize) }}
                     style={{
                       font: "600 12px/1 'IBM Plex Sans', sans-serif",
                       padding: '7px 12px',
@@ -1046,7 +1074,7 @@ function getScoreVisuals(score, isTop, isDark = true) {
             {/* Scrollable Rows Container */}
             <div style={{ maxHeight: 560, overflowY: 'auto' }}>
               {rankedPairs.length > 0 ? (
-                rankedPairs.map((pair, idx) => {
+                visiblePairs.map((pair, idx) => {
                   const isTop = idx === 0
                   const isLow = pair.pairImpact <= -10 && pair.gamesCount >= 5
                   const isProvisional = (pair.gamesCount || 0) < 5
@@ -1384,6 +1412,12 @@ function getScoreVisuals(score, isTop, isDark = true) {
                 </div>
               )}
             </div>
+
+            {morePairsBtn && (
+              <div style={{ padding: '10px 15px', borderTop: `1px solid ${borderCard}` }}>
+                {morePairsBtn}
+              </div>
+            )}
 
             {/* Chú thích đáy bảng DP1 */}
             <div style={{ padding: '10px 15px', background: bgSunken, borderTop: `1px solid ${borderCard}`, font: '400 11.5px/1.4 "IBM Plex Sans", sans-serif', color: isDark ? textMuted : 'var(--text-secondary)' }}>

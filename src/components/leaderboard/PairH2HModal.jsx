@@ -241,7 +241,7 @@ export default function PairH2HModal({
                       textAlign: 'center',
                     }}
                   >
-                    {mItem.won ? 'T' : 'B'}
+                    {mItem.won ? 'W' : 'L'}
                   </span>
                   <span style={{ flex: 1, font: "400 12.5px/1.3 'IBM Plex Mono', monospace", color: '#8494AA' }}>
                     {dateStr} · {venue}

@@ -268,7 +268,7 @@ export default function PairDetailModal({ pair, onClose, onViewMatches, ratingsM
                     color: res === 'W' ? '#5FD9A2' : res === 'L' ? '#FF9A8F' : '#55657E',
                   }}
                 >
-                  {res === 'W' ? 'T' : res === 'L' ? 'B' : '—'}
+                  {res === 'W' ? 'W' : res === 'L' ? 'L' : '—'}
                 </span>
               ))}
             </div>

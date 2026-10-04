@@ -418,7 +418,7 @@ export function getPlayerForm5(db, memberId) {
     return {
       id: m.id,
       won,
-      label: won ? 'T' : 'B',
+      label: won ? 'W' : 'L',
       isLatest: index === last5Asc.length - 1,
     }
   })
