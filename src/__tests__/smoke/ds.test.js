@@ -106,22 +106,23 @@ assert.equal(badDialogs.length, 0,
   badDialogs.join('\n  '))
 
 /* ================== 4. Hằng ở client phải khớp CHECK ở DB ================== */
-// `Settings.jsx` liệt kê tay các kiểu banner; migration 0019 có CHECK cùng danh sách đó. Lệch
-// nhau thì user chọn được một giá trị mà DB từ chối bằng 23514 — lỗi chỉ nổ lúc bấm Lưu.
+// `GeneralTab.jsx` liệt kê tay các kiểu banner (ô chọn trong Cài đặt); migration 0019 có CHECK cùng
+// danh sách đó. Lệch nhau thì user chọn được một giá trị mà DB từ chối bằng 23514 — lỗi chỉ nổ lúc
+// bấm Lưu. Gác đúng danh sách ô chọn đang hiện, không gác một bản sao nằm chết ở file khác.
 
-const settingsSrc = readFileSync('src/pages/Settings.jsx', 'utf8')
+const generalSrc = readFileSync('src/components/settings/tabs/GeneralTab.jsx', 'utf8')
 const sqlSrc = readFileSync('supabase/migrations/0019_debt_banner_style.sql', 'utf8')
 
-const clientList = (settingsSrc.match(/const DEBT_BANNERS = \[([^\]]*)\]/) || [])[1]
-assert.ok(clientList, 'không tìm thấy DEBT_BANNERS trong Settings.jsx')
-const fromClient = [...clientList.matchAll(/'([a-z]+)'/g)].map((m) => m[1]).sort()
+const clientList = (generalSrc.match(/const debtBannerOptions = \[([^\]]*)\]/) || [])[1]
+assert.ok(clientList, 'không tìm thấy debtBannerOptions trong GeneralTab.jsx')
+const fromClient = [...clientList.matchAll(/value: '([a-z]+)'/g)].map((m) => m[1]).sort()
 
 const sqlList = (sqlSrc.match(/debt_banner IN \(([^)]*)\)/) || [])[1]
 assert.ok(sqlList, 'không tìm thấy CHECK debt_banner trong migration 0019')
 const fromSql = [...sqlList.matchAll(/'([a-z]+)'/g)].map((m) => m[1]).sort()
 
 assert.deepEqual(fromClient, fromSql,
-  'DEBT_BANNERS ở Settings.jsx lệch với CHECK clubs_debt_banner_chk ở migration 0019.\n' +
+  'debtBannerOptions ở GeneralTab.jsx lệch với CHECK clubs_debt_banner_chk ở migration 0019.\n' +
   'Người dùng chọn được giá trị DB từ chối, lỗi 23514 chỉ nổ lúc bấm Lưu.\n' +
   '  client: ' + fromClient.join(', ') + '\n  DB    : ' + fromSql.join(', '))
 

@@ -4,7 +4,7 @@ import { Icon } from '#ds'
 import { t } from '#i18n'
 import { dd } from '#utils/dates.js'
 import {
-  BALANCE_THRESHOLD, IMBALANCE_THRESHOLD, expectedScore,
+  IMBALANCE_THRESHOLD, expectedScore,
 } from '#lib/rating.js'
 import {
   getChallengeAcceptanceProgress, canMemberAcceptChallenge, getChallengeSeriesProgress,

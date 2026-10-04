@@ -102,7 +102,6 @@ export default function ChallengeDetailModal({ challenge, session, onClose, onSc
     return { multiplier, aWin: win.delta, aLose: lose.delta, bWin: bWin.delta, bLose: bLose.delta, baseWin: win.baseDelta }
   }, [isPlayed, c.ratingEnabled, teamA.length, resolvedTeamB.length, ratA, ratB, db])
 
-  const gap = Math.abs(ratA - ratB)
   const expA = expectedScore(ratA, ratB || ratA)
   const pctA = Math.round(expA * 100)
   const pctB = 100 - pctA

@@ -16,6 +16,9 @@ export const weekdayOf = (iso) => new Date(iso + 'T00:00:00').getDay()
 export const isoOf = (d) => d.getFullYear() + '-' + String(d.getMonth() + 1).padStart(2, '0') + '-' + String(d.getDate()).padStart(2, '0')
 /** Hôm nay theo giờ địa phương: '2026-09-14' */
 export const todayISO = () => isoOf(new Date())
+/** Số phút đã chạy từ mốc bấm Bắt đầu (epoch ms). Tối thiểu 1 phút để không ghi trận 0 phút. */
+export const elapsedMin = (startedAt) =>
+  startedAt ? Math.max(1, Math.round((Date.now() - startedAt) / 60000)) : 0
 /** '2026-08-16' → '16/08' */
 export const dd = (iso) => iso.slice(8, 10) + '/' + iso.slice(5, 7)
 /** '2026-08-16' → '16/08/2026' */

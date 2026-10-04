@@ -2,7 +2,7 @@
 // Dữ liệu THẬT 100% từ ledger(db), không mock data, bảo toàn logic nghiệp vụ.
 
 import { useMemo, useState, useEffect, useRef } from 'react'
-import { Button, Icon, IconButton } from '#ds'
+import { Icon, IconButton } from '#ds'
 import { Empty, Mono } from '#ui'
 import { useApp } from '#contexts/AppContext.jsx'
 import { useTheme } from '#contexts/ThemeContext.jsx'
@@ -11,7 +11,7 @@ import { dd, ddmy, monthOf, monthTxt, WD_FULL, weekdayOf, addMonth } from '#util
 import { fmt } from '#lib/money.js'
 import {
   CATS, availableBalance, canEditTxDate, catLabel, editTarget, ledger,
-  ledgerGrouped, monthFlow, undoTarget,
+  monthFlow, undoTarget,
 } from '#lib/ledger.js'
 import { courtBillForm, editBillForm, editLedgerForm, ledgerForm } from '#lib/forms.js'
 import { can } from '#lib/roles.js'
@@ -319,14 +319,6 @@ export default function Fund() {
     catFilter.length > 0 ||
     search.trim()
   )
-
-  const resetAllFilters = () => {
-    setQuickDate('all')
-    setSelectedDay(null)
-    setDirFilter('all')
-    setCatFilter([])
-    setSearch('')
-  }
 
   // Thống kê các giao dịch đã lọc
   const filteredStats = useMemo(() => {
@@ -1553,63 +1545,6 @@ export function FundOverviewCards() {
       </div>
     </div>
   )
-}
-
-export function FundBalanceColumns() {
-  const { db } = useApp()
-  const groups = ledgerGrouped(db, db.month)
-  const inGroups = groups.filter((g) => g.dir === 'in' && g.cat !== 'opening')
-  const outGroups = groups.filter((g) => g.dir === 'out')
-
-  return (
-    <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(min(100%, 280px), 1fr))', gap: 14 }}>
-      <div style={{ background: 'var(--surface-card)', borderRadius: 12, border: '1px solid var(--border-subtle)', overflow: 'hidden' }}>
-        <div style={{ padding: '12px 16px', fontWeight: 600, borderBottom: '1px solid var(--border-subtle)' }}>
-          {t('fund.inTitle')}
-        </div>
-        <div style={{ display: 'grid' }}>
-          {inGroups.length === 0 ? (
-            <div style={{ padding: 16, textAlign: 'center', color: 'var(--text-muted)' }}>{t('fund.inEmpty')}</div>
-          ) : (
-            inGroups.map((g) => (
-              <div key={g.key} style={{ display: 'flex', justifyContent: 'space-between', padding: '10px 14px', borderBottom: '1px solid var(--border-subtle)' }}>
-                <div>
-                  <div style={{ fontWeight: 600 }}>{catLabel(g.cat)}</div>
-                  <div style={{ fontSize: 12, color: 'var(--text-muted)' }}>{t('fund.txCount', { n: g.items.length })}</div>
-                </div>
-                <Mono size={14} weight={600} color="var(--status-delivered)">+{fmt(g.amount)}</Mono>
-              </div>
-            ))
-          )}
-        </div>
-      </div>
-
-      <div style={{ background: 'var(--surface-card)', borderRadius: 12, border: '1px solid var(--border-subtle)', overflow: 'hidden' }}>
-        <div style={{ padding: '12px 16px', fontWeight: 600, borderBottom: '1px solid var(--border-subtle)' }}>
-          {t('fund.outTitle')}
-        </div>
-        <div style={{ display: 'grid' }}>
-          {outGroups.length === 0 ? (
-            <div style={{ padding: 16, textAlign: 'center', color: 'var(--text-muted)' }}>{t('fund.outEmpty')}</div>
-          ) : (
-            outGroups.map((g) => (
-              <div key={g.key} style={{ display: 'flex', justifyContent: 'space-between', padding: '10px 14px', borderBottom: '1px solid var(--border-subtle)' }}>
-                <div>
-                  <div style={{ fontWeight: 600 }}>{catLabel(g.cat)}</div>
-                  <div style={{ fontSize: 12, color: 'var(--text-muted)' }}>{t('fund.txCount', { n: g.items.length })}</div>
-                </div>
-                <Mono size={14} weight={600} color="var(--status-incident)">−{fmt(g.amount)}</Mono>
-              </div>
-            ))
-          )}
-        </div>
-      </div>
-    </div>
-  )
-}
-
-export function Detail() {
-  return <Fund />
 }
 
 /* ==========================================================================

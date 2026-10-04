@@ -1,5 +1,4 @@
 // src/components/notification/NotificationItem.jsx
-import React from 'react'
 import { Icon } from '#ds'
 import { useApp } from '#contexts/AppContext.jsx'
 import { myMember } from '#lib/money.js'

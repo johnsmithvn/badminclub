@@ -1,5 +1,5 @@
 // src/components/notification/NotificationPanel.jsx
-import React, { useState, useMemo, useEffect } from 'react'
+import { useState, useMemo, useEffect } from 'react'
 import { Icon, IconButton } from '#ds'
 import { useApp } from '#contexts/AppContext.jsx'
 import { myMember } from '#lib/money.js'

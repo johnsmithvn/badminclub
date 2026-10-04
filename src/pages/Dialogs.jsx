@@ -1,5 +1,5 @@
 import { useMemo, useRef, useState } from 'react'
-import { Alert, Button, Checkbox, Dialog, Icon, IconButton, Input, Select, StatusPill, Switch } from '#ds'
+import { Alert, Button, Checkbox, Dialog, Icon, IconButton, Input, Select } from '#ds'
 import { AvatarUpload, BankAccountSection, Mono, Overline } from '#ui'
 import { useApp } from '#contexts/AppContext.jsx'
 import { useMobile } from '#hooks/useMobile.js'

@@ -131,35 +131,6 @@ export const Bar = ({ pct, color = 'var(--navy-500)', height = 8 }) => (
   </div>
 )
 
-/** Khối ngày 56px (buổi tới, dòng lịch) hiển thị ngày/tháng rõ ràng. */
-export const DayBox = ({ iso }) => {
-  const isSunday = wd(iso) === 'CN'
-  return (
-    <div style={{
-      width: 56, flex: '0 0 auto', textAlign: 'center', padding: '5px 2px',
-      borderRadius: 8,
-      background: isSunday ? 'var(--status-incident-bg, rgba(225, 68, 52, 0.14))' : 'var(--status-scheduled-bg, rgba(60, 116, 196, 0.14))',
-      border: `1px solid ${isSunday ? 'rgba(239, 68, 68, 0.25)' : 'rgba(99, 102, 241, 0.25)'}`,
-    }}>
-      <div style={{
-        font: '700 16px/1 var(--font-display)',
-        color: isSunday ? 'var(--status-incident-fg, #FF9A8F)' : 'var(--status-scheduled-fg, #9FC0EA)',
-      }}>
-        {iso.slice(8, 10)}
-        <span style={{ fontSize: 11, fontWeight: 500, color: 'var(--text-muted)', marginLeft: 1 }}>
-          /{iso.slice(5, 7)}
-        </span>
-      </div>
-      <Overline style={{
-        color: isSunday ? 'var(--status-incident-fg, #FF9A8F)' : 'var(--status-scheduled-fg, #9FC0EA)',
-        marginTop: 2, fontWeight: 700,
-      }}>
-        {wd(iso)}
-      </Overline>
-    </div>
-  )
-}
-
 /** Trạng thái rỗng: một câu sự thật + một câu việc cần làm (DESIGN.md §7). */
 export const Empty = ({ icon = 'inbox', title, hint }) => (
   <div style={{ display: 'grid', gap: 8, justifyItems: 'center', padding: '28px 18px', textAlign: 'center' }}>
@@ -175,14 +146,6 @@ const G = (min, gap = 16) => ({
 })
 export const GRID_STAT = G(cfg.ui.topStatMin, 12)
 export const GRID_PAIR = G(cfg.ui.cardPairMin, 16)
-
-/** Meta người: 'Nam · Khách · 3 trận' */
-export const playerMeta = (p, matches) =>
-  t('assign.matchMeta', {
-    gender: genderTxt(p.gender),
-    guest: p.guest ? ' · ' + t('guestTag') : '',
-    n: matches || 0,
-  })
 
 /**
  * Bộ cột bảng buổi — dùng ở Trang chủ ("Buổi gần nhất") và Buổi tập ("Danh sách buổi").

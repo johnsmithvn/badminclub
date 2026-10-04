@@ -1,8 +1,8 @@
 import { useState, useMemo, useCallback, useEffect, useRef } from 'react'
 import { createPortal } from 'react-dom'
 import { useNavigate, useSearchParams } from 'react-router-dom'
-import { Alert, Avatar, Button, Card, Dialog, Icon, IconButton, Select, StatCard } from '#ds'
-import { LevelChip, Mono, Overline, PageHeader, SearchSelect, TabBar, TabTrack } from '#ui'
+import { Button, Card, Dialog, Icon, IconButton, Select } from '#ds'
+import { Mono, Overline, PageHeader, SearchSelect, TabBar } from '#ui'
 import { useApp } from '#contexts/AppContext.jsx'
 import { useTheme } from '#contexts/ThemeContext.jsx'
 import { useMobile } from '#hooks/useMobile.js'
@@ -10,10 +10,7 @@ import { t } from '#i18n'
 import NotificationBell from '#components/notification/NotificationBell.jsx'
 import { playerName, courtOf, myMember, playerOf, timeTxt, courtTxt, presentCount, shortName } from '#lib/money.js'
 import { dd, ddmy, isoOf, todayISO, weekdayOf, wd } from '#utils/dates.js'
-import {
-  getPlayerRating,
-  BALANCE_THRESHOLD, IMBALANCE_THRESHOLD, matchCodeOf, DEFAULT_RATING,
-} from '#lib/rating.js'
+import { getPlayerRating, matchCodeOf } from '#lib/rating.js'
 import {
   searchMatches, headToHeadMatrix, neverMetPairs, topDisparatePairs, neverMetWithSessionCount,
   isCloseMatch, isThreeSetMatch, isUpsetMatch,
@@ -3560,82 +3557,6 @@ export default function Matches() {
           onClose={() => setScoringChallenge(null)}
           onSaved={() => setScoringChallenge(null)}
         />
-      )}
-    </div>
-  )
-}
-
-/**
- * Menu ⋯ cho các thao tác phụ trên card kèo.
- *
- * Tự viết vì bộ DS (`components/ds/`, VENDORED — không sửa tay) không có dropdown. Bắt click ra
- * ngoài bằng một lớp phủ trong suốt thay vì nghe `document`: không phải dọn listener, và không
- * đụng tới các lớp z-index khác của trang.
- */
-function CardMenu({ items }) {
-  const [open, setOpen] = useState(false)
-  if (!items || items.length === 0) return null
-  return (
-    <div style={{ position: 'relative', marginLeft: 'auto' }}>
-      <button
-        type="button"
-        aria-label={t('common.more')}
-        title={t('common.more')}
-        onClick={(e) => { e.stopPropagation(); setOpen((o) => !o) }}
-        style={{ ...S.smallGhostBtn, padding: '0 8px' }}
-      >
-        <Icon name="ellipsis" size={14} />
-      </button>
-      {open && (
-        <>
-          <div
-            onClick={(e) => { e.stopPropagation(); setOpen(false) }}
-            style={{ position: 'fixed', inset: 0, zIndex: 40 }}
-          />
-          <div
-            style={{
-              position: 'absolute',
-              top: 'calc(100% + 4px)',
-              right: 0,
-              zIndex: 41,
-              minWidth: 178,
-              display: 'grid',
-              gap: 2,
-              padding: 4,
-              borderRadius: 8,
-              background: 'var(--surface-card)',
-              border: '1px solid var(--border-default)',
-              boxShadow: 'var(--shadow-lg, 0 8px 24px rgba(0,0,0,.18))',
-            }}
-          >
-            {items.map((it) => (
-              <button
-                key={it.key}
-                type="button"
-                onClick={(e) => { e.stopPropagation(); setOpen(false); it.onClick() }}
-                style={{
-                  display: 'flex',
-                  alignItems: 'center',
-                  gap: 8,
-                  width: '100%',
-                  height: 32,
-                  padding: '0 8px',
-                  borderRadius: 6,
-                  border: 'none',
-                  background: 'transparent',
-                  color: it.danger ? 'var(--red-500, #ef4444)' : 'var(--text-primary)',
-                  font: '500 12.5px/1 var(--font-sans)',
-                  whiteSpace: 'nowrap',
-                  cursor: 'pointer',
-                  textAlign: 'left',
-                }}
-              >
-                <Icon name={it.icon} size={14} />
-                <span>{it.label}</span>
-              </button>
-            ))}
-          </div>
-        </>
       )}
     </div>
   )

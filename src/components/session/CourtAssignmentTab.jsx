@@ -84,7 +84,7 @@ export default function CourtAssignmentTab({ s, preset }) {
   const [scoreA, setScoreA] = useState(21)
   const [scoreB, setScoreB] = useState(19)
   const [isBo3, setIsBo3] = useState(false)
-  const [bo3Sets, _setBo3Sets] = useState([
+  const [bo3Sets] = useState([
     [21, 19],
     [19, 21],
     [21, 18],

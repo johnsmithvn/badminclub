@@ -1,4 +1,3 @@
-import React from 'react'
 
 /**
  * Component Mề đay xếp hạng chuẩn thiết kế 14a · CHỐT.

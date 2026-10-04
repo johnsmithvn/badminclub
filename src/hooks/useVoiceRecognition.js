@@ -130,5 +130,3 @@ export function useVoiceRecognition({ lang = 'vi-VN', onResult } = {}) {
     resetTranscript,
   }
 }
-
-export default useVoiceRecognition

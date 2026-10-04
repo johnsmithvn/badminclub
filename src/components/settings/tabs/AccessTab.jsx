@@ -1,5 +1,5 @@
-import React, { useState } from 'react'
-import { Alert, Avatar, Button, Checkbox, Icon, Input, Select } from '#ds'
+import { useState } from 'react'
+import { Alert, Avatar, Button, Checkbox, Input, Select } from '#ds'
 import { SearchSelect } from '#ui'
 import {
   FormRow,

@@ -4,17 +4,17 @@
 import { addMonth, dd, ddmy, monthOf, monthTxt, wd } from '#utils/dates.js'
 import cfg from '#config/app.json' with { type: 'json' }
 import {
-  courtCost, courtOf, courtTxt, fmt, fmtK, freezeCost, groupMembers, groupOf, guestOf, guestPrice, memberOf,
-  presentCount, rowCost, sGuests, guestRev, sessionMembers, isPresent,
+  courtCost, courtTxt, fmt, fmtK, freezeCost, groupMembers, groupOf, guestOf, guestPrice, memberOf,
+  presentCount, rowCost, sGuests, guestRev,
   sessionOf, timeTxt, unfrozenCost,
   adjustRows, adjustSessions, lockDues, regroupDues, dueState, intOf, memberRefs, groupRefs, sessionRefs, joinDues,
-  adhocCharges, chargeName, isVault, sGuestsOnly, normalizeText, myMember, playerName,
+  adhocCharges, chargeName, sGuestsOnly, normalizeText, myMember, playerName,
 } from '#lib/money.js'
 import { CATS, fundBalance, groupKey, ledger, undoTarget } from '#lib/ledger.js'
 import { modeToast, activeCourtIdxs, arrange, autoSplit, courtSlotIds, matchStats, place, removePlayer, sessionPlayers, slotCourtIdx } from '#lib/assign.js'
 import { can, membersWithPerm, roleDesc, roleName, viewAsOptions } from '#lib/roles.js'
 import { applyScheduleEdit, planScheduleDelete, planScheduleEdit } from '#lib/schedules.js'
-import { teamRating, replayRatingCascade, DEFAULT_RATING, MIN_RATING, applyRatingDelta, calcPlayerDeltas, rankTierOf, initialRatingOf, computeClubCalibration, confidenceOf } from '#lib/rating.js'
+import { teamRating, replayRatingCascade, MIN_RATING, applyRatingDelta, calcPlayerDeltas, rankTierOf, initialRatingOf, computeClubCalibration, confidenceOf } from '#lib/rating.js'
 import { nextChallengeCode, isChallengeFullyAccepted, getChallengeSeriesProgress, canMemberPredict, availableSeasonPoints, stakeBaseOf, settlePredictionsLocal, expiredChallenges, orphanedChallenges, abandonedChallenges, isChallengeAccepted, validateStakePoints } from '#lib/challenge.js'
 import { resolveVenue } from '#lib/forms.js'
 import { supabase, unwrap } from '#supabase'

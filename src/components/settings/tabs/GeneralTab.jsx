@@ -1,4 +1,4 @@
-import React, { useState, useRef, useMemo, useEffect } from 'react'
+import { useState, useRef, useMemo, useEffect } from 'react'
 import { Button, Icon, Input, Select } from '#ds'
 import { AvatarUpload, DeleteClubDialog, SearchSelect, QrModal } from '#ui'
 import {
@@ -180,6 +180,7 @@ export default function GeneralTab({
     setScanning(false)
   }
 
+  // Khớp CHECK `clubs_debt_banner_chk` ở migration 0019 (smoke/ds.test.js gác). Thêm kiểu mới phải sửa cả hai.
   const debtBannerOptions = [
     { value: 'slim', label: t('settings.debtBannerOpt.slim') },
     { value: 'alert', label: t('settings.debtBannerOpt.alert') },

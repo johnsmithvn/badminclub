@@ -93,7 +93,7 @@ một blocker mà user phải quyết định.
   ngưỡng cân trình độ…) nằm ở `src/config/app.json`. **Cấm** số ma thuật trong logic.
 - Ma trận quyền 3 vai (`owner`, `treasurer`, `member`) nằm ở `src/config/permissions.json`
   — tương ứng bảng `role_permissions` trong DB, app không cho sửa.
-- Danh sách enum (`genders`, `sessionStates`, `courtPayModes`…) lấy từ config, không viết lại
+- Danh sách enum (`genders`, `sessionStates`, `rosterStates`…) lấy từ config, không viết lại
   mảng ở nhiều file. **Ngoại lệ:** `levels` là dữ liệu của từng CLB (`db.levels`), `app.json`
   chỉ giữ `levelsDefault` cho CLB mới — xem §3.4.
 
@@ -140,7 +140,7 @@ src/
   contexts/            AuthContext.jsx (phiên + CLB của tôi) · AppContext.jsx (state 1 CLB)
                        appActions.js (mọi hành động ghi) · storage.js (I/O) · dbmap.js (map)
   data/                schema.js (mô tả schema cho trang Sơ đồ dữ liệu)
-  hooks/               hook dùng chung (useClock…)
+  hooks/               hook dùng chung (useMobile…)
   i18n/                index.js + <locale>.json
   lib/                 logic nghiệp vụ THUẦN: money · ledger · assign · roles · members · schedules · csv · forms · supabase · rating · challenge · matchSearch · xp · season · badge · planner · activity
   pages/               1 file 1 màn hình (kèm Leaderboard, Matches)

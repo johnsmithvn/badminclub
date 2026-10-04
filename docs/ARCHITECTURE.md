@@ -64,7 +64,6 @@ src/
     rankThemes.js     loader & helper cho 4 theme xếp hạng & kho biệt danh
     rankThemes.json   dữ liệu phân bậc 8 rank tiers và playstyle badges
   hooks/
-    useClock.js       đồng hồ bấm giờ sân
     useMobile.js      kiểm tra breakpoint màn hình di động (<= 768px)
   i18n/               index.js (hàm t) + vi.json (toàn bộ chữ)
   lib/                LOGIC THUẦN — không React, không I/O, test bằng node

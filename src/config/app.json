@@ -28,17 +28,12 @@
     "off",
     "pending"
   ],
-  "courtPayModes": [
-    "month",
-    "session"
-  ],
   "toastMs": 2600,
   "sync": {
     "debounceMs": 500,
     "_noteRefresh": "Quay lại app (tab/PWA hiện lên) thì nạp lại cả CLB, nhưng không quá 1 lần mỗi refreshMinMs. Có push mới thì nạp luôn, không chờ.",
     "refreshMinMs": 20000
   },
-  "clockTickMs": 10000,
   "money": {
     "roundTo": 1000,
     "memberExtraDiscount": 5000
@@ -163,7 +158,6 @@
       "scoreMin": 10,
       "scoreMax": 99
     },
-    "h2hMatrixLimit": 8,
     "crossGenderConfidence": {
       "low": 5,
       "medium": 15,
@@ -188,7 +182,6 @@
     "cardPairMin": 420,
     "topAttendCount": 7,
     "topDebtCount": 5,
-    "recentSessionCount": 5,
     "warnSessionCount": 5,
     "barChartHeight": 170,
     "barMonthCount": 4

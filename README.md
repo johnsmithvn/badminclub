@@ -205,7 +205,7 @@ src/
                        ThemeContext.jsx (Dark / Light / System mode)
                        appActions.js (mọi hành động ghi) · storage.js (I/O duy nhất) · dbmap.js (map ↔ Postgres)
   data/                schema.js · rankThemes.js · rankThemes.json
-  hooks/               useClock.js · useMobile.js
+  hooks/               useMobile.js · useTourPoll.js · useVoiceRecognition.js
   i18n/                index.js · vi.json            ← MỌI chữ
   lib/                 activity · assign · badge · challenge · csv · forms · ledger · matchSearch · members · money · planner · rating · roles · schedules · season · supabase · xp (THUẦN, test được)
   pages/               14 màn trong CLB (kèm Leaderboard, Matches) + Account · Clubs · Login · Register + Dialogs

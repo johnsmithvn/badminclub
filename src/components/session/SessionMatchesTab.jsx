@@ -14,7 +14,7 @@ import CreateChallengeModal from '#components/challenge/CreateChallengeModal.jsx
 import EditScoreModal from '#components/challenge/EditScoreModal.jsx'
 import ChallengeDetailModal from '#components/challenge/ChallengeDetailModal.jsx'
 import ScoreModal from '#components/challenge/ScoreModal.jsx'
-import AttachVideoModal, { MatchVideoInlineExpander } from '#components/challenge/AttachVideoModal.jsx'
+import AttachVideoModal from '#components/challenge/AttachVideoModal.jsx'
 import { VideoPlayerModal } from '#components/challenge/VideoPlayerModal.jsx'
 import { formatGapMinutes, calcSessionTimeStats, formatVideoDisplayLabel, videoTagLabelOf } from '#utils/videoUtils.js'
 

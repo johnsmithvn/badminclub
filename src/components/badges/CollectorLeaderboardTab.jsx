@@ -1,4 +1,3 @@
-import React from 'react'
 import { t } from '#i18n'
 import BadgeHex from './BadgeHex.jsx'
 import { BADGE_TIERS, HEX_CLIP, NOTCH_CLIP, NOTCH_S_CLIP } from '#lib/badges.js'

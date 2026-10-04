@@ -1,7 +1,7 @@
 // Cài đặt: Chung · Biểu phí · Sân · Nhóm & mức thu · Lịch tập cố định · Tài khoản & quyền
 // Handoff 2c: "Giữ tab, siết ngữ pháp" — 6 tab, ngữ pháp hàng dữ liệu 170px, thanh lưu nổi batch ở đáy.
 
-import React, { useState, useEffect, useMemo, useCallback, useRef } from 'react'
+import { useState, useEffect, useMemo, useCallback, useRef } from 'react'
 import { useApp } from '#contexts/AppContext.jsx'
 import { useAuth } from '#contexts/AuthContext.jsx'
 import { can } from '#lib/roles.js'
@@ -18,9 +18,6 @@ import SchedulesTab from '#components/settings/tabs/SchedulesTab.jsx'
 import AccessTab from '#components/settings/tabs/AccessTab.jsx'
 
 const TABS = ['general', 'money', 'courts', 'groups', 'schedules', 'access']
-
-/** Khớp CHECK `clubs_debt_banner_chk` ở migration 0019. Thêm kiểu mới phải sửa cả hai. */
-const DEBT_BANNERS = ['slim', 'alert', 'bar', 'off']
 
 export default function Settings() {
   const { db, ui, a } = useApp()

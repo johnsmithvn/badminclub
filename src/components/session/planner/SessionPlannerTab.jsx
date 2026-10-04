@@ -323,7 +323,7 @@ export default function SessionPlannerTab({ s: sProp, session: sessionProp, chal
       const nextRounds = prev.rounds.map((r, rIdx) => {
         if (rIdx !== sR && rIdx !== tR) return r
 
-        const nextCourts = r.courts.map((court, cIdx) => {
+        const nextCourts = r.courts.map((court) => {
           let teamA = [...(court.teamA || [])]
           let teamB = [...(court.teamB || [])]
 

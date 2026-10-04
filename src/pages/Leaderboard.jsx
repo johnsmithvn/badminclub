@@ -1,12 +1,11 @@
 import { useState, useMemo, useEffect } from 'react'
 import { useNavigate, useSearchParams } from 'react-router-dom'
-import { Alert, Avatar, Button, Dialog, Icon } from '#ds'
+import { Alert, Button, Dialog, Icon } from '#ds'
 import { TabBar } from '#ui'
 import { useApp } from '#contexts/AppContext.jsx'
 import { useTheme } from '#contexts/ThemeContext.jsx'
 import { getPlayerRating, DEFAULT_RATING, rankPairs } from '#lib/rating.js'
 import { myMember } from '#lib/money.js'
-import { DEFAULT_RANK_THEME } from '#data/rankThemes.js'
 import { useMobile } from '#hooks/useMobile.js'
 import { t } from '#i18n'
 import NotificationBell from '#components/notification/NotificationBell.jsx'
@@ -34,7 +33,6 @@ export default function Leaderboard() {
   const initialTab = (tabParam === 'elo' || tabParam === 'pairs' || tabParam === 'h2h' || tabParam === 'gamblers') ? tabParam : 'season'
   const [activeTab, setActiveTab] = useState(initialTab) // 'season' | 'elo' | 'pairs' | 'h2h' | 'gamblers'
   const [genderFilter, setGenderFilter] = useState('all') // 'all' | 'nam' | 'nu'
-  const [rankTheme, setRankTheme] = useState(DEFAULT_RANK_THEME)
 
   // Redirect các tab cũ (lịch sử, ma trận, kèo) sang màn hình Trận đấu & Kèo (/tran-dau)
   useEffect(() => {
@@ -640,8 +638,6 @@ export default function Leaderboard() {
                 allMembers={activeMembers}
                 onSelectMember={(id) => setSelectedMemberId(id)}
                 db={db}
-                rankTheme={rankTheme}
-                onSelectTheme={(themeKey) => setRankTheme(themeKey)}
                 isMobile={isMobile}
                 initialSubTab={profileInitialTab}
                 seasonConfig={resolvedSeason}

@@ -4,7 +4,7 @@
 import { useEffect, useMemo, useState } from 'react'
 import { useParams, useSearchParams } from 'react-router-dom'
 import { Alert, Button, Card, Icon, IconButton, Input, Select } from '#ds'
-import { EditGuestDialog, Empty, GenderSegment, LevelChip, Mono, SearchSelect, SessionPill, TabTrack } from '#ui'
+import { EditGuestDialog, Empty, GenderSegment, LevelChip, Mono, SearchSelect, TabTrack } from '#ui'
 import CourtAssignmentTab from '#components/session/CourtAssignmentTab.jsx'
 import SessionPlannerTab from '#components/session/planner/SessionPlannerTab.jsx'
 import PlannerAddWishDialog from '#components/session/planner/PlannerAddWishDialog.jsx'
@@ -15,7 +15,7 @@ import { useMobile } from '#hooks/useMobile.js'
 import { dd, ddmy, monthOf, wd } from '#utils/dates.js'
 import {
   courtOf, dueState, duesOf,
-  fmt, fmtK, genderTxt, groupMembers, groupOf, guestOf, guestPrice, headCount, levelOf,
+  fmt, genderTxt, groupMembers, groupOf, guestOf, guestPrice, headCount, levelOf,
   isAdhoc, isMemberCharge, memberOf, presentCount, rowCost, sGuests, sGuestsOnly, sessionMembers,
   sessionOf, normalizeText, guestStats, myMember,
   shortName,

@@ -1,4 +1,4 @@
-import React, { useState, useRef, useEffect } from 'react'
+import { useState, useRef, useEffect } from 'react'
 import { Icon } from '#ds'
 import { t } from '#i18n'
 import cfg from '#config/app.js'

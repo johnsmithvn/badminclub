@@ -1,5 +1,5 @@
 import { useState, useEffect } from 'react'
-import { Dialog, Button, Icon } from '#ds'
+import { Dialog, Icon } from '#ds'
 import {
   parseVideoProvider,
   buildPlayableVideoUrl,

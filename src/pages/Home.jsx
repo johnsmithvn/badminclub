@@ -1,5 +1,5 @@
-import { Alert, Avatar, Button, Card, DataTable, Icon, IconButton, ProgressBar, StatCard, Tabs } from '#ds'
-import { Bar, Empty, GRID_PAIR, GRID_STAT, Mono, MyDebtPanel, Overline, TabTrack } from '#ui'
+import { Alert, Avatar, Button, Card, Icon, IconButton, ProgressBar, StatCard, Tabs } from '#ds'
+import { Bar, Empty, GRID_PAIR, Mono, MyDebtPanel, Overline, TabTrack } from '#ui'
 import { useApp } from '#contexts/AppContext.jsx'
 import { useMobile } from '#hooks/useMobile.js'
 import { ddmy, monthOf, monthTxt, wd } from '#utils/dates.js'
@@ -13,7 +13,6 @@ import { t } from '#i18n'
 import { FundOverviewCards } from '#pages/Fund.jsx'
 import { can } from '#lib/roles.js'
 import { scheduleForm } from '#lib/forms.js'
-import { PUBLIC_PATHS } from '#routes'
 import cfg from '#config/app.js'
 
 export default function Home() {

@@ -11,7 +11,7 @@
 
 import { useState } from 'react'
 import { useNavigate } from 'react-router-dom'
-import { Avatar, Button, Card, Icon, Input, Select, Skeleton } from '#ds'
+import { Button, Card, Icon, Input, Select, Skeleton } from '#ds'
 import { Mono } from '#ui'
 import { useApp } from '#contexts/AppContext.jsx'
 import { useAuth } from '#contexts/AuthContext.jsx'

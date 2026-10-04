@@ -1,9 +1,8 @@
 import { useCallback, useState, useMemo } from 'react'
-import { Icon, Select, StatCard, Avatar } from '#ds'
+import { Icon, Select, Avatar } from '#ds'
 import { ConfidenceChip, LevelChip, GenderChip } from '#ui'
 import { playerName, shortName } from '#lib/money.js'
 import { getPlayerRating, applyInactivityDecay, lastMatchAtOf, getPlayerFormatRatings, getPlayerPartnersAndMatchups, DEFAULT_RATING } from '#lib/rating.js'
-import { RANK_THEMES } from '#data/rankThemes.js'
 import { calculateMemberXp, getMemberXpLedger } from '#lib/xp.js'
 import { calculateMemberBadges, TIER_ORDER, getBadgeById, BADGE_TIERS, familyViewOf } from '#lib/badges.js'
 import { getSeasonBountyPlayer, getMemberSeasonLedger, resolveSeason } from '#lib/season.js'
@@ -86,8 +85,6 @@ export default function MemberProfileTab({
   allMembers,
   onSelectMember,
   db,
-  rankTheme,
-  onSelectTheme,
   isMobile: propIsMobile,
   onChallenge,
   initialSubTab = 'h2h',

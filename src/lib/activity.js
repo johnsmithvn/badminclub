@@ -358,7 +358,7 @@ export function resolveBountyVictimIds(victimIds, item, db) {
       return streak === streakReq || streak >= streakReq
     })
     return actualVictims.length > 0 ? actualVictims : victimIds
-  } catch (err) {
+  } catch {
     return victimIds
   }
 }

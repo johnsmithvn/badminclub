@@ -1,5 +1,5 @@
 import cfgBadges from '#config/badges.json' with { type: 'json' }
-import { isPresent, myDebtCounts, playerName } from '#lib/money.js'
+import { isPresent, playerName } from '#lib/money.js'
 import { countInvitedBy, monthsSince } from '#lib/xp.js'
 import { seasonMatchesOf, resolveSeason } from '#lib/season.js'
 import { collapseChallengeSets } from '#lib/challenge.js'
@@ -909,13 +909,6 @@ export function calculateMemberBadges(
     const oppTeam = (mt.teamA || []).includes(memberId) ? (mt.teamB || []) : (mt.teamA || [])
     ;(oppTeam || []).forEach((opId) => distinctOpponents.add(opId))
   })
-
-  // Trận thắng sau 22h
-  const nightWinsCount = wonMatches.filter((mt) => {
-    const ts = getMatchTimestamp(mt, db)
-    if (!ts) return false
-    return new Date(ts).getHours() >= 22
-  }).length
 
   // Set thắng 21-0 (hoặc tối đa maxSweepOppScore theo config)
   const maxSweepOppScore = Number(cfgBadges.sweepOpponentMaxScore ?? 0)
