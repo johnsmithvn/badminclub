@@ -1054,7 +1054,7 @@ export default function MemberProfileTab({
                     </span>
                   </div>
 
-                  <div style={{ display: 'grid', gridTemplateColumns: isMobile ? 'minmax(0, 1fr)' : '160px minmax(0, 1fr)', gap: 16, alignItems: 'center' }}>
+                  <div style={{ display: 'grid', gridTemplateColumns: isMobile ? 'minmax(0, 1fr)' : '160px minmax(0, 1fr)', gap: 16, alignItems: 'stretch' }}>
                     {/* Elo tổng */}
                     <div
                       style={{
@@ -1065,6 +1065,7 @@ export default function MemberProfileTab({
                         borderRadius: 10,
                         padding: 14,
                         display: 'grid',
+                        alignContent: 'center',
                         gap: 4,
                       }}
                     >
@@ -1080,7 +1081,7 @@ export default function MemberProfileTab({
                       </div>
                     </div>
 
-                    {/* Từng nội dung: số trận · tỷ lệ thắng | Elo nội dung + chênh so với Elo tổng | độ tin cậy */}
+                    {/* Từng nội dung: số trận · tỷ lệ thắng | Elo nội dung | chênh so với Elo tổng | độ tin cậy */}
                     <div style={{ display: 'grid', gap: 8, minWidth: 0 }}>
                       {formatRows.map(({ key, label, data }) => {
                         const games = data?.gamesCount || 0
@@ -1090,7 +1091,7 @@ export default function MemberProfileTab({
                             key={key}
                             style={{
                               display: 'grid',
-                              gridTemplateColumns: 'minmax(0, 1fr) 64px 44px',
+                              gridTemplateColumns: 'minmax(0, 1fr) 44px 40px 44px',
                               gap: 10,
                               alignItems: 'center',
                               padding: '8px 10px',
@@ -1107,16 +1108,12 @@ export default function MemberProfileTab({
                                 {games ? t('profile.formatRowSub', { n: games, pct: data.winPct }) : t('profile.formatNoMatches')}
                               </div>
                             </div>
-                            <div style={{ textAlign: 'right' }}>
-                              <div style={{ font: "600 15px/1.1 'IBM Plex Mono', monospace", color: games ? 'var(--text-primary)' : 'var(--text-muted)' }}>
-                                {games ? data.rating : '—'}
-                              </div>
-                              {games > 0 && (
-                                <div style={{ font: "500 11px/1.2 'IBM Plex Mono', monospace", color: diff > 0 ? (isDark ? '#5FD9A2' : '#0D5E3A') : diff < 0 ? (isDark ? '#FF9A8F' : 'var(--text-danger)') : 'var(--text-muted)' }}>
-                                  {diff > 0 ? `+${diff}` : diff === 0 ? '±0' : diff}
-                                </div>
-                              )}
-                            </div>
+                            <span style={{ textAlign: 'right', font: "600 15px/1.2 'IBM Plex Mono', monospace", color: games ? 'var(--text-primary)' : 'var(--text-muted)' }}>
+                              {games ? data.rating : '—'}
+                            </span>
+                            <span style={{ textAlign: 'right', font: "500 12px/1.2 'IBM Plex Mono', monospace", color: diff > 0 ? (isDark ? '#5FD9A2' : '#0D5E3A') : diff < 0 ? (isDark ? '#FF9A8F' : 'var(--text-danger)') : 'var(--text-muted)' }}>
+                              {games > 0 && (diff > 0 ? `+${diff}` : diff === 0 ? '±0' : diff)}
+                            </span>
                             <div style={{ display: 'flex', justifyContent: 'flex-end' }}>
                               {games > 0 && <ConfidenceChip confidence={data.confidence} games={games} dots={false} />}
                             </div>
