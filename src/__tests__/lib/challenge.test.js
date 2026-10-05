@@ -1,5 +1,5 @@
 import assert from 'node:assert/strict'
-import { nextChallengeCode, challengeCountdown, abandonedChallenges } from '#lib/challenge.js'
+import { nextChallengeCode, challengeCountdown, abandonedChallenges, sortChallengesBySession } from '#lib/challenge.js'
 import cfg from '#config/app.json' with { type: 'json' }
 
 // 1. Sinh mã kèo
@@ -326,6 +326,25 @@ const tRivalry = getChallengeMatchTags({ teamA: ['m1'], teamB: ['m2'] }, pastRiv
 assert.ok(tRivalry.some((t) => t.id === 'rivalry'), 'Gặp nhau 3 trận thắng 2-1 phải có tag rivalry')
 // 5. Cấu hình hạn nhận kèo là 24h
 assert.equal(cfg.challenge?.pendingExpireHours, 24, 'Hạn nhận kèo mặc định phải là 24h')
+
+// 6. Xếp kèo theo buổi (Sàn kèo). Đầu vào đã theo createdAt mới trước — cùng ngày giữ nguyên thứ tự đó.
+const dates = { s1: '2026-09-20', s2: '2026-10-02', s3: '2026-10-09' }
+const ids = (list) => list.map((c) => c.id)
+// PLAYED: buổi mới nhất lên đầu; kèo không gắn buổi lấy ngày ra sân (giờ địa phương)
+assert.deepEqual(ids(sortChallengesBySession([
+  { id: 'a', sessionId: 's1' },
+  { id: 'b', sessionId: null, deployedAt: new Date(2026, 9, 5, 20).toISOString() },
+  { id: 'c', sessionId: 's2' },
+  { id: 'd', sessionId: 's2' },
+], dates, 'played')), ['b', 'c', 'd', 'a'])
+// READY: chưa chọn buổi lên đầu (giữ thứ tự), rồi kèo có buổi theo ngày buổi giảm dần; buổi đã xoá = chưa chọn buổi
+assert.deepEqual(ids(sortChallengesBySession([
+  { id: 'a', sessionId: 's1' },
+  { id: 'b', sessionId: null },
+  { id: 'c', sessionId: 's3' },
+  { id: 'd', sessionId: 'deleted' },
+  { id: 'e', sessionId: 's2' },
+], dates, 'accepted')), ['b', 'd', 'c', 'e', 'a'])
 
 console.log('challenge check: OK')
 

@@ -17,7 +17,7 @@ import {
   isCloseMatch, isThreeSetMatch, isUpsetMatch, matchPrediction, matchSides, minSetDiff,
 } from '#lib/matchSearch.js'
 import { formatGapMinutes, videoTagLabelOf, matchVideosOf } from '#utils/videoUtils.js'
-import { isChallengeAccepted } from '#lib/challenge.js'
+import { isChallengeAccepted, sortChallengesBySession } from '#lib/challenge.js'
 import EditScoreModal from '#components/challenge/EditScoreModal.jsx'
 import CreateChallengeModal from '#components/challenge/CreateChallengeModal.jsx'
 import MatchDetailModal from '#components/challenge/MatchDetailModal.jsx'
@@ -316,6 +316,12 @@ export default function Matches() {
   // =========================================================================
   // TAB 1: SÀN KÈO / THÁCH ĐẤU (CHALLENGES)
   // =========================================================================
+  // Ngày của buổi theo id — Sàn kèo (READY / PLAYED) và Lịch sử trận đều xếp theo ngày buổi
+  const sessionDateById = useMemo(
+    () => Object.fromEntries((db.sessions || []).map((s) => [s.id, s.date])),
+    [db.sessions],
+  )
+
   const allChallenges = useMemo(() => {
     return (db.challenges || []).slice().sort((a, b) => {
       const tA = a.createdAt ? new Date(a.createdAt).getTime() : 0
@@ -363,13 +369,15 @@ export default function Matches() {
     return allChallenges.filter((c) => c.status === 'pending')
   }, [allChallenges])
 
+  // READY: kèo chưa chọn buổi lên đầu, rồi theo ngày buổi giảm dần (luật ở #lib/challenge.js)
   const acceptedChallenges = useMemo(() => {
-    return allChallenges.filter((c) => isChallengeAccepted(c))
-  }, [allChallenges])
+    return sortChallengesBySession(allChallenges.filter((c) => isChallengeAccepted(c)), sessionDateById, 'accepted')
+  }, [allChallenges, sessionDateById])
 
+  // PLAYED: buổi mới nhất lên đầu
   const playedChallenges = useMemo(() => {
-    return allChallenges.filter((c) => c.status === 'played')
-  }, [allChallenges])
+    return sortChallengesBySession(allChallenges.filter((c) => c.status === 'played'), sessionDateById, 'played')
+  }, [allChallenges, sessionDateById])
 
   // Kèo mình đã đặt phiếu dự đoán (phiếu tự huỷ thì thôi) — chỗ tìm lại "tôi đã cược những gì".
   const betChallenges = useMemo(() => {
@@ -418,10 +426,6 @@ export default function Matches() {
   // =========================================================================
   // TAB 2: LỊCH SỬ ĐẤU & VIDEO (SEARCH) - BÊ NGUYÊN TỪ LEADERBOARD CŨ
   // =========================================================================
-  const sessionDateById = useMemo(
-    () => Object.fromEntries((db.sessions || []).map((s) => [s.id, s.date])),
-    [db.sessions],
-  )
 
   const searchResults = useMemo(() => {
     const ratingsMap = {}
@@ -3055,7 +3059,7 @@ export default function Matches() {
                   {!isMobile && <div style={S.cardSub}>{t('matchSearch.disparateSub')}</div>}
                 </div>
               </div>
-              <div style={{ padding: isMobile ? '12px 14px' : '10px 12px', display: 'grid', gap: 6 }}>
+              <div style={{ padding: isMobile ? '12px 14px' : '10px 12px', display: 'grid', gridTemplateColumns: 'minmax(0, 1fr)', gap: 6 }}>
                 {disparatePairsList.length === 0 ? (
                   <div style={{ padding: '12px 0', textAlign: 'center', color: 'var(--text-muted)', fontSize: 13 }}>
                     {t('common.noData')}
@@ -3127,7 +3131,7 @@ export default function Matches() {
                   {neverMetSessionScored.length} {t('matchSearch.pairs')}
                 </span>
               </div>
-              <div style={{ padding: isMobile ? '12px 14px' : '10px 12px', display: 'grid', gap: 6 }}>
+              <div style={{ padding: isMobile ? '12px 14px' : '10px 12px', display: 'grid', gridTemplateColumns: 'minmax(0, 1fr)', gap: 6 }}>
                 {neverMetSessionScored.length === 0 ? (
                   <div style={{ padding: '12px 0', textAlign: 'center', color: 'var(--text-muted)', fontSize: 13 }}>
                     {t('common.noData')}

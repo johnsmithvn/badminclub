@@ -835,3 +835,23 @@ export function challengeResultOf(c, matches) {
     singleScoreB,
   }
 }
+
+/**
+ * Xếp kèo theo buổi ở Sàn kèo. Ngày của kèo = ngày buổi đã gắn (buổi không còn = chưa gắn).
+ * - 'played': ngày mới nhất lên đầu; kèo không gắn buổi lấy ngày ra sân (giờ địa phương).
+ * - 'accepted': kèo CHƯA chọn buổi lên đầu, sau đó kèo đã có buổi theo ngày buổi giảm dần.
+ * Cùng nhóm, cùng ngày giữ nguyên thứ tự đầu vào (sort ổn định).
+ */
+export function sortChallengesBySession(list, sessionDateById, mode) {
+  const sessionDay = (c) => sessionDateById[c.sessionId] || ''
+  if (mode === 'played') {
+    const playedDay = (c) => {
+      if (sessionDay(c)) return sessionDay(c)
+      const d = new Date(c.deployedAt || c.createdAt || NaN)
+      return isNaN(d) ? '' : isoOf(d)
+    }
+    return [...list].sort((a, b) => playedDay(b).localeCompare(playedDay(a)))
+  }
+  return [...list].sort((a, b) => Number(Boolean(sessionDay(a))) - Number(Boolean(sessionDay(b)))
+    || sessionDay(b).localeCompare(sessionDay(a)))
+}
