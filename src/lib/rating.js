@@ -1328,6 +1328,8 @@ export function rankPairs(matches = [], membersMap = {}, ratingsMap = {}, option
 
 /**
  * Thống kê năng lực theo từng thể thức (Format Ratings: Career, Doubles, Mixed, Singles - AY3).
+ * `doubles` là MỌI trận đôi (gồm cả nam-nữ); `sameDoubles` là đôi cùng giới — cùng `mixed` và `singles`
+ * chia đúng tổng số trận, không dòng nào đếm trùng.
  */
 export function getPlayerFormatRatings(matches = [], memberId, ratingsMap = {}, membersMap = {}) {
   const rawElo = ratingsMap && ratingsMap[memberId] != null ? ratingsMap[memberId] : DEFAULT_RATING
@@ -1335,6 +1337,7 @@ export function getPlayerFormatRatings(matches = [], memberId, ratingsMap = {}, 
 
   const buckets = {
     doubles: { wins: 0, total: 0 },
+    sameDoubles: { wins: 0, total: 0 },
     mixed: { wins: 0, total: 0 },
     singles: { wins: 0, total: 0 },
   }
@@ -1365,6 +1368,9 @@ export function getPlayerFormatRatings(matches = [], memberId, ratingsMap = {}, 
       if (hasFemale && hasMale) {
         buckets.mixed.total++
         if (isWon) buckets.mixed.wins++
+      } else {
+        buckets.sameDoubles.total++
+        if (isWon) buckets.sameDoubles.wins++
       }
     }
   })
@@ -1416,6 +1422,7 @@ export function getPlayerFormatRatings(matches = [], memberId, ratingsMap = {}, 
     career: overallData,
     overall: overallData,
     doubles: calcShrinkRating(buckets.doubles.wins, buckets.doubles.total),
+    sameDoubles: calcShrinkRating(buckets.sameDoubles.wins, buckets.sameDoubles.total),
     mixed: calcShrinkRating(buckets.mixed.wins, buckets.mixed.total),
     singles: calcShrinkRating(buckets.singles.wins, buckets.singles.total),
   }

@@ -2,7 +2,7 @@ import { useCallback, useState, useMemo } from 'react'
 import { Icon, Select, Avatar } from '#ds'
 import { ConfidenceChip, LevelChip, GenderChip } from '#ui'
 import { playerName, shortName } from '#lib/money.js'
-import { getPlayerRating, applyInactivityDecay, lastMatchAtOf, getPlayerFormatRatings, getPlayerPartnersAndMatchups, DEFAULT_RATING } from '#lib/rating.js'
+import { getPlayerRating, applyInactivityDecay, lastMatchAtOf, getPlayerFormatRatings, getPlayerPartnersAndMatchups, isFemalePlayer, DEFAULT_RATING } from '#lib/rating.js'
 import { calculateMemberXp, getMemberXpLedger } from '#lib/xp.js'
 import { calculateMemberBadges, TIER_ORDER, getBadgeById, BADGE_TIERS, familyViewOf } from '#lib/badges.js'
 import { getSeasonBountyPlayer, getMemberSeasonLedger, resolveSeason } from '#lib/season.js'
@@ -37,7 +37,6 @@ const LEDGER_FILTERS = [
   ['challenge', 'season.ledgerFilterChallenge', (ev) => ev.isChallenge],
   ['prediction', 'season.ledgerFilterPrediction', (ev) => ev.isPrediction],
 ]
-const signedPts = (n) => (n > 0 ? `+${n}` : String(n))
 
 export default function MemberProfileTab({
   member,
@@ -81,16 +80,9 @@ export default function MemberProfileTab({
     return getMemberSeasonLedger(mid, db, seasonConfig || resolveSeason(db))
   }, [mid, db, seasonConfig])
 
-  // Tỷ lệ thanh phân bổ Stacked Bar cho Điểm mùa
   // Hệ số điểm mùa của kèo — hiện thẳng trên tag, cùng cách với MemberSeasonLedgerModal.
   const chalMult = Number(ledgerData?.season?.challengeMultiplier ?? cfgApp?.season?.challengeMultiplier ?? 1) || 1
-  const seasonTotal = Math.max(1, ledgerData?.totalPoints ?? 0)
-  const seasonBreakdown = ledgerData?.breakdown || {}
-  const pMatchNet = Math.round((Math.max(0, seasonBreakdown.matchNetPts ?? seasonBreakdown.winPts ?? 0) / seasonTotal) * 100)
-  const pStreak = Math.round(((seasonBreakdown.streakBonusPts ?? 0) / seasonTotal) * 100)
-  const pUpsets = Math.max(0, 100 - pMatchNet - pStreak)
   const shownEvents = (ledgerData?.allEvents || []).filter(LEDGER_FILTERS.find(([k]) => k === ledgerFilter)[2])
-  const predNet = seasonBreakdown.predictionNetPoints ?? 0
 
   const membersMap = useMemo(() => {
     const map = {}
@@ -117,6 +109,16 @@ export default function MemberProfileTab({
     if (!mid) return null
     return getPlayerFormatRatings(matches, mid, db.playerRatings || {}, membersMap)
   }, [matches, mid, db.playerRatings, membersMap])
+
+  // Từng nội dung: đôi cùng giới / nam-nữ / đơn chia đúng tổng số trận (không đếm trùng); đánh nhiều nhất lên đầu
+  const isFemaleMember = isFemalePlayer(member)
+  const formatRows = [
+    { key: 'sameDoubles', label: t(isFemaleMember ? 'profile.doublesFormatF' : 'profile.doublesFormat') },
+    { key: 'mixed', label: t('profile.mixedFormat') },
+    { key: 'singles', label: t(isFemaleMember ? 'profile.singlesFormatF' : 'profile.singlesFormat') },
+  ]
+    .map((r) => ({ ...r, data: formatRatings?.[r.key] }))
+    .sort((r1, r2) => (r2.data?.gamesCount || 0) - (r1.data?.gamesCount || 0))
 
   const partnersAndMatchups = useMemo(() => {
     if (!mid) return null
@@ -760,182 +762,56 @@ export default function MemberProfileTab({
                 </div>
               ) : (
                 <>
-                  {/* Season Name & Rank */}
-                  <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', gap: 8, flexWrap: 'wrap' }}>
-                    <span style={{ font: "600 13px/1.3 'IBM Plex Mono', monospace", color: 'var(--text-secondary)' }}>
-                      {(ledgerData.season?.name ? `${ledgerData.season.name} · ` : '') + t('season.rankOf', { rank: ledgerData.rank, total: ledgerData.totalMembers })}
-                    </span>
-                  </div>
-
-                  {/* Big Score Header */}
-                  <div style={{ display: 'flex', alignItems: 'flex-end', gap: 14, flexWrap: 'wrap' }}>
-                    <div style={{ font: "600 40px/1 'IBM Plex Mono', monospace", color: 'var(--text-primary)' }}>
-                      {(ledgerData.totalPoints || 0).toLocaleString()}
-                    </div>
-                    <div style={{ paddingBottom: 6, font: "400 12px/1.4 'IBM Plex Sans', sans-serif", color: 'var(--text-muted)' }}>
-                      {t('season.pointsLabel')} ·{' '}
-                      <span style={{ color: isDark ? '#5FDBD3' : 'var(--teal-700)', fontWeight: 600 }}>+{(ledgerData.latestSessionPts ?? 0)}</span> {t('season.latestSession')}
-                      {ledgerData.rank > 1 && (
-                        <>
-                          {' '}· {t('season.distanceToNext', { rank: ledgerData.rank - 1, pts: ledgerData.ptsToNextRank })}
-                        </>
-                      )}
-                    </div>
-                  </div>
-
-                  {/* Stacked Progress Bar */}
-                  <div
-                    style={{
-                      height: 26,
-                      borderRadius: 6,
-                      overflow: 'hidden',
-                      display: 'flex',
-                      border: '1px solid var(--border-subtle)',
-                    }}
-                  >
-                    <div
-                      style={{
-                        width: `${pMatchNet}%`,
-                        background: '#00B2A9',
-                        display: 'flex',
-                        alignItems: 'center',
-                        justifyContent: 'center',
-                        font: "600 10px/1 'IBM Plex Mono', monospace",
-                        color: '#fff',
-                      }}
-                    >
-                      {seasonBreakdown.matchNetPts ?? 0}
-                    </div>
-                    <div
-                      style={{
-                        width: `${pStreak}%`,
-                        background: '#1D50A0',
-                        display: 'flex',
-                        alignItems: 'center',
-                        justifyContent: 'center',
-                        font: "600 10px/1 'IBM Plex Mono', monospace",
-                        color: '#fff',
-                      }}
-                    >
-                      {seasonBreakdown.streakBonusPts ?? 0}
-                    </div>
-                    <div
-                      style={{
-                        width: `${pUpsets}%`,
-                        background: '#C9A227',
-                        display: 'flex',
-                        alignItems: 'center',
-                        justifyContent: 'center',
-                        font: "600 10px/1 'IBM Plex Mono', monospace",
-                        color: '#2A1F00',
-                      }}
-                    >
-                      {seasonBreakdown.upsetBonusPts ?? 0}
-                    </div>
-                  </div>
-
-                  {/* Stacked Bar Legend */}
-                  <div
-                    style={{
-                      display: 'grid',
-                      gridTemplateColumns: isMobile ? '1fr' : 'repeat(2, minmax(0, 1fr))',
-                      gap: 8,
-                      font: "500 11.5px/1.2 'IBM Plex Mono', monospace",
-                      color: 'var(--text-secondary)',
-                    }}
-                  >
-                    <div
-                      style={{
-                        display: 'flex',
-                        alignItems: 'center',
-                        justifyContent: 'space-between',
-                        padding: '7px 10px',
-                        background: 'var(--surface-inset)',
-                        borderRadius: 6,
-                        border: '1px solid var(--border-subtle)',
-                      }}
-                    >
-                      <span style={{ display: 'flex', alignItems: 'center', gap: 7 }}>
-                        <span style={{ width: 8, height: 8, borderRadius: 2, background: '#00B2A9', flexShrink: 0 }} />
-                        <span>{t('season.actMatchPlay')}</span>
-                      </span>
-                      <span style={{ fontWeight: 700, color: 'var(--text-primary)' }}>
-                        {seasonBreakdown.matchNetPts ?? 0}
-                      </span>
-                    </div>
-
-                    <div
-                      style={{
-                        display: 'flex',
-                        alignItems: 'center',
-                        justifyContent: 'space-between',
-                        padding: '7px 10px',
-                        background: 'var(--surface-inset)',
-                        borderRadius: 6,
-                        border: '1px solid var(--border-subtle)',
-                      }}
-                    >
-                      <span style={{ display: 'flex', alignItems: 'center', gap: 7 }}>
-                        <span style={{ width: 8, height: 8, borderRadius: 2, background: '#1D50A0', flexShrink: 0 }} />
-                        <span>{t('season.actStreakMilestones')}</span>
-                      </span>
-                      <span style={{ fontWeight: 700, color: 'var(--text-primary)' }}>
-                        +{seasonBreakdown.streakBonusPts ?? 0}
-                      </span>
-                    </div>
-
-                    <div
-                      style={{
-                        display: 'flex',
-                        alignItems: 'center',
-                        justifyContent: 'space-between',
-                        padding: '7px 10px',
-                        background: 'var(--surface-inset)',
-                        borderRadius: 6,
-                        border: '1px solid var(--border-subtle)',
-                      }}
-                    >
-                      <span style={{ display: 'flex', alignItems: 'center', gap: 7 }}>
-                        <span style={{ width: 8, height: 8, borderRadius: 2, background: '#C9A227', flexShrink: 0 }} />
-                        <span>{t('season.actUpsetMilestone')}</span>
-                      </span>
-                      <span style={{ fontWeight: 700, color: 'var(--text-primary)' }}>
-                        +{seasonBreakdown.upsetBonusPts ?? 0}
-                      </span>
-                    </div>
-
-                    <div
-                      style={{
-                        display: 'flex',
-                        alignItems: 'center',
-                        justifyContent: 'space-between',
-                        padding: '7px 10px',
-                        background: 'var(--surface-inset)',
-                        borderRadius: 6,
-                        border: '1px solid var(--border-subtle)',
-                      }}
-                    >
-                      <span style={{ display: 'flex', alignItems: 'center', gap: 7 }}>
-                        <span style={{ width: 8, height: 8, borderRadius: 2, background: '#8B5CF6', flexShrink: 0 }} />
-                        <span>{t('season.actPrediction')}</span>
-                      </span>
-                      <span style={{ fontWeight: 700, color: 'var(--text-primary)' }}>
-                        {signedPts(predNet)}
-                      </span>
-                    </div>
-                  </div>
-
                   {/* Audit Events Timeline */}
-                  <div style={{ borderTop: '1px solid var(--border-subtle)', paddingTop: 12, display: 'grid', gap: 8 }}>
-                    <div
-                      style={{
-                        font: "600 12px/1.2 'IBM Plex Sans', sans-serif",
-                        letterSpacing: '.06em',
-                        textTransform: 'uppercase',
-                        color: 'var(--text-muted)',
-                      }}
-                    >
-                      {t('season.ledgerHistoryTitle')}
+                  <div style={{ display: 'grid', gap: 8 }}>
+                    <div style={{ display: 'flex', alignItems: 'baseline', gap: 10, flexWrap: 'wrap' }}>
+                      <span
+                        style={{
+                          font: "600 12px/1.2 'IBM Plex Sans', sans-serif",
+                          letterSpacing: '.06em',
+                          textTransform: 'uppercase',
+                          color: 'var(--text-muted)',
+                        }}
+                      >
+                        {t('season.ledgerHistoryTitle')}
+                      </span>
+                      <span style={{ font: '700 22px/1 Barlow, sans-serif', color: 'var(--text-primary)' }}>
+                        {(ledgerData.totalPoints || 0).toLocaleString()}
+                      </span>
+                      <span style={{ font: "400 12px/1.2 'IBM Plex Sans', sans-serif", color: 'var(--text-muted)' }}>
+                        {t('season.pointsLabel')}
+                      </span>
+                    </div>
+
+                    {/* Tổng điểm mùa tách theo nguồn — cộng lại đúng bằng số bên trên (getMemberSeasonLedger.split) */}
+                    <div style={{ display: 'flex', gap: 6, flexWrap: 'wrap' }}>
+                      {[
+                        ['season.splitMatch', ledgerData.split.match],
+                        ['season.splitChallenge', ledgerData.split.challenge],
+                        ['season.splitPrediction', ledgerData.split.prediction],
+                        ['season.splitBonus', ledgerData.split.bonus],
+                        ['season.splitStart', ledgerData.split.start, true],
+                      ].map(([key, val, plain]) => (
+                        <span
+                          key={key}
+                          style={{
+                            display: 'inline-flex',
+                            alignItems: 'baseline',
+                            gap: 6,
+                            padding: '5px 9px',
+                            borderRadius: 6,
+                            background: 'var(--surface-inset)',
+                            border: '1px solid var(--border-subtle)',
+                            font: "400 11.5px/1.2 'IBM Plex Mono', monospace",
+                            color: 'var(--text-muted)',
+                          }}
+                        >
+                          {t(key)}
+                          <span style={{ fontWeight: 700, color: 'var(--text-primary)' }}>
+                            {plain || val <= 0 ? val : `+${val}`}
+                          </span>
+                        </span>
+                      ))}
                     </div>
 
                     <div style={{ display: 'flex', gap: 6, flexWrap: 'wrap' }}>
@@ -1178,7 +1054,7 @@ export default function MemberProfileTab({
                     </span>
                   </div>
 
-                  <div style={{ display: 'grid', gridTemplateColumns: isMobile ? '1fr' : '160px minmax(0,1fr)', gap: 16, alignItems: 'center' }}>
+                  <div style={{ display: 'grid', gridTemplateColumns: isMobile ? 'minmax(0, 1fr)' : '160px minmax(0, 1fr)', gap: 16, alignItems: 'center' }}>
                     {/* Elo tổng */}
                     <div
                       style={{
@@ -1204,88 +1080,49 @@ export default function MemberProfileTab({
                       </div>
                     </div>
 
-                    {/* 3 Thanh rating theo nội dung */}
-                    <div style={{ display: 'grid', gap: 10, minWidth: 0 }}>
-                      {/* Đôi nam */}
-                      <div style={{ display: 'grid', gridTemplateColumns: isMobile ? '76px minmax(0,1fr) 48px' : '92px minmax(0,1fr) 52px 64px', gap: isMobile ? 8 : 10, alignItems: 'center' }}>
-                        <div style={{ minWidth: 0 }}>
-                          <div style={{ font: "600 12.5px/1.3 'IBM Plex Sans', sans-serif", color: 'var(--text-primary)', whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis' }}>
-                            {t('profile.doublesFormat')}
-                          </div>
-                          {isMobile && (
-                            <div style={{ display: 'flex', alignItems: 'center', gap: 5, font: "400 10.5px/1.2 'IBM Plex Mono', monospace", color: isDark ? '#5FDBD3' : 'var(--text-accent)' }}>
-                              <span>{formatRatings?.doubles?.gamesCount || 0} {t('leaderboard.matchesAbbr')}</span>
-                              <ConfidenceChip confidence={formatRatings?.doubles?.confidence} games={formatRatings?.doubles?.gamesCount} dots={false} />
+                    {/* Từng nội dung: số trận · tỷ lệ thắng | Elo nội dung + chênh so với Elo tổng | độ tin cậy */}
+                    <div style={{ display: 'grid', gap: 8, minWidth: 0 }}>
+                      {formatRows.map(({ key, label, data }) => {
+                        const games = data?.gamesCount || 0
+                        const diff = games ? data.rating - (formatRatings?.overall?.rating ?? DEFAULT_RATING) : 0
+                        return (
+                          <div
+                            key={key}
+                            style={{
+                              display: 'grid',
+                              gridTemplateColumns: 'minmax(0, 1fr) 64px 44px',
+                              gap: 10,
+                              alignItems: 'center',
+                              padding: '8px 10px',
+                              borderRadius: 8,
+                              background: 'var(--surface-inset)',
+                              border: '1px solid var(--border-subtle)',
+                            }}
+                          >
+                            <div style={{ minWidth: 0 }}>
+                              <div style={{ font: "600 13px/1.3 'IBM Plex Sans', sans-serif", color: 'var(--text-primary)', whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis' }}>
+                                {label}
+                              </div>
+                              <div style={{ font: "400 11.5px/1.3 'IBM Plex Mono', monospace", color: 'var(--text-muted)', whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis' }}>
+                                {games ? t('profile.formatRowSub', { n: games, pct: data.winPct }) : t('profile.formatNoMatches')}
+                              </div>
                             </div>
-                          )}
-                        </div>
-                        <span style={{ height: 9, borderRadius: 999, background: 'var(--surface-inset)', border: '1px solid var(--border-subtle)', overflow: 'hidden', display: 'flex' }}>
-                          <span style={{ width: `${Math.min(100, Math.max(10, Math.round(((formatRatings?.doubles?.rating ?? DEFAULT_RATING) - 1000) / 12)))}%`, background: '#00B2A9' }} />
-                        </span>
-                        <span style={{ textAlign: 'right', font: "600 13px/1 'IBM Plex Mono', monospace", color: 'var(--text-primary)' }}>
-                          {formatRatings?.doubles?.rating ?? DEFAULT_RATING}
-                        </span>
-                        {!isMobile && (
-                          <span style={{ display: 'flex', alignItems: 'center', justifyContent: 'flex-end', gap: 5, font: "400 11px/1 'IBM Plex Mono', monospace", color: isDark ? '#5FDBD3' : 'var(--text-accent)' }}>
-                            <span>{formatRatings?.doubles?.gamesCount || 0} {t('leaderboard.matchesAbbr')}</span>
-                            <ConfidenceChip confidence={formatRatings?.doubles?.confidence} games={formatRatings?.doubles?.gamesCount} dots={false} />
-                          </span>
-                        )}
-                      </div>
-
-                      {/* Nam-nữ */}
-                      <div style={{ display: 'grid', gridTemplateColumns: isMobile ? '76px minmax(0,1fr) 48px' : '92px minmax(0,1fr) 52px 64px', gap: isMobile ? 8 : 10, alignItems: 'center' }}>
-                        <div style={{ minWidth: 0 }}>
-                          <div style={{ font: "600 12.5px/1.3 'IBM Plex Sans', sans-serif", color: 'var(--text-primary)', whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis' }}>
-                            {t('profile.mixedFormat')}
-                          </div>
-                          {isMobile && (
-                            <div style={{ display: 'flex', alignItems: 'center', gap: 5, font: "400 10.5px/1.2 'IBM Plex Mono', monospace", color: '#3C74C4' }}>
-                              <span>{formatRatings?.mixed?.gamesCount || 0} {t('leaderboard.matchesAbbr')}</span>
-                              <ConfidenceChip confidence={formatRatings?.mixed?.confidence} games={formatRatings?.mixed?.gamesCount} dots={false} />
+                            <div style={{ textAlign: 'right' }}>
+                              <div style={{ font: "600 15px/1.1 'IBM Plex Mono', monospace", color: games ? 'var(--text-primary)' : 'var(--text-muted)' }}>
+                                {games ? data.rating : '—'}
+                              </div>
+                              {games > 0 && (
+                                <div style={{ font: "500 11px/1.2 'IBM Plex Mono', monospace", color: diff > 0 ? (isDark ? '#5FD9A2' : '#0D5E3A') : diff < 0 ? (isDark ? '#FF9A8F' : 'var(--text-danger)') : 'var(--text-muted)' }}>
+                                  {diff > 0 ? `+${diff}` : diff === 0 ? '±0' : diff}
+                                </div>
+                              )}
                             </div>
-                          )}
-                        </div>
-                        <span style={{ height: 9, borderRadius: 999, background: 'var(--surface-inset)', border: '1px solid var(--border-subtle)', overflow: 'hidden', display: 'flex' }}>
-                          <span style={{ width: `${Math.min(100, Math.max(10, Math.round(((formatRatings?.mixed?.rating ?? DEFAULT_RATING) - 1000) / 12)))}%`, background: '#3C74C4' }} />
-                        </span>
-                        <span style={{ textAlign: 'right', font: "600 13px/1 'IBM Plex Mono', monospace", color: 'var(--text-primary)' }}>
-                          {formatRatings?.mixed?.rating ?? DEFAULT_RATING}
-                        </span>
-                        {!isMobile && (
-                          <span style={{ display: 'flex', alignItems: 'center', justifyContent: 'flex-end', gap: 5, font: "400 11px/1 'IBM Plex Mono', monospace", color: '#3C74C4' }}>
-                            <span>{formatRatings?.mixed?.gamesCount || 0} {t('leaderboard.matchesAbbr')}</span>
-                            <ConfidenceChip confidence={formatRatings?.mixed?.confidence} games={formatRatings?.mixed?.gamesCount} dots={false} />
-                          </span>
-                        )}
-                      </div>
-
-                      {/* Đơn nam */}
-                      <div style={{ display: 'grid', gridTemplateColumns: isMobile ? '76px minmax(0,1fr) 48px' : '92px minmax(0,1fr) 52px 64px', gap: isMobile ? 8 : 10, alignItems: 'center' }}>
-                        <div style={{ minWidth: 0 }}>
-                          <div style={{ font: "600 12.5px/1.3 'IBM Plex Sans', sans-serif", color: 'var(--text-primary)', whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis' }}>
-                            {t('profile.singlesFormat')}
-                          </div>
-                          {isMobile && (
-                            <div style={{ display: 'flex', alignItems: 'center', gap: 5, font: "400 10.5px/1.2 'IBM Plex Mono', monospace", color: isDark ? '#F0B75C' : '#D97706' }}>
-                              <span>{formatRatings?.singles?.gamesCount || 0} {t('leaderboard.matchesAbbr')}</span>
-                              <ConfidenceChip confidence={formatRatings?.singles?.confidence} games={formatRatings?.singles?.gamesCount} dots={false} />
+                            <div style={{ display: 'flex', justifyContent: 'flex-end' }}>
+                              {games > 0 && <ConfidenceChip confidence={data.confidence} games={games} dots={false} />}
                             </div>
-                          )}
-                        </div>
-                        <span style={{ height: 9, borderRadius: 999, background: 'var(--surface-inset)', border: '1px solid var(--border-subtle)', overflow: 'hidden', display: 'flex' }}>
-                          <span style={{ width: `${Math.min(100, Math.max(10, Math.round(((formatRatings?.singles?.rating ?? DEFAULT_RATING) - 1000) / 12)))}%`, background: isDark ? '#475569' : '#94A3B8' }} />
-                        </span>
-                        <span style={{ textAlign: 'right', font: "600 13px/1 'IBM Plex Mono', monospace", color: 'var(--text-secondary)' }}>
-                          ~{formatRatings?.singles?.rating ?? DEFAULT_RATING}
-                        </span>
-                        {!isMobile && (
-                          <span style={{ display: 'flex', alignItems: 'center', justifyContent: 'flex-end', gap: 5, font: "400 11px/1 'IBM Plex Mono', monospace", color: isDark ? '#F0B75C' : '#D97706' }}>
-                            <span>{formatRatings?.singles?.gamesCount || 0} {t('leaderboard.matchesAbbr')}</span>
-                            <ConfidenceChip confidence={formatRatings?.singles?.confidence} games={formatRatings?.singles?.gamesCount} dots={false} />
-                          </span>
-                        )}
-                      </div>
+                          </div>
+                        )
+                      })}
                     </div>
                   </div>
 

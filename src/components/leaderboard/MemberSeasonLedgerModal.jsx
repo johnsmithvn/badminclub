@@ -30,12 +30,9 @@ export default function MemberSeasonLedgerModal({
   const {
     season,
     member,
-    totalPoints,
     rank,
     totalMembers,
     latestSessionPts,
-    ptsToNextRank,
-    breakdown,
     recentEvents,
   } = ledgerData
 
@@ -43,11 +40,6 @@ export default function MemberSeasonLedgerModal({
   // vì sao cùng một dải Elo mà trận này ăn gấp đôi trận kia.
   const chalMult = Number(season?.challengeMultiplier ?? cfg?.season?.challengeMultiplier ?? 1) || 1
 
-  // Tỷ lệ thanh phân bổ Stacked Bar
-  const total = Math.max(1, totalPoints)
-  const pMatchNet = Math.round((Math.max(0, breakdown.matchNetPts ?? breakdown.winPts ?? 0) / total) * 100)
-  const pStreak = Math.round(((breakdown.streakBonusPts ?? 0) / total) * 100)
-  const pUpsets = Math.max(0, 100 - pMatchNet - pStreak)
 
   return (
     <ModalOverlay onClose={onClose} align={isMobile ? 'flex-end' : 'center'} padding={isMobile ? 0 : 16}>
@@ -113,146 +105,8 @@ export default function MemberSeasonLedgerModal({
 
         {/* Content Body */}
         <div style={{ padding: '16px 18px', display: 'grid', gap: 14, overflowY: 'auto' }}>
-          {/* Big Score Header */}
-          <div style={{ display: 'flex', alignItems: 'flex-end', gap: 14, flexWrap: 'wrap' }}>
-            <div style={{ font: "600 40px/1 'IBM Plex Mono', monospace", color: 'var(--text-primary)' }}>
-              {totalPoints.toLocaleString()}
-            </div>
-            <div style={{ paddingBottom: 6, font: "400 12px/1.4 'IBM Plex Sans', sans-serif", color: 'var(--text-muted)' }}>
-              {t('season.pointsLabel')} ·{' '}
-              <span style={{ color: isDark ? '#5FDBD3' : 'var(--teal-700)', fontWeight: 600 }}>+{latestSessionPts}</span> {t('season.latestSession')}
-              {rank > 1 && (
-                <>
-                  {' '}· {t('season.distanceToNext', { rank: rank - 1, pts: ptsToNextRank })}
-                </>
-              )}
-            </div>
-          </div>
-
-          {/* Stacked Progress Bar */}
-          <div
-            style={{
-              height: 26,
-              borderRadius: 6,
-              overflow: 'hidden',
-              display: 'flex',
-              border: '1px solid var(--border-subtle)',
-            }}
-          >
-            <div
-              style={{
-                width: `${pMatchNet}%`,
-                background: '#00B2A9',
-                display: 'flex',
-                alignItems: 'center',
-                justifyContent: 'center',
-                font: "600 10px/1 'IBM Plex Mono', monospace",
-                color: '#fff',
-              }}
-            >
-              {breakdown.matchNetPts ?? 0}
-            </div>
-            <div
-              style={{
-                width: `${pStreak}%`,
-                background: '#1D50A0',
-                display: 'flex',
-                alignItems: 'center',
-                justifyContent: 'center',
-                font: "600 10px/1 'IBM Plex Mono', monospace",
-                color: '#fff',
-              }}
-            >
-              {breakdown.streakBonusPts ?? 0}
-            </div>
-            <div
-              style={{
-                width: `${pUpsets}%`,
-                background: '#C9A227',
-                display: 'flex',
-                alignItems: 'center',
-                justifyContent: 'center',
-                font: "600 10px/1 'IBM Plex Mono', monospace",
-                color: '#2A1F00',
-              }}
-            >
-              {breakdown.upsetBonusPts ?? 0}
-            </div>
-          </div>
-
-          {/* Stacked Bar Legend */}
-          <div
-            style={{
-              display: 'grid',
-              gridTemplateColumns: isMobile ? '1fr' : 'repeat(3, minmax(0, 1fr))',
-              gap: 8,
-              font: "500 11.5px/1.2 'IBM Plex Mono', monospace",
-              color: 'var(--text-secondary)',
-            }}
-          >
-            <div
-              style={{
-                display: 'flex',
-                alignItems: 'center',
-                justifyContent: 'space-between',
-                padding: '7px 10px',
-                background: 'var(--surface-inset)',
-                borderRadius: 6,
-                border: '1px solid var(--border-subtle)',
-              }}
-            >
-              <span style={{ display: 'flex', alignItems: 'center', gap: 7 }}>
-                <span style={{ width: 8, height: 8, borderRadius: 2, background: '#00B2A9', flexShrink: 0 }} />
-                <span>{t('season.actMatchPlay')}</span>
-              </span>
-              <span style={{ fontWeight: 700, color: 'var(--text-primary)' }}>
-                {breakdown.matchNetPts ?? 0}
-              </span>
-            </div>
-
-            <div
-              style={{
-                display: 'flex',
-                alignItems: 'center',
-                justifyContent: 'space-between',
-                padding: '7px 10px',
-                background: 'var(--surface-inset)',
-                borderRadius: 6,
-                border: '1px solid var(--border-subtle)',
-              }}
-            >
-              <span style={{ display: 'flex', alignItems: 'center', gap: 7 }}>
-                <span style={{ width: 8, height: 8, borderRadius: 2, background: '#1D50A0', flexShrink: 0 }} />
-                <span>{t('season.actStreakMilestones')}</span>
-              </span>
-              <span style={{ fontWeight: 700, color: 'var(--text-primary)' }}>
-                +{breakdown.streakBonusPts ?? 0}
-              </span>
-            </div>
-
-            <div
-              style={{
-                display: 'flex',
-                alignItems: 'center',
-                justifyContent: 'space-between',
-                padding: '7px 10px',
-                background: 'var(--surface-inset)',
-                borderRadius: 6,
-                border: '1px solid var(--border-subtle)',
-              }}
-            >
-              <span style={{ display: 'flex', alignItems: 'center', gap: 7 }}>
-                <span style={{ width: 8, height: 8, borderRadius: 2, background: '#C9A227', flexShrink: 0 }} />
-                <span>{t('season.actUpsetMilestone')}</span>
-              </span>
-              <span style={{ fontWeight: 700, color: 'var(--text-primary)' }}>
-                +{breakdown.upsetBonusPts ?? 0}
-              </span>
-            </div>
-          </div>
-
           {/* Audit Events Timeline */}
-          <div style={{ borderTop: '1px solid var(--border-subtle)', paddingTop: 12, display: 'grid', gap: 8 }}>
+          <div style={{ display: 'grid', gap: 8 }}>
             <div
               style={{
                 font: "600 12px/1.2 'IBM Plex Sans', sans-serif",

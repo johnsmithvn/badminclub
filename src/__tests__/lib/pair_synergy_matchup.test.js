@@ -281,6 +281,10 @@ test('Pair Synergy, Opponent Matchup & What-if Core Logic Suite (vNext)', async 
     assert.equal(formats.singles.gamesCount, 1)
     assert.equal(formats.doubles.gamesCount, 2)
     assert.equal(formats.mixed.gamesCount, 1)
+    // Đôi cùng giới + nam-nữ + đơn chia đúng tổng số trận, không đếm trùng
+    assert.equal(formats.sameDoubles.gamesCount, 1)
+    assert.equal(formats.sameDoubles.winPct, 100)
+    assert.equal(formats.sameDoubles.gamesCount + formats.mixed.gamesCount + formats.singles.gamesCount, formats.career.gamesCount)
     assert.equal(formats.singles.isProvisional, true)
     // Co về career rating khi ít trận (< 30)
     assert.ok(Math.abs(formats.singles.rating - 1795) < 30)

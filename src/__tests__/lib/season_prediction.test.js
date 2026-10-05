@@ -486,3 +486,25 @@ assert.equal(predRows.length, 2)
 assert.equal(predRows[0].pointsAfter, ledgerRow.totalSeasonPoints, 'Dòng phiếu mới nhất mang điểm sau khớp tổng')
 
 console.log('ledger pointsAfter check: OK')
+
+// ==========================================
+// 9. Tách điểm mùa theo nguồn (cạnh tiêu đề "Lịch sử điểm cả mùa"): cộng lại đúng bằng tổng
+// ==========================================
+const splitDb = {
+  ...ledgerDb,
+  matches: [...ledgerMatches, {
+    id: 'lm3', sessionId: 'ls1', challengeId: 'lc9', at: Date.parse('2026-08-22T10:00:00Z'),
+    teamA: ['L1'], teamB: ['X1'], winnerTeam: 'A', sets: [[21, 19]],
+    initialRatingA: 1000, initialRatingB: 1000, ratingEnabled: true,
+  }],
+}
+const splitOut = getMemberSeasonLedger('L1', splitDb, seasonQ3)
+const sp = splitOut.split
+assert.ok(sp.match > 0, 'hai trận thường thắng → điểm trận dương')
+assert.ok(sp.challenge > sp.match / 2, 'trận kèo nhân hệ số → điểm kèo lớn hơn một trận thường')
+assert.equal(sp.bonus, 5, 'thắng 3 liền → thưởng mốc chuỗi 3')
+assert.equal(sp.prediction, 1, 'phiếu +2 và -1')
+assert.equal(sp.start + sp.match + sp.challenge + sp.bonus + sp.prediction, splitOut.totalPoints, 'các nguồn cộng lại = tổng điểm mùa')
+assert.deepEqual(getMemberSeasonLedger('L1', { ...ledgerDb, matches: [] }, seasonQ3).split, { start: 0, match: 0, challenge: 0, bonus: 0, prediction: 1 }, 'chưa đánh trận nào thì không có điểm khởi đầu')
+
+console.log('ledger split check: OK')

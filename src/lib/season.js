@@ -790,6 +790,16 @@ export function getMemberSeasonLedger(memberId, db = {}, customSeason = null) {
   // `allEvents` là sổ đủ cả mùa cho modal có bộ lọc; `recentEvents` giữ 10 dòng cho các thẻ tóm tắt.
   const allEvents = [...events, ...predEvents].sort((a, b) => (b.at || 0) - (a.at || 0))
 
+  // Tổng điểm mùa tách theo nguồn, đọc lại đúng các con số của sổ (không tính lại): khởi đầu + trận
+  // thường + trận kèo + thưởng mốc (chuỗi 3/5, upset) + dự đoán = totalPoints (trừ khi tổng chạm sàn 0).
+  const split = { start: allLogs.length ? (season.startPoints ?? cfg.season?.startPoints ?? 0) : 0, match: 0, challenge: 0, bonus: 0, prediction: 0 }
+  allLogs.forEach((m) => {
+    const bonus = (m.earnedStreakBonus || 0) + (m.earnedUpsetBonus || 0)
+    split.bonus += bonus
+    split[isChallengeMatch(m) ? 'challenge' : 'match'] += (m.effectiveChange ?? 0) - bonus
+  })
+  ;(memberRow.predictionLogs || []).forEach((log) => { split.prediction += log.numPts || 0 })
+
   return {
     season,
     member: memberRow.member,
@@ -801,6 +811,7 @@ export function getMemberSeasonLedger(memberId, db = {}, customSeason = null) {
     isInactive: memberRow.isInactive,
     daysSinceLastMatch: memberRow.daysSinceLastMatch,
     breakdown: memberRow.breakdown,
+    split,
     recentEvents: allEvents.slice(0, 10),
     allEvents,
   }
