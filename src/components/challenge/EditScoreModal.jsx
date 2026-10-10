@@ -399,7 +399,10 @@ export default function EditScoreModal({ match: initialMatch, onClose, onSaved, 
       const oldAfter = baseRating + oldChange
 
       const pDelta = playerDeltasPreview?.deltas?.[id]
-      const newChange = pDelta != null ? pDelta : ((inTeamA && newWonA) || (!inTeamA && !newWonA) ? newDelta : -newDelta)
+      // Trận giao lưu: lưu xong replay vẫn cho delta 0, preview không được bịa ±8
+      const newChange = match.ratingEnabled === false
+        ? 0
+        : pDelta != null ? pDelta : ((inTeamA && newWonA) || (!inTeamA && !newWonA) ? newDelta : -newDelta)
       const newAfter = baseRating + newChange
 
       return {
