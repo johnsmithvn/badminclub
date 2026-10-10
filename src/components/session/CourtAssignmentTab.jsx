@@ -1,5 +1,5 @@
 import { useState, useMemo, useCallback, useEffect } from 'react'
-import { Button, Card, Dialog, Icon, IconButton, Select, Switch } from '#ds'
+import { Button, Card, Dialog, Icon, IconButton, Select } from '#ds'
 import { GenderChip, LevelChip } from '#ui'
 import { useApp } from '#contexts/AppContext.jsx'
 import { useMobile } from '#hooks/useMobile.js'
@@ -2007,18 +2007,15 @@ export default function CourtAssignmentTab({ s, preset }) {
               paddingTop: isMobile ? 8 : 0,
               borderTop: isMobile ? '1px dashed var(--border-subtle)' : 'none',
             }}>
-              <div
+              <label
                 style={{ display: 'inline-flex', alignItems: 'center', gap: 6, cursor: 'pointer' }}
                 title={ratingEnabled ? t('quickMatch.rateElo') : t('quickMatch.unrated')}
-                onClick={() => setRatingEnabled((v) => !v)}
               >
-                <Switch
-                  size="sm"
+                <input
+                  type="checkbox"
                   checked={Boolean(ratingEnabled)}
-                  onChange={(e) => {
-                    const nextVal = typeof e === 'boolean' ? e : (e?.target ? e.target.checked : !ratingEnabled)
-                    setRatingEnabled(Boolean(nextVal))
-                  }}
+                  onChange={(e) => setRatingEnabled(e.target.checked)}
+                  style={{ width: 16, height: 16, margin: 0, cursor: 'pointer', accentColor: 'var(--teal-600)' }}
                 />
                 <span
                   style={{
@@ -2031,7 +2028,7 @@ export default function CourtAssignmentTab({ s, preset }) {
                 >
                   {ratingEnabled ? t('quickMatch.rateElo') : t('quickMatch.unrated')}
                 </span>
-              </div>
+              </label>
               <Button
                 variant="secondary"
                 size="sm"
