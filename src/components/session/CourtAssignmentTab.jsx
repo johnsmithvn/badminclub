@@ -2026,7 +2026,7 @@ export default function CourtAssignmentTab({ s, preset }) {
                     whiteSpace: 'nowrap',
                   }}
                 >
-                  {ratingEnabled ? t('quickMatch.rateElo') : t('quickMatch.unrated')}
+                  {t('quickMatch.rateElo')}
                 </span>
               </label>
               <Button
