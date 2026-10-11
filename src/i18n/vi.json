@@ -3529,7 +3529,6 @@
     "cascadeRecalcPlayers": "Người bị đổi rating",
     "cascadeAffectedMonths": "BXH ảnh hưởng",
     "ratingAlgorithm": "Thuật toán",
-    "frozenAlgorithmNotice": "Trận đã đóng băng thuật toán nên tính lại vẫn dùng ELO_V1, kể cả khi CLB đã đổi sang V2.",
     "ratingCurrentSaved": "Rating đang lưu",
     "ratingAfterEdit": "Sau khi sửa",
     "editingNotice": "Đang sửa set {{set}}: {{oldScore}} thành {{newScore}}. Chưa lưu.",

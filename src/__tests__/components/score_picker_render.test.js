@@ -19,7 +19,7 @@ test('mặc định: tên hai đội, A thắng 21-19, đủ 4 nút preset, chư
   const s = show(scoreStateFrom())
   assert.match(s, new RegExp(`${m1.name} · ${m2.name}`))
   assert.match(s, new RegExp(`${m3.name} · ${m4.name}`))
-  assert.match(s, /Thắng 21 .* 19/, 'nhãn Thắng nằm ở đội A')
+  assert.match(s, /Win 21 .* 19/, 'nhãn Win nằm ở đội A')
   assert.match(s, /21-19 21-15 21-11 Khác/)
   assert.doesNotMatch(s, /Tùy chỉnh tỷ số/)
 })
@@ -30,9 +30,9 @@ test('thẻ đội hiện Elo trung bình của đội (cùng kiểu modal Sửa
   assert.match(s, /Rating TB: 790/)
 })
 
-test('B thắng: nhãn Thắng chuyển sang đội B', () => {
+test('B thắng: nhãn Win chuyển sang đội B', () => {
   const s = show(scoreStateFrom([[15, 21]]))
-  assert.match(s, /15 .* Thắng 21/)
+  assert.match(s, /15 .* Win 21/)
 })
 
 test('Khác: hiện ô tự nhập, tỷ số nhanh theo phía đội thắng; hoà thì cảnh báo', () => {

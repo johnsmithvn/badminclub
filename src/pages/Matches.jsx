@@ -504,11 +504,13 @@ export default function Matches() {
     for (const [dateKey, matchesInDay] of dayMap.entries()) {
       matchesInDay.sort((a, b) => (b.at || 0) - (a.at || 0))
 
-      const earliestAt = Math.min(...matchesInDay.map((m) => m.at || 0).filter(Boolean))
-      const latestAt = Math.max(...matchesInDay.map((m) => m.at || 0).filter(Boolean))
+      // Math.min() của mảng rỗng là Infinity (truthy) → phải chặn trước, không thì ra "Invalid Date".
+      const ats = matchesInDay.map((m) => m.at).filter(Boolean)
+      const earliestAt = ats.length ? Math.min(...ats) : 0
+      const latestAt = ats.length ? Math.max(...ats) : 0
 
-      const startTimeStr = earliestAt ? new Date(earliestAt).toLocaleTimeString('vi-VN', { hour: '2-digit', minute: '2-digit' }) : '19:00'
-      const endTimeStr = latestAt ? new Date(latestAt).toLocaleTimeString('vi-VN', { hour: '2-digit', minute: '2-digit' }) : '21:40'
+      const startTimeStr = earliestAt ? new Date(earliestAt).toLocaleTimeString('vi-VN', { hour: '2-digit', minute: '2-digit' }) : '—'
+      const endTimeStr = latestAt ? new Date(latestAt).toLocaleTimeString('vi-VN', { hour: '2-digit', minute: '2-digit' }) : '—'
       const timeRange = `${startTimeStr} → ${endTimeStr}`
 
       let durationText = ''
@@ -1959,7 +1961,7 @@ export default function Matches() {
                         const courtObj = s?.courts?.[m.courtIdx]
                         const venue = courtObj ? courtOf(db, courtObj.courtId) : null
                         const courtLabel = courtObj?.label || (courtObj ? t('session.courtNum', { n: (m.courtIdx ?? 0) + 1 }) : '')
-                        const matchTime = m.at ? new Date(m.at).toLocaleTimeString('vi-VN', { hour: '2-digit', minute: '2-digit' }) : (courtObj?.from || '19:00')
+                        const matchTime = m.at ? new Date(m.at).toLocaleTimeString('vi-VN', { hour: '2-digit', minute: '2-digit' }) : (courtObj?.from || '—')
                         const matchCode = matchCodeOf(db, m)
 
                         const isChallenge = Boolean(m.challengeId || m.sourceType === 'challenge')
@@ -2377,7 +2379,7 @@ export default function Matches() {
                       const courtObj = s?.courts?.[m.courtIdx]
                       const venue = courtObj ? courtOf(db, courtObj.courtId) : null
                       const courtLabel = courtObj?.label || (courtObj ? t('session.courtNum', { n: (m.courtIdx ?? 0) + 1 }) : '')
-                      const matchTime = m.at ? new Date(m.at).toLocaleTimeString('vi-VN', { hour: '2-digit', minute: '2-digit' }) : (courtObj?.from || '19:00')
+                      const matchTime = m.at ? new Date(m.at).toLocaleTimeString('vi-VN', { hour: '2-digit', minute: '2-digit' }) : (courtObj?.from || '—')
                       const matchCode = matchCodeOf(db, m)
 
                       // Vạch màu trái và background

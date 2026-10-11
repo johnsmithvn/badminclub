@@ -376,51 +376,35 @@ export default function EditScoreModal({ match: initialMatch, onClose, onSaved, 
     return {
       subsequentCount: subsequent.length,
       affectedPlayersCount: playerSet.size,
-      affectedMonths: Array.from(monthsSet).join(' · ') || 'T09',
+      affectedMonths: Array.from(monthsSet).join(' · ') || '—',
       algorithm: match.ratingAlgorithm || 'ELO_V1',
     }
   }, [db.matches, match, teamA, teamB])
 
-  // Bảng so sánh Rating Before vs After của 4 VĐV (Screen DS2)
+  // Bảng Rating đang lưu vs Sau khi sửa — MỘT dòng mỗi đội. Trận chỉ lưu Elo trước trận của cả
+  // đội (đôi = trung bình cặp) và MỘT eloDelta (= delta của teamA[0]); mỗi người một K nên không
+  // có số thật cho từng người. Số không phải của chính người đó gắn "≈"; thiếu dữ liệu (trận cũ,
+  // tỉ số đang hoà) hiện "—" — không bịa ±8.
   const ratingComparison = useMemo(() => {
-    const oldDelta = Math.abs(match.eloDelta != null ? match.eloDelta : 8)
-    const oldWonA = match.winnerTeam === 'A'
-    const newWonA = newWinnerTeam === 'A'
-    const newDelta = Math.abs(playerDeltasPreview?.delta != null ? playerDeltasPreview.delta : 8)
-
-    const computeRow = (id, inTeamA) => {
-      const mem = (db.members || []).find((m) => m.id === id) || (db.guests || []).find((g) => g.id === id)
-      const pr = getPlayerRating(db.playerRatings, id, mem, db.levels)
-      const baseRating = inTeamA
-        ? (match.initialRatingA ? Math.round(match.initialRatingA) : pr.rating)
-        : (match.initialRatingB ? Math.round(match.initialRatingB) : pr.rating)
-
-      const oldChange = (inTeamA && oldWonA) || (!inTeamA && !oldWonA) ? oldDelta : -oldDelta
-      const oldAfter = baseRating + oldChange
-
-      const pDelta = playerDeltasPreview?.deltas?.[id]
-      // Trận giao lưu: lưu xong replay vẫn cho delta 0, preview không được bịa ±8
-      const newChange = match.ratingEnabled === false
-        ? 0
-        : pDelta != null ? pDelta : ((inTeamA && newWonA) || (!inTeamA && !newWonA) ? newDelta : -newDelta)
-      const newAfter = baseRating + newChange
-
+    const unrated = match.ratingEnabled === false
+    const row = (team, inTeamA) => {
+      const initial = inTeamA ? match.initialRatingA : match.initialRatingB
+      const oldWon = match.winnerTeam === (inTeamA ? 'A' : 'B')
       return {
-        id,
-        name: playerName(db, id),
-        baseRating,
-        oldChange,
-        oldAfter,
-        newChange,
-        newAfter,
+        id: inTeamA ? 'A' : 'B',
+        name: team.map((id) => playerName(db, id)).join(' · '),
+        approx: !unrated && !(inTeamA && team.length === 1),
+        base: initial != null ? Math.round(initial) : null,
+        oldChange: match.eloDelta != null ? (oldWon ? 1 : -1) * Math.abs(match.eloDelta) : null,
+        // Trận giao lưu: replay vẫn cho delta 0
+        newChange: unrated ? 0 : (playerDeltasPreview?.deltas?.[team[0]] ?? null),
       }
     }
-
-    return {
-      teamA: teamA.map((id) => computeRow(id, true)),
-      teamB: teamB.map((id) => computeRow(id, false)),
-    }
-  }, [match, teamA, teamB, newWinnerTeam, playerDeltasPreview, db.playerRatings, db.members, db.guests, db.levels, db])
+    return [row(teamA, true), row(teamB, false)]
+  }, [match, teamA, teamB, playerDeltasPreview, db])
+  const signedDelta = (n, approx) => (n == null ? '—' : `${approx ? '≈' : ''}${n >= 0 ? '+' : ''}${n}`)
+  const deltaColor = (n) => (n == null ? 'var(--text-muted)' : n >= 0 ? '#5FD9A2' : '#FF8578')
+  const afterDelta = (base, n) => (base != null && n != null ? base + n : '—')
 
   // Lưu điểm & giờ
   const handleSave = async () => {
@@ -1057,7 +1041,7 @@ export default function EditScoreModal({ match: initialMatch, onClose, onSaved, 
             </div>
 
             <div style={{ minWidth: 0, padding: '10px 14px', display: 'grid', gap: 8 }}>
-              {[...ratingComparison.teamA, ...ratingComparison.teamB].map((row) => (
+              {ratingComparison.map((row) => (
                 <div
                   key={row.id}
                   style={{ minWidth: 0,
@@ -1074,11 +1058,11 @@ export default function EditScoreModal({ match: initialMatch, onClose, onSaved, 
                   </span>
                   {/* Rating đang lưu */}
                   <span style={{ color: 'var(--text-muted)' }}>
-                    {row.baseRating} <span style={{ color: row.oldChange >= 0 ? '#5FD9A2' : '#FF8578' }}>{row.oldChange >= 0 ? `+${row.oldChange}` : row.oldChange}</span> → {row.oldAfter}
+                    {row.base ?? '—'} <span style={{ color: deltaColor(row.oldChange) }}>{signedDelta(row.oldChange, row.approx)}</span> → {afterDelta(row.base, row.oldChange)}
                   </span>
                   {/* Sau khi sửa */}
                   <span style={{ color: 'var(--status-transit-fg)', fontWeight: 700 }}>
-                    <span style={{ color: row.newChange >= 0 ? '#5FD9A2' : '#FF8578' }}>{row.newChange >= 0 ? `+${row.newChange}` : row.newChange}</span> → {row.newAfter}
+                    <span style={{ color: deltaColor(row.newChange) }}>{signedDelta(row.newChange, row.approx)}</span> → {afterDelta(row.base, row.newChange)}
                   </span>
                 </div>
               ))}
@@ -1129,10 +1113,6 @@ export default function EditScoreModal({ match: initialMatch, onClose, onSaved, 
                 <span style={{ fontSize: 11, color: 'var(--text-muted)' }}>{t('matchSearch.ratingAlgorithm')}</span>
                 <span style={{ font: '700 13px/1 "IBM Plex Mono", monospace', color: 'var(--status-transit-fg)' }}>{subsequentStats.algorithm}</span>
               </div>
-            </div>
-
-            <div style={{ font: '400 12px/1.4 "IBM Plex Sans", sans-serif', color: 'var(--text-muted)', background: 'var(--surface-sunken)', padding: '8px 10px', borderRadius: 'var(--radius-sm)' }}>
-              {t('matchSearch.frozenAlgorithmNotice')}
             </div>
           </div>
 

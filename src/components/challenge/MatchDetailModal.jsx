@@ -42,10 +42,12 @@ export default function MatchDetailModal({ match, onClose, onEdit }) {
   const venue = courtObj ? courtOf(db, courtObj.courtId) : null
   const courtLabel = courtObj?.label || (courtObj ? t('session.courtNum', { n: (liveMatch?.courtIdx ?? 0) + 1 }) : '')
   const dateStr = s?.date ? dd(s.date) : (liveMatch?.at ? new Date(liveMatch.at).toLocaleDateString('vi-VN', { day: '2-digit', month: '2-digit' }) : '')
-  const timeStr = liveMatch?.at ? new Date(liveMatch.at).toLocaleTimeString('vi-VN', { hour: '2-digit', minute: '2-digit' }) : '20:42'
+  const timeStr = liveMatch?.at ? new Date(liveMatch.at).toLocaleTimeString('vi-VN', { hour: '2-digit', minute: '2-digit' }) : ''
   const matchWhen = `${dateStr ? dateStr + ' · ' : ''}${venue?.name ? venue.name + ' · ' : ''}${courtLabel}`
 
-  const delta = Math.abs(liveMatch?.eloDelta != null ? liveMatch.eloDelta : 8)
+  // Trận chỉ lưu MỘT số eloDelta = delta của teamA[0]; người khác trong trận đôi mỗi người một K
+  // nên không có số thật để hiện từng người. Trận cũ không lưu → null, hiện "—" chứ không bịa.
+  const delta = liveMatch?.eloDelta != null ? Math.abs(liveMatch.eloDelta) : null
   const ra = liveMatch?.initialRatingA || 0
   const rb = liveMatch?.initialRatingB || 0
   const isUpset = Math.abs(ra - rb) > 100 && ((ra < rb && aWon) || (rb < ra && !aWon))
@@ -79,36 +81,13 @@ export default function MatchDetailModal({ match, onClose, onEdit }) {
     return edits.filter((e) => e.matchId === match?.id)
   }, [db.matchEdits, match?.id])
 
-  // Tính rating từng người trước và sau trận
-  const playerDeltas = useMemo(() => {
-    const listA = teamA.map((id) => {
-      const pr = getPlayerRating(db.playerRatings, id, playerOf(db, id), db.levels)
-      const baseRating = match?.initialRatingA ? Math.round(match.initialRatingA) : pr.rating
-      const change = aWon ? delta : -delta
-      return {
-        id,
-        name: playerName(db, id),
-        before: baseRating,
-        delta: change,
-        after: baseRating + change,
-      }
-    })
-
-    const listB = teamB.map((id) => {
-      const pr = getPlayerRating(db.playerRatings, id, playerOf(db, id), db.levels)
-      const baseRating = match?.initialRatingB ? Math.round(match.initialRatingB) : pr.rating
-      const change = !aWon ? delta : -delta
-      return {
-        id,
-        name: playerName(db, id),
-        before: baseRating,
-        delta: change,
-        after: baseRating + change,
-      }
-    })
-
-    return { listA, listB }
-  }, [teamA, teamB, match, db, aWon, delta])
+  // Biến động Elo phía đội A. Đơn: đúng số của người đó. Đôi: "≈" vì là số của teamA[0].
+  const eloDeltaText = useMemo(() => {
+    if (delta == null) return '—'
+    const change = aWon ? delta : -delta
+    const signed = change >= 0 ? `+${change}` : `${change}`
+    return teamA.length > 1 ? `≈${signed}` : `${shortName(playerName(db, teamA[0]))} ${signed}`
+  }, [teamA, db, aWon, delta])
 
   // Tính các tầng ăn ý, khắc chế, điểm mùa giải, H2H
   const {
@@ -219,7 +198,7 @@ export default function MatchDetailModal({ match, onClose, onEdit }) {
   }, [teamA, teamB, match, db, aWon, nameTeamA, nameTeamB, ra, rb])
 
   const isDoubles = teamA.length === 2 && teamB.length === 2
-  const matchCategory = isDoubles ? 'Đôi nam' : 'Đơn nam' // i18n-ok
+  const matchCategory = isDoubles ? 'Đôi' : 'Đơn' // i18n-ok
 
   const tiers = useMemo(() => [
     {
@@ -227,7 +206,7 @@ export default function MatchDetailModal({ match, onClose, onEdit }) {
       title: t('matchDetail.tier1Elo'),
       sub: t('matchDetail.tier1EloSub'),
       desc: `Kỳ vọng ${expA}% · thắng thật → ${isUpset ? 'bất ngờ lớn, biến động mạnh' : 'tăng nhẹ vì đúng dự đoán'}`, // i18n-ok
-      value: playerDeltas.listA.map((p) => `${shortName(p.name)} ${p.delta >= 0 ? `+${p.delta}` : p.delta}`).join(' · '),
+      value: eloDeltaText,
       color: '#5FDBD3',
     },
     {
@@ -264,7 +243,7 @@ export default function MatchDetailModal({ match, onClose, onEdit }) {
       value: `${shortName(h2hP1)} ${h2hWins1}–${h2hWins2} ${shortName(h2hP2)}`,
       color: '#8494AA',
     },
-  ], [t, expA, isUpset, playerDeltas.listA, winPairName, synGames, actualWinPct, expWinPct, synBefore, synAfter, match?.ratingEnabled, seasonDelta, losePairName, matchupGames, matchupConf, h2hP1, h2hWins1, h2hWins2, h2hP2])
+  ], [t, expA, isUpset, eloDeltaText, winPairName, synGames, actualWinPct, expWinPct, synBefore, synAfter, match?.ratingEnabled, seasonDelta, losePairName, matchupGames, matchupConf, h2hP1, h2hWins1, h2hWins2, h2hP2])
 
   return (
     <>
@@ -306,10 +285,14 @@ export default function MatchDetailModal({ match, onClose, onEdit }) {
         >
           <div style={{ flex: '1 1 0%', minWidth: 0 }}>
             <div style={{ font: isMobile ? '600 15px/1.25 Barlow, sans-serif' : '600 17px/1.25 Barlow, sans-serif', color: '#E9EFF7' }}>
-              {t('matchDetail.matchCode', { code: matchCode })} · {courtLabel || t('session.courtNum', { n: 1 })} · {timeStr}
+              {[t('matchDetail.matchCode', { code: matchCode }), courtLabel, timeStr].filter(Boolean).join(' · ')}
             </div>
             <div style={{ font: isMobile ? "400 12px/1.4 'IBM Plex Mono', monospace" : "400 13px/1.4 'IBM Plex Mono', monospace", color: '#8494AA' }}>
-              {matchCategory} · {t('session.sessionTitle')} {dateStr || '02/09'} · {t('matchDetail.eloApplied')}
+              {[
+                matchCategory,
+                dateStr && `${t('session.sessionTitle')} ${dateStr}`,
+                match?.ratingEnabled === false ? t('quickMatch.unrated') : t('matchDetail.eloApplied'),
+              ].filter(Boolean).join(' · ')}
             </div>
           </div>
           <div style={{ width: 14, height: 14, borderRadius: 3, background: 'rgba(255,255,255,.18)' }} />

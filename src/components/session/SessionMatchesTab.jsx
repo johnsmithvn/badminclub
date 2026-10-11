@@ -665,7 +665,7 @@ export default function SessionMatchesTab({ s, onSwitchTab }) {
                     const courtObj = (s.courts || [])[m.courtIdx]
                     const venue = courtObj ? courtOf(db, courtObj.courtId) : null
                     const courtLabel = courtObj?.label || (courtObj ? t('session.courtNum', { n: (m.courtIdx ?? 0) + 1 }) : '')
-                    const matchTime = m.at ? new Date(m.at).toLocaleTimeString('vi-VN', { hour: '2-digit', minute: '2-digit' }) : (courtObj?.from || '19:00')
+                    const matchTime = m.at ? new Date(m.at).toLocaleTimeString('vi-VN', { hour: '2-digit', minute: '2-digit' }) : (courtObj?.from || '—')
                     const matchCode = matchCodeOf(db, m)
 
                     // Vạch màu trái và background
@@ -954,7 +954,7 @@ export default function SessionMatchesTab({ s, onSwitchTab }) {
             {matchesWithVideo.map((m) => {
               const courtObj = (s.courts || [])[m.courtIdx]
               const courtLabel = courtObj?.label || (courtObj ? t('session.courtNum', { n: (m.courtIdx ?? 0) + 1 }) : t('session.courtNum', { n: 1 }))
-              const matchTime = m.at ? new Date(m.at).toLocaleTimeString('vi-VN', { hour: '2-digit', minute: '2-digit' }) : (courtObj?.from || '19:00')
+              const matchTime = m.at ? new Date(m.at).toLocaleTimeString('vi-VN', { hour: '2-digit', minute: '2-digit' }) : (courtObj?.from || '—')
               const matchCode = matchCodeOf(db, m)
               const videoTagLabel = videoTagLabelOf(m)
               const displayLabel = formatVideoDisplayLabel(m.videoUrl, m.videoTimestamp)
@@ -1593,8 +1593,8 @@ export default function SessionMatchesTab({ s, onSwitchTab }) {
         <AttachVideoModal
           match={attachVideoMatch}
           matchCode={matchCodeOf(db, attachVideoMatch)}
-          timeStr={attachVideoMatch.at ? new Date(attachVideoMatch.at).toLocaleTimeString('vi-VN', { hour: '2-digit', minute: '2-digit' }) : '19:00'}
-          courtVenueStr={courtOf(db, (s.courts || [])[attachVideoMatch.courtIdx]?.courtId)?.name || t('session.courtNum', { n: 1 })}
+          timeStr={attachVideoMatch.at ? new Date(attachVideoMatch.at).toLocaleTimeString('vi-VN', { hour: '2-digit', minute: '2-digit' }) : ''}
+          courtVenueStr={courtOf(db, (s.courts || [])[attachVideoMatch.courtIdx]?.courtId)?.name || ''}
           teamText={`${(attachVideoMatch.winnerTeam === 'A' ? attachVideoMatch.teamA : attachVideoMatch.teamB || []).map(memberNameOf).join(' · ')} vs ${(attachVideoMatch.winnerTeam === 'A' ? attachVideoMatch.teamB : attachVideoMatch.teamA || []).map(memberNameOf).join(' · ')}`}
           scoreText={(attachVideoMatch.sets || []).map(([a, b]) => `${a}–${b}`).join(', ')}
           onClose={() => setAttachVideoMatch(null)}

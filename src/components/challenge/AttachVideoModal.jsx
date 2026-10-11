@@ -761,7 +761,7 @@ export function MatchVideoInlineExpander({
           {matchCode || match?.id?.slice(0, 6)}
         </div>
         <div style={{ font: '600 13px/1 "IBM Plex Mono", monospace', color: 'var(--text-primary)' }}>
-          {timeStr || '19:00'}
+          {timeStr || '—'}
         </div>
         {courtVenueStr && (
           <div style={{ font: '400 12px/1 "IBM Plex Mono", monospace', color: 'var(--text-muted)' }}>
