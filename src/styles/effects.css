@@ -155,3 +155,27 @@
   box-shadow: 0 4px 18px rgba(255, 69, 0, 0.75) !important;
   transform: scale(1.02);
 }
+
+/* Sự kiện 20/10 (SakuraEvent.jsx): cánh hoa rơi, bung hoa khi nhận thiệp. Biến --drift/--fall/
+   --rot/--dx/--dy/--sx/--sy đặt inline trên từng cánh. */
+@keyframes skFall {
+  0% { transform: translate3d(0, -10px, 0) rotate(0deg); opacity: 0; }
+  8% { opacity: .95; }
+  50% { transform: translate3d(calc(var(--drift) * -0.6), calc(var(--fall) * 0.5), 0) rotate(calc(var(--rot) * 0.5)); }
+  92% { opacity: .9; }
+  100% { transform: translate3d(var(--drift), var(--fall), 0) rotate(var(--rot)); opacity: 0; }
+}
+@keyframes skTwinkle { 0%, 100% { opacity: .15; transform: scale(.5); } 50% { opacity: 1; transform: scale(1); } }
+@keyframes skBurst { 0% { transform: translate(0, 0) rotate(0deg) scale(.3); opacity: 0; } 12% { opacity: 1; } 100% { transform: translate(var(--dx), var(--dy)) rotate(var(--rot)) scale(1); opacity: 0; } }
+@keyframes skPop { from { opacity: 0; transform: translateY(16px) scale(.94); } to { opacity: 1; transform: none; } }
+@keyframes skOut { from { opacity: 1; transform: none; } to { opacity: 0; transform: translateY(10px) scale(.97); } }
+@keyframes skFade { from { opacity: 0; } to { opacity: 1; } }
+@keyframes skFadeOut { from { opacity: 1; } to { opacity: 0; } }
+@keyframes skFlash { 0% { opacity: 0; } 25% { opacity: 1; } 100% { opacity: 0; } }
+@keyframes skRing { 0% { transform: translate(-50%, -50%) scale(.2); opacity: .95; } 100% { transform: translate(-50%, -50%) scale(7); opacity: 0; } }
+@keyframes skConverge { 0% { transform: translate(var(--sx), var(--sy)) scale(.6); opacity: 0; } 30% { opacity: 1; } 100% { transform: translate(0, 0) scale(.2); opacity: 0; } }
+@keyframes skHeart { 0% { transform: scale(0) rotate(-12deg); opacity: 0; } 60% { transform: scale(1.18) rotate(4deg); opacity: 1; } 100% { transform: scale(1) rotate(0deg); opacity: 1; } }
+@keyframes skBloom { 0% { transform: scale(0) rotate(-50deg); opacity: 0; } 60% { transform: scale(1.12) rotate(6deg); opacity: 1; } 100% { transform: scale(1) rotate(0deg); opacity: 1; } }
+@keyframes skSpin { to { transform: rotate(360deg); } }
+@keyframes skFloat { 0%, 100% { transform: translateY(0); } 50% { transform: translateY(-5px); } }
+@keyframes skHalo { 0%, 100% { opacity: .95; transform: translate(-50%, -50%) scale(1); } 50% { opacity: .6; transform: translate(-50%, -50%) scale(1.12); } }

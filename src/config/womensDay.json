@@ -1,0 +1,58 @@
+{
+  "_help": "Sự kiện 20/10. Mỗi khoá trong greetings là id thành viên (bảng members). name = tên in trên thiệp, msg = lời chúc mặt trước, final = câu hiện ra sau khi bấm Nhận lời chúc, img = ảnh riêng (tuỳ chọn, đặt file vào public/event/). Thành viên nữ không có trong danh sách sẽ nhận lời chúc chung trong vi.json (event2010.*).",
+  "date": "10-20",
+  "image": "/event/sakura-girl.png",
+  "bannerImage": "/event/sakura-banner.png",
+  "greetings": {
+    "7d531f89-60b6-46ba-9805-b12d5087a385": {
+      "name": "Hương Giang",
+      "msg": "Chúc Hương Giang một ngày 20/10 thật trọn vẹn. Vừa cùng giữ lửa cho club, vừa là người ra sân đều nhất hội chị em, mà trận nào cũng đánh hết mình. Cặp với Kuro ngày càng ăn ý, năm nay tiếp tục làm đôi khó chịu nhất sân nhé.",
+      "final": "Club chạy êm được là có phần lớn công của bạn. Hôm nay bạn chỉ việc nhận hoa, việc lặt vặt để anh em lo."
+    },
+    "912d6da5-5084-4f2f-8067-5c462d86d1b3": {
+      "name": "Canh lá đắng",
+      "msg": "Gửi cô nàng tên thì đắng mà đánh thì ngọt: chúc 20/10 vui hết cỡ. Bạn là một trong những người ra sân chăm nhất club, thắng hay thua cũng giữ nụ cười :))) Cặp Canh lá đắng – Bát canh thập cẩm thành đặc sản của club rồi, năm nay nấu thêm thật nhiều chiến thắng đậm đà nhé.",
+      "final": "Hôm nay canh không đắng nữa, chỉ có ngọt thôi. Hẹn bạn trên sân."
+    },
+    "ab904e8a-a4a7-49f6-9488-0c1086d39a5c": {
+      "name": "Bát canh thập cẩm",
+      "msg": "Chúc Bát canh thập cẩm một ngày 20/10 đủ vị: vui, ngọt, thêm chút cay cho đối thủ. Bạn ra sân rất đều và chẳng ngại kèo nào, chính cái lì đòn đó làm buổi chơi của club vui hẳn lên. Đồng hành cùng Canh lá đắng thêm thật nhiều trận nữa nhé.",
+      "final": "Thập cẩm thì món gì cũng có rồi, năm nay thêm món cúp nữa là đủ bộ."
+    },
+    "ffd44c31-2082-48a1-942d-4811af1eae85": {
+      "name": "Thúy Anh",
+      "msg": "Chúc Thúy Anh 20/10 thật rạng rỡ. Bạn đánh chắc tay, ra sân đều, và luôn là đồng đội dễ chịu mà chị em nào cũng muốn cặp cùng. Giữ phong độ thế này thì leo bảng nữ chỉ là chuyện sớm hay muộn.",
+      "final": "Cảm ơn bạn đã luôn có mặt. Hôm nay đến lượt cả club có mặt vì bạn."
+    },
+    "36b1ed12-4a31-4375-bc3f-29d0c4825ffe": {
+      "name": "Hoa",
+      "msg": "Chúc Hoa một ngày 20/10 rực rỡ đúng như cái tên. Ra sân không nhiều nhưng đã ra là thắng, tỉ lệ thắng của bạn khiến cả hội anh em phải dè chừng. Đi tập đều hơn nhé, club đang chờ xem bạn leo được tới đâu.",
+      "final": "Hoa nở trên sân, đối thủ héo dưới lưới. Hẹn bạn buổi tới."
+    },
+    "b9448482-5fbe-4ecf-a6ba-6eec18e541a4": {
+      "name": "Tiểu Công Chúa",
+      "msg": "Gửi Tiểu Công Chúa: chúc 20/10 được ngủ thật ngon, dậy thật xinh, và lên sân thì tỉnh như sáo. Trình thuộc hàng đầu hội chị em mà lúc nào cũng buồn ngủ, đối thủ biết đường nào mà lần. Công chúa cứ đánh, việc nhặt cầu để các hiệp sĩ lo.",
+      "final": "Hôm nay công chúa được miễn nhặt cầu cả buổi. Đánh xong về ngủ sớm nhé."
+    },
+    "0afab93a-df66-4d1e-9893-0f146e4628f8": {
+      "name": "Hằng",
+      "msg": "Chúc Hằng một ngày 20/10 thật vui và nhẹ nhàng. Bạn ra sân đều đặn, đánh hết mình từng điểm, và cả club đều thấy bạn tiến bộ qua từng buổi. Cứ vui là chính, chiến thắng sẽ tự tìm tới.",
+      "final": "Có Hằng là sân sáng như trăng rằm. Năm nay mình cùng lên trình nhé."
+    },
+    "2204316e-fb22-4f05-b82a-a99092d5f4d5": {
+      "name": "Hương",
+      "msg": "Chúc Hương 20/10 ngập hoa và quà. Người thì hiền mà đánh thì không hiền chút nào, cặp với Thúy Anh hay Hoa đều ra những trận rất đẹp. Ra sân thêm nhiều buổi nữa nhé, club luôn chừa sẵn một chỗ cho bạn.",
+      "final": "Hương thơm thì giữ lại, cầu khó cứ để đồng đội lo. Vui cả ngày nhé."
+    },
+    "97d382fa-f0a7-4e5e-809b-8b739cd1d98e": {
+      "name": "Bích Huyền",
+      "msg": "Chúc Bích Huyền một ngày 20/10 thật vui, cũng là 20/10 đầu tiên của bạn cùng club. Mới vào chưa lâu mà bạn đã hoà nhập rất nhanh, cầm vợt lên là vào guồng. Ra sân nhiều hơn nữa nhé, anh chị em luôn sẵn sàng làm đồng đội.",
+      "final": "20/10 đầu tiên ở club, mong là chưa phải lần đẹp nhất, vì còn nhiều mùa nữa mà."
+    },
+    "f24270f8-26a9-4d80-8e91-e840ee1bab8c": {
+      "name": "Hiểu Khánh",
+      "msg": "Chúc Hiểu Khánh một ngày 20/10 thật trọn vẹn, 20/10 đầu tiên của bạn ở club. Mấy buổi đầu đã thấy bạn lên tay rồi, cứ ra sân đều là trình lên vèo vèo. Club rất vui vì có thêm bạn.",
+      "final": "Tên là Khánh, mà bạn tới thì club cũng vui thật. Hẹn bạn buổi tới."
+    }
+  }
+}

@@ -5821,5 +5821,22 @@
       "moveUp": "Đưa lên trên đội liền trước",
       "openBracket": "Mở nhánh đấu"
     }
+  },
+  "event2010": {
+    "overline": "Ngày Phụ nữ Việt Nam",
+    "bannerTitle": "Her Day, Her Court",
+    "bannerText": "20/10 — Chúc những cô gái {{club}} luôn rạng rỡ!",
+    "reopen": "Xem lại thiệp",
+    "soundOn": "♪ Âm thanh: Bật",
+    "soundOff": "♪ Âm thanh: Tắt",
+    "close": "Đóng thiệp",
+    "cardOverline": "Sakura Greeting",
+    "cardTitle": "Happy Vietnamese Women's Day.",
+    "dear": "Gửi {{name}},",
+    "msg": "Chúc bạn một ngày 20/10 thật nhiều niềm vui: cú đập nào cũng trúng, trận nào cũng có người cổ vũ, và luôn rạng rỡ như cách bạn làm sáng mỗi buổi chơi của club.",
+    "receive": "Nhận lời chúc 💗",
+    "openedOverline": "Lời chúc đã mở",
+    "finalTitle": "Luôn rạng rỡ nhé, {{name}}!",
+    "final": "Cả {{club}} gửi tới bạn một ngày 20/10 thật trọn vẹn. Hẹn gặp bạn trên sân."
   }
 }

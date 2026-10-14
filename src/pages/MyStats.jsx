@@ -33,6 +33,7 @@ import NearbyStandingsCard from '#components/home/personal/NearbyStandingsCard.j
 import MyOpponentsCard from '#components/home/personal/MyOpponentsCard.jsx'
 import HomeMatchTab from '#components/home/HomeMatchTab.jsx'
 import ActivityTab from '#components/home/ActivityTab.jsx'
+import SakuraEvent from '#components/home/SakuraEvent.jsx'
 
 export default function MyStats() {
   const { db, a, ui } = useApp()
@@ -229,6 +230,8 @@ export default function MyStats() {
           </div>
         </div>
 
+        <SakuraEvent key={memberId} member={currentMember} isMobile />
+
         {/* TabTrack & Tabs Mobile */}
         <TabTrack>
           <Tabs
@@ -356,6 +359,8 @@ export default function MyStats() {
           />
         </div>
       </div>
+
+      <SakuraEvent key={memberId} member={currentMember} isMobile={false} />
 
       {/* TabTrack & Tabs Desktop */}
       <TabTrack>
