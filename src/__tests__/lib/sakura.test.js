@@ -35,6 +35,12 @@ assert.deepEqual(greetingSegs('Tin nhắn !!KHÓ TRÁNH!! thật!', null), [
   { t: 'Tin nhắn ', kind: 'plain' }, { t: 'KHÓ TRÁNH', kind: 'odd' }, { t: ' thật!', kind: 'plain' },
 ])
 
+// Dấu !! đóng cụm không được cắt câu — từng cắt "…cũng !!KHÓ TRÁNH!! như tin nhắn!" làm đôi,
+// khung cuối chỉ còn trơ "như tin nhắn!".
+const odd = parseGreeting('Mở đầu. Giữa. Đập quả nào cũng phải !!KHÓ TRÁNH!! nhé!')
+assert.equal(text(odd.close), 'Đập quả nào cũng phải KHÓ TRÁNH nhé!')
+assert.equal(odd.close.find((s) => s.kind === 'odd')?.t, 'KHÓ TRÁNH')
+
 // Mọi lời chúc thật: câu dẫn có chữ, không còn ** lẻ lọt ra màn hình.
 Object.entries(cfg.greetings).forEach(([id, g]) => {
   const m = parseGreeting(g.msg, g.name)

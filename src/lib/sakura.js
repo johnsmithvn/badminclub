@@ -6,7 +6,8 @@
 // trắng/hết chuỗi theo sau, nên "20/10" hay "1.342" không bị cắt.
 // KHÔNG dùng lookbehind `(?<=…)`: Safari < 16.4 (iPhone 7 / iOS 15 vẫn dùng app) gặp nó là lỗi cú
 // pháp lúc nạp bundle, sập cả app chứ không riêng thiệp.
-const SENTENCE = /.+?(?:[.!?…]+|:\)+|$)(?=\s|$)/g
+// Cụm `!!…!!` đi nguyên khối: hai dấu chấm than của nó KHÔNG phải hết câu.
+const SENTENCE = /(?:!!.+?!!|.)+?(?:[.!?…]+|:\)+|$)(?=\s|$)/g
 
 const MARK = /\*\*(.+?)\*\*|!!(.+?)!!/g
 
