@@ -186,7 +186,7 @@ export default function SakuraEvent({ member, isMobile }) {
           rcv={rcv}
           burstN={burstN}
           troll={trollCard}
-          recipient={name}
+          recipient={g.realName || name}
           date={cfg.date.split('-').reverse().join('.') + '.' + today.slice(0, 4)}
           club={club}
           onClose={close}

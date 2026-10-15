@@ -1,5 +1,5 @@
 {
-  "_help": "Sự kiện 20/10. Mỗi khoá trong greetings là id thành viên (bảng members). name = tên in trên thiệp (tự in đậm khi xuất hiện trong lời chúc), msg = lời chúc mặt trước: câu đầu thành câu dẫn chữ to, câu cuối vào khung có dây hoa, bọc **cụm** để tô nền nhấn mạnh. final = câu hiện ra sau khi bấm Nhận lời chúc. Thành viên nữ không có trong danh sách nhận lời chúc chung trong vi.json (event2010.*).",
+  "_help": "Sự kiện 20/10. Mỗi khoá trong greetings là id thành viên (bảng members). name = tên in trên thiệp (tự in đậm khi xuất hiện trong lời chúc), realName = cách gọi bằng tên thật ở câu “Luôn rạng rỡ nhé, …!” sau khi nhận, in nguyên văn, vd “bạn Mai” (bỏ trống thì dùng name), msg = lời chúc mặt trước: câu đầu thành câu dẫn chữ to, câu cuối vào khung có dây hoa, bọc **cụm** để tô nền nhấn mạnh. final = câu hiện ra sau khi bấm Nhận lời chúc. Thành viên nữ không có trong danh sách nhận lời chúc chung trong vi.json (event2010.*).",
   "date": "10-20",
   "bannerImage": "/event/sakura-banner.png",
   "greetings": {
@@ -15,8 +15,9 @@
     },
     "ab904e8a-a4a7-49f6-9488-0c1086d39a5c": {
       "name": "Bát canh thập cẩm",
-      "msg": "Chúc Bát canh thập cẩm một ngày 20/10 **đủ vị**: vui, ngọt, thêm chút cay cho đối thủ. Bạn ra sân rất đều và chẳng ngại kèo nào, chính cái **lì đòn** đó làm buổi chơi của club vui hẳn lên. Đồng hành cùng Canh lá đắng thêm thật nhiều trận nữa nhé.",
-      "final": "Thập cẩm thì món gì cũng có rồi, năm nay thêm món cúp nữa là đủ bộ."
+      "realName": "bạn Mai",
+      "msg": "Chúc Bát canh thập cẩm một ngày 20/10 **đủ vị**: vui, ngọt, thêm chút cay cho đối thủ. Bạn ra sân rất đều và chẳng ngại kèo nào, chính cái **lì đòn** đó làm buổi chơi của club vui hẳn lên. Giờ còn tự đổi tên thành **Hạng nhất mùa này**, việc còn lại chỉ là đánh sao cho bảng xếp hạng tin theo thôi! Trên sân cặp với Canh lá đắng, về nhà cặp với bạn Khải, đúng là chưa bao giờ thiếu đồng đội!",
+      "final": "Thập cẩm thì món gì cũng có rồi, năm nay thêm món cúp nữa là đủ bộ. Còn hôm nay, nồi canh để bạn Khải nấu nhé!"
     },
     "ffd44c31-2082-48a1-942d-4811af1eae85": {
       "name": "Thúy Anh",
