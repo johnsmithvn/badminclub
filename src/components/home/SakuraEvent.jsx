@@ -256,15 +256,14 @@ function Banner({ isMobile, club, rm, label, onTap }) {
 
 /* ============================ THIỆP ============================ */
 
-/** Đoạn chữ đã tách: cụm ** tô nền, tên in đậm. */
+/** Đoạn chữ đã tách: cụm ** tô nền, cụm !! gạch sóng như lỗi chính tả, tên in đậm. */
+const SEG_STYLE = {
+  hl: { fontWeight: 600, color: SK.title, background: SK.hl, padding: '1px 4px', borderRadius: 5, WebkitBoxDecorationBreak: 'clone', boxDecorationBreak: 'clone' },
+  odd: { fontWeight: 700, color: SK.rose, letterSpacing: '.04em', textDecoration: 'underline wavy #E8558F', textDecorationThickness: 1.5, textUnderlineOffset: 4 },
+  name: { fontWeight: 700 },
+}
 function Segs({ segs }) {
-  return segs.map((s, i) => (
-    <span key={i} style={s.kind === 'hl'
-      ? { fontWeight: 600, color: SK.title, background: SK.hl, padding: '1px 4px', borderRadius: 5, WebkitBoxDecorationBreak: 'clone', boxDecorationBreak: 'clone' }
-      : s.kind === 'name' ? { fontWeight: 700 } : undefined}>
-      {s.t}
-    </span>
-  ))
+  return segs.map((s, i) => <span key={i} style={SEG_STYLE[s.kind]}>{s.t}</span>)
 }
 
 function Card({ isMobile, rm, phase, rcv, burstN, troll, recipient, date, club, onClose, onReceive, name, msg, final }) {

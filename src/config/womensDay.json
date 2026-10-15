@@ -1,5 +1,5 @@
 {
-  "_help": "Sự kiện 20/10. Mỗi khoá trong greetings là id thành viên (bảng members). name = tên in trên thiệp (tự in đậm khi xuất hiện trong lời chúc), realName = cách gọi bằng tên thật ở câu “Luôn rạng rỡ nhé, …!” sau khi nhận, in nguyên văn, vd “bạn Mai” (bỏ trống thì dùng name), msg = lời chúc mặt trước: câu đầu thành câu dẫn chữ to, câu cuối vào khung có dây hoa, bọc **cụm** để tô nền nhấn mạnh. final = câu hiện ra sau khi bấm Nhận lời chúc. Thành viên nữ không có trong danh sách nhận lời chúc chung trong vi.json (event2010.*).",
+  "_help": "Sự kiện 20/10. Mỗi khoá trong greetings là id thành viên (bảng members). name = tên in trên thiệp (tự in đậm khi xuất hiện trong lời chúc), realName = cách gọi bằng tên thật ở câu “Luôn rạng rỡ nhé, …!” sau khi nhận, in nguyên văn, vd “bạn Mai” (bỏ trống thì dùng name), msg = lời chúc mặt trước: câu đầu thành câu dẫn chữ to, câu cuối vào khung có dây hoa, bọc **cụm** để tô nền nhấn mạnh, bọc !!cụm!! để gạch sóng như lỗi chính tả (chữ cài cắm cho người tinh ý). final = câu hiện ra sau khi bấm Nhận lời chúc. Thành viên nữ không có trong danh sách nhận lời chúc chung trong vi.json (event2010.*).",
   "date": "10-20",
   "bannerImage": "/event/sakura-banner.png",
   "greetings": {
@@ -10,7 +10,8 @@
     },
     "912d6da5-5084-4f2f-8067-5c462d86d1b3": {
       "name": "Canh lá đắng",
-      "msg": "Gửi cô nàng **tên thì đắng mà đánh thì ngọt**: chúc 20/10 vui hết cỡ. Bạn là một trong những người ra sân chăm nhất club, thắng hay thua cũng giữ nụ cười :))) Cặp Canh lá đắng – Bát canh thập cẩm thành **đặc sản của club** rồi, năm nay nấu thêm thật nhiều chiến thắng đậm đà nhé.",
+      "realName": "Vân Anh",
+      "msg": "Gửi cô nàng **tên thì đắng mà đánh thì ngọt**: chúc 20/10 vui hết cỡ. Thắng hay thua cũng giữ nụ cười :))) Có điều dạo này vắng hơi nhiều, để Bát canh thập cẩm đứng sân một mình rồi đấy! Cặp Canh lá đắng – Bát canh thập cẩm là **đặc sản của club**, quay lại sân sớm để năm nay nấu thêm thật nhiều chiến thắng đậm đà nhé!",
       "final": "Hôm nay canh không đắng nữa, chỉ có ngọt thôi. Hẹn bạn trên sân."
     },
     "ab904e8a-a4a7-49f6-9488-0c1086d39a5c": {
@@ -22,7 +23,7 @@
     "ffd44c31-2082-48a1-942d-4811af1eae85": {
       "name": "Thúy Anh",
       "msg": "Chúc Thúy Anh 20/10 thật rạng rỡ. Bạn đánh chắc tay, ra sân đều, và luôn là **đồng đội dễ chịu** mà chị em nào cũng muốn cặp cùng. Mùa này thua hơi nhiều thật, chắc tại dễ chịu quá nên **nhường điểm** cho cả đối thủ luôn. Từ giờ dễ chịu với đồng đội thôi, còn đối thủ thì cứ đập không thương tiếc!",
-      "final": "Trận hôm nay bạn thắng chắc rồi: không có đối thủ, chỉ có hoa và lời chúc! Còn quà thì… biết đâu lại có, từ một bạn Q… giấu tên đấy!"
+      "final": "Trận hôm nay bạn thắng chắc rồi: không có đối thủ, chỉ có hoa và lời chúc! Còn quà thì… biết đâu là từ một bạn quờ… giấu tên nào đấy!"
     },
     "36b1ed12-4a31-4375-bc3f-29d0c4825ffe": {
       "name": "Hoa",
@@ -31,18 +32,19 @@
     },
     "b9448482-5fbe-4ecf-a6ba-6eec18e541a4": {
       "name": "Tiểu Công Chúa",
+      "realName": "Trang",
       "msg": "Gửi Tiểu Công Chúa: chúc 20/10 được ngủ thật ngon, dậy thật xinh, và lên sân thì **tỉnh như sáo**. Trình thuộc hàng đầu hội chị em mà lúc nào cũng buồn ngủ, đối thủ biết đường nào mà lần. Công chúa cứ đánh, việc nhặt cầu để các hiệp sĩ lo.",
-      "final": "Hôm nay công chúa được miễn nhặt cầu cả buổi. Đánh xong về ngủ sớm nhé."
+      "final": "Hôm nay công chúa được miễn nhặt cầu cả buổi. Đánh xong em về ngủ sớm nhé."
     },
     "0afab93a-df66-4d1e-9893-0f146e4628f8": {
       "name": "Hằng",
-      "msg": "Chúc Hằng một ngày 20/10 thật vui và nhẹ nhàng. Bạn ra sân đều đặn, đánh hết mình từng điểm, và cả club đều thấy bạn **tiến bộ qua từng buổi**. Cứ vui là chính, chiến thắng sẽ tự tìm tới.",
-      "final": "Có Hằng là sân sáng như trăng rằm. Năm nay mình cùng lên trình nhé."
+      "msg": "Chúc Hằng một ngày 20/10 thật vui và nhẹ nhàng. Nhận thật nhiều hoa nhé, để đường tới sân lần sau cũng rực rỡ hơn! Xa nhà chứ **chưa bao giờ xa sân**. Mỗi buổi lại thấy Hằng **lên tay thêm một chút**! Cứ vui là chính, chiến thắng sẽ tự tìm tới.",
+      "final": "Có Hằng là sân sáng như trăng rằm. Đường tới sân xa thì đi cẩn thận nhé, club luôn chừa sẵn một slot sân cho bạn đó."
     },
     "2204316e-fb22-4f05-b82a-a99092d5f4d5": {
       "name": "Hương",
-      "msg": "Chúc Hương 20/10 ngập hoa và quà. Người thì hiền mà **đánh thì không hiền chút nào**, cặp với Thúy Anh hay Hoa đều ra những trận rất đẹp. Ra sân thêm nhiều buổi nữa nhé, club luôn chừa sẵn một slot sân cho bạn đó.",
-      "final": "Hương thơm thì giữ lại, cầu khó cứ để đồng đội lo. Vui cả ngày nhé."
+      "msg": "Chúc Hương một ngày 20/10 ngập hoa và lời chúc. Người thì hiền mà **đánh thì không hiền chút nào**! Mà năm nay còn đặc biệt hơn: sắp **về chung một đội với Trường** rồi! Đánh đôi trên sân thì còn phải tập, chứ đánh đôi cả đời thì hai bạn ăn ý sẵn rồi. Chúc hai bạn trăm năm hạnh phúc, cưới xong nhớ vẫn rủ nhau ra sân đều nhé!",
+      "final": "Hương có hụt cầu cũng chẳng sao, cầu khó đã có Trường lo. Vui cả ngày nhé!"
     },
     "97d382fa-f0a7-4e5e-809b-8b739cd1d98e": {
       "name": "Bích Huyền",
@@ -51,7 +53,7 @@
     },
     "f24270f8-26a9-4d80-8e91-e840ee1bab8c": {
       "name": "Hiểu Khánh",
-      "msg": "Chúc Hiểu Khánh một ngày 20/10 rôm rả đúng chất. Chú **chích chòe nhỏ** của club đây rồi: group chat mà vắng bạn một hôm là im ắng hẳn, đọc tin nhắn của bạn ai cũng tưởng ngày nào bạn cũng ra sân. Năm nay cho cây vợt nói nhiều bằng cái miệng một chút nhé.",
+      "msg": "Chúc Hiểu Khánh một ngày 20/10 rôm rả đúng chất. Chú **chích chòe nhỏ** của club đây rồi: bạn mà lên tiếng là group chat rôm rả hẳn, đọc tin nhắn của bạn ai cũng tưởng ngày nào bạn cũng ra sân. Năm nay cho cây vợt nói nhiều bằng cái miệng một chút nhé, để cú đập cũng !!KHÓ TRÁNH!! như tin nhắn!",
       "final": "Hôm nay cả group nhường sân khấu cho bạn nói thoả thích. Nói xong nhớ xách vợt ra sân nha."
     }
   }

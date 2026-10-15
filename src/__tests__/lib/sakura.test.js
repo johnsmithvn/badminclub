@@ -30,12 +30,18 @@ assert.deepEqual(greetingSegs('Chúc Hoa **rực rỡ** nhé Hoa', 'Hoa'), [
   { t: 'rực rỡ', kind: 'hl' }, { t: ' nhé ', kind: 'plain' }, { t: 'Hoa', kind: 'name' },
 ])
 
+// !! gạch sóng — chữ cài cắm cho người tinh ý; dấu ! lẻ cuối câu thì không được nuốt.
+assert.deepEqual(greetingSegs('Tin nhắn !!KHÓ TRÁNH!! thật!', null), [
+  { t: 'Tin nhắn ', kind: 'plain' }, { t: 'KHÓ TRÁNH', kind: 'odd' }, { t: ' thật!', kind: 'plain' },
+])
+
 // Mọi lời chúc thật: câu dẫn có chữ, không còn ** lẻ lọt ra màn hình.
 Object.entries(cfg.greetings).forEach(([id, g]) => {
   const m = parseGreeting(g.msg, g.name)
   assert.ok(text(m.lead), id + ': lời chúc rỗng')
   const all = [m.lead, ...m.body, m.close || []].flat().map((s) => s.t).join('')
   assert.ok(!all.includes('**'), id + ': dấu ** chưa đóng cặp — thiệp hiện nguyên dấu sao')
+  assert.ok(!all.includes('!!'), id + ': dấu !! chưa đóng cặp — thiệp hiện nguyên hai dấu chấm than')
 })
 
 console.log('sakura check: OK')

@@ -1,5 +1,6 @@
 // Dàn chữ lời chúc 20/10 (SakuraEvent.jsx): câu đầu làm câu dẫn, câu cuối vào khung nổi bật,
-// giữa là thân bài. `**cụm**` được tô nền, tên người nhận được in đậm.
+// giữa là thân bài. `**cụm**` được tô nền, `!!cụm!!` gạch sóng như lỗi chính tả (chữ "cài cắm" cho
+// người đọc tinh ý nhận ra), tên người nhận được in đậm.
 
 // Hết câu = dấu câu, hoặc mặt cười kiểu ":)))" — văn của CLB hay kết câu bằng nó. Phải có khoảng
 // trắng/hết chuỗi theo sau, nên "20/10" hay "1.342" không bị cắt.
@@ -7,17 +8,23 @@
 // pháp lúc nạp bundle, sập cả app chứ không riêng thiệp.
 const SENTENCE = /.+?(?:[.!?…]+|:\)+|$)(?=\s|$)/g
 
-/** Một đoạn chữ → [{ t, kind }] với kind 'plain' | 'hl' (bọc trong **) | 'name'. */
+const MARK = /\*\*(.+?)\*\*|!!(.+?)!!/g
+
+/** Một đoạn chữ → [{ t, kind }] với kind 'plain' | 'hl' (bọc **) | 'odd' (bọc !!) | 'name'. */
 export function greetingSegs(str, name) {
+  const text = String(str || '')
   const out = []
-  String(str || '').split(/\*\*(.+?)\*\*/g).forEach((part, i) => {
-    if (!part) return
-    if (i % 2) return out.push({ t: part, kind: 'hl' })
-    ;(name ? part.split(name) : [part]).forEach((q, j) => {
-      if (j) out.push({ t: name, kind: 'name' })
-      if (q) out.push({ t: q, kind: 'plain' })
-    })
+  const plain = (part) => (name ? part.split(name) : [part]).forEach((q, j) => {
+    if (j) out.push({ t: name, kind: 'name' })
+    if (q) out.push({ t: q, kind: 'plain' })
   })
+  let last = 0
+  for (const m of text.matchAll(MARK)) {
+    if (m.index > last) plain(text.slice(last, m.index))
+    out.push(m[1] != null ? { t: m[1], kind: 'hl' } : { t: m[2], kind: 'odd' })
+    last = m.index + m[0].length
+  }
+  if (last < text.length) plain(text.slice(last))
   return out
 }
 
