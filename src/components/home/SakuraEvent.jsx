@@ -256,10 +256,10 @@ function Banner({ isMobile, club, rm, label, onTap }) {
 
 /* ============================ THIỆP ============================ */
 
-/** Đoạn chữ đã tách: cụm ** tô nền, cụm !! gạch sóng như lỗi chính tả, tên in đậm. */
+/** Đoạn chữ đã tách: cụm ** tô nền, cụm !! in hồng đậm giãn chữ (chữ cài cắm), tên in đậm. */
 const SEG_STYLE = {
   hl: { fontWeight: 600, color: SK.title, background: SK.hl, padding: '1px 4px', borderRadius: 5, WebkitBoxDecorationBreak: 'clone', boxDecorationBreak: 'clone' },
-  odd: { fontWeight: 700, color: SK.rose, letterSpacing: '.04em', textDecoration: 'underline wavy #E8558F', textDecorationThickness: 1.5, textUnderlineOffset: 4 },
+  odd: { fontWeight: 700, color: SK.rose, letterSpacing: '.04em' },
   name: { fontWeight: 700 },
 }
 function Segs({ segs }) {

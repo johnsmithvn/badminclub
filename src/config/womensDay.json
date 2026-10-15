@@ -1,5 +1,5 @@
 {
-  "_help": "Sự kiện 20/10. Mỗi khoá trong greetings là id thành viên (bảng members). name = tên in trên thiệp (tự in đậm khi xuất hiện trong lời chúc), realName = cách gọi bằng tên thật ở câu “Luôn rạng rỡ nhé, …!” sau khi nhận, in nguyên văn, vd “bạn Mai” (bỏ trống thì dùng name), msg = lời chúc mặt trước: câu đầu thành câu dẫn chữ to, câu cuối vào khung có dây hoa, bọc **cụm** để tô nền nhấn mạnh, bọc !!cụm!! để gạch sóng như lỗi chính tả (chữ cài cắm cho người tinh ý). final = câu hiện ra sau khi bấm Nhận lời chúc. Thành viên nữ không có trong danh sách nhận lời chúc chung trong vi.json (event2010.*).",
+  "_help": "Sự kiện 20/10. Mỗi khoá trong greetings là id thành viên (bảng members). name = tên in trên thiệp (tự in đậm khi xuất hiện trong lời chúc), realName = cách gọi bằng tên thật ở câu “Luôn rạng rỡ nhé, …!” sau khi nhận, in nguyên văn, vd “bạn Mai” (bỏ trống thì dùng name), msg = lời chúc mặt trước: câu đầu thành câu dẫn chữ to, câu cuối vào khung có dây hoa, bọc **cụm** để tô nền nhấn mạnh, bọc !!cụm!! để in hồng đậm giãn chữ (chữ cài cắm cho người tinh ý). final = câu hiện ra sau khi bấm Nhận lời chúc. Thành viên nữ không có trong danh sách nhận lời chúc chung trong vi.json (event2010.*).",
   "date": "10-20",
   "bannerImage": "/event/sakura-banner.png",
   "greetings": {
@@ -27,7 +27,7 @@
     },
     "36b1ed12-4a31-4375-bc3f-29d0c4825ffe": {
       "name": "Hoa",
-      "msg": "Chúc Hoa một ngày 20/10 rực rỡ đúng như cái tên. Ra sân không nhiều nhưng **đã ra là thắng**, tỉ lệ thắng của em khiến cả hội anh em phải dè chừng. Người thì nhỏ mà lực k nhỏ **phông cầu bay tít cuối sân**, vào trận rồi mới biết ai phải chạy đi nhặt cầu. Đi tập đều hơn nhé, cả club đang chờ xem em leo được tới đâu.",
+      "msg": "Chúc Hoa một ngày 20/10 rực rỡ đúng như cái tên. Ra sân không nhiều nhưng **đã ra là thắng**, tỉ lệ thắng của em khiến cả hội anh em phải dè chừng. Tuy mình không cao nhưng được cái **phông cầu cao** =))), vào trận rồi mới biết ai phải chạy đi nhặt cầu. Đi tập đều hơn nhé, cả club đang chờ xem em leo được tới đâu.",
       "final": "Hoa nở trên sân, đối thủ héo dưới lưới. Sân lúc nào cũng có sẵn một slot chờ em đó."
     },
     "b9448482-5fbe-4ecf-a6ba-6eec18e541a4": {

@@ -1,5 +1,5 @@
 // Dàn chữ lời chúc 20/10 (SakuraEvent.jsx): câu đầu làm câu dẫn, câu cuối vào khung nổi bật,
-// giữa là thân bài. `**cụm**` được tô nền, `!!cụm!!` gạch sóng như lỗi chính tả (chữ "cài cắm" cho
+// giữa là thân bài. `**cụm**` được tô nền, `!!cụm!!` in hồng đậm giãn chữ (chữ "cài cắm" cho
 // người đọc tinh ý nhận ra), tên người nhận được in đậm.
 
 // Hết câu = dấu câu, hoặc mặt cười kiểu ":)))" — văn của CLB hay kết câu bằng nó. Phải có khoảng

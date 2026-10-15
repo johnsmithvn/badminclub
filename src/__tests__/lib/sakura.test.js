@@ -30,7 +30,7 @@ assert.deepEqual(greetingSegs('Chúc Hoa **rực rỡ** nhé Hoa', 'Hoa'), [
   { t: 'rực rỡ', kind: 'hl' }, { t: ' nhé ', kind: 'plain' }, { t: 'Hoa', kind: 'name' },
 ])
 
-// !! gạch sóng — chữ cài cắm cho người tinh ý; dấu ! lẻ cuối câu thì không được nuốt.
+// !! in hồng đậm — chữ cài cắm cho người tinh ý; dấu ! lẻ cuối câu thì không được nuốt.
 assert.deepEqual(greetingSegs('Tin nhắn !!KHÓ TRÁNH!! thật!', null), [
   { t: 'Tin nhắn ', kind: 'plain' }, { t: 'KHÓ TRÁNH', kind: 'odd' }, { t: ' thật!', kind: 'plain' },
 ])
