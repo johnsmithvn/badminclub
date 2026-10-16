@@ -384,6 +384,18 @@ async function apply(op) {
         ? await q.upsert(op.rows, { onConflict: op.conflict, ignoreDuplicates: Boolean(op.ignoreDuplicates) })
         : await q.insert(op.rows)
     }
+    if (op.table === 'club_members' && res.error && res.error.message?.includes("'start_level'")) {
+      // Mất cột này thì đổi trình vì tiến bộ quay về cách cũ (lần tính lại sau chấm lại trận cũ).
+      console.warn('[storage] DB chưa chạy migration 0071 (thiếu cột start_level). Bỏ qua start_level để không chặn lưu.')
+      op.rows = op.rows.map((r) => {
+        const copy = { ...r }
+        delete copy.start_level
+        return copy
+      })
+      res = op.conflict
+        ? await q.upsert(op.rows, { onConflict: op.conflict, ignoreDuplicates: Boolean(op.ignoreDuplicates) })
+        : await q.insert(op.rows)
+    }
     if (op.table === 'matches' && res.error && res.error.message?.includes("'videos'")) {
       console.warn('[storage] DB chưa chạy migration 0065 (thiếu cột videos). Bỏ qua videos để không chặn lưu.')
       const cleanRows = op.rows.map((r) => {
@@ -514,6 +526,77 @@ export async function loadTournament(tournamentId) {
     prizes: unwrap(prizesRes) || [],
     budgetLines: unwrap(budgetLinesRes) || [],
   })
+}
+
+/* ================= TRUY VẾT (0070) ================= */
+
+/**
+ * Đọc hết mọi trang của một truy vấn — Supabase trả tối đa `trace.pageSize` dòng mỗi lần, mà lịch
+ * sử thay đổi vượt mức đó rất nhanh (một lần bấm "Tính lại toàn bộ" ≈ vài trăm dòng).
+ * `build(from, to)` dựng truy vấn đã có `.order(...)` ổn định.
+ */
+async function allPages(build) {
+  const size = cfg.trace?.pageSize || 1000
+  const out = []
+  for (let from = 0; ; from += size) {
+    const rows = unwrap(await build(from, from + size - 1)) || []
+    out.push(...rows)
+    if (rows.length < size) return out
+  }
+}
+
+/**
+ * Dữ liệu cho backtest truy vết (`lib/trace.js`): các bảng ảnh hưởng Elo / điểm mùa ở dạng PHẲNG
+ * (đúng dòng Postgres) + toàn bộ `audit_log` của CLB. Chỉ chủ CLB đọc được `audit_log` (RLS 0070) —
+ * DB chưa chạy 0070 thì `audit` rỗng và `auditError` nói lý do, phần bảng vẫn xuất được.
+ */
+export async function loadTrace(clubId) {
+  if (!supabase) throw new Error('Chưa cấu hình Supabase')
+  const of = (table, sel) => supabase.from(table).select(sel || '*').eq('club_id', clubId)
+  const strip = (rows, k) => (rows || []).map(({ [k]: _drop, ...r }) => r)
+  const [clubs, members, levels, guests, sessions, sGuests, atts, matches, challenges, preds, ratings, cals] = await Promise.all([
+    supabase.from('clubs').select('id, code, name, levels, seasons').eq('id', clubId),
+    of('club_members', 'id, club_id, name, level, start_level, gender, active, user_id'),
+    supabase.from('member_levels').select('*, club_members!inner(club_id)').eq('club_members.club_id', clubId),
+    of('guests', 'id, club_id, name, level, gender'),
+    of('sessions', 'id, club_id, date, status'),
+    supabase.from('session_guests').select('id, session_id, guest_id, member_id, level, gender, sessions!inner(club_id)')
+      .eq('sessions.club_id', clubId),
+    supabase.from('attendances').select('session_id, member_id, status, sessions!inner(club_id)').eq('sessions.club_id', clubId),
+    allPages((a, b) => supabase.from('matches').select('*, match_players(*), sessions!inner(club_id)')
+      .eq('sessions.club_id', clubId).order('id').range(a, b)),
+    of('challenges', '*, challenge_players(*), challenge_guests(*)'),
+    of('challenge_predictions'),
+    of('player_ratings'),
+    of('club_calibration'),
+  ])
+  const ms = strip(matches, 'sessions')
+  const chs = unwrap(challenges) || []
+  const tables = {
+    clubs: unwrap(clubs) || [],
+    club_members: unwrap(members) || [],
+    member_levels: strip(unwrap(levels), 'club_members'),
+    guests: unwrap(guests) || [],
+    sessions: unwrap(sessions) || [],
+    session_guests: strip(unwrap(sGuests), 'sessions'),
+    attendances: strip(unwrap(atts), 'sessions'),
+    matches: ms.map(({ match_players: _p, ...m }) => m),
+    match_players: ms.flatMap((m) => m.match_players || []),
+    challenges: chs.map(({ challenge_players: _p, challenge_guests: _g, ...c }) => c),
+    challenge_players: chs.flatMap((c) => c.challenge_players || []),
+    challenge_guests: chs.flatMap((c) => c.challenge_guests || []),
+    challenge_predictions: unwrap(preds) || [],
+    player_ratings: unwrap(ratings) || [],
+    club_calibration: unwrap(cals) || [],
+  }
+  let audit = []
+  let auditError = null
+  try {
+    audit = await allPages((a, b) => supabase.from('audit_log').select('*').eq('club_id', clubId).order('id').range(a, b))
+  } catch (e) {
+    auditError = e.message || String(e)
+  }
+  return { tables, audit, auditError }
 }
 
 /** Nạp riêng danh sách trận và lịch sử sửa để phục vụ polling 15s. */

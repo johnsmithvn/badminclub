@@ -5,7 +5,7 @@
  */
 
 import { feeFor } from '#lib/tournament/finance.js'
-import { initialRatingOf } from '#lib/rating.js'
+import { initialRatingOf, seedLevelOf } from '#lib/rating.js'
 import { playerName } from '#lib/money.js'
 
 /** Mỗi loại nội dung quyết định số người / đội và luật giới — UI không tự chọn hai cột này. */
@@ -68,7 +68,7 @@ export function newRegistration({ tournament, member, ratings, levels }) {
     playerId: member.id,
     gender: member.gender,
     level: member.level || '',
-    ratingSnapshot: rated && rated.gamesCount > 0 ? rated.rating : initialRatingOf(member.level, levels),
+    ratingSnapshot: rated && rated.gamesCount > 0 ? rated.rating : initialRatingOf(seedLevelOf(member), levels),
     fee: feeFor(tournament, member.gender),
     paid: false,
     paidAt: null,

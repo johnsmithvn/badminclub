@@ -104,6 +104,14 @@ Người mới vào CLB không bắt đầu ở 0 mà theo **trình độ khai**
 | TBY+ | 400 | Tốt / Giỏi | 1000 |
 | TB− | 450 | **không khai** | **200** (`default`) |
 
+**Hội viên seed theo trình LÚC BẮT ĐẦU** — `seedLevelOf(m)` = `m.startLevel ?? m.level` (0071).
+Đổi trình vì tiến bộ thì `startLevel` giữ trình cũ: replay vẫn xuất phát từ trình cũ, các trận đã đánh
+giữ nguyên điểm, Elo tự lên theo kết quả. Chỉ khi chủ CLB chọn "Ghi nhầm từ đầu" (hoặc người đó chưa
+đánh trận nào) thì trình mới mới thành seed từ ngày đầu — kèm tính lại Elo toàn bộ ngay lúc lưu.
+Trước 2026-10-16 seed theo `level` hiện tại: nâng trình một người là lần "Đồng bộ lại Elo" sau chấm
+lại mọi trận cũ của họ, điểm mùa của cả những người từng đánh cùng / gặp họ đổi theo.
+Khách không có `startLevel` — vẫn seed theo `guests.level`.
+
 Không tra được thì rơi vào `levelInitialRatings.default = 200`, **không phải** `DEFAULT_RATING = 0`.
 Hai hằng này khác vai: `default` là "mức khởi điểm người chưa khai", `DEFAULT_RATING` là "ô trống
 khi đọc map". Trước đây dùng chung nên người chưa khai vào đúng sàn 0 và được miễn mất điểm ở

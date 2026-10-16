@@ -70,6 +70,7 @@ export function toDb(raw, ctx) {
     return {
       id: m.id, name: m.name, fullName: m.full_name || '',
       phone: m.phone || '', email: m.email || '', gender: m.gender, level: m.level,
+      startLevel: m.start_level || null,
       avatarUrl: m.avatar_url || (m.profile && (m.profile.avatar_url || m.profile.avatarUrl)) || '', qrUrl: m.qr_url || '',
       bankHolder: m.bank_holder || '', bankNo: m.bank_no || '', bankName: m.bank_name || '',
       bankAccounts: m.bank_accounts || [],
@@ -447,6 +448,7 @@ export function toRows(db, ctx) {
       id: m.id, club_id: cid, user_id: uu(m.userId), role: m.role, name: m.name,
       full_name: m.fullName || null,
       phone: m.phone || null, email: m.email || null, gender: m.gender, level: m.level,
+      start_level: m.startLevel || null,
       avatar_url: m.avatarUrl || null, qr_url: m.qrUrl || null,
       bank_holder: m.bankHolder || null, bank_no: m.bankNo || null, bank_name: m.bankName || null,
       bank_accounts: m.bankAccounts && m.bankAccounts.length ? m.bankAccounts : null,

@@ -37,6 +37,11 @@
     "courtPollMs": 2000,
     "courtViewPollMs": 15000
   },
+  "trace": {
+    "_note": "Truy vết điểm mùa (lib/trace.js, backtest --at). timezone: mốc gõ dạng '2026-10-16 14:00' hiểu theo giờ CLB. pageSize: số dòng mỗi lần đọc khi xuất (Supabase trả tối đa 1000 dòng / lần).",
+    "timezone": "+07:00",
+    "pageSize": 1000
+  },
   "money": {
     "roundTo": 1000,
     "memberExtraDiscount": 5000

@@ -51,12 +51,19 @@ cái kia**. `club_members` là **bản sao tại thời điểm ghi**. Cặp c�
 | `phone` | `phone` | bên `profiles` là UNIQUE và đăng nhập được; bên CLB chỉ là liên lạc |
 | `email` | `email` | bên `profiles` là **danh tính đăng nhập** (UNIQUE, khớp `auth.users`); bên CLB chỉ là liên lạc, không bắt buộc, không UNIQUE |
 | `gender` · `level` | `gender` · `level` | `level` bên CLB phải thuộc `clubs.levels` của CLB đó |
+| — | `start_level` ↔ `startLevel` | **chỉ** của CLB (0071). Trình dùng làm Elo xuất phát khi đã đổi trình vì tiến bộ; NULL = dùng `level`. Thành viên không tự sửa được (guard 0053) |
 | — | `role` | **chỉ** của CLB (`owner`, `treasurer`, `member`), hồ sơ tài khoản không bao giờ đụng tới |
 
 **Trình độ theo tháng.** `club_members.level` là bậc GỐC; mỗi lần duyệt đổi "từ tháng sau" ghi
 thêm một dòng vào `member_levels (member_id, from_month, level)`. `money.js: levelOf(m, month)`
 lấy mốc lớn nhất còn `<= month`, không có mốc nào thì dùng `level`. Cột `pending_level` /
 `pending_level_from` **không còn dùng** từ 0011 (đã backfill sang bảng mới, giữ lại cho dữ liệu cũ).
+
+**Trình độ và Elo (0071).** `member_levels` chỉ dùng cho TIỀN. Elo xuất phát lấy `start_level ?? level`
+(`rating.js: seedLevelOf`). Đổi trình người đã đánh trận: chủ CLB chọn **Tiến bộ** (mặc định —
+`start_level` giữ trình cũ, trận cũ không bị chấm lại) hoặc **Ghi nhầm từ đầu** (`start_level` = NULL,
+app tính lại toàn bộ Elo ngay lúc lưu). Thành viên tự xin đổi trình, khi duyệt luôn tính là tiến bộ.
+Người chưa đánh trận nào: sửa thẳng. Quy tắc: `rating.js: startLevelAfter`.
 
 - Ghép tài khoản chỉ gắn `user_id` + `linked_at`. Mặc định **không** copy trường nào.
 - Muốn lấy sang thì chủ CLB **tick từng trường trong 6 trường** ở màn duyệt → `approve_join_request(p_request, p_member_id, p_fields)` (`name`, `fullName`, `phone`, `email`, `gender`, `level`). `role` không bao giờ nằm trong `p_fields`; `level` chỉ ghi khi thuộc `clubs.levels` của CLB đó.
@@ -282,6 +289,8 @@ State `db` của client dùng shape gọn của prototype. Cài đặt tại `sr
 | `0067_challenge_guests.sql` | Khách giao lưu đánh kèo: bảng `challenge_guests` (kèo × khách × đội), tách khỏi `challenge_players` vì đồng bộ upsert theo `(challenge_id, member_id)` không ghi được dòng `member_id` NULL. Chỉ người tạo kèo / cờ `assign` ghi; khách phải cùng CLB với kèo. Không đổi Elo/điểm mùa — trận vẫn lưu khách bằng `match_players.player_type = guest`. |
 | `0068_match_challenge_set_no.sql` | Chặn ghi trùng ván kèo khi hai người cùng ghi sân: cột `matches.set_no` (ván thứ mấy của kèo, đánh số lại cho trận kèo cũ theo `ended_at`) + unique index `uq_matches_challenge_set (challenge_id, set_no)`. Máy chưa nạp ván mới luôn tính ra số ván đã có → 23505 → app nạp lại. Dòng `set_no` NULL (app cũ trong cache) không bị ràng buộc. Kiểm: `supabase/manual/0068_match_challenge_set_no_check.sql`. |
 | `0069_session_live_matches.sql` | Trận nháp trên sân cho hai người cùng ghi sân: bảng `session_live_matches` (đọc: cả CLB; ghi: cờ `assign`, buổi phải cùng CLB) thay localStorage từng máy, và cột `matches.live_id` + unique index `uq_matches_live_id` — một trận nháp ra đúng một trận thật. Nháp ở bảng riêng để Elo / điểm mùa / thống kê không phải lọc dòng chưa có thắng thua. Kiểm: `supabase/manual/0069_session_live_matches_check.sql`. |
+| `0070_audit_log.sql` | Lịch sử thay đổi để backtest / truy vết: bảng `audit_log` + trigger `audit_row()` (AFTER INSERT/UPDATE, BEFORE DELETE) trên `matches` · `match_players` · `player_ratings` · `club_calibration` · `challenges` · `challenge_players` · `challenge_guests` · `challenge_predictions` · `member_levels`, và chỉ các cột ảnh hưởng điểm của `clubs` (seasons, levels) · `club_members` · `guests` · `sessions` · `session_guests`. Sửa chỉ ghi cột đổi; lỗi ghi lịch sử chỉ cảnh báo, không chặn dòng gốc. Chỉ chủ CLB (cờ `settings`) đọc; không ai ghi tay. Kèm: bỏ khoá ngoại CASCADE của `match_edits.match_id` để nhật ký huỷ trận không bị xoá theo trận. Không có màn hình — xem `docs/BACKTEST.md` §7.1. Kiểm: `supabase/manual/0070_audit_log_check.sql`. |
+| `0071_member_start_level.sql` | `club_members.start_level` (NULL mặc định — không đổi số nào): trình độ dùng làm Elo xuất phát, để đổi trình vì tiến bộ không viết lại các trận cũ. Bộ ghi lịch sử 0070 chép thêm cột này. Chạy TRƯỚC khi deploy (app có đường lùi bỏ cột khi DB chưa có, nhưng khi đó tiến bộ không được lưu). Kiểm: `supabase/manual/0071_member_start_level_check.sql`. |
 
 ---
 

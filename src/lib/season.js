@@ -1,6 +1,6 @@
 import cfg from '#config/app.json' with { type: 'json' }
 import { isPresent, playerName } from '#lib/money.js'
-import { DEFAULT_RATING, initialRatingOf } from '#lib/rating.js'
+import { DEFAULT_RATING, initialRatingOf, seedLevelOf } from '#lib/rating.js'
 
 /**
  * TRỤC MÙA GIẢI — Điểm mùa theo cơ chế cày rank, và cơ chế treo thưởng chuỗi thắng.
@@ -347,7 +347,7 @@ export function calculateSeasonLeaderboard(db = {}, customSeason = null) {
   const seedOf = (id, sessionId) => {
     const ck = id + '@' + (sessionId || '')
     if (seedCache.has(ck)) return seedCache.get(ck)
-    const level = memberById.get(id)?.level || guestLevelIn(sessionId, id)
+    const level = seedLevelOf(memberById.get(id)) || guestLevelIn(sessionId, id)
     const seed = level ? initialRatingOf(level, db?.levels) : null
     seedCache.set(ck, seed)
     return seed

@@ -13,6 +13,8 @@ import {
 } from '#lib/csv.js'
 import { validateMatchBackup } from '#lib/matchBackup.js'
 import { resolveSeason } from '#lib/season.js'
+import { can } from '#lib/roles.js'
+import { lastMatchAtOf } from '#lib/rating.js'
 import { t } from '#i18n'
 import cfg from '#config/app.js'
 
@@ -707,6 +709,16 @@ function AddMemberDialog() {
 function EditMemberDialog() {
   const { db, ui, a } = useApp()
   const f = ui.form
+  const was = db.members.find((m) => m.id === f.eId)
+  // Đổi trình người ĐÃ đánh thì phải nói rõ vì sao: tiến bộ (trận cũ giữ điểm) hay ghi nhầm
+  // từ đầu (tính lại toàn bộ). Chưa đánh trận nào thì không có gì để chấm lại, không hỏi.
+  const askLevelWhy = was && f.eLevel !== was.level && lastMatchAtOf(db.matches, was.id) != null
+  const pill = (on) => ({
+    padding: '7px 12px', borderRadius: 99, border: '1px solid',
+    borderColor: on ? 'var(--teal-500)' : 'var(--border-subtle)',
+    background: on ? 'var(--surface-accent-soft)' : 'var(--surface-card)',
+    color: 'var(--text-primary)', font: '600 12px/1 var(--font-sans)', cursor: 'pointer',
+  })
   return (
     <Shell title={t('members.dlgEditTitle')}
       onSubmit={() => a.saveMember()} submitLabel={t('common.save')}>
@@ -739,6 +751,22 @@ function EditMemberDialog() {
           options={db.levels.map((l) => ({ value: l, label: l }))}
           onChange={(e) => a.setF('eLevel', e.target.value)} />
       </div>
+      {askLevelWhy && (
+        <div style={{ display: 'grid', gap: 7 }}>
+          <Overline>{t('members.levelWhy', { from: was.level, to: f.eLevel })}</Overline>
+          <div style={{ display: 'flex', flexWrap: 'wrap', gap: 8 }}>
+            {[false, true].map((v) => (
+              <button key={String(v)} type="button" onClick={() => a.setF('eLevelMistake', v)}
+                style={pill(!!f.eLevelMistake === v)}>
+                {t(v ? 'members.levelMistake' : 'members.levelProgress')}
+              </button>
+            ))}
+          </div>
+          <Note tone={f.eLevelMistake ? 'warn' : undefined}>
+            {t(f.eLevelMistake ? 'members.levelMistakeHint' : 'members.levelProgressHint', { name: was.name, level: f.eLevel })}
+          </Note>
+        </div>
+      )}
       <Input
         label={t('members.fNote')}
         placeholder={t('members.phNote')}
@@ -753,12 +781,8 @@ function EditMemberDialog() {
           {db.groups.map((g) => {
             const on = (f.eGroups || []).indexOf(g.id) >= 0
             return (
-              <button key={g.id} type="button" onClick={() => a.toggleMemberGroup(g.id, 'eGroups')} style={{
-                padding: '7px 12px', borderRadius: 99, border: '1px solid',
-                borderColor: on ? 'var(--teal-500)' : 'var(--border-subtle)',
-                background: on ? 'var(--surface-accent-soft)' : 'var(--surface-card)',
-                color: 'var(--text-primary)', font: '600 12px/1 var(--font-sans)', cursor: 'pointer',
-              }}>{g.name}</button>
+              <button key={g.id} type="button" onClick={() => a.toggleMemberGroup(g.id, 'eGroups')}
+                style={pill(on)}>{g.name}</button>
             )
           })}
           {!db.groups.length && <span style={{ font: 'var(--type-caption)', color: 'var(--text-muted)' }}>
@@ -1486,6 +1510,17 @@ function ExportMatchesDialog() {
             {t('matchIo.exportBtn')}
           </Button>
         </div>
+        {/* Chỉ chủ CLB: kèm lịch sử thay đổi (0070) để backtest tua về một thời điểm — xem docs/BACKTEST.md §7.1 */}
+        {can(db.viewAs || 'owner', 'settings') && (
+          <div style={{ display: 'grid', gap: 8, paddingTop: 12, borderTop: '1px solid var(--border-subtle)' }}>
+            <div style={{ font: 'var(--type-caption)', color: 'var(--text-muted)' }}>{t('matchIo.traceHint')}</div>
+            <div style={{ display: 'flex', justifyContent: 'flex-end' }}>
+              <Button variant="secondary" icon="history" onClick={() => { a.exportTrace(); a.closeDialog() }}>
+                {t('matchIo.traceBtn')}
+              </Button>
+            </div>
+          </div>
+        )}
       </div>
     </Dialog>
   )

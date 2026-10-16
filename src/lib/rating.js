@@ -96,6 +96,33 @@ export function initialRatingOf(level, levels) {
 }
 
 /**
+ * Trình độ dùng làm Elo XUẤT PHÁT của một người: `startLevel` nếu đã đổi trình vì tiến bộ,
+ * không thì trình hiện tại. Mọi chỗ seed Elo hội viên phải qua đây — seed theo `level` thì lần
+ * "Tính lại" kế tiếp coi trình mới là trình từ ngày đầu và chấm lại toàn bộ trận cũ.
+ * Khách không có `startLevel` → luôn là `level`.
+ */
+export function seedLevelOf(p) {
+  return p?.startLevel || p?.level
+}
+
+/**
+ * `startLevel` sau khi đổi trình độ một hội viên.
+ *   - Chưa đánh trận nào, hoặc GHI NHẦM từ đầu → null: trình mới là trình từ ngày đầu
+ *     (ghi nhầm thì nơi gọi phải tính lại toàn bộ Elo ngay).
+ *   - TIẾN BỘ khi đã đánh → giữ trình xuất phát cũ: các trận đã đánh không bị chấm lại,
+ *     Elo tự lên theo kết quả từ giờ.
+ * @param {Object} member
+ * @param {string} nextLevel
+ * @param {{ played: boolean, mistake?: boolean }} opt
+ * @returns {string|null}
+ */
+export function startLevelAfter(member, nextLevel, { played, mistake = false }) {
+  if (!member || nextLevel === member.level) return member?.startLevel || null
+  if (!played || mistake) return null
+  return member.startLevel || member.level || null
+}
+
+/**
  * Trả về hệ số K riêng cho người chơi dựa vào số trận đã đấu (độ tin cậy R1 -> R5).
  * Người mới (R1) K cao (48) để nhanh về đúng trình.
  * Người kỳ cựu (R5) K thấp (16) để điểm vững vàng, không bị oan khi cõng tạ.
@@ -251,7 +278,7 @@ export function effectiveStrengthOf(rating = 0, seedRating = 0, gamesCount = 0) 
 export function getPlayerRating(playerRatings, memberId, member = null, levels = null) {
   // initialRatingOf tự lo nhánh thiếu trình độ (levelInitialRatings.default) — đừng chặn trước
   // bằng ternary, làm thế là hai đường seed lệch nhau.
-  const seedRating = initialRatingOf(member?.level, levels)
+  const seedRating = initialRatingOf(seedLevelOf(member), levels)
   if (!playerRatings || !memberId) {
     return {
       rating: seedRating,
@@ -631,7 +658,7 @@ export function replayRatingCascade(allMatches, editedMatchId, members, levels, 
   // Trước đây khách bị seed cứng 'TB' (500) trong khi saveMatchScore seed theo guest.level
   // -> mỗi lần recalc là Elo cả CLB lệch. Giờ hai đường dùng chung một nguồn seed.
   const seedOf = {}
-  ;(members || []).forEach((m) => { seedOf[m.id] = initialRatingOf(m?.level, levels) })
+  ;(members || []).forEach((m) => { seedOf[m.id] = initialRatingOf(seedLevelOf(m), levels) })
   ;(guests || []).forEach((g) => { seedOf[g.id] = initialRatingOf(g?.level, levels) })
 
   // Chỉ hội viên chính thức mới tích luỹ Elo. Khách giao lưu đứng yên ở seed suốt cả replay,

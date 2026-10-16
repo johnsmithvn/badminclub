@@ -86,6 +86,8 @@ export function buildMatchBackup(db = {}, range = null) {
       // Liệt kê từng trường: bản ghi hội viên còn SĐT, email, số tài khoản — không có chỗ trong file phân tích.
       members: (db.members || []).map((x) => ({
         id: x.id, name: x.name, level: x.level, gender: x.gender, active: x.active !== false,
+        // Trình xuất phát Elo khi đã đổi trình vì tiến bộ (0071). Thiếu thì backtest seed theo trình mới.
+        ...(x.startLevel ? { startLevel: x.startLevel } : {}),
         role: x.role || '', joined: x.joined || null,
       })),
       guests: (db.guests || []).map((x) => ({ id: x.id, name: x.name, level: x.level, gender: x.gender })),

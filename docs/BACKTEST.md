@@ -136,6 +136,44 @@ Chép vào `data/`, tạo mốc bằng `--save`, xong. Test tự động gác t�
 - **Điểm danh phục vụ hai việc**: tính tiền *và* xếp sân. Người `noshow` (nghỉ không báo) vẫn bị
   tính tiền nhưng **không** tính là có mặt trên sân. Điểm danh bẩn → mọi phép đo công bằng sai.
 - **Ít buổi thì đừng chốt.** 50 trận đủ để loại phương án tệ, không đủ để tinh chỉnh hệ số.
+- **"Tính lại toàn bộ", "Huỷ trận", "Sửa tỉ số" ghi đè số Elo lưu trong MỌI trận** (`initialRatingA/B`)
+  bằng công thức hiện tại và trình độ hiện tại. Điểm mùa đọc chính số đó, nên bấm một lần là điểm
+  mùa cả CLB xê dịch, kể cả mùa đã đóng. Đo 2026-10-16: 114/118 trận Q3 bị đổi số, điểm Q3 lệch tới
+  −19/người. File xuất SAU lần bấm không còn số cũ — so trước/sau phải dùng lịch sử thay đổi (§7.1).
+
+### 7.1 Lịch sử thay đổi — dữ liệu để truy vết (0070)
+
+Từ migration `0070_audit_log.sql`, DB tự ghi mọi thêm / sửa / xoá trên các bảng làm đổi Elo / điểm
+mùa vào `audit_log` (trận, người chơi trong trận, Elo, hiệu chỉnh, kèo, cược, trình độ thành viên /
+khách, thang mùa của CLB). Sửa: chỉ cột đổi, cũ và mới. Xoá: nguyên dòng. `tx_id` gom các dòng cùng
+một lần ghi (một lần bấm "Tính lại" = một tx_id). Chỉ chủ CLB đọc được; không có màn hình — bảng này
+để **truy vết và tua dữ liệu về một thời điểm** khi điểm đổi mà không rõ vì sao. Có lịch sử từ lúc
+chạy 0070 trở đi, không có trước đó.
+
+**Tua thời gian bằng backtest** — chủ CLB bấm *Trận đấu → Xuất trận → Xuất dữ liệu truy vết*
+(file `truy_vet_<mã CLB>_<ngày>.json`: bảng phẳng + toàn bộ lịch sử, không có tiền / SĐT / ngân hàng):
+
+```bash
+npm run backtest -- truy_vet.json                                    # bảng điểm hiện tại
+npm run backtest -- truy_vet.json --at "2026-10-16 14:00"            # bảng điểm lúc đó
+npm run backtest -- truy_vet.json --at "2026-10-16 14:00" --vs-at "2026-10-16 17:00" --who "Canh"
+```
+
+Lệnh so hai mốc in từng người đổi bao nhiêu và **mỗi lần ghi góp bao nhiêu** (ai bấm, lúc nào: ghi /
+huỷ trận, sửa tỉ số, tính lại Elo, đổi trình độ, phiếu cược, cấu hình mùa). Tổng các lần ghi luôn
+bằng chênh lệch hai mốc. Giờ gõ hiểu theo `trace.timezone` (giờ CLB). Bảng điểm dựng qua đúng `toDb`
+và `calculateSeasonLeaderboard` của app, đọc số Elo LƯU trong trận — tức đúng con số màn hình hiện
+lúc đó. Code: `src/lib/trace.js` · `src/__tests__/backtest/trace_cli.mjs`.
+
+Tra nhanh trong Supabase SQL Editor (chỉ đọc):
+
+```sql
+-- Mọi thay đổi trong một khoảng, gom theo lần ghi
+SELECT changed_at, tx_id, table_name, action, row_id, old_data, new_data, actor
+FROM audit_log
+WHERE club_id = '<club_id>' AND changed_at BETWEEN '2026-10-20' AND '2026-10-21'
+ORDER BY id;
+```
 
 ---
 

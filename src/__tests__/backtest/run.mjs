@@ -4,6 +4,9 @@
 //   npm run backtest -- <duong-dan.json> --save <moc.json> lưu làm mốc
 //   npm run backtest -- <duong-dan.json> --vs   <moc.json> so với mốc
 //
+// File truy vết (nút "Xuất dữ liệu truy vết", schema badminclub_trace) thì chạy chế độ tua thời gian:
+//   npm run backtest -- truy_vet.json --at "2026-10-16 14:00" [--vs-at "…"] — xem trace_cli.mjs
+//
 // Quy trình khi đổi công thức Elo hoặc thang điểm mùa:
 //   1. TRƯỚC khi sửa:  --save baseline.json
 //   2. Sửa công thức
@@ -22,7 +25,16 @@ if (!file) {
   process.exit(1)
 }
 
-const snap = runBacktest(JSON.parse(fs.readFileSync(file, 'utf8')))
+const data = JSON.parse(fs.readFileSync(file, 'utf8'))
+
+// File "Xuất dữ liệu truy vết" (lịch sử thay đổi 0070): tua thời gian, không phải gác công thức.
+if (data.schema === 'badminclub_trace') {
+  const { runTraceCli } = await import('./trace_cli.mjs')
+  runTraceCli(data, args)
+  process.exit(0)
+}
+
+const snap = runBacktest(data)
 const savePath = flag('--save')
 const vsPath = flag('--vs')
 

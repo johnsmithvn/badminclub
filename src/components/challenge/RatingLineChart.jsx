@@ -1,6 +1,6 @@
 import { useState, useMemo } from 'react'
 import { t } from '#i18n'
-import { initialRatingOf, confidenceProgress, confidenceOf } from '#lib/rating.js'
+import { initialRatingOf, seedLevelOf, confidenceProgress, confidenceOf } from '#lib/rating.js'
 import { isFemaleGender } from '#lib/money.js'
 
 /**
@@ -121,7 +121,7 @@ export default function RatingLineChart({
   const chartData = useMemo(() => {
     if (!member) return { points: [], delta: 0, sessionsCount: 0, latestRating: 0, band: 8, confLevel: 'R5' }
 
-    const seed = initialRatingOf(member?.level, levels)
+    const seed = initialRatingOf(seedLevelOf(member), levels)
 
     if (filteredMatches.length === 0) {
       return {

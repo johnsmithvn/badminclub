@@ -10,7 +10,7 @@
 //
 // Hàm thuần: nhận dữ liệu, trả dữ liệu mới. Không đọc file, không Supabase, không React.
 
-import { initialRatingOf, calcPlayerDeltas, applyRatingDelta, kFactorOf, teamRating } from '#lib/rating.js'
+import { initialRatingOf, seedLevelOf, calcPlayerDeltas, applyRatingDelta, kFactorOf, teamRating } from '#lib/rating.js'
 import { calculateSeasonLeaderboard } from '#lib/season.js'
 import { sessionFairnessRows } from '#lib/assign.js'
 import cfg from '#config/app.json' with { type: 'json' }
@@ -79,7 +79,7 @@ export function runBacktest(backup = {}) {
   const wins = {}
   const losses = {}
   all.forEach((x) => {
-    seed[x.id] = initialRatingOf(x.level, levels)
+    seed[x.id] = initialRatingOf(seedLevelOf(x), levels)
     rating[x.id] = seed[x.id]
     games[x.id] = 0
     wins[x.id] = 0

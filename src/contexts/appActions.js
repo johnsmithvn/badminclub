@@ -14,7 +14,7 @@ import { CATS, fundBalance, groupKey, ledger, undoTarget } from '#lib/ledger.js'
 import { modeToast, activeCourtIdxs, arrange, autoSplit, courtSlotIds, matchStats, place, removePlayer, sessionPlayers, slotCourtIdx } from '#lib/assign.js'
 import { can, membersWithPerm, roleDesc, roleName, viewAsOptions } from '#lib/roles.js'
 import { applyScheduleEdit, planScheduleDelete, planScheduleEdit } from '#lib/schedules.js'
-import { teamRating, replayRatingCascade, MIN_RATING, applyRatingDelta, calcPlayerDeltas, rankTierOf, initialRatingOf, computeClubCalibration, confidenceOf } from '#lib/rating.js'
+import { teamRating, replayRatingCascade, MIN_RATING, applyRatingDelta, calcPlayerDeltas, rankTierOf, initialRatingOf, seedLevelOf, startLevelAfter, lastMatchAtOf, computeClubCalibration, confidenceOf } from '#lib/rating.js'
 import { nextChallengeCode, nextChallengeSetNo, isChallengeFullyAccepted, getChallengeSeriesProgress, canMemberPredict, availableSeasonPoints, stakeBaseOf, settlePredictionsLocal, expiredChallenges, orphanedChallenges, abandonedChallenges, isChallengeAccepted, validateStakePoints, challengeGuestIds, guestsMissingFromSession, openChallengeOfGuest } from '#lib/challenge.js'
 import { resolveVenue } from '#lib/forms.js'
 import { supabase, unwrap } from '#supabase'
@@ -24,7 +24,7 @@ import { getMemberStreak, cleanShelf, calculateMemberBadges, resolveBadgeId } fr
 import { seasonMatchesOf, calculateSeasonLeaderboard } from '#lib/season.js'
 import { buildMatchBackup, validateMatchBackup } from '#lib/matchBackup.js'
 import cfgBadges from '#config/badges.json' with { type: 'json' }
-import { flushNow, pollSessionSlice, syncPatchMatchVideo } from '#contexts/storage.js'
+import { flushNow, loadTrace, pollSessionSlice, syncPatchMatchVideo } from '#contexts/storage.js'
 import { cleanVideoParts, matchVideosOf } from '#utils/videoUtils.js'
 import { makeTournamentActions } from '#contexts/tournamentActions.js'
 import { makeLibraryActions } from '#contexts/libraryActions.js'
@@ -142,6 +142,60 @@ export function makeActions({ setDb, setUi, dbRef, uiRef, navRef, toast, reload,
     if (can(myRole(), 'assign')) return true
     toast(t('toast.noAssignPerm'))
     return false
+  }
+
+  /**
+   * Phần ghi của một lần chạy lại Elo toàn bộ lịch sử: Elo từng người, số Elo lưu trong từng trận,
+   * bảng hiệu chỉnh. Dùng chung cho nút "Tính lại toàn bộ" và đổi trình vì ghi nhầm.
+   * `members` = đúng danh sách đã đưa vào replay (đổi trình thì là bản đã sửa).
+   */
+  const replayPatch = (d, members, { finalRatings, updatedMatches }) => {
+    const nextRatings = { ...(d.playerRatings || {}) }
+    Object.entries(finalRatings || {}).forEach(([mid, r]) => {
+      const old = nextRatings[mid] || {}
+      nextRatings[mid] = {
+        ...old,
+        ...r,
+        id: old.id || r.id || uid(),
+        memberId: mid,
+      }
+    })
+    const memberMap = {}
+    ;(members || []).forEach((m) => { memberMap[m.id] = m })
+    ;(d.guests || []).forEach((g) => { memberMap[g.id] = g })
+    const calList = computeClubCalibration(updatedMatches, memberMap)
+    const prevCals = d.clubCalibration || []
+    const nextCals = ['<100', '100-300', '>300'].map((bKey) => {
+      const item = calList.find((x) => x.bucket === bKey) || { bucket: bKey, sampleSize: 0, observedWinRate: 0, learnedAdjustment: 0 }
+      const existing = prevCals.find((p) => p.bucket === bKey)
+      return {
+        id: existing?.id || uid(),
+        bucket: bKey,
+        sampleSize: item.sampleSize || 0,
+        observedWinRate: item.observedWinRate || 0,
+        learnedAdjustment: item.learnedAdjustment || 0,
+      }
+    })
+    return {
+      matches: updatedMatches,
+      playerRatings: nextRatings,
+      clubCalibration: nextCals,
+    }
+  }
+
+  /**
+   * Người CHƯA đánh trận nào vừa đổi trình: đưa dòng Elo (nếu có — "Tính lại" sinh dòng 0 trận cho
+   * mọi người) về điểm xuất phát mới. Không làm thì trận đầu tiên vẫn vào bằng điểm của trình cũ,
+   * và lần tính lại sau lại chấm lại trận đó.
+   */
+  const reseedUnplayed = (d, member) => {
+    const r = (d.playerRatings || {})[member.id]
+    if (!r || r.gamesCount) return d.playerRatings
+    const seed = initialRatingOf(seedLevelOf(member), d.levels)
+    return {
+      ...d.playerRatings,
+      [member.id]: { ...r, rating: seed, displayRating: Math.max(MIN_RATING, seed), tier: rankTierOf(seed) },
+    }
   }
 
   /** Danh sách cố định của một tháng, suy từ groupIds nếu tháng đó chưa có bản ghi riêng. */
@@ -1346,8 +1400,13 @@ export function makeActions({ setDb, setUi, dbRef, uiRef, navRef, toast, reload,
             if (c.field === 'phone') return { ...m, phone: c.to }
             // "Áp dụng ngay" = trình độ của người này LÀ c.to, kể cả buổi cũ → xoá sạch mốc,
             // không thì một mốc quá khứ vẫn thắng `level` và duyệt xong không thấy gì đổi.
+            // Thành viên tự xin đổi trình = TIẾN BỘ: trận đã đánh giữ nguyên điểm (`startLevelAfter`).
             if (c.effective === 'now') {
-              return { ...m, level: c.to, levelHistory: [], pendingLevel: null, pendingLevelFrom: null }
+              const played = lastMatchAtOf(d.matches, m.id) != null
+              return {
+                ...m, level: c.to, startLevel: startLevelAfter(m, c.to, { played }),
+                levelHistory: [], pendingLevel: null, pendingLevelFrom: null,
+              }
             }
             // Mốc lấy từ HÔM NAY, không phải tháng đang chọn ở header: duyệt trong lúc xem
             // tháng cũ thì mốc rơi vào quá khứ và trình độ mới áp dụng ngay, đổi luôn cái
@@ -1359,7 +1418,14 @@ export function makeActions({ setDb, setUi, dbRef, uiRef, navRef, toast, reload,
             return { ...m, levelHistory: hist, pendingLevel: null, pendingLevelFrom: null }
           })
         }
-        return { members, changes: d.changes.map((x) => (x.id === id ? { ...x, status: ok ? 'approved' : 'rejected' } : x)) }
+        const target = members.find((m) => m.id === c.memberId)
+        const reseed = ok && c.field !== 'phone' && c.effective === 'now' && target
+          && lastMatchAtOf(d.matches, target.id) == null
+        return {
+          members,
+          ...(reseed ? { playerRatings: reseedUnplayed(d, target) } : {}),
+          changes: d.changes.map((x) => (x.id === id ? { ...x, status: ok ? 'approved' : 'rejected' } : x)),
+        }
       })
       // Đọc yêu cầu từ state TRƯỚC khi `up()` ghi đè trạng thái — sau đó vẫn còn dòng, nhưng
       // lấy ở đây cho rõ là ta báo theo đúng cái vừa duyệt.
@@ -1395,6 +1461,12 @@ export function makeActions({ setDb, setUi, dbRef, uiRef, navRef, toast, reload,
       if (!was) return
       const gs = f.eGroups || []
       const gMonth = addMonth(d0.month, 1)
+      // Đổi trình người ĐÃ đánh: mặc định là tiến bộ (trận cũ giữ nguyên điểm), chủ CLB chọn
+      // "ghi nhầm từ đầu" thì coi trình mới là trình từ ngày đầu và tính lại Elo NGAY — điểm đổi
+      // ngay trước mắt, không dồn tới lần bấm "Tính lại" sau. Xem `startLevelAfter`.
+      const levelChanged = f.eLevel !== was.level
+      const played = lastMatchAtOf(d0.matches, was.id) != null
+      const mistake = levelChanged && played && f.eLevelMistake === true
 
       const mb = {
         ...was,
@@ -1404,6 +1476,7 @@ export function makeActions({ setDb, setUi, dbRef, uiRef, navRef, toast, reload,
         email: (f.eEmail || '').trim(),
         gender: f.eGender,
         level: f.eLevel,
+        startLevel: startLevelAfter(was, f.eLevel, { played, mistake }),
         avatarUrl: f.eAvatarUrl !== undefined ? f.eAvatarUrl : (was.avatarUrl || ''),
         qrUrl: f.eQrUrl !== undefined ? f.eQrUrl : (was.qrUrl || ''),
         bankHolder: f.eBankHolder !== undefined ? f.eBankHolder : (was.bankHolder || ''),
@@ -1424,6 +1497,10 @@ export function makeActions({ setDb, setUi, dbRef, uiRef, navRef, toast, reload,
       // gấp đôi số tiền (xem ARCHITECTURE §4 quy ước 1).
       const { dues, add, kept, dropped } = regroupDues(d0, mb, gs, gMonth)
       const rows = add.map((r) => ({ id: uid(), ...r }))
+      // Replay nặng: chạy MỘT lần ngoài updater (StrictMode gọi updater hai lần).
+      const replay = mistake
+        ? replayRatingCascade(d0.matches || [], null, d0.members.map((m) => (m.id === mb.id ? mb : m)), d0.levels, d0.guests)
+        : null
 
       up((d) => {
         const roster = { ...d.roster }
@@ -1433,14 +1510,21 @@ export function makeActions({ setDb, setUi, dbRef, uiRef, navRef, toast, reload,
           next[g.id] = { ...(next[g.id] || {}), [f.eId]: gs.indexOf(g.id) >= 0 ? 'fixed' : 'off' }
         })
         roster[gMonth] = next
-        return { members: d.members.map((m) => (m.id === f.eId ? mb : m)), roster, dues: dues.concat(rows) }
+        const members = d.members.map((m) => (m.id === f.eId ? mb : m))
+        return {
+          members, roster, dues: dues.concat(rows),
+          ...(replay ? replayPatch(d, members, replay) : {}),
+          ...(levelChanged && !played ? { playerRatings: reseedUnplayed(d, mb) } : {}),
+        }
       })
       upUi(() => ({ dialog: null, form: {} }))
       toast(kept > 0
         ? t('toast.memberSavedKept', { amount: fmt(kept), month: monthTxt(gMonth).toLowerCase() })
         : dropped > 0
           ? t('toast.memberSavedDropped', { n: dropped, month: monthTxt(gMonth).toLowerCase() })
-          : t('toast.memberSaved'))
+          : mistake
+            ? t('toast.memberLevelRecalc', { name: mb.name, level: mb.level })
+            : t('toast.memberSaved'))
     },
     /**
      * Ngưng hoạt động: giữ nguyên toàn bộ lịch sử điểm danh và tiền, chỉ ẩn khỏi danh sách.
@@ -2100,6 +2184,8 @@ export function makeActions({ setDb, setUi, dbRef, uiRef, navRef, toast, reload,
       d0.members.forEach((m) => {
         used.add(m.level)
         if (m.pendingLevel) used.add(m.pendingLevel)
+        // Trình xuất phát Elo: xoá bậc này khỏi thang thì seed rơi về mặc định, Elo cả CLB lệch.
+        if (m.startLevel) used.add(m.startLevel)
         // Bậc chỉ còn trong lịch sử vẫn ĐANG được dùng: xoá nó khỏi thang là các buổi cũ đọc ra
         // một bậc không tồn tại, `levels.indexOf()` ra -1 và cân sân sai lặng lẽ.
         ;(m.levelHistory || []).forEach((h) => used.add(h.level))
@@ -2357,6 +2443,39 @@ export function makeActions({ setDb, setUi, dbRef, uiRef, navRef, toast, reload,
       document.body.removeChild(aEl)
       URL.revokeObjectURL(url)
       toast(t('toast.matchesExported', { file: fileName, n: data.matchCount }))
+    },
+
+    /**
+     * File cho backtest TRUY VẾT (`lib/trace.js`): bảng phẳng + lịch sử thay đổi (`audit_log`, 0070).
+     * Chỉ chủ CLB — RLS của audit_log cũng chỉ cho chủ CLB đọc. DB chưa chạy 0070 thì vẫn xuất phần
+     * bảng (tua được về "bây giờ"), toast nói rõ là thiếu lịch sử.
+     */
+    exportTrace: async () => {
+      const d = db()
+      if (!can(myRole(), 'settings')) return toast(t('common.unauthorized'))
+      try {
+        const { tables, audit, auditError } = await loadTrace(d.clubId)
+        const data = {
+          schema: 'badminclub_trace', version: 1, exportedAt: new Date().toISOString(),
+          clubId: d.clubId, clubCode: d.club?.code || '', clubName: d.club?.name || '',
+          tables, audit,
+        }
+        const blob = new Blob([JSON.stringify(data)], { type: 'application/json' })
+        const url = URL.createObjectURL(blob)
+        const aEl = document.createElement('a')
+        const fileName = `truy_vet_${d.club?.code || 'badmin'}_${new Date().toISOString().slice(0, 10)}.json`
+        aEl.href = url
+        aEl.download = fileName
+        document.body.appendChild(aEl)
+        aEl.click()
+        document.body.removeChild(aEl)
+        URL.revokeObjectURL(url)
+        toast(auditError
+          ? t('toast.traceExportedNoAudit', { file: fileName })
+          : t('toast.traceExported', { file: fileName, n: audit.length }))
+      } catch (e) {
+        toast(t('toast.traceExportFailed', { msg: e.message || String(e) }))
+      }
     },
 
     /**
@@ -3597,7 +3716,7 @@ export function makeActions({ setDb, setUi, dbRef, uiRef, navRef, toast, reload,
         ;[...teamA, ...teamB].forEach((id) => {
           if (ratingsMap[id] === undefined) {
             const m = (d0.members || []).find((x) => x.id === id) || (d0.guests || []).find((x) => x.id === id)
-            ratingsMap[id] = initialRatingOf(m?.level, d0.levels)
+            ratingsMap[id] = initialRatingOf(seedLevelOf(m), d0.levels)
             gamesCountMap[id] = 0
           }
         })
@@ -3619,7 +3738,7 @@ export function makeActions({ setDb, setUi, dbRef, uiRef, navRef, toast, reload,
           teamA.forEach((id) => {
             if (!memberIdSet.has(id)) return // Khách giao lưu không tích luỹ bảng xếp hạng Elo CLB
             const memA = (d0.members || []).find((x) => x.id === id)
-            const seedA = initialRatingOf(memA?.level, d0.levels)
+            const seedA = initialRatingOf(seedLevelOf(memA), d0.levels)
             const cur = playerRatings[id] || { id: uid(), rating: seedA, gamesCount: 0, winsCount: 0, lossesCount: 0 }
             const newR = applyRatingDelta(cur.rating, deltas[id])
             playerRatings[id] = {
@@ -3639,7 +3758,7 @@ export function makeActions({ setDb, setUi, dbRef, uiRef, navRef, toast, reload,
           teamB.forEach((id) => {
             if (!memberIdSet.has(id)) return // Khách giao lưu không tích luỹ bảng xếp hạng Elo CLB
             const memB = (d0.members || []).find((x) => x.id === id)
-            const seedB = initialRatingOf(memB?.level, d0.levels)
+            const seedB = initialRatingOf(seedLevelOf(memB), d0.levels)
             const cur = playerRatings[id] || { id: uid(), rating: seedB, gamesCount: 0, winsCount: 0, lossesCount: 0 }
             const newR = applyRatingDelta(cur.rating, deltas[id])
             playerRatings[id] = {
@@ -4264,40 +4383,8 @@ export function makeActions({ setDb, setUi, dbRef, uiRef, navRef, toast, reload,
     recalcAllRatings: () => {
       if (!canAssign()) return
       const d0 = db()
-      const { finalRatings, updatedMatches } = replayRatingCascade(d0.matches || [], null, d0.members, d0.levels, d0.guests)
-      up((d) => {
-        const nextRatings = { ...(d.playerRatings || {}) }
-        Object.entries(finalRatings || {}).forEach(([mid, r]) => {
-          const old = nextRatings[mid] || {}
-          nextRatings[mid] = {
-            ...old,
-            ...r,
-            id: old.id || r.id || uid(),
-            memberId: mid,
-          }
-        })
-        const memberMap = {}
-        ;(d0.members || []).forEach((m) => { memberMap[m.id] = m })
-        ;(d0.guests || []).forEach((g) => { memberMap[g.id] = g })
-        const calList = computeClubCalibration(updatedMatches, memberMap)
-        const prevCals = d.clubCalibration || []
-        const nextCals = ['<100', '100-300', '>300'].map((bKey) => {
-          const item = calList.find((x) => x.bucket === bKey) || { bucket: bKey, sampleSize: 0, observedWinRate: 0, learnedAdjustment: 0 }
-          const existing = prevCals.find((p) => p.bucket === bKey)
-          return {
-            id: existing?.id || uid(),
-            bucket: bKey,
-            sampleSize: item.sampleSize || 0,
-            observedWinRate: item.observedWinRate || 0,
-            learnedAdjustment: item.learnedAdjustment || 0,
-          }
-        })
-        return {
-          matches: updatedMatches,
-          playerRatings: nextRatings,
-          clubCalibration: nextCals,
-        }
-      })
+      const replay = replayRatingCascade(d0.matches || [], null, d0.members, d0.levels, d0.guests)
+      up((d) => replayPatch(d, d0.members, replay))
       toast(t('leaderboard.recalcSuccess'))
     },
 
