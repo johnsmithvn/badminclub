@@ -794,6 +794,18 @@ export function myMember(db) {
 }
 
 /**
+ * Tên người đã ghi trận (`matches.createdBy` = profiles.id). Tìm trong thành viên CLB trước (kể cả
+ * người đã nghỉ — trận cũ vẫn là của họ), rồi tới hồ sơ tài khoản. Không tìm ra → chuỗi rỗng.
+ */
+export function recorderName(db, userId) {
+  if (!db || !userId) return ''
+  const m = (db.members || []).find((x) => x.userId === userId)
+  if (m) return playerName(db, m.id)
+  const u = (db.users || []).find((x) => x.id === userId)
+  return u ? (u.nick || u.name || '') : ''
+}
+
+/**
  * Dựng danh sách khoản NGƯỜI NỢ QUỸ trong tháng, gộp cả ba nguồn về một hình phẳng.
  *
  * Một hàm cho cả hai màn vì đây là cùng một câu hỏi "khoản nào đang treo": Trang chủ hỏi của

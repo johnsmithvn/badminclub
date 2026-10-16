@@ -10,7 +10,7 @@
 // thì người ghi sau thắng. Chấp nhận được vì đơn vị ghi là từng dòng, không phải cả CLB.
 
 import { supabase, unwrap } from '#supabase'
-import { clubRow, diff, toDb, toLibPost, toRows, toTour, toTourMatch, toTourMatchEdit, videosRow } from '#contexts/dbmap.js'
+import { SLICE_TABLES, clubRow, diff, mergeSessionSlice, toDb, toLibPost, toRows, toTour, toTourMatch, toTourMatchEdit, videosRow } from '#contexts/dbmap.js'
 import { monthOf, todayISO } from '#utils/dates.js'
 import { t } from '#i18n'
 import cfg from '#config/app.json' with { type: 'json' }
@@ -44,7 +44,7 @@ export async function load(clubId, soft = false) {
     dues, adjustments, courtBills, manual, guestPrices,
     locks, rosterRows, changes, levelRows, joinRequests,
     challenges, playerRatings, matchEdits, clubCalibration,
-    notifications, challengePredictions,
+    notifications, challengePredictions, liveMatches,
   ] = await Promise.all([
     supabase.from('clubs').select('*').eq('id', clubId).single(),
     of('courts'),
@@ -76,6 +76,7 @@ export async function load(clubId, soft = false) {
     of('club_calibration'),
     of('notifications').order('created_at', { ascending: false }).limit(100),
     of('challenge_predictions'),
+    of('session_live_matches'),
   ])
 
   const clubRowRaw = unwrap(club)
@@ -133,6 +134,8 @@ export async function load(clubId, soft = false) {
     clubCalibration: clubCalibration.error ? [] : (clubCalibration.data || []),
     notifications: notifications.error ? [] : (notifications.data || []),
     challengePredictions: challengePredictions.error ? [] : (challengePredictions.data || []),
+    // DB chưa chạy 0069 thì chưa có bảng: coi như sân trống, không làm hỏng cả lần nạp.
+    liveMatches: liveMatches.error ? [] : (liveMatches.data || []),
   }
 
   if (soft && (synced.clubId !== clubId || pending || running || dirty || gen !== g0)) return null
@@ -148,6 +151,56 @@ export async function load(clubId, soft = false) {
 }
 
 const ctxOf = (db) => ({ clubId: db.clubId, memberIds: new Set(db.members.map((m) => m.id)) })
+
+/** Hai danh sách id giống nhau không kể thứ tự. */
+const sameIds = (a, b) => a.length === b.length && [...a].sort().join() === [...b].sort().join()
+
+/**
+ * Màn ghi sân hỏi server mỗi vài giây (hai người cùng ghi sân): máy kia vừa xếp lên sân / huỷ /
+ * ghi trận nào chưa?
+ *
+ * Bước 1 CHỈ hỏi id trận nháp và SỐ trận đã ghi của buổi — vài trăm byte, vì nhịp này chạy liên
+ * tục. Giống hệt máy đang có thì thôi. Khác mới tải đủ phần của buổi (trận + người chơi, kèo của
+ * buổi, Elo, hiệu chỉnh), ghép vào `db` (`mergeSessionSlice`) và dựng lại ảnh chụp đồng bộ của
+ * đúng các bảng đó — không thì lần save sau tưởng các dòng vừa nạp là của mình và ghi/xoá lại.
+ *
+ * Trả `null` khi không có gì mới, khi lỗi mạng, HOẶC khi máy đang có thay đổi chưa xuống DB (cùng
+ * luật với `load(soft)`: đè lúc đó là lệch ảnh chụp, `diff` xoá mất dòng lệch) — nhịp sau làm lại.
+ * Trả `db` đã ghép khi có thay đổi.
+ */
+export async function pollSessionSlice(db, sessionId) {
+  if (!supabase || !db || !sessionId || db.clubId !== synced.clubId) return null
+  if (pending || running || dirty) return null // đằng nào cũng không ghép được — khỏi tốn lượt gọi
+  const g0 = gen
+  const cid = db.clubId
+  const [live, count] = await Promise.all([
+    supabase.from('session_live_matches').select('id').eq('session_id', sessionId),
+    supabase.from('matches').select('id', { count: 'exact', head: true }).eq('session_id', sessionId),
+  ])
+  if (live.error || count.error) return null
+  const localLive = (db.liveMatches || []).filter((m) => m.sessionId === sessionId).map((m) => m.id)
+  const localCount = (db.matches || []).filter((m) => m.sessionId === sessionId).length
+  if (sameIds(localLive, (live.data || []).map((r) => r.id)) && localCount === count.count) return null
+
+  const of = (table, sel) => supabase.from(table).select(sel || '*').eq('club_id', cid)
+  const [liveRows, matches, challenges, playerRatings, clubCalibration] = await Promise.all([
+    supabase.from('session_live_matches').select('*').eq('session_id', sessionId),
+    supabase.from('matches').select('*, match_players(*)').eq('session_id', sessionId),
+    of('challenges', '*, challenge_players(*), challenge_guests(*)').eq('session_id', sessionId),
+    of('player_ratings'),
+    of('club_calibration'),
+  ])
+  if ([liveRows, matches, challenges, playerRatings, clubCalibration].some((r) => r.error)) return null
+  if (synced.clubId !== cid || pending || running || dirty || gen !== g0) return null
+
+  const merged = mergeSessionSlice(db, {
+    liveMatches: liveRows.data, matches: matches.data, challenges: challenges.data,
+    playerRatings: playerRatings.data, clubCalibration: clubCalibration.data,
+  }, sessionId)
+  const rows = toRows(merged, ctxOf(merged))
+  SLICE_TABLES.forEach((t) => { synced.rows[t] = rows[t] || [] })
+  return merged
+}
 
 /* ================= GHI ================= */
 
@@ -306,6 +359,30 @@ async function apply(op) {
       res = op.conflict
         ? await q.upsert(cleanRows, { onConflict: op.conflict, ignoreDuplicates: Boolean(op.ignoreDuplicates) })
         : await q.insert(cleanRows)
+    }
+    if (op.table === 'matches' && res.error && res.error.message?.includes("'live_id'")) {
+      console.warn('[storage] DB chưa chạy migration 0069 (thiếu cột live_id). Bỏ qua live_id để không chặn lưu.')
+      // Gán lại op.rows: DB thiếu cả hai cột 0068/0069 thì đường lùi sau phải bóc tiếp trên dòng ĐÃ bóc.
+      op.rows = op.rows.map((r) => {
+        const copy = { ...r }
+        delete copy.live_id
+        return copy
+      })
+      res = op.conflict
+        ? await q.upsert(op.rows, { onConflict: op.conflict, ignoreDuplicates: Boolean(op.ignoreDuplicates) })
+        : await q.insert(op.rows)
+    }
+    if (op.table === 'matches' && res.error && res.error.message?.includes("'set_no'")) {
+      console.warn('[storage] DB chưa chạy migration 0068 (thiếu cột set_no). Bỏ qua set_no để không chặn lưu.')
+      // Gán lại op.rows: DB thiếu cả hai cột 0068/0069 thì đường lùi sau phải bóc tiếp trên dòng ĐÃ bóc.
+      op.rows = op.rows.map((r) => {
+        const copy = { ...r }
+        delete copy.set_no
+        return copy
+      })
+      res = op.conflict
+        ? await q.upsert(op.rows, { onConflict: op.conflict, ignoreDuplicates: Boolean(op.ignoreDuplicates) })
+        : await q.insert(op.rows)
     }
     if (op.table === 'matches' && res.error && res.error.message?.includes("'videos'")) {
       console.warn('[storage] DB chưa chạy migration 0065 (thiếu cột videos). Bỏ qua videos để không chặn lưu.')

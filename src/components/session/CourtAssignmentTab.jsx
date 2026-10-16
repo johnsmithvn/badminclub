@@ -3,6 +3,7 @@ import { Button, Card, Dialog, Icon, IconButton, Select } from '#ds'
 import { GenderChip, LevelChip } from '#ui'
 import { useApp } from '#contexts/AppContext.jsx'
 import { useMobile } from '#hooks/useMobile.js'
+import { useTourPoll } from '#hooks/useTourPoll.js'
 import { playerName, genderTxt, isFemaleGender, isMaleGender, openSessions } from '#lib/money.js'
 import { dd } from '#utils/dates.js'
 import { compareVietnameseNames } from '#lib/members.js'
@@ -17,6 +18,7 @@ import {
 } from '#lib/rating.js'
 import { calcSeasonMatchDeltaFinal, challengeMultiplierOf, seasonConfigOf } from '#lib/season.js'
 import { t } from '#i18n'
+import cfg from '#config/app.js'
 import CourtWaitingFilterSheet from '#components/session/CourtWaitingFilterSheet.jsx'
 import SessionStatsSheet from '#components/session/SessionStatsSheet.jsx'
 import BalanceScore from '#components/session/BalanceScore.jsx'
@@ -28,10 +30,22 @@ import { scoreStateFrom } from '#lib/scorePicker.js'
 // `preset`: đội hình nạp sẵn khi bấm "Nạp vào mặt sân" từ nút Đấu lại ở tab Trận. Chỉ đọc lúc
 // mount — SessionDetail xoá nó ở lần đổi tab kế tiếp.
 export default function CourtAssignmentTab({ s, preset }) {
-  const { db, a } = useApp()
+  const { db, a, refresh } = useApp()
   const isMobile = useMobile(768)
   const role = db.viewAs || 'owner'
   const canManage = can(role, 'assign')
+
+  // Hai người cùng ghi sân trên hai máy, app không có realtime: mở màn này là nạp lại để thấy trận /
+  // kèo máy kia vừa ghi. Vừa nạp trong refreshMinMs (mới mở app, chuyển tab qua lại) thì thôi.
+  useEffect(() => { refresh(cfg.sync.refreshMinMs) }, [s.id, refresh])
+  const [refreshing, setRefreshing] = useState(false)
+  const handleRefresh = async () => {
+    if (refreshing) return
+    setRefreshing(true)
+    const ok = await refresh()
+    setRefreshing(false)
+    a.toast(t(ok ? 'assign.refreshed' : 'assign.refreshFailed'))
+  }
 
   // Mode: 'doubles' (2 vs 2) hoặc 'singles' (1 vs 1)
   const [mode, setMode] = useState(preset?.mode || 'doubles')
@@ -41,24 +55,27 @@ export default function CourtAssignmentTab({ s, preset }) {
   const [teamA, setTeamA] = useState(() => preset?.teamA || [])
   const [teamB, setTeamB] = useState(() => preset?.teamB || [])
 
-  // Quản lý các trận đang diễn ra trên sân (chờ ghi điểm)
-  const ongoingStorageKey = `badmin_ongoing_${s?.id}`
-  const [ongoingMatches, setOngoingMatches] = useState(() => {
-    try {
-      const raw = localStorage.getItem(ongoingStorageKey)
-      return raw ? JSON.parse(raw) : []
-    } catch {
-      return []
-    }
-  })
+  // Trận đang trên sân (chờ ghi điểm) = trận NHÁP lưu DB (0069): người thứ hai ghi sân cũng thấy và
+  // ghi được. Ghi tỉ số thì nháp thành trận thật (saveMatchScore nhận `liveId`).
+  const ongoingMatches = useMemo(() => (db.liveMatches || [])
+    .filter((m) => m.sessionId === s.id)
+    .map((m) => ({ ...m, liveId: m.id, selectedChallengeId: m.challengeId })), [db.liveMatches, s.id])
 
+  // Bản cũ giữ trận trên sân trong localStorage của từng máy. Lần đầu mở bản mới: đẩy lên DB rồi xoá,
+  // để trận đang xếp dở lúc cập nhật app không mất.
   useEffect(() => {
-    try {
-      localStorage.setItem(ongoingStorageKey, JSON.stringify(ongoingMatches))
-    } catch {
-      // ignore storage error
-    }
-  }, [ongoingStorageKey, ongoingMatches])
+    const key = `badmin_ongoing_${s.id}`
+    let old = []
+    try { old = JSON.parse(localStorage.getItem(key) || '[]') } catch { old = [] }
+    if (!Array.isArray(old) || !old.length) return
+    old.forEach((om) => a.deployLiveMatch({ ...om, sessionId: s.id, challengeId: om.selectedChallengeId || null }))
+    try { localStorage.removeItem(key) } catch { /* bộ nhớ bị chặn: lần sau thử lại */ }
+  }, [s.id, a])
+
+  // Hỏi server xem máy kia vừa xếp sân / ghi trận gì — người ghi sân 2 giây, người xem 15 giây.
+  // Mỗi nhịp chỉ vài trăm byte; có thay đổi mới tải phần của buổi này (storage.pollSessionSlice).
+  const pollCourt = useCallback(() => a.pollSession(s.id), [a, s.id])
+  useTourPoll(true, pollCourt, canManage ? cfg.sync.courtPollMs : cfg.sync.courtViewPollMs)
 
   // State ghi điểm cho trận đang trên sân / kèo nhận nhanh
   const [scoringMatch, setScoringMatch] = useState(null)
@@ -743,7 +760,7 @@ export default function CourtAssignmentTab({ s, preset }) {
   }, [teamA, teamB, winnerTeam, ratingEnabled, rawRatingsMap, db, selectedChallengeId])
 
   // Lưu kết quả trận đấu
-  const handleSaveResult = () => {
+  const handleSaveResult = async () => {
     if (teamA.length < maxPerTeam || teamB.length < maxPerTeam) {
       a.toast(t('quickMatch.errNotEnough', { req: maxPerTeam }))
       return
@@ -765,7 +782,9 @@ export default function CourtAssignmentTab({ s, preset }) {
       }
     }
 
-    a.saveMatchScore({
+    // Kèo: máy khác vừa ghi thì đã báo + nạp lại, giữ nguyên khung sân để người ghi xem lại.
+    if (!(await a.ensureMatchFresh({ challengeId: selectedChallengeId }))) return
+    const saved = a.saveMatchScore({
       sid: s.id,
       ci: courtIdx,
       teamA,
@@ -774,6 +793,7 @@ export default function CourtAssignmentTab({ s, preset }) {
       challengeId: selectedChallengeId,
       ratingEnabled,
     })
+    if (!saved) return
 
     // Reset sạch sân sẵn sàng cho trận kế tiếp
     setTeamA([])
@@ -804,7 +824,7 @@ export default function CourtAssignmentTab({ s, preset }) {
   }
 
   // Xử lý xác nhận và lưu trực tiếp từ Voice Recognition
-  const handleDirectSaveVoiceResult = ({ teamA: nextA, teamB: nextB, scoreA: nextSa, scoreB: nextSb }) => {
+  const handleDirectSaveVoiceResult = async ({ teamA: nextA, teamB: nextB, scoreA: nextSa, scoreB: nextSb }) => {
     const finalA = nextA?.length ? nextA : teamA
     const finalB = nextB?.length ? nextB : teamB
     const finalSa = nextSa != null ? nextSa : scoreA
@@ -820,7 +840,8 @@ export default function CourtAssignmentTab({ s, preset }) {
       return
     }
 
-    a.saveMatchScore({
+    if (!(await a.ensureMatchFresh({ challengeId: selectedChallengeId }))) return
+    const saved = a.saveMatchScore({
       sid: s.id,
       ci: courtIdx,
       teamA: finalA,
@@ -829,6 +850,7 @@ export default function CourtAssignmentTab({ s, preset }) {
       challengeId: selectedChallengeId,
       ratingEnabled,
     })
+    if (!saved) return
 
     setTeamA([])
     setTeamB([])
@@ -845,19 +867,18 @@ export default function CourtAssignmentTab({ s, preset }) {
     }
 
     const currentCourtLabel = courtOptions.find((c) => c.value === courtIdx)?.label || t('session.courtNum', { n: courtIdx + 1 })
-    const newOngoing = {
-      id: `on_court_${Date.now()}_${Math.random().toString(36).slice(2, 7)}`,
+    // Trận nháp lưu DB — máy kia thấy sau vài giây (xem pollCourt).
+    const live = a.deployLiveMatch({
+      sessionId: s.id,
       courtIdx,
       courtLabel: currentCourtLabel,
-      teamA: [...teamA],
-      teamB: [...teamB],
+      teamA,
+      teamB,
       mode,
       ratingEnabled,
-      selectedChallengeId,
-      startedAt: Date.now(),
-    }
-
-    setOngoingMatches((prev) => [...prev, newOngoing])
+      challengeId: selectedChallengeId,
+    })
+    if (!live) return
 
     const namesA = teamA.map((k) => playerName(db, k)).join(' · ')
     const namesB = teamB.map((k) => playerName(db, k)).join(' · ')
@@ -880,7 +901,7 @@ export default function CourtAssignmentTab({ s, preset }) {
   const handleCancelOngoingMatch = (matchId) => {
     const match = ongoingMatches.find((m) => m.id === matchId)
     if (!match) return
-    setOngoingMatches((prev) => prev.filter((m) => m.id !== matchId))
+    a.removeLiveMatch(matchId)
     a.toast(t('assign.toastCancelled', { court: match.courtLabel }))
   }
 
@@ -921,10 +942,8 @@ export default function CourtAssignmentTab({ s, preset }) {
   }
 
   // 4. Callback khi ScoreModal đã lưu kết quả thành công
+  // Trận nháp đã rời sân ngay trong saveMatchScore (nhận `liveId`) — ở đây chỉ đóng hộp.
   const handleScoreSaved = () => {
-    if (scoringMatch && !scoringMatch.isChallengeDirectScore) {
-      setOngoingMatches((prev) => prev.filter((m) => m.id !== scoringMatch.id))
-    }
     setScoringMatch(null)
   }
 
@@ -952,8 +971,8 @@ export default function CourtAssignmentTab({ s, preset }) {
     setRatingEnabled(scoringMatch.ratingEnabled !== false)
     setSelectedChallengeId(scoringMatch.selectedChallengeId || null)
 
-    // Xoá khỏi ongoingMatches để tránh đếm 2 lần khi đưa vào sân chính
-    setOngoingMatches((prev) => prev.filter((m) => m.id !== scoringMatch.id))
+    // Bỏ trận nháp khỏi sân để tránh đếm 2 lần khi đưa vào sân chính
+    a.removeLiveMatch(scoringMatch.id)
     setScoringMatch(null)
   }
 
@@ -1352,6 +1371,16 @@ export default function CourtAssignmentTab({ s, preset }) {
           padding="12px 14px"
           actions={
             <div style={{ display: 'flex', alignItems: 'center', gap: 6 }}>
+              {/* Nạp lại trận / kèo máy khác vừa ghi — ai mở màn này cũng dùng được */}
+              <Button
+                variant="secondary"
+                size="sm"
+                icon="refresh-cw"
+                onClick={handleRefresh}
+                disabled={refreshing}
+                title={t('assign.refreshBtn')}
+                style={{ padding: '0 8px', minWidth: 32 }}
+              />
               {/* Nút Kèo hẹn trước trong CLB */}
               {unlinkedChallenges.length > 0 && (
                 <Button
@@ -2601,7 +2630,7 @@ export default function CourtAssignmentTab({ s, preset }) {
             handleApplyVoiceResult(res)
           }
         }}
-        onDirectSave={(res) => {
+        onDirectSave={async (res) => {
           if (voiceTargetMatch) {
             const playedA = res.teamA?.length ? res.teamA : voiceTargetMatch.teamA
             const playedB = res.teamB?.length ? res.teamB : voiceTargetMatch.teamB
@@ -2611,7 +2640,8 @@ export default function CourtAssignmentTab({ s, preset }) {
               a.toast(t('quickMatch.errTie'))
               return
             }
-            a.saveMatchScore({
+            if (!(await a.ensureMatchFresh({ liveId: voiceTargetMatch.liveId, challengeId: voiceTargetMatch.selectedChallengeId }))) return
+            const saved = a.saveMatchScore({
               sid: s.id,
               ci: voiceTargetMatch.courtIdx,
               teamA: playedA,
@@ -2619,8 +2649,9 @@ export default function CourtAssignmentTab({ s, preset }) {
               sets: [[Number(playedSa), Number(playedSb)]],
               challengeId: voiceTargetMatch.selectedChallengeId,
               ratingEnabled: voiceTargetMatch.ratingEnabled,
+              liveId: voiceTargetMatch.liveId,
             })
-            setOngoingMatches((prev) => prev.filter((m) => m.id !== voiceTargetMatch.id))
+            if (!saved) return
             setVoiceTargetMatch(null)
             a.toast(t('quickMatch.saveSuccess'))
           } else {

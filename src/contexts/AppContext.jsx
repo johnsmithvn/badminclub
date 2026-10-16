@@ -52,12 +52,13 @@ export function StoreProvider({ children }) {
    * Nạp lại toàn bộ CLB từ DB. Dùng lúc đổi CLB và sau các RPC ghi phía server.
    * `soft` = nạp nền khi quay lại app: giữ tháng đang xem, lỗi mạng thì im lặng (không thay cả
    * app bằng màn lỗi), còn thay đổi chưa xuống DB thì bỏ lượt này — xem `load()`.
+   * Trả true khi đã thay state bằng dữ liệu mới (nút Làm mới cần biết để báo đúng).
    */
   const reload = useCallback(async (soft = false) => {
-    if (!activeClubId) return
+    if (!activeClubId) return false
     try {
       const fresh = await load(activeClubId, soft)
-      if (!fresh) return
+      if (!fresh) return false
       loadedAt.current = Date.now()
       setDb((cur) => {
         const same = cur && cur.clubId === activeClubId
@@ -71,24 +72,33 @@ export function StoreProvider({ children }) {
         }
       })
       setError(null)
+      return true
     } catch (e) {
       console.error('[app] không nạp được dữ liệu CLB', e)
       if (!soft) setError(e)
+      return false
     }
   }, [activeClubId, role, userId])
+
+  /**
+   * Nạp lại CLB mà không mất thay đổi đang chờ: đẩy nốt hàng đợi ghi rồi mới nạp nền.
+   * `minGapMs` > 0: vừa nạp trong khoảng đó thì thôi (mở màn ghi sân liên tục không nạp lại liên tục).
+   * Trả true khi dữ liệu trên màn hình là mới (vừa nạp, hoặc mới nạp trong `minGapMs`).
+   */
+  const refresh = useCallback(async (minGapMs = 0) => {
+    if (minGapMs && Date.now() - loadedAt.current < minGapMs) return true
+    save(dbRef.current) // đẩy nốt thay đổi đang chờ / lần ghi hỏng trước khi nạp đè
+    await flushNow()
+    return reload(true)
+  }, [reload])
 
   // Không có realtime (xem NotificationBell): quay lại app hoặc có push mới thì nạp lại CLB.
   // PWA trên iPhone không có kéo-để-tải-lại và chạy nền rất lâu — thiếu cái này là người dùng
   // thấy chuông báo kèo mới mà danh sách kèo vẫn là ảnh chụp từ lúc mở app.
   useEffect(() => {
     if (!activeClubId) return undefined
-    const refresh = async () => {
-      save(dbRef.current) // đẩy nốt thay đổi đang chờ / lần ghi hỏng trước khi nạp đè
-      await flushNow()
-      reload(true)
-    }
     const onShow = () => {
-      if (document.visibilityState === 'visible' && Date.now() - loadedAt.current > cfg.sync.refreshMinMs) refresh()
+      if (document.visibilityState === 'visible') refresh(cfg.sync.refreshMinMs)
     }
     const onPush = (e) => { if (e.data?.type === 'push-received') refresh() }
     const sw = navigator.serviceWorker
@@ -98,7 +108,7 @@ export function StoreProvider({ children }) {
       document.removeEventListener('visibilitychange', onShow)
       sw?.removeEventListener('message', onPush)
     }
-  }, [activeClubId, reload])
+  }, [activeClubId, refresh])
 
   // Đổi CLB (kể cả bỏ chọn) → đẩy nốt thay đổi của CLB cũ (cleanup chạy TRƯỚC body của
   // effect mới), quên ảnh chụp cũ, rồi nạp lại từ đầu.
@@ -142,7 +152,12 @@ export function StoreProvider({ children }) {
     // Thay đổi vừa rồi mất — nhưng nó vốn đã không xuống được DB, và giữ lại trên màn hình thì
     // chặn mọi thay đổi sau nó mà không báo gì. Toast nói rõ để người dùng làm lại.
     setSyncFatalHandler((e) => {
-      api.toast(t('sync.fatal', { msg: e.message }))
+      // Máy khác đã ghi đúng ván kèo / trận trên sân này (index 0068 / 0069): nói thẳng thay vì
+      // "máy chủ từ chối" — bản ghi trùng bị bỏ là ĐÚNG ý, không phải lỗi.
+      const msg = String(e.message || '')
+      api.toast(msg.includes('uq_matches_challenge_set') ? t('sync.challengeSetTaken')
+        : msg.includes('uq_matches_live_id') ? t('sync.liveTaken')
+          : t('sync.fatal', { msg: e.message }))
       reload()
     })
   }, [api, reload])
@@ -156,7 +171,7 @@ export function StoreProvider({ children }) {
     api.a.sweepStaleChallenges()
   }, [db, api])
 
-  const value = useMemo(() => ({ db, ui, tour, error, reload, setDb, setUi, setTour, ...api }), [db, ui, tour, error, reload, api])
+  const value = useMemo(() => ({ db, ui, tour, error, reload, refresh, setDb, setUi, setTour, ...api }), [db, ui, tour, error, reload, refresh, api])
   return <Ctx.Provider value={value}>{children}</Ctx.Provider>
 }
 

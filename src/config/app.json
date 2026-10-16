@@ -32,7 +32,10 @@
   "sync": {
     "debounceMs": 500,
     "_noteRefresh": "Quay lại app (tab/PWA hiện lên) thì nạp lại cả CLB, nhưng không quá 1 lần mỗi refreshMinMs. Có push mới thì nạp luôn, không chờ.",
-    "refreshMinMs": 20000
+    "refreshMinMs": 20000,
+    "_noteCourtPoll": "Màn chia sân hỏi server máy kia vừa xếp lên sân / ghi trận gì (hai người cùng ghi sân). Người có quyền ghi: courtPollMs; người chỉ xem: courtViewPollMs. Mỗi nhịp vài trăm byte, có thay đổi mới tải phần của buổi. Tab ẩn / khoá máy thì dừng.",
+    "courtPollMs": 2000,
+    "courtViewPollMs": 15000
   },
   "money": {
     "roundTo": 1000,

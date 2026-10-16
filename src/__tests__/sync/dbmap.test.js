@@ -250,6 +250,52 @@ viewSeen.matches[0].videoViews = 4
 viewSeen.matches[0].videoViewers = { m1: 4 }
 assert.deepEqual(diff(toRows(viewBack, backCtx), toRows(viewSeen, backCtx)), [], 'chỉ đổi lượt xem mà vẫn sinh thao tác ghi')
 
+// Số ván kèo (0068): unique (challenge_id, set_no) là thứ chặn hai máy ghi trùng một ván. Đọc lên
+// phải ghi xuống y nguyên, không thì mỗi lần sửa tỷ số lại xoá mất số ván (NULL không bị ràng buộc).
+const setBack = toDb(vidMatch({ challenge_id: 'CH1', source_type: 'challenge', set_no: 2 }), { clubId: 'CL1' })
+assert.equal(setBack.matches[0].setNo, 2)
+assert.equal(toRows(setBack, backCtx).matches.find((r) => r.id === 'mtV').set_no, 2)
+assert.deepEqual(diff(toRows(setBack, backCtx), toRows(clone(setBack), backCtx)), [], 'nạp rồi ghi lại mà sinh thao tác ghi')
+// Trận thường và trận trước 0068: NULL đi NULL về.
+assert.equal(toRows(vidBack, backCtx).matches.find((r) => r.id === 'mtV').set_no, null)
+// Người ghi trận (created_by): đi được hai chiều; trận cũ chưa ghi thì NULL đi NULL về, không sinh ghi.
+const byBack = toDb(vidMatch({ created_by: 'U7' }), { clubId: 'CL1' })
+assert.equal(byBack.matches[0].createdBy, 'U7')
+assert.equal(toRows(byBack, backCtx).matches.find((r) => r.id === 'mtV').created_by, 'U7')
+assert.equal(toRows(vidBack, backCtx).matches.find((r) => r.id === 'mtV').created_by, null)
+assert.deepEqual(diff(toRows(byBack, backCtx), toRows(clone(byBack), backCtx)), [])
+
+// Trận nháp trên sân (0069). DB → client → DB y nguyên — lệch là mỗi nhịp hỏi server lại ghi lại
+// trận nháp của máy kia.
+const liveRaw = {
+  ...vidMatch({ live_id: 'LV0' }),
+  liveMatches: [{
+    id: 'LV1', club_id: 'CL1', session_id: raw.sessions[0].id, court_index: 1, court_label: 'Sân 19',
+    team_a: ['m1', 'g1'], team_b: ['m2', 'm3'], mode: 'doubles', rating_enabled: false,
+    challenge_id: null, started_at: '2026-10-16T13:05:00.000Z', created_by: 'U7',
+  }],
+}
+const liveBack = toDb(liveRaw, { clubId: 'CL1' })
+assert.equal(liveBack.matches[0].liveId, 'LV0')
+assert.deepEqual(liveBack.liveMatches[0], {
+  id: 'LV1', sessionId: raw.sessions[0].id, courtIdx: 1, courtLabel: 'Sân 19',
+  teamA: ['m1', 'g1'], teamB: ['m2', 'm3'], mode: 'doubles', ratingEnabled: false,
+  challengeId: null, startedAt: Date.parse('2026-10-16T13:05:00.000Z'), createdBy: 'U7',
+})
+const liveRows = toRows(liveBack, backCtx)
+assert.deepEqual(liveRows.session_live_matches, liveRaw.liveMatches, 'ghi lại phải đúng dòng DB đã đọc')
+assert.equal(liveRows.matches.find((r) => r.id === 'mtV').live_id, 'LV0')
+assert.deepEqual(diff(liveRows, toRows(clone(liveBack), backCtx)), [])
+// Ghi tỉ số = chèn trận thật + xoá trận nháp. Xoá phải đi SAU chèn trong cùng lượt ghi.
+const recorded = clone(liveBack)
+recorded.liveMatches = []
+recorded.matches.push({ ...recorded.matches[0], id: 'mtNew', liveId: 'LV1' })
+const recOps = diff(liveRows, toRows(recorded, backCtx))
+const iIns = recOps.findIndex((o) => o.table === 'matches' && o.op === 'upsert')
+const iDel = recOps.findIndex((o) => o.table === 'session_live_matches' && o.op === 'delIds')
+assert.ok(iIns >= 0 && iDel > iIns, 'xoá trận nháp phải chạy sau khi đã chèn trận thật')
+assert.deepEqual(recOps[iDel].ids, ['LV1'])
+
 // Buổi đột xuất của toàn CLB: DB lưu group_id NULL, client gọi là 'ALL'. Đi được cả hai chiều.
 const allRaw = {
   ...raw,

@@ -157,6 +157,9 @@ export function toDb(raw, ctx) {
         at: mt.ended_at ? new Date(mt.ended_at).getTime() : 0,
         sourceType: mt.source_type || 'session',
         challengeId: mt.challenge_id || null,
+        setNo: mt.set_no ?? null,
+        createdBy: mt.created_by || null,
+        liveId: mt.live_id || null,
         ratingEnabled: mt.rating_enabled !== false,
         ratingAlgorithm: mt.rating_algorithm || 'ELO_V1',
         matchPolicy: mt.match_policy || 'official',
@@ -354,7 +357,52 @@ export function toDb(raw, ctx) {
       payload: n.payload || {}, refType: n.ref_type || null, refId: n.ref_id || null,
       readAt: n.read_at || null, createdAt: n.created_at || null,
     })),
+    // Trận NHÁP đang trên sân (0069) — hai người cùng ghi sân cùng thấy. Ghi tỉ số thì thành trận thật.
+    liveMatches: (raw.liveMatches || []).map((m) => ({
+      id: m.id, sessionId: m.session_id, courtIdx: m.court_index ?? 0, courtLabel: m.court_label || '',
+      teamA: m.team_a || [], teamB: m.team_b || [], mode: m.mode || 'doubles',
+      ratingEnabled: m.rating_enabled !== false, challengeId: m.challenge_id || null,
+      startedAt: m.started_at ? new Date(m.started_at).getTime() : 0, createdBy: m.created_by || null,
+    })).sort((a, b) => a.startedAt - b.startedAt),
     playing: {},
+  }
+}
+
+/** Các bảng `mergeSessionSlice` thay — storage.js dựng lại ảnh chụp đồng bộ của đúng các bảng này. */
+export const SLICE_TABLES = [
+  'session_live_matches', 'matches', 'match_players',
+  'challenges', 'challenge_players', 'challenge_guests',
+  'player_ratings', 'club_calibration',
+]
+
+/**
+ * Ghép dữ liệu MỘT buổi vừa nạp riêng (màn ghi sân hỏi server mỗi vài giây) vào `db` đang có:
+ * trận nháp + trận đã ghi của buổi được thay hẳn, kèo của buổi thay theo id, bảng Elo và hiệu
+ * chỉnh thay cả bảng (vừa nạp đủ cả CLB). Mọi thứ khác giữ nguyên.
+ *
+ * Chỉ đúng khi máy KHÔNG có thay đổi chưa xuống DB — storage.js kiểm trước khi gọi.
+ * @param raw { liveMatches, matches (kèm match_players), challenges, playerRatings, clubCalibration } — dòng Postgres
+ */
+export function mergeSessionSlice(db, raw, sessionId) {
+  const part = toDb({
+    club: { levels: db.levels },
+    sessions: [{ id: sessionId, matches: raw.matches || [] }],
+    challenges: raw.challenges || [],
+    playerRatings: raw.playerRatings || [],
+    clubCalibration: raw.clubCalibration || [],
+    liveMatches: raw.liveMatches || [],
+  }, { clubId: db.clubId })
+  const fresh = new Map(part.challenges.map((c) => [c.id, c]))
+  const known = new Set((db.challenges || []).map((c) => c.id))
+  return {
+    ...db,
+    liveMatches: (db.liveMatches || []).filter((m) => m.sessionId !== sessionId).concat(part.liveMatches),
+    matches: (db.matches || []).filter((m) => m.sessionId !== sessionId).concat(part.matches)
+      .sort((a, b) => a.at - b.at),
+    challenges: (db.challenges || []).map((c) => fresh.get(c.id) || c)
+      .concat(part.challenges.filter((c) => !known.has(c.id))),
+    playerRatings: part.playerRatings,
+    clubCalibration: part.clubCalibration,
   }
 }
 
@@ -518,6 +566,12 @@ export function toRows(db, ctx) {
       ended_at: new Date(mt.at || 0).toISOString(),
       source_type: mt.sourceType || 'session',
       challenge_id: uu(mt.challengeId),
+      // Ván thứ mấy của kèo — unique (challenge_id, set_no) ở 0068 chặn hai máy ghi trùng một ván.
+      set_no: mt.setNo ?? null,
+      // Người ghi (profiles.id). Cột có từ 0001 nhưng trước 2026-10 app không ghi — trận cũ NULL, giữ NULL, không đoán.
+      created_by: mt.createdBy || null,
+      // Trận nháp trên sân mà trận này được ghi từ đó — unique (0069): hai máy cùng ghi một trận nháp thì máy sau bị chặn.
+      live_id: mt.liveId || null,
       rating_enabled: mt.ratingEnabled !== false,
       rating_algorithm: mt.ratingAlgorithm || 'ELO_V1',
       match_policy: mt.matchPolicy || 'official',
@@ -546,6 +600,14 @@ export function toRows(db, ctx) {
       team: i < half ? 0 : 1,
     }))
   })
+
+  ;(db.liveMatches || []).forEach((m) => put('session_live_matches', {
+    id: m.id, club_id: cid, session_id: m.sessionId,
+    court_index: m.courtIdx ?? 0, court_label: m.courtLabel || null,
+    team_a: m.teamA || [], team_b: m.teamB || [], mode: m.mode || 'doubles',
+    rating_enabled: m.ratingEnabled !== false, challenge_id: uu(m.challengeId),
+    started_at: new Date(m.startedAt || 0).toISOString(), created_by: uu(m.createdBy),
+  }))
 
   const ratingsList = Array.isArray(db.playerRatings)
     ? db.playerRatings
@@ -723,6 +785,9 @@ export const TABLES = [
   { table: 'challenges', mode: 'id' },
   { table: 'challenge_players', mode: 'key', conflict: 'challenge_id,member_id', scope: ['challenge_id'], child: 'member_id' },
   { table: 'challenge_guests', mode: 'key', conflict: 'challenge_id,guest_id', scope: ['challenge_id'], child: 'guest_id' },
+  // Trận nháp trên sân (0069). Sau `challenges` vì có khoá ngoại sang kèo. Xoá theo id: máy này
+  // chỉ xoá trận nháp nó BIẾT — trận máy kia vừa xếp mà nó chưa nạp thì không đụng tới.
+  { table: 'session_live_matches', mode: 'id' },
   // `challenge_predictions` CỐ Ý không có ở đây. 0041 đã revoke UPDATE/DELETE của `authenticated`
   // để ép mọi thay đổi đi qua RPC, mà đường đồng bộ này ghi bằng `.upsert(onConflict:'id')` =
   // `INSERT ... ON CONFLICT DO UPDATE` — Postgres đòi quyền UPDATE cho câu đó ngay lúc lập kế

@@ -340,6 +340,17 @@ export function getChallengeSeriesProgress(challenge, matches = []) {
 }
 
 /**
+ * Số ván kế tiếp của kèo — ghi xuống `matches.set_no`, unique theo kèo (migration 0068).
+ *
+ * Lấy max chứ không chỉ đếm: huỷ một ván giữa chuỗi làm số đếm lùi về đúng số của ván còn lại,
+ * ghi tiếp là DB chặn oan. Máy chưa nạp ván mới nhất (máy kia vừa ghi) luôn tính ra một số ván
+ * ĐÃ CÓ dưới DB — đó chính là chỗ DB chặn ghi trùng.
+ */
+export function nextChallengeSetNo(chalMatches = []) {
+  return Math.max(chalMatches.length, ...chalMatches.map((m) => Number(m?.setNo) || 0)) + 1
+}
+
+/**
  * Thống kê tỷ lệ và số điểm dự đoán cho một Kèo đấu
  */
 export function getPredictionStats(predictions = [], challengeId) {

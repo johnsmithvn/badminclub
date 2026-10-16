@@ -140,7 +140,7 @@ export default function ScoreModal({ court, session, challenge, onClose, onSaved
     }
   }
 
-  const handleSave = () => {
+  const handleSave = async () => {
     if (!winnerTeam || submitting) return
 
     if (Number(scoreA) === Number(scoreB)) {
@@ -150,6 +150,12 @@ export default function ScoreModal({ court, session, challenge, onClose, onSaved
 
     setSubmitting(true)
     try {
+      // Máy khác vừa ghi trận trên sân / kèo này → đã báo và nạp lại; hộp này đang cầm số cũ nên đóng luôn.
+      if (!(await a.ensureMatchFresh({ liveId: court?.liveId || null, challengeId: activeChallenge?.id || null }))) {
+        onClose()
+        return
+      }
+
       // 1. Kiểm tra huy hiệu trước khi lưu
       let badgesBefore = null
       if (currentMember?.id) {
@@ -166,6 +172,8 @@ export default function ScoreModal({ court, session, challenge, onClose, onSaved
         courtIdx: court?.courtIndex ?? court?.courtIdx ?? 0,
         courtId: court?.courtId || null,
         challengeId: activeChallenge?.id || null,
+        // Ghi từ trận nháp trên sân (0069): trận thật mang mã nháp, nháp rời sân ở cả hai máy.
+        liveId: court?.liveId || null,
         ratingEnabled: isRatingEnabled,
         teamA,
         teamB,

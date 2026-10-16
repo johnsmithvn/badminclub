@@ -159,6 +159,10 @@ State `db` của client dùng shape gọn của prototype. Cài đặt tại `sr
 | `matches[].videoUrl` · `videoProvider` · `videoThumbnailUrl` | `matches.video_url` · `video_provider` · `video_thumbnail_url` | Video replay trận đấu (0029) |
 | `matches[].videoViewsCount` · `videoTimeline` | `matches.video_views_count` · `matches.video_timeline` | Lượt xem và mốc timeline video (0030) |
 | `matches[].bountyBroken` | `matches.bounty_broken` | Thông tin tiền thưởng chuỗi thắng bị phá (0028) |
+| `matches[].createdBy` | `matches.created_by` | Tài khoản ghi trận (profiles.id). Cột có từ 0001 nhưng app chỉ ghi từ 2026-10 — trận cũ NULL. Tab Trận hiện "X ghi" khi buổi có từ 2 người ghi |
+| `liveMatches[]` | `session_live_matches` | Trận NHÁP đang trên sân (bấm "Xếp lên sân"). Hai người ghi sân cùng thấy — màn chia sân hỏi server mỗi `sync.courtPollMs` (`storage.pollSessionSlice`). Ghi tỉ số thì nháp thành trận thật và bị xoá (0069) |
+| `matches[].liveId` | `matches.live_id` | Trận nháp sinh ra trận này. Unique: một trận nháp ra đúng một trận thật — máy ghi sau bị chặn, báo "đã được X ghi" (0069) |
+| `matches[].setNo` | `matches.set_no` | Ván thứ mấy của kèo (NULL với trận thường). Unique `(challenge_id, set_no)` chặn hai máy ghi trùng một ván (0068) |
 | `playing[sessionId][courtIdx] = timestamp` | *(không lưu DB)* | trạng thái đồng hồ |
 | `manual[]` | `transactions` **có `ref_type = 'manual'`** | dòng do RPC sinh (`ref_type` khác) client không đụng tới |
 | `guestPrices[]` | `guest_price_rules` | thêm `effective_from` |
@@ -276,6 +280,8 @@ State `db` của client dùng shape gọn của prototype. Cài đặt tại `sr
 | `0064_prediction_stake_cap_10.sql` | Hạ trần một phiếu cược trong `place_challenge_prediction` từ 100 xuống 10 SP (≤ một trận thắng). Cố ý giữ CHECK bảng 1..100 vì còn phiếu chờ 20/30/50 đặt theo luật cũ. |
 | `0066_library.sql` | Thư viện bài tập: bảng `library_posts` (bài + `videos jsonb` theo giây, `shelf` là tên gõ tay, ẩn bài = `status 'archived'`) và `library_marks` (mỗi người × mỗi bài: `viewed_at`, `saved`). Ai trong CLB cũng đăng; tác giả hoặc chủ CLB sửa / ẩn. `view_count` và `pinned_at` không cấp quyền ghi cho client — chỉ RPC `library_view` (mỗi người tính 1 lần, tác giả không tính), `library_save`, `library_pin` (chủ CLB, mỗi lúc 1 bài). Chỉ chủ CLB đọc được ai đã xem. |
 | `0067_challenge_guests.sql` | Khách giao lưu đánh kèo: bảng `challenge_guests` (kèo × khách × đội), tách khỏi `challenge_players` vì đồng bộ upsert theo `(challenge_id, member_id)` không ghi được dòng `member_id` NULL. Chỉ người tạo kèo / cờ `assign` ghi; khách phải cùng CLB với kèo. Không đổi Elo/điểm mùa — trận vẫn lưu khách bằng `match_players.player_type = guest`. |
+| `0068_match_challenge_set_no.sql` | Chặn ghi trùng ván kèo khi hai người cùng ghi sân: cột `matches.set_no` (ván thứ mấy của kèo, đánh số lại cho trận kèo cũ theo `ended_at`) + unique index `uq_matches_challenge_set (challenge_id, set_no)`. Máy chưa nạp ván mới luôn tính ra số ván đã có → 23505 → app nạp lại. Dòng `set_no` NULL (app cũ trong cache) không bị ràng buộc. Kiểm: `supabase/manual/0068_match_challenge_set_no_check.sql`. |
+| `0069_session_live_matches.sql` | Trận nháp trên sân cho hai người cùng ghi sân: bảng `session_live_matches` (đọc: cả CLB; ghi: cờ `assign`, buổi phải cùng CLB) thay localStorage từng máy, và cột `matches.live_id` + unique index `uq_matches_live_id` — một trận nháp ra đúng một trận thật. Nháp ở bảng riêng để Elo / điểm mùa / thống kê không phải lọc dòng chưa có thắng thua. Kiểm: `supabase/manual/0069_session_live_matches_check.sql`. |
 
 ---
 

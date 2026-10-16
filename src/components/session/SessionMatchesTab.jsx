@@ -1,7 +1,7 @@
 import { useState, useMemo, useEffect } from 'react'
 import { useSearchParams } from 'react-router-dom'
 import { useApp } from '#contexts/AppContext.jsx'
-import { courtOf, myMember, playerName, playerOf, shortName } from '#lib/money.js'
+import { courtOf, myMember, playerName, playerOf, recorderName, shortName } from '#lib/money.js'
 import { getPlayerRating, matchCodeOf } from '#lib/rating.js'
 import { isCloseMatch, isUpsetMatch, matchPrediction, matchSides, minSetDiff, searchMatches } from '#lib/matchSearch.js'
 import { can } from '#lib/roles.js'
@@ -55,6 +55,10 @@ export default function SessionMatchesTab({ s, onSwitchTab }) {
       .slice()
       .sort((m1, m2) => (m2.at || 0) - (m1.at || 0))
   }, [db.matches, s.id])
+
+  // Ai ghi trận — chỉ hiện khi buổi có từ 2 người ghi trở lên (hai máy cùng ghi sân): nhìn là biết
+  // dòng nào của máy nào, soi trận trùng bằng mắt. Một người ghi cả buổi thì dòng nào cũng một tên.
+  const showRecorder = useMemo(() => new Set(matches.map((m) => m.createdBy).filter(Boolean)).size > 1, [matches])
 
   // Tự động cuộn và làm nổi bật trận đấu nếu được chuyển tiếp từ màn Tìm trận
   useEffect(() => {
@@ -345,6 +349,7 @@ export default function SessionMatchesTab({ s, onSwitchTab }) {
                 const matchTime = m.at
                   ? new Date(m.at).toLocaleTimeString('vi-VN', { hour: '2-digit', minute: '2-digit' })
                   : ''
+                const recorder = showRecorder ? recorderName(db, m.createdBy) : ''
                 const matchCode = matchCodeOf(db, m)
                 const isFromChallenge = Boolean(m.challengeId || m.sourceType === 'challenge')
                 const challenge = isFromChallenge ? (db.challenges || []).find((c) => c.id === m.challengeId) : null
@@ -447,6 +452,14 @@ export default function SessionMatchesTab({ s, onSwitchTab }) {
                         {m.gapText && (
                           <span style={{ font: "500 11px/1 'IBM Plex Mono', monospace", color: '#A8B7CB' }}>
                             {m.gapText.startsWith('+') ? m.gapText : `(${m.gapText})`}
+                          </span>
+                        )}
+                        {recorder && (
+                          <span
+                            title={t('session.recordedByTitle', { name: recorder })}
+                            style={{ minWidth: 0, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap', font: '500 11px/1 var(--font-sans)', color: 'var(--text-muted)' }}
+                          >
+                            {t('session.recordedBy', { name: recorder })}
                           </span>
                         )}
                       </div>
@@ -682,6 +695,7 @@ export default function SessionMatchesTab({ s, onSwitchTab }) {
                     const venue = courtObj ? courtOf(db, courtObj.courtId) : null
                     const courtLabel = courtObj?.label || (courtObj ? t('session.courtNum', { n: (m.courtIdx ?? 0) + 1 }) : '')
                     const matchTime = m.at ? new Date(m.at).toLocaleTimeString('vi-VN', { hour: '2-digit', minute: '2-digit' }) : (courtObj?.from || '—')
+                    const recorder = showRecorder ? recorderName(db, m.createdBy) : ''
                     const matchCode = matchCodeOf(db, m)
 
                     // Vạch màu trái và background
@@ -805,6 +819,14 @@ export default function SessionMatchesTab({ s, onSwitchTab }) {
                             <span style={{ font: "400 11.5px/1.3 'IBM Plex Mono', monospace", color: 'var(--text-secondary)' }} title={venue?.name}>
                               {courtLabel || t('session.courtNum', { n: 1 })}
                             </span>
+                            {recorder && (
+                              <div
+                                title={t('session.recordedByTitle', { name: recorder })}
+                                style={{ overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap', font: '400 10.5px/1.3 var(--font-sans)', color: 'var(--text-muted)' }}
+                              >
+                                {t('session.recordedBy', { name: recorder })}
+                              </div>
+                            )}
                           </div>
 
                           {/* Cột 5: Đội thắng */}

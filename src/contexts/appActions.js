@@ -8,14 +8,14 @@ import {
   presentCount, rowCost, sGuests, guestRev,
   sessionOf, timeTxt, unfrozenCost,
   adjustRows, adjustSessions, lockDues, regroupDues, dueState, intOf, memberRefs, groupRefs, sessionRefs, joinDues,
-  adhocCharges, chargeName, sGuestsOnly, normalizeText, myMember, playerName,
+  adhocCharges, chargeName, sGuestsOnly, normalizeText, myMember, playerName, recorderName,
 } from '#lib/money.js'
 import { CATS, fundBalance, groupKey, ledger, undoTarget } from '#lib/ledger.js'
 import { modeToast, activeCourtIdxs, arrange, autoSplit, courtSlotIds, matchStats, place, removePlayer, sessionPlayers, slotCourtIdx } from '#lib/assign.js'
 import { can, membersWithPerm, roleDesc, roleName, viewAsOptions } from '#lib/roles.js'
 import { applyScheduleEdit, planScheduleDelete, planScheduleEdit } from '#lib/schedules.js'
 import { teamRating, replayRatingCascade, MIN_RATING, applyRatingDelta, calcPlayerDeltas, rankTierOf, initialRatingOf, computeClubCalibration, confidenceOf } from '#lib/rating.js'
-import { nextChallengeCode, isChallengeFullyAccepted, getChallengeSeriesProgress, canMemberPredict, availableSeasonPoints, stakeBaseOf, settlePredictionsLocal, expiredChallenges, orphanedChallenges, abandonedChallenges, isChallengeAccepted, validateStakePoints, challengeGuestIds, guestsMissingFromSession, openChallengeOfGuest } from '#lib/challenge.js'
+import { nextChallengeCode, nextChallengeSetNo, isChallengeFullyAccepted, getChallengeSeriesProgress, canMemberPredict, availableSeasonPoints, stakeBaseOf, settlePredictionsLocal, expiredChallenges, orphanedChallenges, abandonedChallenges, isChallengeAccepted, validateStakePoints, challengeGuestIds, guestsMissingFromSession, openChallengeOfGuest } from '#lib/challenge.js'
 import { resolveVenue } from '#lib/forms.js'
 import { supabase, unwrap } from '#supabase'
 import { pathOf, buildPushUrl } from '#routes'
@@ -24,7 +24,7 @@ import { getMemberStreak, cleanShelf, calculateMemberBadges, resolveBadgeId } fr
 import { seasonMatchesOf, calculateSeasonLeaderboard } from '#lib/season.js'
 import { buildMatchBackup, validateMatchBackup } from '#lib/matchBackup.js'
 import cfgBadges from '#config/badges.json' with { type: 'json' }
-import { syncPatchMatchVideo } from '#contexts/storage.js'
+import { flushNow, pollSessionSlice, syncPatchMatchVideo } from '#contexts/storage.js'
 import { cleanVideoParts, matchVideosOf } from '#utils/videoUtils.js'
 import { makeTournamentActions } from '#contexts/tournamentActions.js'
 import { makeLibraryActions } from '#contexts/libraryActions.js'
@@ -50,6 +50,9 @@ const recentSelfCheckins = new Map()
 
 /** Cache chống bắn trùng thông báo điểm danh cùng loại trong thời gian ngắn */
 const recentAttendanceEvents = new Map()
+
+/** Trận nháp / kèo đang được `ensureMatchFresh` hỏi DB — chặn bấm Lưu hai lần trong lúc chờ mạng. */
+const checkingMatches = new Set()
 
 /**
  * Sự kiện được đẩy lên MÀN KHOÁ điện thoại. Danh sách này cố ý NGẮN.
@@ -3422,7 +3425,96 @@ export function makeActions({ setDb, setUi, dbRef, uiRef, navRef, toast, reload,
       return true
     },
 
-    saveMatchScore: ({ sid, sessionId, ci, courtIdx, courtIndex, sets, challengeCode, challengeId, teamA: propTeamA, teamB: propTeamB, ratingEnabled: propRatingEnabled, minutes }) => {
+    /**
+     * Gọi TRƯỚC `saveMatchScore` (hai người cùng ghi sân): trận này máy khác ghi chưa? Rồi thì báo,
+     * nạp lại, trả false (đừng lưu).
+     *   - `liveId` — trận nháp trên sân (0069): đã thành trận thật, hoặc đã bị huỷ khỏi sân.
+     *   - `challengeId` — kèo có ván nào máy này chưa biết (0068).
+     *
+     * Index 0068/0069 đã chặn bản trùng dưới DB, nhưng chặn ở đó là muộn: `saveMatchScore` quyết
+     * toán dự đoán và bắn thông báo ngay lúc bấm Lưu, trước khi đồng bộ kịp bị từ chối.
+     * Mất mạng → trả true: không chặn người ghi vì mất sóng, index vẫn đứng gác.
+     * Trận thường không từ sân (không có cả hai) → trả true ngay, không tốn lượt gọi.
+     */
+    ensureMatchFresh: async ({ liveId = null, challengeId = null } = {}) => {
+      if ((!liveId && !challengeId) || !supabase) return true
+      const key = liveId || challengeId
+      // Bấm Lưu hai lần trong lúc chờ mạng: lần sau bỏ qua, không thì mỗi lần ra một trận.
+      if (checkingMatches.has(key)) return false
+      checkingMatches.add(key)
+      const stale = async (msg) => {
+        toast(msg)
+        await flushNow()
+        await reload(true)
+        return false
+      }
+      try {
+        if (liveId) {
+          await flushNow() // trận nháp vừa xếp trên CHÍNH máy này có thể chưa xuống DB
+          const [live, rec] = await Promise.all([
+            supabase.from('session_live_matches').select('id').eq('id', liveId).maybeSingle(),
+            supabase.from('matches').select('created_by, ended_at').eq('live_id', liveId).maybeSingle(),
+          ])
+          if (!live.error && !rec.error) {
+            if (rec.data) {
+              const time = rec.data.ended_at
+                ? new Date(rec.data.ended_at).toLocaleTimeString('vi-VN', { hour: '2-digit', minute: '2-digit' })
+                : ''
+              const name = recorderName(db(), rec.data.created_by) || t('assign.liveSomeone')
+              return stale(t('assign.liveAlreadyRecorded', { name, time }))
+            }
+            if (!live.data) return stale(t('assign.liveGone'))
+          }
+        }
+        if (challengeId) {
+          const { data, error } = await supabase.from('matches').select('id').eq('challenge_id', challengeId)
+          if (error) return true
+          const known = new Set((db().matches || []).map((m) => m.id))
+          if (!(data || []).every((r) => known.has(r.id))) {
+            const code = (db().challenges || []).find((c) => c.id === challengeId)?.code || ''
+            return stale(t('challenge.toastRecordedElsewhere', { code }))
+          }
+        }
+        return true
+      } finally {
+        checkingMatches.delete(key)
+      }
+    },
+
+    /**
+     * "Xếp lên sân" = trận NHÁP (0069), lưu DB như mọi thứ khác: máy kia cũng thấy và ghi được.
+     * Ghi tỉ số (`saveMatchScore` với `liveId`) thì nháp thành trận thật. Không chặn gì — một người
+     * đứng ở hai sân, hai trận cùng một sân đều cho xếp như trước.
+     */
+    deployLiveMatch: ({ sessionId, courtIdx = 0, courtLabel = '', teamA = [], teamB = [], mode = 'doubles', ratingEnabled = true, challengeId = null, startedAt = null }) => {
+      if (!sessionId || !canAssign()) return null
+      const live = {
+        id: uid(), sessionId, courtIdx, courtLabel,
+        teamA: [...teamA], teamB: [...teamB], mode: mode === 'singles' ? 'singles' : 'doubles',
+        ratingEnabled: ratingEnabled !== false, challengeId: challengeId || null,
+        startedAt: startedAt || Date.now(), createdBy: db().currentUserId || null,
+      }
+      up((d) => ({ liveMatches: [...(d.liveMatches || []), live] }))
+      return live
+    },
+
+    /** Bỏ trận nháp khỏi sân (huỷ, hoặc nạp lại vào khung sân để sửa đội). */
+    removeLiveMatch: (id) => {
+      if (!id || !canAssign()) return
+      up((d) => ({ liveMatches: (d.liveMatches || []).filter((m) => m.id !== id) }))
+    },
+
+    /** Màn ghi sân gọi mỗi vài giây: lấy trận nháp / trận đã ghi máy kia vừa làm — xem `pollSessionSlice`. */
+    pollSession: async (sessionId) => {
+      const merged = await pollSessionSlice(db(), sessionId)
+      if (!merged) return
+      up(() => ({
+        liveMatches: merged.liveMatches, matches: merged.matches, challenges: merged.challenges,
+        playerRatings: merged.playerRatings, clubCalibration: merged.clubCalibration,
+      }))
+    },
+
+    saveMatchScore: ({ sid, sessionId, ci, courtIdx, courtIndex, sets, challengeCode, challengeId, teamA: propTeamA, teamB: propTeamB, ratingEnabled: propRatingEnabled, minutes, liveId = null }) => {
       if (!canAssign()) return
       const d0 = db()
       const targetSid = sid || sessionId
@@ -3440,6 +3532,16 @@ export function makeActions({ setDb, setUi, dbRef, uiRef, navRef, toast, reload,
         : challengeId
           ? (d0.challenges || []).find((c) => c.id === challengeId)
           : null
+      // Kèo đã đủ ván thắng thì không nhận thêm ván. Danh sách kèo trên màn ghi đã ẩn kèo xong, nhưng
+      // trận kèo xếp lên sân từ trước (localStorage) hay hộp ghi điểm mở từ trước khi máy kia ghi vẫn
+      // còn nút Lưu — ván thừa đó mang số ván MỚI nên index 0068 không bắt được.
+      if (chal) {
+        const prog = getChallengeSeriesProgress(chal, d0.matches || [])
+        if (prog.isComplete) {
+          toast(t('challenge.toastAlreadyComplete', { code: chal.code, score: prog.seriesScoreText }))
+          return undefined // người gọi dựa vào kết quả rỗng để KHÔNG dọn sân / báo "đã lưu"
+        }
+      }
       const isRated = propRatingEnabled !== undefined
         ? Boolean(propRatingEnabled)
         : (chal ? chal.ratingEnabled !== false : true)
@@ -3559,6 +3661,7 @@ export function makeActions({ setDb, setUi, dbRef, uiRef, navRef, toast, reload,
         const sessionMatches = (d.matches || []).filter((x) => x.sessionId === targetSid)
         const prevChalMatches = chal ? (d.matches || []).filter((x) => x.challengeId === chal.id) : []
         currentSetNum = prevChalMatches.length + 1
+        const setNo = chal ? nextChallengeSetNo(prevChalMatches) : null
         isBoSeries = chal && (Number(chal.bestOf) || 1) > 1
 
         const matchCode = chal
@@ -3607,6 +3710,11 @@ export function makeActions({ setDb, setUi, dbRef, uiRef, navRef, toast, reload,
           at: Date.now(),
           sourceType: chal ? 'challenge' : 'session',
           challengeId: chal ? chal.id : null,
+          setNo,
+          // Tài khoản ghi trận — hai người cùng ghi sân thì danh sách trận cho thấy dòng nào của máy nào.
+          createdBy: d0.currentUserId || null,
+          // Trận nháp trên sân sinh ra trận này (0069) — unique dưới DB, máy thứ hai ghi cùng trận nháp bị chặn.
+          liveId: liveId || null,
           ratingEnabled: isRated,
           sets: playedSets,
           winnerTeam,
@@ -3687,6 +3795,8 @@ export function makeActions({ setDb, setUi, dbRef, uiRef, navRef, toast, reload,
         return {
           lineups,
           playing,
+          // Nháp đã thành trận thật: rời khỏi sân, cùng lượt ghi với trận (xoá xuống DB SAU khi chèn trận).
+          ...(liveId && { liveMatches: (d.liveMatches || []).filter((m) => m.id !== liveId) }),
           matches: nextMatches,
           challenges,
           playerRatings,

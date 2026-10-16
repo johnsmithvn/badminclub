@@ -243,12 +243,24 @@ export const SCHEMA_GROUPS = [
         ],
       },
       {
+        name: 'session_live_matches',
+        fields: [
+          f('id', 'uuid', 'PK'), f('club_id', 'uuid', 'FK'), f('session_id', 'uuid', 'FK'),
+          f('court_index', 'int'), f('court_label', 'text null'),
+          f('team_a', 'text[]'), f('team_b', 'text[]'), f('mode', 'enum doubles/singles'),
+          f('rating_enabled', 'bool'), f('challenge_id', 'uuid null', 'FK'),
+          f('started_at', 'timestamptz'), f('created_by', 'uuid null', 'FK'),
+        ],
+      },
+      {
         name: 'matches',
         fields: [
           f('id', 'uuid', 'PK'), f('session_id', 'uuid', 'FK'), f('court_index', 'int'),
           f('minutes', 'int'), f('started_at', 'timestamptz'), f('ended_at', 'timestamptz'),
           f('created_by', 'uuid null', 'FK'),
           f('source_type', 'enum session/challenge'), f('challenge_id', 'uuid null', 'FK'),
+          f('set_no', 'smallint null · uniq (challenge_id, set_no)'),
+          f('live_id', 'uuid null · uniq'),
           f('rating_enabled', 'bool'), f('score_a', 'int null'), f('score_b', 'int null'),
           f('team_a_won', 'bool null'), f('elo_delta_a', 'int null'), f('elo_delta_b', 'int null'),
           f('score_text', 'text null'), f('sets', 'jsonb null'),

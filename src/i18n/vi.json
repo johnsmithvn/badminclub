@@ -566,7 +566,9 @@
     "loadFailed": "Không nạp được dữ liệu CLB: {{msg}}",
     "needMigrate": "Cơ sở dữ liệu thiếu bản cập nhật mới nhất. Chạy: npm run db:migrate",
     "failed": "Chưa lưu được xuống máy chủ: {{msg}}. Thay đổi vẫn còn trên màn hình, sẽ thử lại.",
-    "fatal": "Máy chủ từ chối thay đổi vừa rồi ({{msg}}). Màn hình đã nạp lại đúng dữ liệu đang có — làm lại thao tác đó, đừng làm tiếp lên số cũ."
+    "fatal": "Máy chủ từ chối thay đổi vừa rồi ({{msg}}). Màn hình đã nạp lại đúng dữ liệu đang có — làm lại thao tác đó, đừng làm tiếp lên số cũ.",
+    "challengeSetTaken": "Ván kèo này vừa được ghi trên máy khác. Bản ghi trùng đã bị bỏ và màn hình đã nạp lại — xem tỉ số mới rồi hãy ghi tiếp.",
+    "liveTaken": "Trận trên sân này vừa được ghi trên máy khác. Bản ghi trùng đã bị bỏ và màn hình đã nạp lại — tỉ số sai thì sửa ở tab Trận."
   },
   "screenError": {
     "title": "Màn hình này gặp lỗi",
@@ -642,6 +644,12 @@
   },
   "assign": {
     "toastDeployed": "Đã xếp {{court}}: {{a}} vs {{b}} vào sân",
+    "refreshBtn": "Nạp lại trận, kèo và Elo mới nhất",
+    "refreshed": "Đã nạp lại — trận và kèo máy khác vừa ghi đã hiện ở đây",
+    "refreshFailed": "Chưa nạp lại được — kiểm tra mạng rồi bấm lại. Dữ liệu trên máy này vẫn giữ nguyên",
+    "liveAlreadyRecorded": "Trận này đã được {{name}} ghi lúc {{time}}. Màn hình đã nạp lại — tỉ số sai thì sửa ở tab Trận",
+    "liveGone": "Trận này không còn trên sân — máy khác đã huỷ hoặc nạp lại vào khung sân. Màn hình đã nạp lại",
+    "liveSomeone": "người khác",
     "modes": {
       "balance": {
         "label": "Cân trình độ hai bên",
@@ -1501,6 +1509,8 @@
     "editCourtLabelTitle": "Sửa số sân",
     "editCourtLabelDesc": "Nhập số sân hoặc tên sân cụ thể trong tổ hợp (VD: Sân 19, Sân 20...)",
     "courtNum": "Sân {{n}}",
+    "recordedBy": "{{name}} ghi",
+    "recordedByTitle": "Người ghi trận này: {{name}}",
     "courtTimeSub": "{{time}} · sân {{courts}}",
     "sell": "Bán sân",
     "unsell": "Bỏ bán",
@@ -3201,6 +3211,8 @@
     "noMatchingMembers": "Không tìm thấy thành viên phù hợp",
     "toastSetSaved": "Đã lưu kết quả Hiệp {{set}} cho kèo {{code}}! Tỉ số chuỗi: {{score}}",
     "toastSeriesCompleted": "Chúc mừng! Kèo {{code}} đã hoàn tất với tỉ số {{score}}. Đội thắng: {{winner}}",
+    "toastRecordedElsewhere": "Kèo {{code}} vừa có ván mới ghi từ máy khác. Đã nạp lại — xem tỉ số mới rồi hãy ghi tiếp.",
+    "toastAlreadyComplete": "Kèo {{code}} đã đánh xong ({{score}}), không ghi thêm ván được.",
     "seriesProgressTitle": "Kèo {{code}} · Hiệp {{set}} / {{bestOf}}",
     "seriesCurrentScore": "Tỉ số: {{score}}",
     "seriesPlaying": "Đang đấu ({{score}})",
