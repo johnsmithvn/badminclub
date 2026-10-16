@@ -233,6 +233,23 @@ assert.deepEqual(videosRow(vidBack.matches[0].videos), vidRow.videos, 'bản vá
 // Trận trước 0065 (DB chưa có cột videos): mảng rỗng, không vỡ — chỗ hiện video tự lùi về video_url.
 assert.deepEqual(toDb(vidMatch({ video_url: 'https://youtu.be/old' }), { clubId: 'CL1' }).matches[0].videos, [])
 
+// Lượt xem video chỉ RPC increment_match_video_views (0034) được cộng. Máy A nạp lúc trận có 3 lượt,
+// người khác xem thêm 2 lượt trên DB, rồi A sửa tỷ số: dòng A ghi xuống KHÔNG được mang số 3 cũ.
+const viewBack = toDb(vidMatch({ video_url: 'https://youtu.be/p1', video_views: 3, video_viewers: { m1: 3 } }), { clubId: 'CL1' })
+assert.equal(viewBack.matches[0].videoViews, 3, 'lượt xem vẫn phải đọc lên để hiện trên màn hình')
+const viewEdit = clone(viewBack)
+viewEdit.matches[0].scoreText = '21-15'
+const viewOps = diff(toRows(viewBack, backCtx), toRows(viewEdit, backCtx)).filter((o) => o.table === 'matches')
+assert.equal(viewOps.length, 1, 'sửa tỷ số thì phải ghi trận')
+assert.ok(!('video_views' in viewOps[0].rows[0]) && !('video_viewers' in viewOps[0].rows[0]),
+  'dòng trận ghi xuống mang video_views/video_viewers = đè mất lượt xem người khác vừa cộng trên DB')
+// Chiều ngược lại: mình xem video thì state tăng lượt xem, nhưng không được sinh lượt ghi trận nào —
+// thành viên thường không có quyền sửa trận, upsert đó bị RLS chặn và kẹt hàng đợi đồng bộ.
+const viewSeen = clone(viewBack)
+viewSeen.matches[0].videoViews = 4
+viewSeen.matches[0].videoViewers = { m1: 4 }
+assert.deepEqual(diff(toRows(viewBack, backCtx), toRows(viewSeen, backCtx)), [], 'chỉ đổi lượt xem mà vẫn sinh thao tác ghi')
+
 // Buổi đột xuất của toàn CLB: DB lưu group_id NULL, client gọi là 'ALL'. Đi được cả hai chiều.
 const allRaw = {
   ...raw,

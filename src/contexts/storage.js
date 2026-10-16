@@ -344,20 +344,6 @@ export function reset() {
 }
 
 /**
- * Cập nhật snapshot cục bộ cho lượt xem video trận đấu.
- * Giúp `diff` không sinh ra thao tác upsert trên bảng `matches` khi chỉ có lượt xem thay đổi,
- * tránh bị RLS từ chối khi người xem là thành viên thường (member) hoặc khách (guest).
- */
-export function syncPatchMatchViews(matchId, videoViews, videoViewers) {
-  if (!synced || !synced.rows || !Array.isArray(synced.rows.matches)) return
-  const row = synced.rows.matches.find((m) => m.id === matchId)
-  if (row) {
-    row.video_views = Number(videoViews || 0)
-    row.video_viewers = (typeof videoViewers === 'object' && videoViewers) ? { ...videoViewers } : {}
-  }
-}
-
-/**
  * Cập nhật snapshot cục bộ cho link/mốc thời gian video trận đấu.
  * Giúp `diff` không sinh ra thao tác upsert trên bảng `matches` khi chỉ có thông tin video thay đổi,
  * tránh bị RLS từ chối khi người gắn/sửa là thành viên thường (member).

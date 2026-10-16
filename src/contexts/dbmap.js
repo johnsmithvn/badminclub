@@ -528,8 +528,8 @@ export function toRows(db, ctx) {
       video_timestamp: mt.videoTimestamp || null,
       video_note: mt.videoNote || null,
       videos: videosRow(mt.videos),
-      video_views: Number(mt.videoViews || 0),
-      video_viewers: (typeof mt.videoViewers === 'object' && mt.videoViewers) ? mt.videoViewers : {},
+      // CỐ Ý không ghi video_views / video_viewers: chỉ RPC increment_match_video_views (0034) cộng hai cột
+      // này. Ghi từ đây là sửa trận bất kỳ cũng đè số đã nạp từ lúc mở app lên lượt xem người khác vừa cộng.
     })
     // playerKeys = [...teamA, ...teamB]: `half` người đầu là một bên lưới. Trận đơn chỉ có 2 ô —
     // cắt cứng theo cặp (0,1 | 2,3) là cả hai rơi vào team 0, tải lại thì đội B rỗng và mọi lần

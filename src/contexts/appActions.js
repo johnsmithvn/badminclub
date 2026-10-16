@@ -24,7 +24,7 @@ import { getMemberStreak, cleanShelf, calculateMemberBadges, resolveBadgeId } fr
 import { seasonMatchesOf, calculateSeasonLeaderboard } from '#lib/season.js'
 import { buildMatchBackup, validateMatchBackup } from '#lib/matchBackup.js'
 import cfgBadges from '#config/badges.json' with { type: 'json' }
-import { syncPatchMatchViews, syncPatchMatchVideo } from '#contexts/storage.js'
+import { syncPatchMatchVideo } from '#contexts/storage.js'
 import { cleanVideoParts, matchVideosOf } from '#utils/videoUtils.js'
 import { makeTournamentActions } from '#contexts/tournamentActions.js'
 import { makeLibraryActions } from '#contexts/libraryActions.js'
@@ -4002,11 +4002,8 @@ export function makeActions({ setDb, setUi, dbRef, uiRef, navRef, toast, reload,
       }
       const nextTotalViews = Number(match.videoViews || 0) + 1
 
-      // Cập nhật snapshot cục bộ của storage để `diff` không phát sinh op upsert trên bảng matches,
-      // tránh bị RLS từ chối đối với thành viên thường và khách.
-      syncPatchMatchViews(matchId, nextTotalViews, nextViewers)
-
-      // Cập nhật state cục bộ để UI phản hồi tức thì
+      // Cập nhật state cục bộ để UI phản hồi tức thì. Không sinh lượt ghi `matches`: toRows không mang
+      // hai cột lượt xem (dbmap.js), nên đổi chúng trong state thì diff vẫn rỗng — DB chỉ nghe RPC bên dưới.
       up((d) => ({
         matches: (d.matches || []).map((m) => (
           m.id === matchId
