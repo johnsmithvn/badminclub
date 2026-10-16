@@ -2,7 +2,7 @@ import { useState } from 'react'
 import { Alert, Button, Dialog, Icon, IconButton, Input, Switch, Textarea } from '#ds'
 import { useApp } from '#contexts/AppContext.jsx'
 import { useMobile } from '#hooks/useMobile.js'
-import { blankForm, checkPost, clock, formOf, startFromUrl, thumbOf } from '#lib/library.js'
+import { blankForm, checkPost, clock, dropVideo, formOf, startFromUrl, thumbOf } from '#lib/library.js'
 import { t, tBranch } from '#i18n'
 import { Chip } from '#components/library/LibraryBits.jsx'
 
@@ -30,12 +30,7 @@ export default function PostComposer({ post, shelves = [], canPin, onClose, onDo
   const setVideo = (i, patch) => setF((x) => ({ ...x, videos: x.videos.map((v, k) => (k === i ? { ...v, ...patch } : v)) }))
   const setNote = (i, patch) => setF((x) => ({ ...x, notes: x.notes.map((n, k) => (k === i ? { ...n, ...patch } : n)) }))
   const addVideo = () => setF((x) => ({ ...x, videos: [...x.videos, { url: '', start: '', end: '' }] }))
-  // Bỏ video thứ i: mốc của các video phía sau lùi lên một số để vẫn trỏ đúng video.
-  const removeVideo = (i) => setF((x) => ({
-    ...x,
-    videos: x.videos.filter((_, k) => k !== i),
-    notes: x.notes.map((n) => ({ ...n, v: n.v >= i && n.v > 0 ? n.v - 1 : n.v })),
-  }))
+  const removeVideo = (i) => setF((x) => dropVideo(x, i))
   const addNote = () => setF((x) => ({ ...x, notes: [...x.notes, { v: x.notes[x.notes.length - 1]?.v || 0, t: '', text: '' }] }))
   const removeNote = (i) => setF((x) => ({ ...x, notes: x.notes.filter((_, k) => k !== i) }))
   const pickShelf = (s) => { setCustomShelf(false); setF((x) => ({ ...x, shelf: s })) }

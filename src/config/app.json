@@ -229,8 +229,9 @@
     }
   },
   "library": {
-    "_note": "Thư viện bài tập (0066). newDays: bài đăng trong ngần ấy ngày mà mình chưa mở thì gắn nhãn MỚI. rates: các tốc độ phát ở màn đọc bài (YouTube hỗ trợ 0.25–2). pollMs: nhịp đọc giờ đang phát để tô mốc và lặp đoạn.",
+    "_note": "Thư viện bài tập (0066). newDays: bài đăng trong ngần ấy ngày mà mình chưa mở thì gắn nhãn MỚI. rates: các tốc độ phát ở màn đọc bài (YouTube hỗ trợ 0.25–2). pollMs: nhịp đọc giờ đang phát để tô mốc và lặp đoạn. tipChance: xác suất dải 'Gợi ý tập' hiện trên Home, tung một lần mỗi lần mở app (0 = tắt, 1 = luôn hiện).",
     "newDays": 14,
+    "tipChance": 0.3,
     "rates": [1, 0.5, 0.25],
     "pollMs": 250,
     "titleMax": 200,

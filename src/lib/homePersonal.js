@@ -445,6 +445,40 @@ export function getPlayerForm5(db, memberId) {
 }
 
 /**
+ * Trận CÓ VIDEO của một người, mới nhất trước — thẻ "Trận của bạn có video" ở Home (18d).
+ * Không lọc đã xem / chưa xem. Cùng điều kiện với Lịch sử trận khi mở `?playerA=<id>&video=true`
+ * (filterMatches + `m.videoUrl`), nên `total` khớp số trận người dùng thấy sau khi bấm sang đó.
+ * @returns {{ total: number, items: Array<{ id: string, won: boolean|null, score: string, date: string }> }}
+ *   `score` bên mình đứng trước: một set → "21–19", nhiều set → số set thắng "2–1", không có tỷ số → ''.
+ *   `date` = ngày buổi (ISO), trận ngoài buổi thì lấy ngày của `at`.
+ */
+export function getMyVideoMatches(db, memberId, limit = 4) {
+  if (!db || !memberId) return { total: 0, items: [] }
+  const teamsOf = (m) => [m.teamA || (m.playerKeys || []).slice(0, 2), m.teamB || (m.playerKeys || []).slice(2, 4)]
+  const mine = (db.matches || [])
+    .filter((m) => m?.videoUrl && (m.playerKeys || teamsOf(m).flat()).includes(memberId))
+    .sort((a, b) => (b.at || 0) - (a.at || 0))
+
+  const items = mine.slice(0, limit).map((m) => {
+    const inA = teamsOf(m)[0].includes(memberId)
+    const sets = (Array.isArray(m.sets) ? m.sets : [])
+      .filter((s) => Array.isArray(s) && s.length >= 2)
+      .map((s) => (inA ? [Number(s[0]), Number(s[1])] : [Number(s[1]), Number(s[0])]))
+    let score = ''
+    if (sets.length === 1) score = sets[0].join('–')
+    else if (sets.length > 1) score = sets.filter(([x, y]) => x > y).length + '–' + sets.filter(([x, y]) => y > x).length
+    else if (m.scoreA != null && m.scoreB != null) score = (inA ? [m.scoreA, m.scoreB] : [m.scoreB, m.scoreA]).join('–')
+    return {
+      id: m.id,
+      won: m.winnerTeam ? m.winnerTeam === (inA ? 'A' : 'B') : null,
+      score,
+      date: (db.sessions || []).find((s) => s.id === m.sessionId)?.date || (m.at ? isoOf(new Date(m.at)) : ''),
+    }
+  })
+  return { total: mine.length, items }
+}
+
+/**
  * BXH ĐIỂM MÙA đổ vào đúng khuôn của `getClubEloLeaderboard` (`elo` = SP) để phân tích kình địch
  * dùng chung một đường. Giữ nguyên thứ tự và hạng của BXH mùa.
  */

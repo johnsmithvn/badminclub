@@ -1294,11 +1294,15 @@ export const toLibPost = (r) => ({
   createdAt: r.created_at || null,
 })
 
-/** Bài → cột ghi được. Cố ý KHÔNG có view_count / pinned_at: hai cột đó chỉ RPC đổi (0066). */
+/**
+ * Bài → cột ghi được. Cố ý KHÔNG có view_count / pinned_at: hai cột đó chỉ RPC đổi (0066).
+ * `session_id` chỉ ghi khi bài có mang trường `sessionId`: form đăng/sửa không có ô này, ghi null
+ * mỗi lần Lưu là xoá mất buổi đã gắn.
+ */
 export const libPostRow = (p) => ({
   title: p.title,
   body: p.body || '',
   shelf: p.shelf,
   videos: p.videos || [],
-  session_id: uu(p.sessionId),
+  ...('sessionId' in p ? { session_id: uu(p.sessionId) } : {}),
 })

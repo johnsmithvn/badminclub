@@ -2,7 +2,7 @@
 // Thư viện bài tập: đọc giờ "mm:ss", kiểm form đăng bài, nhãn MỚI, lặp đoạn theo mốc.
 
 import assert from 'node:assert/strict'
-import { activeNoteIdx, blankForm, checkPost, filterPosts, formOf, groupByShelf, isNewPost, loopRange, parseClock, pinnedOf, postLength, startFromUrl } from '#lib/library.js'
+import { activeNoteIdx, blankForm, checkPost, dropVideo, filterPosts, formOf, groupByShelf, isNewPost, loopRange, parseClock, pinnedOf, postLength, startFromUrl } from '#lib/library.js'
 
 const YT = 'https://www.youtube.com/watch?v=dQw4w9WgXcQ'
 
@@ -59,6 +59,22 @@ assert.deepEqual(r.post.videos[0].notes.map((n) => n.text), ['a', 'b'], 'mốc x
 // Sửa bài: form dựng lại từ bài đã lưu phải kiểm ra đúng bài đó.
 const saved = { title: 'X', shelf: 'Lưới', body: '', videos: [{ url: YT, start: 80, end: null, notes: [{ t: 90, text: 'n' }] }] }
 assert.deepEqual(checkPost(formOf(saved)).post.videos, saved.videos, 'mở Sửa rồi Lưu không đổi gì thì bài không được lệch')
+
+// Bấm "Bỏ" một video trong form: mốc của video đó phải đi theo nó. Trước đây mốc bị dời sang
+// video khác mà form vẫn hợp lệ → bài lưu ra bấm mốc là tua tới đoạn chẳng liên quan.
+const YT2 = 'https://youtu.be/bbbbbbbbbbb'
+const two = form({
+  videos: [{ url: YT, start: '', end: '' }, { url: YT2, start: '', end: '' }, { url: YT, start: '', end: '' }],
+  notes: [{ v: 0, t: '00:10', text: 'A' }, { v: 1, t: '00:20', text: 'B' }, { v: 2, t: '00:30', text: 'C' }],
+})
+assert.deepEqual(dropVideo(two, 0).notes.map((n) => [n.v, n.text]), [[0, 'B'], [1, 'C']], 'bỏ video đầu: mốc của nó bỏ theo, các mốc sau lùi một số')
+assert.deepEqual(dropVideo(two, 1).notes.map((n) => [n.v, n.text]), [[0, 'A'], [1, 'C']], 'bỏ video giữa: mốc video trước giữ nguyên, mốc video sau lùi một số')
+assert.deepEqual(dropVideo(two, 2).notes.map((n) => [n.v, n.text]), [[0, 'A'], [1, 'B']], 'bỏ video cuối: các mốc khác không đổi')
+assert.deepEqual(dropVideo(two, 1).videos.map((v) => v.url), [YT, YT], 'bỏ đúng video được bấm')
+r = checkPost(dropVideo(form({ videos: [{ url: YT, start: '', end: '' }, { url: YT2, start: '', end: '' }], notes: [{ v: 0, t: '00:30', text: 'A' }] }), 0))
+assert.deepEqual(r.post.videos[0].notes, [], 'mốc của video đã bỏ không được lưu vào video còn lại')
+assert.equal(dropVideo(form({ videos: two.videos.slice(0, 2), notes: [{ v: 1, t: '00:20', text: 'B' }] }), 1).notes.length, 1,
+  'bỏ hết mốc thì form vẫn còn một dòng mốc trống để gõ tiếp')
 
 /* ---------- danh sách ---------- */
 const posts = [

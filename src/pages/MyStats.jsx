@@ -8,9 +8,10 @@ import NotificationBell from '#components/notification/NotificationBell.jsx'
 import { useMobile } from '#hooks/useMobile.js'
 import { t } from '#i18n'
 import { myMember } from '#lib/money.js'
-import { getPlayerPartnersAndMatchups } from '#lib/rating.js'
+import { getPlayerPartnersAndMatchups, matchCodeOf } from '#lib/rating.js'
 import {
   getMyHeroStats,
+  getMyVideoMatches,
   getPlayerForm5,
   getRivalAnalysis,
   getRecentPlayerMatches,
@@ -21,12 +22,16 @@ import {
   getPersonalGreeting,
 } from '#lib/homePersonal.js'
 import { matchPairsPath } from '#lib/matchSearch.js'
+import { pathOf } from '#routes'
+import { VideoPlayerModal } from '#components/challenge/VideoPlayerModal.jsx'
 
 import HeroRankCard from '#components/home/personal/HeroRankCard.jsx'
 import RecentFormCard from '#components/home/personal/RecentFormCard.jsx'
 import RivalGoalCard from '#components/home/personal/RivalGoalCard.jsx'
 import SeasonRaceCard from '#components/home/personal/SeasonRaceCard.jsx'
 import RecentMatchesCard from '#components/home/personal/RecentMatchesCard.jsx'
+import MyVideoMatchesCard from '#components/home/personal/MyVideoMatchesCard.jsx'
+import LibraryTipBar from '#components/home/LibraryTipBar.jsx'
 import SynergyBadgesCard from '#components/home/personal/SynergyBadgesCard.jsx'
 import ClubFeedCard from '#components/home/personal/ClubFeedCard.jsx'
 import NearbyStandingsCard from '#components/home/personal/NearbyStandingsCard.jsx'
@@ -84,6 +89,11 @@ export default function MyStats() {
     () => getRecentPlayerMatches(db, memberId, 3),
     [db, memberId],
   )
+
+  // 4b. Trận của tôi có video — 4 ô, đúng một hàng của thẻ (18d)
+  const videoMatches = useMemo(() => getMyVideoMatches(db, memberId, 4), [db, memberId])
+  const [playingMatchId, setPlayingMatchId] = useState(null)
+  const playingMatch = playingMatchId ? (db.matches || []).find((m) => m.id === playingMatchId) : null
 
   // 6. Thống kê cặp ăn ý & đối thủ dùng hàm chuẩn getPlayerPartnersAndMatchups từ rating.js
   const partnerStats = useMemo(() => {
@@ -163,6 +173,11 @@ export default function MyStats() {
     const path = matchPairsPath((db.matches || []).find((m) => m.id === matchId), db.members)
     a.go(path || 'matches')
   }
+  // Lịch sử trận, lọc sẵn trận của tôi có video — Matches.jsx đọc `playerA` / `video` từ URL.
+  const handleViewVideoMatches = () => a.go(`${pathOf('matches')}?tab=history&playerA=${memberId}&video=true`)
+  const videoModal = playingMatch && (
+    <VideoPlayerModal match={playingMatch} matchCode={matchCodeOf(db, playingMatch)} onClose={() => setPlayingMatchId(null)} />
+  )
   const handleViewSchedule = () => a.go('calendar')
   const handleViewAssignment = () => {
     if (upcomingSession?.id) {
@@ -230,6 +245,8 @@ export default function MyStats() {
           </div>
         </div>
 
+        <LibraryTipBar key={db.clubId} isMobile />
+
         <SakuraEvent key={memberId} member={currentMember} isMobile />
 
         {/* TabTrack & Tabs Mobile */}
@@ -269,6 +286,14 @@ export default function MyStats() {
               db={db}
               memberId={memberId}
               defaultRivalId={rivalAnalysis?.rival?.id}
+            />
+
+            {/* Thẻ 04b: Trận của tôi có video */}
+            <MyVideoMatchesCard
+              data={videoMatches}
+              isMobile={true}
+              onViewAll={handleViewVideoMatches}
+              onPlay={setPlayingMatchId}
             />
 
             {/* Thẻ 05: Trận gần nhất */}
@@ -313,6 +338,7 @@ export default function MyStats() {
             />
           </>
         )}
+        {videoModal}
       </div>
     )
   }
@@ -359,6 +385,8 @@ export default function MyStats() {
           />
         </div>
       </div>
+
+      <LibraryTipBar key={db.clubId} isMobile={false} />
 
       <SakuraEvent key={memberId} member={currentMember} isMobile={false} />
 
@@ -408,6 +436,14 @@ export default function MyStats() {
               defaultRivalId={rivalAnalysis?.rival?.id}
             />
 
+            {/* 04b. Trận của tôi có video */}
+            <MyVideoMatchesCard
+              data={videoMatches}
+              isMobile={false}
+              onViewAll={handleViewVideoMatches}
+              onPlay={setPlayingMatchId}
+            />
+
             {/* 05. Trận gần nhất của tôi (3 trận) */}
             <RecentMatchesCard
               matches={recentMatches}
@@ -454,6 +490,7 @@ export default function MyStats() {
           </div>
         </div>
       )}
+      {videoModal}
     </div>
   )
 }

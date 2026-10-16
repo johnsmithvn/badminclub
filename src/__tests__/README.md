@@ -77,7 +77,8 @@ Code chạm Supabase/React không có mặt trong bộ này — kiểm tay trên
 | Mốc thời gian trận đấu: đọc từ `at`, đếm chuỗi thắng đang chạy, thứ tự hiển thị ledger | `lib/xp_timeline.test.js` |
 | **Nhập tỷ số bằng giọng nói (Voice Match)**: Formal Grammar 5 luật cứng · khử nhiễu tên người vs số đếm · luật điểm cầu lông | `lib/voiceMatchParser.test.js` |
 | **Video trận đấu & Dòng thời gian buổi**: Parse link YouTube/Drive/iCloud · timestamp · khoảng cách trận · thống kê nhịp độ buổi | `lib/video_match_timeline.test.js` |
-| **Thư viện bài tập**: đọc giờ mm:ss · kiểm form đăng bài · gom kệ · nhãn MỚI · mốc đang xem · lặp đoạn | `lib/library.test.js` |
+| **Thư viện bài tập**: đọc giờ mm:ss · kiểm form đăng bài · gom kệ · nhãn MỚI · mốc đang xem · lặp đoạn · bỏ video kéo mốc theo | `lib/library.test.js` |
+| **Home: trận có video & gợi ý tập**: trận của mình có video (mới nhất trước, tỷ số phía mình) · chọn bài gợi ý (ưu tiên chưa mở) | `lib/home_video_tip.test.js` |
 
 | 🚨 **Bộ số chuẩn trên dữ liệu THẬT** — đổi công thức Elo/điểm mùa là đỏ. ĐỌC `backtest/README.md` TRƯỚC KHI ĐỘNG VÀO | `backtest/backtest.test.js` |
 

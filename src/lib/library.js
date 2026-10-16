@@ -62,7 +62,13 @@ export function formOf(post) {
   }
 }
 
-const rowEmpty = (v) => !String(v.url || '').trim() && !String(v.start || '').trim() && !String(v.end || '').trim()
+/** Bỏ video thứ i khỏi form: mốc của video đó bỏ theo, mốc của các video phía sau lùi một số. */
+export function dropVideo(form, i) {
+  const notes = form.notes.filter((n) => (n.v || 0) !== i).map((n) => ((n.v || 0) > i ? { ...n, v: n.v - 1 } : n))
+  return { ...form, videos: form.videos.filter((_, k) => k !== i), notes: notes.length ? notes : [blankNote()] }
+}
+
+const rowEmpty = (v) =>!String(v.url || '').trim() && !String(v.start || '').trim() && !String(v.end || '').trim()
 const noteEmpty = (n) => !String(n.t || '').trim() && !String(n.text || '').trim()
 
 /**
@@ -157,6 +163,18 @@ export function isNewPost(post, mark, myId, nowMs) {
   if (!post || post.authorId === myId || mark?.viewedAt) return false
   const at = Date.parse(post.createdAt)
   return Number.isFinite(at) && nowMs - at <= cfg.library.newDays * DAY_MS
+}
+
+/**
+ * Bài gợi ý ở dải "Gợi ý tập" trên Home (17b): ngẫu nhiên, ưu tiên bài người khác đăng mà mình chưa
+ * mở (bài của mình không bao giờ có lượt xem — RPC library_view bỏ qua tác giả). Mở hết rồi thì chọn
+ * trong mọi bài. Không có bài → null. `rnd` trả số trong [0, 1) như Math.random.
+ */
+export function pickTip(posts, marks, myId, rnd = Math.random) {
+  const all = posts || []
+  const fresh = all.filter((p) => p.authorId !== myId && !marks?.[p.id]?.viewedAt)
+  const pool = fresh.length ? fresh : all
+  return pool.length ? pool[Math.min(pool.length - 1, Math.floor(rnd() * pool.length))] : null
 }
 
 /** Tổng độ dài các đoạn cần xem (giây). Có video không ghi giờ kết thúc thì không biết → null. */
