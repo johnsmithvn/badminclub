@@ -151,6 +151,8 @@ Chi tiết buổi tập được thiết kế lại thành thanh Tab Bar 3 tabs 
 - **Danh sách trận trong buổi**: Phân loại nguồn (Chia sân vs Từ kèo), xem tỷ số từng set, biến động Elo.
 - **Danh sách kèo trong buổi**:
   - Tạo kèo đấu mới qua `CreateChallengeModal`.
+  - Nút **Tạo kèo** nổi (tím) ở đầu tab, ngoài nút cũ trong thẻ "Kèo trong buổi".
+  - **Kèo có khách giao lưu** (0067): mở từ trong buổi thì danh sách mặc định là người có mặt **kể cả khách của buổi** (nhãn "Khách"). Kèo Tự do (trang Trận đấu, BXH) không có khách. Khách được tính là đã nhận ngay lúc tạo. Elo/điểm mùa: thành viên tính bình thường, khách đứng yên ở seed như trận chia sân. Kèo có khách không gỡ về Tự do / không chuyển sang buổi khách không có lượt; khách còn kèo chưa đánh xong thì không bỏ khỏi buổi / không xoá khỏi danh bạ được.
   - Quản lý trạng thái: `PENDING`, `ACCEPTED`, `DECLINED`, `ONCOURT`, `PLAYED`, `CANCELLED`.
   - Hỗ trợ xem theo góc nhìn: Người tạo, Đội được thách đấu, Khách xem.
   - Tự động hiển thị lịch sử đối đầu (H2H) giữa 2 đội (K4).

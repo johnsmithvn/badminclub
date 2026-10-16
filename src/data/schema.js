@@ -286,6 +286,13 @@ export const SCHEMA_GROUPS = [
         ],
       },
       {
+        name: 'challenge_guests',
+        fields: [
+          f('id', 'uuid', 'PK'), f('challenge_id', 'uuid', 'FK'),
+          f('guest_id', 'uuid', 'FK'), f('team', 'text A/B'),
+        ],
+      },
+      {
         name: 'challenge_predictions',
         fields: [
           f('id', 'uuid', 'PK'), f('challenge_id', 'uuid', 'FK'), f('club_id', 'uuid', 'FK'),

@@ -601,5 +601,31 @@ assert.equal(emptyRow.deployed_at, null, 'Chưa lên sân -> null, không phải
 assert.equal(emptyRow.accepted_by, null, 'Chưa ai chốt -> null')
 assert.equal(emptyRow.stake_text, null, 'Không có giao kèo -> null')
 
+/* ---------- Khách đánh kèo (0067): khách đi `challenge_guests`, không lọt `challenge_players` ----------
+ *
+ * Trước 0067 toRows lặng lẽ bỏ id khách khỏi kèo: tạo xong thấy khách, F5 là khách biến mất và
+ * kèo hụt người. Ghi khách vào `challenge_players` thì `member_id` là id khách → vỡ khoá ngoại.
+ */
+const cgBack = toDb({
+  ...clone(db),
+  guests: [{ id: 'KG1', name: 'Long', gender: 'nam', level: 'TB' }],
+  challenges: [{ ...chalRaw, id: 'CH_G', challenge_guests: [{ team: 'B', guest_id: 'KG1' }] }],
+}, ctx)
+const cgChal = cgBack.challenges.find((c) => c.id === 'CH_G')
+assert.deepEqual(cgChal.teamA, [db.members[0].id], 'thành viên vẫn đọc từ challenge_players')
+assert.deepEqual(cgChal.teamB, ['KG1'], 'toDb phải gộp khách từ challenge_guests vào teamB')
+
+const cgRows = toRows(cgBack, ctx)
+assert.deepEqual(cgRows.challenge_guests.filter((r) => r.challenge_id === 'CH_G'),
+  [{ challenge_id: 'CH_G', guest_id: 'KG1', team: 'B' }], 'toRows phải ghi khách xuống challenge_guests')
+assert.ok(!cgRows.challenge_players.some((r) => r.member_id === 'KG1'), 'id khách lọt vào challenge_players là vỡ khoá ngoại club_members')
+assert.deepEqual(diff(cgRows, toRows(clone(cgBack), ctx)), [],
+  'đọc rồi ghi lại kèo có khách không được sinh thao tác — lệch là mỗi lần đồng bộ lại upsert khách')
+
+const cgDrop = clone(cgBack)
+cgDrop.challenges.find((c) => c.id === 'CH_G').teamB = []
+assert.ok(diff(cgRows, toRows(cgDrop, ctx)).some((o) => o.table === 'challenge_guests' && o.op === 'delScope'),
+  'bỏ khách khỏi kèo phải xoá dòng challenge_guests, không thì F5 khách quay lại')
+
 console.log('dbmap check: OK')
 

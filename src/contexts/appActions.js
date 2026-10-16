@@ -15,7 +15,7 @@ import { modeToast, activeCourtIdxs, arrange, autoSplit, courtSlotIds, matchStat
 import { can, membersWithPerm, roleDesc, roleName, viewAsOptions } from '#lib/roles.js'
 import { applyScheduleEdit, planScheduleDelete, planScheduleEdit } from '#lib/schedules.js'
 import { teamRating, replayRatingCascade, MIN_RATING, applyRatingDelta, calcPlayerDeltas, rankTierOf, initialRatingOf, computeClubCalibration, confidenceOf } from '#lib/rating.js'
-import { nextChallengeCode, isChallengeFullyAccepted, getChallengeSeriesProgress, canMemberPredict, availableSeasonPoints, stakeBaseOf, settlePredictionsLocal, expiredChallenges, orphanedChallenges, abandonedChallenges, isChallengeAccepted, validateStakePoints } from '#lib/challenge.js'
+import { nextChallengeCode, isChallengeFullyAccepted, getChallengeSeriesProgress, canMemberPredict, availableSeasonPoints, stakeBaseOf, settlePredictionsLocal, expiredChallenges, orphanedChallenges, abandonedChallenges, isChallengeAccepted, validateStakePoints, challengeGuestIds, guestsMissingFromSession, openChallengeOfGuest } from '#lib/challenge.js'
 import { resolveVenue } from '#lib/forms.js'
 import { supabase, unwrap } from '#supabase'
 import { pathOf, buildPushUrl } from '#routes'
@@ -960,6 +960,8 @@ export function makeActions({ setDb, setUi, dbRef, uiRef, navRef, toast, reload,
       if (hasPaid) {
         return toast(t('toast.guestInUse'))
       }
+      const chal = openChallengeOfGuest(d0, gid)
+      if (chal) return toast(t('challenge.guestHasOpenChallenge', { name: was.name, code: chal.code }))
       up((d) => ({
         guests: d.guests.filter((x) => x.id !== gid && x.companionOf !== gid),
         sessionGuests: d.sessionGuests.filter((sg) => sg.guestId !== gid),
@@ -1076,6 +1078,10 @@ export function makeActions({ setDb, setUi, dbRef, uiRef, navRef, toast, reload,
           (g.id === id && !g.paid && !g.claimedAt ? { ...g, price: intOf(v) } : g)),
       })),
     removeGuest: (id) => {
+      const d0 = db()
+      const sg = d0.sessionGuests.find((g) => g.id === id)
+      const chal = sg?.guestId ? openChallengeOfGuest(d0, sg.guestId, sg.sessionId) : null
+      if (chal) return toast(t('challenge.guestHasOpenChallenge', { name: playerName(d0, sg.guestId), code: chal.code }))
       up((d) => ({ sessionGuests: d.sessionGuests.filter((g) => g.id !== id) }))
       toast(t('toast.guestRemoved'))
     },
@@ -2885,7 +2891,13 @@ export function makeActions({ setDb, setUi, dbRef, uiRef, navRef, toast, reload,
       // cho dòng cũ thiếu `expiresAt` (xem `challengeExpiryAt`) — kèo tạo từ đây ghi thẳng mốc.
       const expireHours = cfg.challenge?.pendingExpireHours ?? ((cfg.challenge?.pendingExpireDays ?? 1) * 24)
       const allInMatch = [...(teamA || []), ...(teamB || [])]
-      const acceptedPlayers = allInMatch.includes(myId) ? [myId] : []
+      const missingGuests = guestsMissingFromSession({ teamA, teamB }, d0, sessionId)
+      if (missingGuests.length) {
+        toast(t('challenge.guestNotInSession', { names: missingGuests.map((id) => playerName(d0, id)).join(', ') }))
+        return
+      }
+      // Khách không có tài khoản để tự bấm nhận → người tạo kèo nhận thay ngay lúc tạo.
+      const acceptedPlayers = [...(allInMatch.includes(myId) ? [myId] : []), ...challengeGuestIds({ teamA, teamB }, d0)]
       const newChalTemp = {
         teamA: teamA || [],
         teamB: teamB || [],
@@ -3389,6 +3401,14 @@ export function makeActions({ setDb, setUi, dbRef, uiRef, navRef, toast, reload,
           toast(t('planner.chalAbsentCantSchedule', { names: absentNames.join(', ') }))
           return false
         }
+      }
+
+      // Kèo có khách dính với buổi có lượt của khách: gỡ về Tự do hay chuyển sang buổi khách
+      // không có mặt đều là để khách đánh mà không ai thu tiền sân.
+      const missingGuests = guestsMissingFromSession(chal, d0, sessionId)
+      if (missingGuests.length) {
+        toast(t('challenge.guestNotInSession', { names: missingGuests.map((id) => playerName(d0, id)).join(', ') }))
+        return false
       }
 
       up((d) => ({

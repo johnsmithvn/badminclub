@@ -194,6 +194,22 @@ export default function SessionMatchesTab({ s, onSwitchTab }) {
     <div style={{ ...S.layout, gridTemplateColumns: isMobile ? '1fr' : 'minmax(0, 1fr) 380px' }}>
       {/* ---------------- Cột trái: Bảng Trận đấu của buổi ---------------- */}
       <div style={{ display: 'grid', gap: 16, alignContent: 'start', minWidth: 0 }}>
+        {/* Lối tắt tạo kèo: nút trong thẻ "Kèo trong buổi" nằm cột phải (mobile thì tận dưới cùng)
+            nên ít ai thấy. Tím = màu nguồn "Từ kèo" ở trang Trận đấu. */}
+        <div style={{ ...S.chalCta, flexDirection: isMobile ? 'column' : 'row', alignItems: isMobile ? 'stretch' : 'center' }}>
+          <div style={{ display: 'flex', alignItems: 'center', gap: 12, minWidth: 0, flex: 1 }}>
+            <span style={S.chalCtaIcon}><Icon name="swords" size={20} /></span>
+            <div style={{ display: 'grid', gap: 3, minWidth: 0 }}>
+              <div style={S.cardTitle}>{t('challenge.ctaTitle')}</div>
+              <div style={S.cardSub}>{t('challenge.ctaSub')}</div>
+            </div>
+          </div>
+          <button type="button" onClick={() => setShowCreate(true)} style={{ ...S.chalCtaBtn, height: isMobile ? 48 : 40 }}>
+            <Icon name="plus" size={16} />
+            {t('challenge.btnCreate')}
+          </button>
+        </div>
+
         {/* 4 StatCards thống kê buổi */}
         <div style={{ ...S.statGrid, gridTemplateColumns: isMobile ? 'repeat(2, 1fr)' : 'repeat(auto-fit, minmax(min(100%, 140px), 1fr))' }}>
           <div
@@ -1692,6 +1708,40 @@ const S = {
     borderRadius: 'var(--radius-card)',
     boxShadow: 'var(--shadow-xs)',
     overflow: 'hidden',
+  },
+  chalCta: {
+    display: 'flex',
+    gap: 12,
+    padding: '14px 16px',
+    background: 'var(--surface-card)',
+    border: '1px solid var(--action-violet-bg)',
+    borderRadius: 'var(--radius-card)',
+    boxShadow: 'var(--shadow-xs)',
+  },
+  chalCtaIcon: {
+    flexShrink: 0,
+    width: 40,
+    height: 40,
+    borderRadius: 999,
+    display: 'flex',
+    alignItems: 'center',
+    justifyContent: 'center',
+    background: 'var(--action-violet-bg)',
+    color: 'var(--action-violet-fg)',
+  },
+  chalCtaBtn: {
+    display: 'flex',
+    alignItems: 'center',
+    justifyContent: 'center',
+    gap: 6,
+    padding: '0 18px',
+    borderRadius: 'var(--radius-md)',
+    background: 'var(--action-violet-bg)',
+    border: 'none',
+    font: '600 14px/1 "IBM Plex Sans", sans-serif',
+    color: 'var(--action-violet-fg)',
+    cursor: 'pointer',
+    whiteSpace: 'nowrap',
   },
   cardHead: {
     padding: '12px 16px',

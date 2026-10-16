@@ -295,7 +295,11 @@ export function toDb(raw, ctx) {
       status: 'pending', note: r.note || '', code: club.code,
     })),
     challenges: (raw.challenges || []).map((c) => {
-      const players = c.challenge_players || []
+      // Khách đánh kèo ở bảng riêng (0067) — client gộp chung vào teamA/teamB.
+      const players = [
+        ...(c.challenge_players || []),
+        ...(c.challenge_guests || []).map((g) => ({ team: g.team, member_id: g.guest_id })),
+      ]
       return {
         id: c.id, code: c.code, clubId: c.club_id, sessionId: c.session_id || null,
         createdBy: c.created_by, status: c.status, courtId: c.court_id || null,
@@ -388,6 +392,7 @@ export function toRows(db, ctx) {
   })
 
   const memberIdSet = new Set((db.members || []).map((m) => m.id))
+  const guestIdSet = new Set((db.guests || []).map((g) => g.id))
 
   db.members.forEach((m) => {
     put('club_members', {
@@ -499,12 +504,12 @@ export function toRows(db, ctx) {
       predictions_enabled: c.predictionsEnabled !== false,
       predictions_locked: Boolean(c.predictionsLocked),
     })
-    ;(c.teamA || []).forEach((mid) => {
-      if (memberIdSet.has(mid)) put('challenge_players', { challenge_id: c.id, member_id: mid, team: 'A' })
-    })
-    ;(c.teamB || []).forEach((mid) => {
-      if (memberIdSet.has(mid)) put('challenge_players', { challenge_id: c.id, member_id: mid, team: 'B' })
-    })
+    const putPlayer = (id, team) => {
+      if (memberIdSet.has(id)) put('challenge_players', { challenge_id: c.id, member_id: id, team })
+      else if (guestIdSet.has(id)) put('challenge_guests', { challenge_id: c.id, guest_id: id, team })
+    }
+    ;(c.teamA || []).forEach((id) => putPlayer(id, 'A'))
+    ;(c.teamB || []).forEach((id) => putPlayer(id, 'B'))
   })
 
   ;(db.matches || []).forEach((mt) => {
@@ -717,6 +722,7 @@ export const TABLES = [
   { table: 'match_players', mode: 'scope', scope: ['match_id'] },
   { table: 'challenges', mode: 'id' },
   { table: 'challenge_players', mode: 'key', conflict: 'challenge_id,member_id', scope: ['challenge_id'], child: 'member_id' },
+  { table: 'challenge_guests', mode: 'key', conflict: 'challenge_id,guest_id', scope: ['challenge_id'], child: 'guest_id' },
   // `challenge_predictions` CỐ Ý không có ở đây. 0041 đã revoke UPDATE/DELETE của `authenticated`
   // để ép mọi thay đổi đi qua RPC, mà đường đồng bộ này ghi bằng `.upsert(onConflict:'id')` =
   // `INSERT ... ON CONFLICT DO UPDATE` — Postgres đòi quyền UPDATE cho câu đó ngay lúc lập kế

@@ -70,7 +70,7 @@ export async function load(clubId, soft = false) {
     supabase.from('member_levels').select('*, club_members!inner(club_id)')
       .eq('club_members.club_id', clubId),
     supabase.rpc('club_pending_requests', { p_club: clubId }),
-    of('challenges', '*, challenge_players(*)'),
+    of('challenges', '*, challenge_players(*), challenge_guests(*)'),
     of('player_ratings'),
     of('match_edits'),
     of('club_calibration'),

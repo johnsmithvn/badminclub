@@ -11,7 +11,7 @@ import {
   getPredictionStats, challengeExpiryAt, challengeCountdown, isChallengeExpired, isChallengeAccepted,
   getChallengeMatchTags, challengeOdds, challengeResultOf,
 } from '#lib/challenge.js'
-import { sessionMembers, sGuests, isPresent, playerName } from '#lib/money.js'
+import { sessionMembers, sGuests, isPresent, playerName, playerOf } from '#lib/money.js'
 import { sessionPlayers } from '#lib/assign.js'
 import ArenaPlayerTag from './ArenaPlayerTag.jsx'
 
@@ -352,8 +352,8 @@ export default function ArenaChallengeCard({
   const isHighlighted = highlightedChallengeId === c.id
   const matchTags = getChallengeMatchTags(c, db?.matches || [], ratA, ratB)
 
-  // Thành viên cho avatar
-  const getMemberData = (id) => (db.members || []).find((m) => m.id === id) || null
+  // Thành viên hoặc khách cho avatar — chỉ tra `members` thì khách hiện chữ cái đầu của uuid
+  const getMemberData = (id) => playerOf(db, id)
 
   const avatarSize = isFeatured ? (isMobile ? 38 : 76) : (isMobile ? 30 : 44)
   const avatarOverlap = isFeatured ? (isMobile ? -10 : -18) : (isMobile ? -8 : -12)

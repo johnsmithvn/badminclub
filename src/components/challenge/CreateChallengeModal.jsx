@@ -5,7 +5,7 @@ import {
   expectedScore, calcEloDelta, getPlayerRating, confidenceProgress,
   BALANCE_THRESHOLD, IMBALANCE_THRESHOLD,
 } from '#lib/rating.js'
-import { shortName, playerName, playerOf } from '#lib/money.js'
+import { shortName, playerName, playerOf, sGuestsOnly } from '#lib/money.js'
 import { calcSeasonMatchDeltaFinal, challengeMultiplierOf } from '#lib/season.js'
 import { t } from '#i18n'
 import cfg from '#config/app.js'
@@ -38,19 +38,27 @@ export default function CreateChallengeModal({ session, onClose, onCreated, init
     return allActiveMembers.filter((m) => att[m.id] === true)
   }, [activeSession, db.attendance, allActiveMembers])
 
-  // Trạng thái lọc: nếu buổi có người có mặt thì có thể lọc người có mặt, mặc định hoặc khi chọn Tất cả thì cho phép chọn bất kỳ thành viên nào
-  const [onlyPresent, setOnlyPresent] = useState(false)
+  // Khách giao lưu của buổi — CHỈ khi mở từ trong buổi (`session`). Kèo Tự do không biết khách
+  // thuộc buổi nào, mà khách phải có lượt trong buổi thì mới thu được tiền sân.
+  const sessionGuestPlayers = useMemo(() => {
+    if (!session) return []
+    const ids = new Set(sGuestsOnly(db, session.id).map((sg) => sg.guestId))
+    return (db.guests || []).filter((g) => ids.has(g.id))
+  }, [session, db])
+  const guestIdSet = useMemo(() => new Set(sessionGuestPlayers.map((g) => g.id)), [sessionGuestPlayers])
+
+  // Trạng thái lọc: mở từ trong buổi thì mặc định chỉ người có mặt (kể cả khách); chọn Tất cả thì cho phép chọn bất kỳ thành viên nào
+  const [onlyPresent, setOnlyPresent] = useState(Boolean(session))
 
   // Danh sách thành viên chọn:
   // - Nếu không gắn buổi: toàn bộ thành viên CLB
   // - Nếu gắn buổi nhưng buổi chưa có ai có mặt: fallback toàn bộ thành viên CLB (không chặn trống)
   // - Nếu gắn buổi và bật lọc có mặt: chỉ người có mặt
+  // Khách của buổi luôn nằm cuối danh sách — có lượt trong buổi tức là có mặt.
   const pickableMembers = useMemo(() => {
-    if (activeSession && onlyPresent && presentMembers.length > 0) {
-      return presentMembers
-    }
-    return allActiveMembers
-  }, [activeSession, onlyPresent, presentMembers, allActiveMembers])
+    const base = activeSession && onlyPresent && presentMembers.length > 0 ? presentMembers : allActiveMembers
+    return [...base, ...sessionGuestPlayers]
+  }, [activeSession, onlyPresent, presentMembers, allActiveMembers, sessionGuestPlayers])
 
   const [searchQuery, setSearchQuery] = useState('')
   const displayedPickableMembers = useMemo(() => {
@@ -210,6 +218,7 @@ export default function CreateChallengeModal({ session, onClose, onCreated, init
               {teamA.length > 0 && (
                 <div style={{ display: 'flex', gap: 6, flexWrap: 'wrap', marginTop: 4 }}>
                   {teamA.map((id) => {
+                    if (guestIdSet.has(id)) return <span key={id} style={S.guestTag}>{t('guestTag')}</span>
                     const pr = getPlayerRating(db.playerRatings, id, playerOf(db, id), db.levels)
                     const conf = confidenceProgress(pr.gamesCount || 0)
                     return (
@@ -234,6 +243,7 @@ export default function CreateChallengeModal({ session, onClose, onCreated, init
               {teamB.length > 0 && (
                 <div style={{ display: 'flex', gap: 6, flexWrap: 'wrap', marginTop: 4 }}>
                   {teamB.map((id) => {
+                    if (guestIdSet.has(id)) return <span key={id} style={S.guestTag}>{t('guestTag')}</span>
                     const pr = getPlayerRating(db.playerRatings, id, playerOf(db, id), db.levels)
                     const conf = confidenceProgress(pr.gamesCount || 0)
                     return (
@@ -315,7 +325,7 @@ export default function CreateChallengeModal({ session, onClose, onCreated, init
                         color: onlyPresent ? '#fff' : 'var(--text-muted)',
                       }}
                     >
-                      {t('challenge.filterPresent', { n: presentMembers.length })}
+                      {t('challenge.filterPresent', { n: presentMembers.length + sessionGuestPlayers.length })}
                     </button>
                     <button
                       type="button"
@@ -332,7 +342,7 @@ export default function CreateChallengeModal({ session, onClose, onCreated, init
                         color: !onlyPresent ? '#fff' : 'var(--text-muted)',
                       }}
                     >
-                      {t('challenge.filterAll', { n: allActiveMembers.length })}
+                      {t('challenge.filterAll', { n: allActiveMembers.length + sessionGuestPlayers.length })}
                     </button>
                   </div>
                 )}
@@ -364,7 +374,9 @@ export default function CreateChallengeModal({ session, onClose, onCreated, init
                   >
                     <span title={m.name}>{shortName(m.name)}</span>
                     <span style={{ ...S.monoRating, color: inA || inB ? 'var(--navy-200)' : 'var(--text-muted)' }}>{r}</span>
-                    <span style={confBadgeStyle(conf.level)}>{conf.level}</span>
+                    {guestIdSet.has(m.id)
+                      ? <span style={S.guestTag}>{t('guestTag')}</span>
+                      : <span style={confBadgeStyle(conf.level)}>{conf.level}</span>}
                     {inA && <span style={S.teamTag}>A</span>}
                     {inB && <span style={S.teamTag}>B</span>}
                   </button>
@@ -748,6 +760,13 @@ const S = {
     borderRadius: 3,
     background: 'var(--teal-500)',
     color: 'var(--teal-900)',
+  },
+  guestTag: {
+    font: '700 9px/1 var(--font-sans)',
+    padding: '2px 5px',
+    borderRadius: 3,
+    background: 'var(--status-delayed-bg)',
+    color: 'var(--status-delayed-fg)',
   },
   analysisRow: {
     display: 'grid',

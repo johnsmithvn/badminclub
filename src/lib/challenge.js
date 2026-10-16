@@ -116,6 +116,41 @@ export function isChallengeFullyAccepted(challenge) {
   return getChallengeAcceptanceProgress(challenge).isFullyAccepted
 }
 
+/**
+ * Khách giao lưu trong kèo (id có trong `db.guests`). Khách không có tài khoản nên không tự bấm
+ * nhận được — lúc tạo kèo họ được tính là đã nhận sẵn.
+ */
+export function challengeGuestIds(challenge, db) {
+  const guestIds = new Set((db?.guests || []).map((g) => g.id))
+  return [...(challenge?.teamA || []), ...(challenge?.teamB || [])].filter((id) => guestIds.has(id))
+}
+
+/**
+ * Khách của kèo KHÔNG có lượt ở buổi `sessionId`. Khách chưa vào buổi = chưa thu tiền sân, nên
+ * kèo có khách không được tạo ngoài buổi, gắn sang buổi khác hay gỡ về Tự do (`sessionId` rỗng
+ * → mọi khách đều thiếu).
+ */
+export function guestsMissingFromSession(challenge, db, sessionId) {
+  const here = new Set((db?.sessionGuests || [])
+    .filter((sg) => sessionId && sg.sessionId === sessionId && sg.guestId)
+    .map((sg) => sg.guestId))
+  return challengeGuestIds(challenge, db).filter((id) => !here.has(id))
+}
+
+/**
+ * Kèo CHƯA XONG có khách `guestId` (chỉ trong buổi `sessionId` nếu truyền). Bỏ khách khỏi buổi
+ * lúc họ còn kèo chưa đánh là để khách ra sân mà không bị thu tiền.
+ */
+export function openChallengeOfGuest(db, guestId, sessionId = null) {
+  return (db?.challenges || []).find((c) => {
+    if (sessionId && c.sessionId !== sessionId) return false
+    if (![...(c.teamA || []), ...(c.teamB || [])].includes(guestId)) return false
+    if (c.status === 'pending') return !isChallengeExpired(c)
+    if (isChallengeAccepted(c)) return true
+    return c.status === 'played' && !getChallengeSeriesProgress(c, db.matches || []).isComplete
+  }) || null
+}
+
 /** Kiểm tra thành viên có thể bấm Nhận kèo không */
 export function canMemberAcceptChallenge(challenge, myMemberId, isAdmin = false) {
   if (!challenge || challenge.status !== 'pending') return false

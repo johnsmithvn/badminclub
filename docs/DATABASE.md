@@ -179,7 +179,7 @@ State `db` của client dùng shape gọn của prototype. Cài đặt tại `sr
 | `club.debtBanner` | `clubs.debt_banner` | Kiểu banner nhắc nợ (0019). Danh sách giá trị lặp lại ở `Settings.jsx: DEBT_BANNERS` — đổi một bên là DB trả 23514 |
 | `dues[].claimedAt` · `adjustments[].claimedAt` · `sessionGuests[].claimedAt` | cột `claimed_at` của ba bảng | Khác null = thành viên đã khai đã chuyển tiền, chờ duyệt (0018). Duyệt = bật `paid` và GIỮ `claimed_at`; từ chối = đặt lại NULL |
 | `members[].bankAccounts` | `club_members.bank_accounts jsonb` | Danh sách tài khoản ngân hàng thành viên (0015) |
-| `challenges[]` | `challenges` + `challenge_players` | Kèo đấu: mã kèo, đội A/B, thể thức, trạng thái, sân chỉ định, hạn nhận, `session_id` liên kết buổi chơi (0021) |
+| `challenges[]` | `challenges` + `challenge_players` + `challenge_guests` | Kèo đấu: mã kèo, đội A/B, thể thức, trạng thái, sân chỉ định, hạn nhận, `session_id` liên kết buổi chơi (0021). `teamA`/`teamB` trộn id thành viên và id khách — khách ghi xuống `challenge_guests` (0067) |
 | `matches[]` | `matches` + `match_players` | Trận đấu: tỷ số từng set, đội thắng, nguồn (session / challenge), delta Elo (0021) |
 | `playerRatings` | `player_ratings` | Điểm Elo, độ tin cậy (R1-R5), số trận thắng/thua của từng thành viên (0021) |
 | `matchEdits[]` | `match_edits` | Lịch sử audit log sửa điểm trận: lý do sửa, tỷ số cũ/mới, người sửa (0021) |
@@ -275,6 +275,7 @@ State `db` của client dùng shape gọn của prototype. Cài đặt tại `sr
 | `0063_tournament_swiss_double.sql` | Mở rộng thể thức giải đấu: Hệ Thụy Sĩ (`swiss`) sinh vòng dần qua RPC `tournament_add_swiss_round`; Nhánh thắng/nhánh thua (`double elimination`) kèm cơ chế chung kết tổng 2 (GF2). |
 | `0064_prediction_stake_cap_10.sql` | Hạ trần một phiếu cược trong `place_challenge_prediction` từ 100 xuống 10 SP (≤ một trận thắng). Cố ý giữ CHECK bảng 1..100 vì còn phiếu chờ 20/30/50 đặt theo luật cũ. |
 | `0066_library.sql` | Thư viện bài tập: bảng `library_posts` (bài + `videos jsonb` theo giây, `shelf` là tên gõ tay, ẩn bài = `status 'archived'`) và `library_marks` (mỗi người × mỗi bài: `viewed_at`, `saved`). Ai trong CLB cũng đăng; tác giả hoặc chủ CLB sửa / ẩn. `view_count` và `pinned_at` không cấp quyền ghi cho client — chỉ RPC `library_view` (mỗi người tính 1 lần, tác giả không tính), `library_save`, `library_pin` (chủ CLB, mỗi lúc 1 bài). Chỉ chủ CLB đọc được ai đã xem. |
+| `0067_challenge_guests.sql` | Khách giao lưu đánh kèo: bảng `challenge_guests` (kèo × khách × đội), tách khỏi `challenge_players` vì đồng bộ upsert theo `(challenge_id, member_id)` không ghi được dòng `member_id` NULL. Chỉ người tạo kèo / cờ `assign` ghi; khách phải cùng CLB với kèo. Không đổi Elo/điểm mùa — trận vẫn lưu khách bằng `match_players.player_type = guest`. |
 
 ---
 
