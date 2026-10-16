@@ -27,6 +27,7 @@ import cfgBadges from '#config/badges.json' with { type: 'json' }
 import { syncPatchMatchViews, syncPatchMatchVideo } from '#contexts/storage.js'
 import { cleanVideoParts, matchVideosOf } from '#utils/videoUtils.js'
 import { makeTournamentActions } from '#contexts/tournamentActions.js'
+import { makeLibraryActions } from '#contexts/libraryActions.js'
 import { detectMatchNarrative, notifyRecipients, notifiableMemberIds, resolveNotificationPayload } from '#lib/activity.js'
 
 /** Id của mọi bản ghi mới. Trùng kiểu uuid của Postgres nên client ghi thẳng được, khỏi map id. */
@@ -4594,6 +4595,8 @@ export function makeActions({ setDb, setUi, dbRef, uiRef, navRef, toast, reload,
 
   // Giải đấu: state riêng `tour`, ghi riêng — xem tournamentActions.js.
   Object.assign(A, makeTournamentActions({ dbRef, tourRef, setTour, toast, uid }))
+  // Thư viện bài tập: nạp riêng, ghi riêng — xem libraryActions.js.
+  Object.assign(A, makeLibraryActions({ dbRef, toast, uid }))
 
   return A
 }

@@ -435,7 +435,8 @@
       "money": "Tài chính",
       "account": "Tài khoản"
     },
-    "tournaments": "Giải đấu"
+    "tournaments": "Giải đấu",
+    "library": "Thư viện"
   },
   "pages": {
     "home": {
@@ -526,6 +527,14 @@
     "tournament": {
       "title": "Giải đấu",
       "desc": "Điều hành một giải: thông tin, lệ phí, thí sinh"
+    },
+    "library": {
+      "title": "Thư viện",
+      "desc": "Bài hướng dẫn và video của CLB"
+    },
+    "libraryPost": {
+      "title": "Đọc bài",
+      "desc": "Bài hướng dẫn kèm video và mốc cần xem"
     }
   },
   "roles": {
@@ -5846,6 +5855,105 @@
       "weird": "Hình như có gì đó sai sai…",
       "brace": "Chuẩn bị tinh thần…",
       "boom": "Bùm!"
+    }
+  },
+  "library": {
+    "sub": "{{n}} bài · {{k}} kệ · CLB tự soạn",
+    "post": "Đăng bài",
+    "filterAll": "Tất cả",
+    "filterSaved": "Đã lưu · {{n}}",
+    "savedShelf": "Đã lưu",
+    "shelfCount": "{{n}} bài",
+    "pinned": "Ghim",
+    "new": "Mới",
+    "viewed": "Đã xem",
+    "videoCount": "{{n}} video",
+    "views": "{{n}} lượt xem",
+    "open": "Xem bài",
+    "save": "Lưu",
+    "savedLabel": "Đã lưu",
+    "saveAria": "Lưu bài để xem sau",
+    "unsaveAria": "Bỏ lưu bài này",
+    "emptyTitle": "Thư viện chưa có bài nào",
+    "emptyHint": "Bấm Đăng bài, dán link YouTube và viết vài dòng dặn anh em nên xem đoạn nào.",
+    "savedEmpty": "Chưa lưu bài nào. Bấm dấu trang ở góc ảnh để lưu lại xem sau.",
+    "back": "Thư viện",
+    "edit": "Sửa bài",
+    "byline": "{{name}} · đăng {{date}}",
+    "marksTitle": "Mốc cần xem",
+    "marksHint": "bấm để tua tới",
+    "loop": "Lặp đoạn",
+    "loopOn": "Lặp {{a}}–{{b}}",
+    "videoTab": "Video {{n}}",
+    "range": "{{a}} – {{b}}",
+    "from": "từ {{a}}",
+    "notFoundTitle": "Không mở được bài này",
+    "notFoundHint": "Bài đã bị ẩn hoặc không thuộc CLB đang xem. Quay lại thư viện để chọn bài khác.",
+    "viewersTitle": "Ai đã xem · {{n}}",
+    "viewersEmpty": "Chưa ai mở bài này. Người đăng bài không tính vào lượt xem.",
+    "shelfSuggest": ["Di chuyển", "Tấn công", "Phòng thủ", "Lưới"],
+    "form": {
+      "createTitle": "Bài mới",
+      "editTitle": "Sửa bài",
+      "sub": "Hiện cho cả CLB sau khi đăng",
+      "title": "Tiêu đề",
+      "titlePh": "VD: Đỡ đập thấp bên trái tay",
+      "shelf": "Kệ",
+      "newShelf": "Kệ mới",
+      "newShelfPh": "Tên kệ, VD: Giao cầu",
+      "videos": "Video",
+      "video": "Video {{n}}",
+      "remove": "Bỏ video",
+      "urlPh": "Dán link YouTube",
+      "ok": "Đã nhận video",
+      "fromLink": "bắt đầu từ {{t}} theo link",
+      "start": "Bắt đầu",
+      "end": "Kết thúc",
+      "endPh": "hết video",
+      "addVideo": "Thêm video",
+      "body": "Nội dung",
+      "bodyPh": "Viết cho anh em: lỗi hay gặp, nên xem đoạn nào, buổi tới tập thế nào.",
+      "notes": "Mốc giờ",
+      "notesHint": "bấm vào mốc trong bài sẽ tua tới đó",
+      "notePh": "Khuỷu tay cao hơn vai",
+      "noteVideo": "Đổi video của mốc này",
+      "removeNote": "Bỏ mốc này",
+      "addNote": "Thêm mốc",
+      "pin": "Ghim lên đầu thư viện",
+      "pinHint": "Mỗi lúc chỉ ghim một bài. Bài đang ghim sẽ được gỡ.",
+      "status": "{{n}} video · kệ {{shelf}}",
+      "submit": "Đăng bài",
+      "save": "Lưu bài",
+      "archive": "Ẩn bài",
+      "archiveTitle": "Ẩn bài này khỏi thư viện",
+      "archiveHint": "Không ai mở lại được bài này nữa, kể cả người đăng. Lượt xem đã có vẫn giữ trong dữ liệu."
+    },
+    "toast": {
+      "posted": "Đã đăng vào kệ {{shelf}} · {{n}} video — cả CLB thấy bài này trong Thư viện",
+      "updated": "Đã lưu bài — ai mở bài sẽ thấy bản mới",
+      "archived": "Đã ẩn bài — bài không còn hiện trong Thư viện",
+      "pinned": "Đã ghim lên đầu Thư viện — bài ghim trước đó được gỡ",
+      "unpinned": "Đã bỏ ghim — đầu Thư viện không còn bài ghim",
+      "saved": "Đã lưu bài — xem lại ở chip Đã lưu",
+      "unsaved": "Đã bỏ lưu bài"
+    },
+    "err": {
+      "title": "Cần tiêu đề cho bài",
+      "titleLong": "Tiêu đề dài quá 200 ký tự",
+      "shelf": "Chọn một kệ hoặc tạo kệ mới",
+      "shelfLong": "Tên kệ dài quá 40 ký tự",
+      "url": "Không nhận ra link YouTube. Dán link dạng youtube.com/watch?v=… hoặc youtu.be/…",
+      "urlMissing": "Dán link YouTube cho video này, hoặc bỏ video",
+      "clock": "Giờ viết dạng mm:ss, ví dụ 01:20",
+      "range": "Giờ kết thúc phải sau giờ bắt đầu",
+      "noteTime": "Mốc cần giờ, ví dụ 01:42",
+      "noteText": "Mốc cần một câu dặn xem gì",
+      "noteVideo": "Mốc đang trỏ tới video đã bỏ — bấm V để chọn lại video",
+      "noteRange": "Mốc nằm ngoài đoạn bắt đầu – kết thúc của video",
+      "noVideo": "Cần ít nhất một link YouTube",
+      "notFound": "Bài không còn hoặc đã bị ẩn",
+      "notMember": "Tài khoản chưa ghép với thành viên nào của CLB — nhờ chủ CLB ghép rồi mới đăng / lưu được",
+      "pinOwnerOnly": "Chỉ chủ CLB được ghim bài"
     }
   }
 }

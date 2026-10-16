@@ -23,6 +23,7 @@ import {
   UserRoundMinus, UserRoundPlus, UserRoundX, Users, Volleyball, Wallet, WandSparkles, X, Zap,
   Filter, Table, Mic, GripVertical,
   Bell, Calendar, Swords, User,
+  BookOpen, Bookmark, Pin,
 } from 'lucide-react'
 
 export const ICONS = {
@@ -34,6 +35,8 @@ export const ICONS = {
   award: Award,
   banknote: Banknote,
   bell: Bell,
+  'book-open': BookOpen,
+  bookmark: Bookmark,
   'building-2': Building2,
   calculator: Calculator,
   camera: Camera,
@@ -90,6 +93,7 @@ export const ICONS = {
   'package-open': PackageOpen,
   pause: Pause,
   pencil: Pencil,
+  pin: Pin,
   phone: Phone,
   play: Play,
   plus: Plus,

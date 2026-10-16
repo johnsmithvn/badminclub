@@ -298,10 +298,13 @@ Danh sách Route key và component render tương ứng (xem `src/routes/index.j
 16. `tournament`: `/giai-dau/:id` — Trung tâm điều hành giải đấu (TournamentHub).
 17. `tournamentBracket`: `/giai-dau/:id/nhanh/:eventId` — Cây nhánh thi đấu của từng nội dung.
 18. `tournamentFlow`: `/giai-dau/:id/so-do` — Sơ đồ luồng canvas chuyển tiếp giữa các giai đoạn (Stage Links).
+19. `library`: `/thu-vien` (`Library.jsx`) — Thư viện bài tập: bài ghim, chip lọc (Tất cả / Đã lưu / từng kệ), các kệ bài.
+20. `libraryPost`: `/thu-vien/:id` (`LibraryPost.jsx`) — Đọc bài: video YouTube dính trên đầu (IFrame API, `components/library/useYouTube.js`), tốc độ 1×/0.5×/0.25×, lặp đoạn giữa hai mốc, bấm mốc để tua.
 
 **Ma trận phân quyền (`src/lib/roles.js` + `src/config/permissions.json`):**
 - 3 vai trò chuẩn: `owner` (Chủ CLB), `treasurer` (Thủ quỹ), `member` (Thành viên).
-- Cả 18 routes đều mở cho mọi vai trò vào xem (`routes: null`).
+- Cả 20 routes đều mở cho mọi vai trò vào xem (`routes: null`).
+- **Thư viện bài tập**: ai trong CLB cũng đăng bài và tạo kệ; tác giả hoặc cờ `settings` (chủ CLB) sửa / ẩn bài; chỉ cờ `settings` ghim bài và xem danh sách ai đã xem. Luật thật nằm ở RLS + RPC của `0066_library.sql`, UI chỉ ẩn nút.
 - Các quyền thao tác (action/edit) được kiểm tra qua các cờ (`flags`):
   - `owner`: `money`, `members`, `sessions`, `assign`, `settings`, `viewAll`
   - `treasurer`: `money`, `sessions`, `assign`, `viewAll`
@@ -355,6 +358,10 @@ Hai bất biến bắt buộc, có test khoá ở `src/__tests__/sync/dbmap.test
    - Hoàn toàn tách biệt khỏi state `db` và không đi qua `dbmap.diff()`.
    - Nạp độc lập qua `loadTournament` / `loadTournamentMatches`.
    - Ghi dữ liệu trực tiếp từng dòng qua `tournamentWrite` và các RPC nguyên tử: `tournament_generate_stage`, `tournament_commit_match`, `tournament_undo_match`, `tournament_edit_match`, `tournament_close_stage`, `tournament_add_swiss_round` (migrations 0057..0063).
+10. **Thư viện bài tập (`library_posts`, `library_marks`)** — cùng khuôn với giải đấu:
+   - Không nằm trong `db`, không qua `diff()`. Trang tự nạp qua `loadLibrary` / `loadLibraryPost`; hành động ở `contexts/libraryActions.js` (`a.libCreate`, `a.libUpdate`, `a.libArchive`, `a.libPin`, `a.libSave`, `a.libView`, `a.libViewers`).
+   - Bài ghi thẳng từng dòng (`libraryWrite`, chỉ insert / update — không upsert vì cột id / club_id / author_id không cấp quyền UPDATE). Lượt xem, lưu, ghim chỉ qua RPC `library_view` / `library_save` / `library_pin` (migration 0066).
+   - Logic thuần (kiểm form, kệ, nhãn MỚI, lặp đoạn) ở `lib/library.js`, test `__tests__/lib/library.test.js`.
 
 Điều cần giữ: **tiền lưu `bigint` VND, không lưu số đã làm tròn**; ngày buổi lưu `date`, tháng lưu `char(7)`.
 

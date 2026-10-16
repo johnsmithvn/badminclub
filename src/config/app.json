@@ -219,5 +219,13 @@
       "finalFactor": 1.6,
       "minutesByPreset": { "r1x15": 10, "r1x21": 14, "r1x30": 18, "r3x11": 16, "r3x15": 22, "r3x21": 35 }
     }
+  },
+  "library": {
+    "_note": "Thư viện bài tập (0066). newDays: bài đăng trong ngần ấy ngày mà mình chưa mở thì gắn nhãn MỚI. rates: các tốc độ phát ở màn đọc bài (YouTube hỗ trợ 0.25–2). pollMs: nhịp đọc giờ đang phát để tô mốc và lặp đoạn.",
+    "newDays": 14,
+    "rates": [1, 0.5, 0.25],
+    "pollMs": 250,
+    "titleMax": 200,
+    "shelfMax": 40
   }
 }

@@ -27,7 +27,7 @@ import { RULE_PRESETS, TEMPLATES } from '#lib/tournament/format.js'
 // Đổi ở nguồn thì phải đổi ở đây — cố ý, để test đòi key mới.
 // Đúng bộ mục sidebar trong Sidebar.jsx (KHÔNG phải toàn bộ route: 'session' không có ở sidebar).
 const NAV = ['home', 'calendar', 'sessions', 'matches', 'leaderboard', 'badges', 'members',
-  'debts', 'fund', 'profile', 'settings', 'tournaments']
+  'debts', 'fund', 'profile', 'settings', 'tournaments', 'library']
 const SECTIONS = ['ops', 'money', 'account']
 const SETUP_STEPS = ['court', 'group', 'member', 'schedule', 'price']
 const CHANGE_FIELDS = ['level', 'phone', 'gender', 'name']
@@ -173,6 +173,9 @@ hubChecklist({ events: [], registrations: [], entries: [], prizes: [] }).forEach
 ;['entries', 'fees'].forEach((k) => need('tournament.check.' + k + 'Left'))
 ;[...files('src/lib/tournament'), 'src/contexts/tournamentActions.js', 'supabase/migrations/0057_tournaments.sql']
   .forEach((p) => { for (const m of readFileSync(p, 'utf8').matchAll(/tournament\.(?:err|pairing|format)\.[A-Za-z]+/g)) need(m[0]) })
+// Thư viện: mã lỗi `library.err.*` tới màn hình qua t(biến) — từ lib (kiểm form) lẫn RAISE của RPC 0066.
+;['src/lib/library.js', 'src/contexts/libraryActions.js', 'supabase/migrations/0066_library.sql']
+  .forEach((p) => { for (const m of readFileSync(p, 'utf8').matchAll(/library\.err\.[A-Za-z]+/g)) need(m[0]) })
 ;['balanced', 'random'].forEach((m) => { need('tournament.pairing.mode.' + m); need('tournament.pairing.modeHint.' + m) })
 ;['ok', 'warn', 'bad', 'idle'].forEach((k) => need('tournament.pairing.tone.' + k))
 Object.keys(RULE_PRESETS).forEach((k) => need('tournament.format.preset.' + k))

@@ -10,7 +10,7 @@
 // thì người ghi sau thắng. Chấp nhận được vì đơn vị ghi là từng dòng, không phải cả CLB.
 
 import { supabase, unwrap } from '#supabase'
-import { clubRow, diff, toDb, toRows, toTour, toTourMatch, toTourMatchEdit, videosRow } from '#contexts/dbmap.js'
+import { clubRow, diff, toDb, toLibPost, toRows, toTour, toTourMatch, toTourMatchEdit, videosRow } from '#contexts/dbmap.js'
 import { monthOf, todayISO } from '#utils/dates.js'
 import { t } from '#i18n'
 import cfg from '#config/app.json' with { type: 'json' }
@@ -513,6 +513,59 @@ export async function tournamentRpc(name, args) {
   if (!supabase) throw new Error('Chưa cấu hình Supabase')
   const res = await supabase.rpc(name, args)
   return unwrap(res)
+}
+
+/* ================= THƯ VIỆN BÀI TẬP I/O (0066) ================= */
+// Không nằm trong `db`: bài ghi thẳng từng dòng, lượt xem / lưu / ghim chỉ qua RPC library_*.
+
+/** Dấu của MÌNH trên từng bài: { [postId]: { viewedAt, saved } }. */
+const marksOf = (rows) => Object.fromEntries((rows || []).map((m) => [m.post_id, { viewedAt: m.viewed_at, saved: !!m.saved }]))
+
+/** Mọi bài đang hiện của CLB (mới trước) + dấu của mình. `memberId` null = chưa ghép hồ sơ, không có dấu. */
+export async function loadLibrary(clubId, memberId) {
+  if (!supabase) throw new Error('Chưa cấu hình Supabase')
+  const [posts, marks] = await Promise.all([
+    supabase.from('library_posts').select('*').eq('club_id', clubId).eq('status', 'active')
+      .order('created_at', { ascending: false }),
+    memberId
+      ? supabase.from('library_marks').select('post_id, viewed_at, saved').eq('club_id', clubId).eq('member_id', memberId)
+      : { data: [], error: null },
+  ])
+  return { posts: (unwrap(posts) || []).map(toLibPost), marks: marksOf(unwrap(marks)) }
+}
+
+/** Một bài + dấu của mình. Bài đã ẩn / không thuộc CLB của mình → post null. */
+export async function loadLibraryPost(postId, memberId) {
+  if (!supabase) throw new Error('Chưa cấu hình Supabase')
+  const [post, mark] = await Promise.all([
+    supabase.from('library_posts').select('*').eq('id', postId).eq('status', 'active').maybeSingle(),
+    memberId
+      ? supabase.from('library_marks').select('post_id, viewed_at, saved').eq('post_id', postId).eq('member_id', memberId)
+      : { data: [], error: null },
+  ])
+  const row = unwrap(post)
+  return { post: row ? toLibPost(row) : null, mark: marksOf(unwrap(mark))[postId] || null }
+}
+
+/** Ai đã xem bài, mới nhất trước. RLS chỉ trả đủ cho chủ CLB. */
+export async function loadLibraryViewers(postId) {
+  if (!supabase) throw new Error('Chưa cấu hình Supabase')
+  const res = await supabase.from('library_marks').select('member_id, viewed_at').eq('post_id', postId)
+    .not('viewed_at', 'is', null).order('viewed_at', { ascending: false })
+  return (unwrap(res) || []).map((m) => ({ memberId: m.member_id, viewedAt: m.viewed_at }))
+}
+
+/** `row` là dòng DB (qua `libPostRow`). Không có upsert: cột id / club_id / author_id không cấp quyền UPDATE. */
+export async function libraryWrite(op, id, row) {
+  if (!supabase) throw new Error('Chưa cấu hình Supabase')
+  if (op === 'insert') return unwrap(await supabase.from('library_posts').insert({ ...row, id }))
+  if (op === 'update') return unwrap(await supabase.from('library_posts').update(row).eq('id', id))
+  throw new Error('libraryWrite: op không hỗ trợ: ' + op)
+}
+
+export async function libraryRpc(name, args) {
+  if (!supabase) throw new Error('Chưa cấu hình Supabase')
+  return unwrap(await supabase.rpc(name, args))
 }
 
 

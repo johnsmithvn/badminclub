@@ -1201,3 +1201,31 @@ export function tourRows(table, list) {
     }
   })
 }
+
+/* =========================================================================
+   THƯ VIỆN BÀI TẬP (0066) — như giải đấu: KHÔNG vào TABLES / diff(), nạp & ghi riêng.
+   ========================================================================= */
+
+export const toLibPost = (r) => ({
+  id: r.id,
+  clubId: r.club_id,
+  authorId: r.author_id || null,
+  title: r.title || '',
+  body: r.body || '',
+  shelf: r.shelf || '',
+  videos: Array.isArray(r.videos) ? r.videos : [],
+  sessionId: r.session_id || null,
+  viewCount: num(r.view_count),
+  pinnedAt: r.pinned_at || null,
+  status: r.status || 'active',
+  createdAt: r.created_at || null,
+})
+
+/** Bài → cột ghi được. Cố ý KHÔNG có view_count / pinned_at: hai cột đó chỉ RPC đổi (0066). */
+export const libPostRow = (p) => ({
+  title: p.title,
+  body: p.body || '',
+  shelf: p.shelf,
+  videos: p.videos || [],
+  session_id: uu(p.sessionId),
+})

@@ -74,6 +74,7 @@ export default function MoreSheet({ open, onClose, route }) {
           badge: counts.pendingChallenges,
         }] : []),
         { value: 'tournaments', icon: 'medal' },
+        { value: 'library', icon: 'book-open' },
         ...(!currentSlots.includes('badges') ? [{ value: 'badges', icon: 'award' }] : []),
         {
           value: 'members',
@@ -144,7 +145,8 @@ export default function MoreSheet({ open, onClose, route }) {
             <div style={S.groupTitle}>{grp.title}</div>
             <div style={S.groupItems}>
               {grp.items.map((it) => {
-                const isActive = route === it.value || (it.value === 'tournaments' && String(route).startsWith('tournament'))
+                const isActive = route === it.value || (it.value === 'tournaments' && String(route).startsWith('tournament')) ||
+                  (it.value === 'library' && route === 'libraryPost')
                 return (
                   <button
                     key={it.value}

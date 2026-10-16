@@ -25,6 +25,8 @@ import Fund from '#pages/Fund.jsx'
 import Home from '#pages/Home.jsx'
 import MyStats from '#pages/MyStats.jsx'
 import Leaderboard from '#pages/Leaderboard.jsx'
+import Library from '#pages/Library.jsx'
+import LibraryPost from '#pages/LibraryPost.jsx'
 import Login from '#pages/Login.jsx'
 import Matches from '#pages/Matches.jsx'
 import Members from '#pages/Members.jsx'
@@ -43,7 +45,7 @@ const SCREEN = {
   home: MyStats, overview: Home, calendar: Calendar, sessions: Sessions, session: SessionDetail,
   matches: Matches, leaderboard: Leaderboard, badges: Badges, members: Members, debts: Debts, fund: Fund,
   profile: Profile, settings: Settings, schema: Schema, tournaments: Tournaments, tournament: TournamentHub,
-  tournamentBracket: TournamentBracket, tournamentFlow: TournamentFlow,
+  tournamentBracket: TournamentBracket, tournamentFlow: TournamentFlow, library: Library, libraryPost: LibraryPost,
 }
 
 export default function App() {

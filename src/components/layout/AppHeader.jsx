@@ -28,8 +28,10 @@ export default function AppHeader({ route }) {
   // nút đổi theme). Xem bảng SCREEN trong `src/App.jsx`.
   // Giải đấu: danh sách có PageHeader, Hub có hero, nhánh đấu có header riêng.
   // Danh hiệu trên điện thoại: thanh riêng MobileBadgeTopBar (chọn mùa + người xem thế chỗ bộ chọn tháng).
+  // Thư viện: danh sách có PageHeader, màn đọc bài có thanh quay lại riêng (bộ chọn tháng không dùng ở đó).
   if (route === 'session' || route === 'fund' || route === 'leaderboard' || route === 'matches' || route === 'home' ||
     route === 'tournaments' || route === 'tournament' || route === 'tournamentBracket' || route === 'tournamentFlow' ||
+    route === 'library' || route === 'libraryPost' ||
     (isMobile && route === 'badges')) {
     return null
   }

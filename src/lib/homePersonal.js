@@ -835,8 +835,11 @@ export function calcSeasonRaceHistory(db, memberId, rivalId = null, weeksCount =
       return latestVal
     }
 
-    myWeeklyValues = Array.from({ length: span }, (_, i) => {
-      const weekIdx = firstWeek + i
+    // span + 1 mốc: mốc đầu là LÚC MỞ khung (đầu tuần firstWeek = hết tuần firstWeek - 1), rồi tới
+    // hết từng tuần. Lấy mỗi "hết tuần" thì khung N tuần chỉ còn N - 1 khoảng: mất trọn tuần đầu,
+    // mốc đầu không phải điểm vào mùa, và "200 → 294" đọc ra số sai.
+    myWeeklyValues = Array.from({ length: span + 1 }, (_, i) => {
+      const weekIdx = firstWeek - 1 + i
       if (weekIdx >= nowWeek) {
         return currentVal
       }
@@ -873,8 +876,8 @@ export function calcSeasonRaceHistory(db, memberId, rivalId = null, weeksCount =
         return latestVal
       }
 
-      weeklyValues = Array.from({ length: span }, (_, i) => {
-        const weekIdx = firstWeek + i
+      weeklyValues = Array.from({ length: span + 1 }, (_, i) => {
+        const weekIdx = firstWeek - 1 + i
         if (weekIdx >= nowWeek) {
           return currentRivalVal
         }
@@ -944,7 +947,7 @@ export function calcSeasonRaceHistory(db, memberId, rivalId = null, weeksCount =
   if (hasRivalTrajectory && initialGap != null && currentGap != null && initialGap !== currentGap) {
     gapFrom = Math.round(initialGap)
     gapTo = Math.round(currentGap)
-    gapWeeks = Math.max(1, Math.round(effectiveWeeksCount / 2))
+    gapWeeks = effectiveWeeksCount
     gapNoteKey = currentGap < initialGap ? 'gapShrinkNote' : 'gapWidenNote'
   }
 

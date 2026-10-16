@@ -166,7 +166,7 @@ test('Home Personal Dashboard Logic Suite', async (t) => {
 
     // Toạ độ chấm mới nhất (latestMyX, latestMyY) phải trùng khớp 100% với điểm cuối của đường vẽ svgPointsMy
     const myPoints = race.svgPointsMy.split(' ')
-    assert.equal(myPoints.length, 6)
+    assert.equal(myPoints.length, 7, '6 tuần = 6 khoảng = 7 mốc (thêm mốc lúc mở khung)')
     const lastPoint = myPoints[myPoints.length - 1]
     assert.equal(lastPoint, `${race.latestMyX},${race.latestMyY}`)
 
@@ -186,9 +186,21 @@ test('Home Personal Dashboard Logic Suite', async (t) => {
     assert.equal(shortRace.empty, false)
     assert.equal(shortRace.weeks, 2)
     const shortPoints = shortRace.svgPointsMy.split(' ')
-    assert.equal(shortPoints.length, 2)
+    assert.equal(shortPoints.length, 3)
     const shortLastPoint = shortPoints[shortPoints.length - 1]
     assert.equal(shortLastPoint, `${shortRace.latestMyX},${shortRace.latestMyY}`)
+
+    // Mốc đầu là LÚC VÀO MÙA chứ không phải hết tuần 1: trước đây tuần đầu bị cắt khỏi biểu đồ.
+    const s0 = Date.parse(`${tenDaysAgo}T12:00:00Z`)
+    const weekOneDb = {
+      ...dbShortSeason,
+      settings: { season: { ...dbShortSeason.settings.season, startPoints: 100 } },
+      matches: [{ id: 'w1', at: s0 + 2 * 86400000, teamA: ['m1'], teamB: ['m2'], winnerTeam: 'A', eloDelta: 12, ratingEnabled: true, sets: [[21, 10]] }],
+    }
+    const w1 = calcSeasonRaceHistory(weekOneDb, 'm1', 'm2', 6, 'season')
+    assert.equal(w1.startVal, 100, 'Mốc đầu phải là điểm vào mùa, không phải điểm sau trận tuần 1')
+    assert.equal(w1.rivals[0].weeklyValues[0], 100, 'Đối thủ cũng xuất phát cùng vạch')
+    assert.equal(w1.deltaVal, w1.currentVal - 100)
   })
 
   await t.test('10. getSurroundingSeasonStandings and getMyHeroStats season rank', () => {

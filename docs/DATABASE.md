@@ -202,6 +202,7 @@ State `db` của client dùng shape gọn của prototype. Cài đặt tại `sr
 | `notifications[]` | `notifications` | Thông báo cá nhân từng thành viên: mã CLB, memberId nhận, loại, payload (chỉ lưu ID/số), refType/refId, readAt, createdAt (0038) |
 | `activity_events` (DB-only, không nạp state `db`) | `activity_events` | Bảng tin hoạt động toàn CLB: mã CLB, actorId, loại sự kiện, payload (chỉ lưu ID/số), refType/refId, createdAt. Tải lazy-load phân trang trên UI (0038) |
 | `tournaments_*` (16 bảng giải đấu, nạp độc lập) | 16 bảng `tournament_*` | Phân hệ Giải đấu nạp riêng theo trang và ghi qua RPC nguyên tử (`advance.js`, `tournamentActions.js`), CỐ Ý KHÔNG đi qua `diff()` và state `db` chung (0057..0063) |
+| Thư viện bài tập (nạp độc lập) | `library_posts` · `library_marks` | Trang Thư viện / Đọc bài tự nạp (`loadLibrary`, `loadLibraryPost`), ghi qua `libraryActions.js`. KHÔNG vào `TABLES` / `diff()`: `libPostRow` cố ý bỏ `view_count` / `pinned_at` để lần sửa bài không đè lượt xem (0066) |
 
 ---
 
@@ -273,6 +274,7 @@ State `db` của client dùng shape gọn của prototype. Cài đặt tại `sr
 | `0062_member_groups_has_custom_pricing.sql` | Thêm cột `has_custom_pricing boolean NOT NULL DEFAULT false` vào bảng `member_groups` (false = áp dụng biểu phí CLB, true = mức thu riêng của nhóm). |
 | `0063_tournament_swiss_double.sql` | Mở rộng thể thức giải đấu: Hệ Thụy Sĩ (`swiss`) sinh vòng dần qua RPC `tournament_add_swiss_round`; Nhánh thắng/nhánh thua (`double elimination`) kèm cơ chế chung kết tổng 2 (GF2). |
 | `0064_prediction_stake_cap_10.sql` | Hạ trần một phiếu cược trong `place_challenge_prediction` từ 100 xuống 10 SP (≤ một trận thắng). Cố ý giữ CHECK bảng 1..100 vì còn phiếu chờ 20/30/50 đặt theo luật cũ. |
+| `0066_library.sql` | Thư viện bài tập: bảng `library_posts` (bài + `videos jsonb` theo giây, `shelf` là tên gõ tay, ẩn bài = `status 'archived'`) và `library_marks` (mỗi người × mỗi bài: `viewed_at`, `saved`). Ai trong CLB cũng đăng; tác giả hoặc chủ CLB sửa / ẩn. `view_count` và `pinned_at` không cấp quyền ghi cho client — chỉ RPC `library_view` (mỗi người tính 1 lần, tác giả không tính), `library_save`, `library_pin` (chủ CLB, mỗi lúc 1 bài). Chỉ chủ CLB đọc được ai đã xem. |
 
 ---
 
