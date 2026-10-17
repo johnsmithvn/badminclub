@@ -39,7 +39,6 @@ import MyOpponentsCard from '#components/home/personal/MyOpponentsCard.jsx'
 import HomeMatchTab from '#components/home/HomeMatchTab.jsx'
 import ActivityTab from '#components/home/ActivityTab.jsx'
 import SakuraEvent from '#components/home/SakuraEvent.jsx'
-import SkyBackdrop from '#components/home/SkyBackdrop.jsx'
 
 export default function MyStats() {
   const { db, a, ui } = useApp()
@@ -188,17 +187,6 @@ export default function MyStats() {
     }
   }
   const handleViewLeaderboard = () => a.go('leaderboard')
-  // Nền bầu trời: lớp fixed nên đặt đâu trong cây cũng được; nhân vật nói theo đúng số liệu của các thẻ.
-  const sky = (
-    <SkyBackdrop
-      hero={heroStats}
-      form={formStats}
-      season={nearbySeasonStandings}
-      lastAt={recentMatches[0]?.at || 0}
-      name={memberName}
-      isMobile={isMobile}
-    />
-  )
   // Thẻ Buổi tới của tôi — tab Sân đấu dựng thẻ và gộp thêm phần tóm tắt buổi của CLB.
   const upcomingProps = (mobile) => ({
     session: upcomingSession,
@@ -224,7 +212,6 @@ export default function MyStats() {
   if (isMobile) {
     return (
       <div style={S.mobileContainer}>
-        {sky}
         {/* Header Mobile */}
         <div style={S.mobileHeader}>
           <div style={S.headerCol}>
@@ -359,7 +346,6 @@ export default function MyStats() {
   // Desktop layout: 2 cột
   return (
     <div style={S.desktopWrapper}>
-      {sky}
       {/* Header Desktop */}
       <div style={S.desktopHeader}>
         <div style={S.headerCol}>

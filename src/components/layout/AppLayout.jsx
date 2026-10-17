@@ -1,28 +1,32 @@
-import { useState } from 'react'
+import { useRef, useState } from 'react'
 import cfg from '#config/app.js'
 import Sidebar from '#components/layout/Sidebar.jsx'
 import AppHeader from '#components/layout/AppHeader.jsx'
+import SkyBackdrop from '#components/layout/SkyBackdrop.jsx'
 import ToastHost from '#components/layout/ToastHost.jsx'
 import Dialogs from '#pages/Dialogs.jsx'
 import MobileFooterNav from '#components/layout/MobileFooterNav.jsx'
 import MoreSheet from '#components/layout/MoreSheet.jsx'
 import GlobalBadgeUnlockHost from '#components/badges/GlobalBadgeUnlockHost.jsx'
 import { useMobile } from '#hooks/useMobile.js'
+import { skyMode } from '#lib/sky.js'
 
 export default function AppLayout({ route, children }) {
   const isMobile = useMobile(768)
   const [moreOpen, setMoreOpen] = useState(false)
+  const mainRef = useRef(null)
 
   const isWideRoute = route === 'tournament' || route === 'tournamentFlow' || route === 'tournamentBracket'
-  // Trang chủ cá nhân vẽ nền bầu trời (SkyBackdrop) phía sau: nền gốc trong suốt, thẻ dùng token kính.
-  const sky = route === 'home'
+  // Nền bầu trời (app.json → sky.routes / bgRoutes): nền gốc trong suốt để thấy trời, thẻ dùng token kính.
+  const sky = skyMode(route)
 
   return (
     <div style={sky ? { ...S.root, background: 'transparent' } : S.root} data-sky={sky ? '' : undefined}>
+      {sky && <SkyBackdrop chars={sky === 'full'} isMobile={isMobile} scrollRef={mainRef} />}
       {!isMobile && <Sidebar route={route} />}
       <div style={S.col}>
         <AppHeader route={route} />
-        <main style={{ ...S.main, ...(isWideRoute ? { padding: '16px 20px 40px' } : {}), ...(isMobile ? S.mainMobile : {}) }}>
+        <main ref={mainRef} style={{ ...S.main, ...(isWideRoute ? { padding: '16px 20px 40px' } : {}), ...(isMobile ? S.mainMobile : {}) }}>
           <div style={{
             ...S.wrap,
             ...(isWideRoute ? { maxWidth: '100%' } : {}),

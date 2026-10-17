@@ -193,7 +193,7 @@
 @keyframes skWobble { 0%, 100% { transform: rotate(-8deg); } 50% { transform: rotate(8deg) translateY(-3px); } }
 @keyframes skBonk { 0% { transform: scale(0) rotate(-30deg); } 60% { transform: scale(1.25) rotate(10deg); } 100% { transform: scale(1) rotate(0); } }
 
-/* Nền bầu trời trang chủ (SkyBackdrop.jsx). Animation viết inline nên tên keyframe là hợp đồng —
+/* Nền bầu trời (layout/SkyBackdrop.jsx). Animation viết inline nên tên keyframe là hợp đồng —
    đổi tên phải tìm cả chuỗi 'sky<Tên> ' trong SkyBackdrop.jsx. Biến --dx/--dy/--by/--fd/--wd/--wdy/
    --sx/--sy/--ex/--ey/--x1..--y3 đặt inline trên từng phần tử. */
 @keyframes skyTwinkle { 0%, 100% { opacity: .2; } 50% { opacity: .9; } }
@@ -228,6 +228,7 @@
 @keyframes skyFormTop { 0% { transform: translate3d(var(--sx), var(--sy), 0); opacity: 0; } 4% { opacity: 1; } 28% { transform: translate3d(0, 0, 0); } 54% { transform: translate3d(0, 0, 0); opacity: 1; } 76% { transform: translate3d(var(--ex), var(--ey), 0); opacity: 1; } 80% { opacity: 0; } 100% { transform: translate3d(var(--ex), var(--ey), 0); opacity: 0; } }
 @keyframes skyHover { 0%, 100% { transform: translateY(0); } 50% { transform: translateY(-4px); } }
 @keyframes skyWobble { 0%, 100% { transform: rotate(-3deg); } 50% { transform: rotate(3deg); } }
+@keyframes skySway { 0% { transform: rotate(-6deg); } 100% { transform: rotate(6deg); } }
 @keyframes skyCapeFlap { 0% { transform: scaleY(1) skewX(0deg); } 100% { transform: scaleY(.82) skewX(-8deg); } }
 @keyframes skyConsShow { 0% { opacity: 0; } 3% { opacity: 1; } 11% { opacity: 1; } 14% { opacity: 0; } 100% { opacity: 0; } }
 @keyframes skyConsLine { 0% { stroke-dashoffset: 1; } 3% { stroke-dashoffset: 1; } 8% { stroke-dashoffset: 0; } 100% { stroke-dashoffset: 0; } }
@@ -235,9 +236,10 @@
 @keyframes skyFfBlink { 0%, 100% { opacity: .15; } 50% { opacity: 1; } }
 @keyframes skyShower { 0% { transform: translate3d(0, 0, 0) rotate(-28deg); opacity: 0; } .4% { opacity: 1; } 2.6% { transform: translate3d(-460px, 245px, 0) rotate(-28deg); opacity: 0; } 100% { transform: translate3d(-460px, 245px, 0) rotate(-28deg); opacity: 0; } }
 
-/* Kính cho nền bầu trời: AppLayout gắn [data-sky] ở route home. Chỉ surface-card / inset / nav /
-   field (và hai nền soft của bản sáng) có độ trong để thấy trời phía sau — cùng màu với
-   tokens/dark.css · semantic.css, chỉ thêm alpha. Dialog dùng surface-overlay nên vẫn đặc. */
+/* Kính cho nền bầu trời: AppLayout gắn [data-sky] ở các route có nền (app.json → sky.routes /
+   bgRoutes). Chỉ surface-card / inset / nav / field (và hai nền soft của bản sáng) có độ trong để
+   thấy trời phía sau — cùng màu với tokens/dark.css · semantic.css, chỉ thêm alpha. Dialog dùng
+   surface-overlay nên vẫn đặc. */
 [data-sky] {
   --surface-card: rgba(255, 255, 255, .74);
   --surface-inset: rgba(250, 251, 253, .65);
@@ -254,9 +256,9 @@
   --surface-brand-soft: rgba(60, 116, 196, .14);
   --field-bg: rgba(16, 25, 39, .65);
 }
-/* Mờ trời sau thẻ và thanh điều hướng. Thẻ viết style inline nên bắt theo chuỗi token trong style;
-   thẻ lồng trong thẻ (nút gạt, avatar viền) không làm mờ lần nữa. */
-[data-sky] nav[style*="var(--surface-nav)"],
+/* Mờ trời sau thẻ và thanh điều hướng (sidebar, footer nav, header mobile). Thẻ viết style inline
+   nên bắt theo chuỗi token trong style; thẻ lồng trong thẻ (nút gạt, avatar viền) không mờ lần nữa. */
+[data-sky] :is(nav, header)[style*="var(--surface-nav)"],
 [data-sky] [style*="var(--surface-card)"] {
   -webkit-backdrop-filter: saturate(160%) blur(14px);
   backdrop-filter: saturate(160%) blur(14px);
@@ -265,12 +267,27 @@
   -webkit-backdrop-filter: none;
   backdrop-filter: none;
 }
+/* Ô / thanh dính (cột ghim của bảng, thanh lọc): nội dung cuộn chui bên dưới nền đã trong, phải mờ
+   đi để chữ phía trên đọc được — kể cả khi nằm trong thẻ. */
+[data-sky] [style*="position: sticky"][style*="background"] {
+  -webkit-backdrop-filter: saturate(160%) blur(14px);
+  backdrop-filter: saturate(160%) blur(14px);
+}
 /* backdrop-filter biến phần tử thành khung chứa của con `position: fixed` (như transform): lớp phủ
-   bấm-ra-ngoài-để-đóng của menu sidebar (Sidebar.jsx → S.scrim) sẽ chỉ phủ trong sidebar. Menu mở
-   (có con fixed) thì tạm bỏ mờ để lớp phủ lại phủ cả màn. Sidebar chỉ có ở desktop nên :has đủ dùng. */
-[data-sky] nav:has([style*="position: fixed"]) {
+   bấm-ra-ngoài của menu (sidebar, thẻ kèo ArenaChallengeCard…) hay modal render bên trong thẻ sẽ chỉ
+   phủ trong thẻ. Bên trong đang có con fixed thì tạm bỏ mờ. Chỉ xét đúng các phần tử bị làm mờ ở
+   trên — app viết style inline nên `[style]:has(...)` trần sẽ bắt trình duyệt dò con cháu của gần
+   như mọi phần tử. Đặt cuối, độ ưu tiên ≥ luật làm mờ tương ứng, để luôn thắng. */
+[data-sky] :is(nav, header)[style*="var(--surface-nav)"]:has([style*="position: fixed"]),
+[data-sky] [style*="var(--surface-card)"]:has([style*="position: fixed"]),
+[data-sky] [style*="position: sticky"][style*="background"]:has([style*="position: fixed"]) {
   -webkit-backdrop-filter: none;
   backdrop-filter: none;
+}
+/* Có dialog / lớp phủ mờ toàn màn đang mở: dừng hoạt hình trời. Lớp mờ đó phải làm mờ lại cả màn
+   mỗi khung hình nếu trời phía sau còn chạy — gõ form trong dialog trên máy yếu sẽ giật. */
+[data-sky]:has([aria-modal="true"], [style*="position: fixed"][style*="backdrop-filter"]) [data-sky-fx] * {
+  animation-play-state: paused;
 }
 @media (prefers-reduced-motion: reduce) {
   [data-sky-fx] * { animation: none !important; }

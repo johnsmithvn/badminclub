@@ -6006,9 +6006,8 @@
       "owl": "Bấm để cú nói câu khác",
       "banner": "Bấm để đổi chữ",
       "hero": "Bấm để siêu nhân giơ ngón cái",
-      "ufo": "Bấm để bắn tên lửa",
-      "victim": "Bấm để gọi siêu nhân",
-      "wish": "Bấm để ước"
+      "wish": "Bấm để ước",
+      "ufo": "Bấm để trêu UFO"
     },
     "line": {
       "missRacket": "Vợt đang nhớ bạn đấy. (｡•́︿•̀｡)",
@@ -6023,7 +6022,10 @@
     },
     "owl": {
       "sleep": "Khuya rồi, ngủ đi. Mai còn phải phục thù. (－_－) zzZ",
-      "peek": "Thức để soi BXH à? Điểm không tự tăng đâu. (¬‿¬)"
+      "peek": "Thức để soi BXH à? Điểm không tự tăng đâu. (¬‿¬)",
+      "hunt": "Cú thức đêm săn mồi, bạn thức đêm săn đối thủ ngày mai à? (¬‿¬)",
+      "late": "Thức khuya mai cầm vợt run tay lại đổ thừa cước căng 11kg...",
+      "bed": "Nửa đêm rồi, vợt đi ngủ rồi, người cũng nên ngủ thôi. (－_－) zzZ"
     },
     "banner": {
       "missRacket": "Vợt đang nhớ bạn đấy",
@@ -6032,6 +6034,9 @@
     },
     "hero": {
       "top1": "Năm nay phải top 1! (•̀ᴗ•́)و ✧",
+      "saveWorld": "Cứu thế giới thì dễ, cứu pha cầu cắm vạch thì chịu! (ง •̀_•́)ง",
+      "forgotBag": "Vội đi cứu người suýt quên mang túi vợt...",
+      "supersonic": "Bay với vận tốc này Smash mới cháy sân! 🔥",
       "rescueMe": "Đừng lo, tôi đưa bạn ra sân! 💪",
       "rescueRival": "Muốn thắng thì thắng trên sân nhé! 💪"
     },
@@ -6047,12 +6052,39 @@
         "ahead": "Tôi mới hơn {{name}} có {{n}} điểm thôi, thả tôi xuống!",
         "chasing": "Tôi đang đuổi {{name}} mà, thả tôi ra!"
       },
-      "abductMe": "Mượn tay vợt hạng {{rank}} về hành tinh luyện tập. 👽",
-      "abductRival": "Đã bắt cóc {{name}}. Ghế trên bạn tạm trống. 👽",
-      "abductChaser": "Đã bắt cóc {{name}}. Ngôi vương của bạn an toàn. 👽",
-      "hero": "Ơ kìa! Siêu nhân! (ﾟдﾟ)",
+      "abductMe": "Mượn tay vợt hạng {{rank}} về hành tinh luyện tập 👽",
+      "abductRival": "Đã bắt cóc {{name}}. Ghế trên bạn tạm trống 👽",
+      "abductChaser": "Đã bắt cóc {{name}}. Ngôi vương an toàn 👽",
+      "huh": "?!",
+      "thankMe": "Cảm ơn siêu nhân! Kịp giờ ra sân rồi ヽ(•‿•)ノ",
+      "thankRival": "Phù, suýt nữa không được đánh cầu!",
+      "hit": "Á á á!",
       "safeMe": "Phù… vẫn kịp giờ đánh cầu! (；´∀｀)",
-      "safeRival": "Ai bắn đấy? {{name}} à?! (¬_¬)"
+      "safeRival": "Ai bắn đấy? {{name}} à?! (¬_¬)",
+      "slip": "Ơ… tuột rồi?!",
+      "slipMe": {
+        "home": "Hú vía! Về sân thôi!",
+        "game": "Thoát! Tối nay vẫn có kèo!"
+      },
+      "slipRival": {
+        "rank": "Thoát! Vẫn giữ được hạng!",
+        "phew": "Hú vía!!"
+      },
+      "giveBack": {
+        "talk": "Toàn nói chuyện cầu lông, trả!",
+        "smash": "Smash mạnh quá, thủng tàu, trả!",
+        "doubles": "Đòi đánh đôi với alien, trả!",
+        "elo": "Hỏi điểm Elo suốt, trả!",
+        "boba": "Vừa lên tàu đã rủ cá cược trà sữa, trả!",
+        "tension": "Hỏi alien dùng vợt mấy U, căng mấy kg... Trả gấp!",
+        "roof": "Đang bay mà cứ nhảy lên smash trần tàu, trả!"
+      },
+      "huhBack": {
+        "a": "Ủa??",
+        "b": "Ơ kìa??",
+        "c": "Bị chê à??",
+        "d": "Chưa kịp làm quen đã đuổi xuống??"
+      }
     },
     "wish": {
       "smash": "Ước smash nào cũng chạm vạch",
@@ -6060,7 +6092,12 @@
       "pass": "Ước vượt {{name}} ngay tối nay",
       "court": "Ước buổi sau sân trống cả tối",
       "feather": "Ước cầu không bao giờ rụng lông",
-      "partner": "Ước partner đỡ hết cầu khó"
+      "partner": "Ước partner đỡ hết cầu khó",
+      "string": "Ước căng 11kg không bao giờ đứt cước",
+      "miss": "Ước đánh hụt cầu không ai nhìn thấy",
+      "wife": "Ước mua vợt 3 triệu về bảo vợ 300k",
+      "both": "Ước partner không bao giờ né quả cầu rơi giữa hai người",
+      "serve": "Ước đối thủ giao cầu quả nào cũng lỗi"
     }
   }
 }

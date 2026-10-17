@@ -195,10 +195,15 @@
     "barMonthCount": 4,
     "homeCardRows": 6,
     "homeMinPairMatches": 2,
-    "pairPageSize": 20
+    "pairPageSize": 20,
+    "_noteMobileHidden": "Trang ẩn khỏi sheet Thêm trên mobile (vẫn mở được qua link trong app).",
+    "mobileHidden": ["overview", "calendar", "tournaments", "debts", "fund"]
   },
   "sky": {
-    "_note": "Nền bầu trời trang chủ (SkyBackdrop.jsx · lib/sky.js). Cú mèo chỉ ra từ lateFrom giờ tới trước lateUntil giờ sáng. Câu thoại: cách người trên <= nearGap điểm thì giục vượt, nghỉ >= awayDays ngày thì nhắc ra sân, chuỗi >= streakMin trận thì khen. moon: full (rằm) | lunar (theo lịch âm) | crescent (lưỡi liềm). wishEveryMs: nhịp sao ước bay ngang header (đêm). sceneGapMs: nghỉ giữa hai lượt siêu nhân / UFO.",
+    "_noteRoutes": "routes: trang có nền bầu trời + nhân vật. bgRoutes: trang con chỉ có nền, không nhân vật, không sao ước.",
+    "routes": ["home", "matches", "leaderboard", "badges", "sessions", "library", "members", "profile", "settings"],
+    "bgRoutes": ["session", "libraryPost"],
+    "_note": "Nền bầu trời (SkyBackdrop.jsx · lib/sky.js). Cú mèo chỉ ra từ lateFrom giờ tới trước lateUntil giờ sáng. Câu thoại: cách người trên <= nearGap điểm thì giục vượt, nghỉ >= awayDays ngày thì nhắc ra sân, chuỗi >= streakMin trận thì khen. moon: full (rằm) | lunar (theo lịch âm) | crescent (lưỡi liềm). wishEveryMs: nhịp sao ước bay ngang header (đêm). sceneGapMs: nghỉ giữa hai lượt siêu nhân / UFO.",
     "lateFrom": 22,
     "lateUntil": 4,
     "nearGap": 10,
