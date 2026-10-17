@@ -1,6 +1,6 @@
 # DESIGN.md
 
-**Version:** v0.5.0 · **Updated:** 2026-10-03
+**Version:** v0.6.0 · **Updated:** 2026-10-17
 
 Hệ thiết kế của app là **TDMS**, lấy nguyên từ handoff. **Không hard-code màu/chữ/khoảng cách mới**
 — mọi giá trị đi qua `var(--*)`. Đọc file này trước khi sửa bất cứ thứ gì thuộc UI/CSS/layout.
@@ -62,6 +62,30 @@ token thì không ai phát hiện ra trong lúc dùng thường ngày.
 | `index.html` → 2 thẻ `<meta name="theme-color">` | `#00B2A9` / `#0B1220` | như trên |
 
 Đổi `--teal-500` hoặc `--surface-page` dark → sửa luôn ba chỗ này.
+
+### 2.2 Kính trên nền bầu trời (trang chủ cá nhân)
+
+Route `home` vẽ nền bầu trời động phía sau (`SkyBackdrop.jsx`, chi tiết `docs/HOME_SKY.md`).
+`AppLayout` gắn `data-sky` + nền gốc trong suốt; `effects.css → [data-sky]` cho alpha vào đúng
+bốn token, **giữ nguyên màu** của `dark.css` / `semantic.css`:
+
+| Token | Alpha | Ghi chú |
+| --- | --- | --- |
+| `--surface-card` · `--field-bg` | .74 | |
+| `--surface-inset` | .65 | |
+| `--surface-nav` | .70 | sidebar, footer nav mobile |
+| `--surface-accent-soft` · `--surface-brand-soft` | .92 | chỉ bản sáng (bản tối vốn đã trong) |
+
+Phần tử có `background` inline chứa `var(--surface-card)` và `nav` dùng `var(--surface-nav)` được
+`backdrop-filter: saturate(160%) blur(14px)`; thẻ lồng trong thẻ thì không mờ lần nữa. Dialog dùng
+`--surface-overlay` nên vẫn đặc.
+
+- **Đừng** đặt modal / lớp phủ `position: fixed` **bên trong** một thẻ `surface-card` ở trang chủ:
+  `backdrop-filter` biến thẻ thành khung chứa của con fixed, lớp phủ sẽ chỉ phủ trong thẻ. Render
+  modal ở cấp trang (như `VideoPlayerModal` trong `MyStats.jsx`). Menu sidebar đã được xử lý riêng
+  (`nav:has(...)` tạm bỏ mờ khi menu mở).
+- Bảng màu bầu trời (trời, trăng, mây, nhân vật) là tranh vẽ, cố ý nằm ngoài token — giống bảng màu
+  Sakura của `SakuraEvent.jsx`.
 
 ## 3. Typography
 

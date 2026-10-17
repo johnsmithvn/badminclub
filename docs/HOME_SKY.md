@@ -553,7 +553,8 @@ nhau cho chế độ Tối và Sáng (riêng sao ước chỉ có ở Tối).
 | Bật "Giảm chuyển động" ở hệ điều hành | Mọi thứ đứng yên: chỉ còn trời tĩnh; cú mèo (nếu được bốc) hiện cố định với câu đầu; không băng rôn, xếp hình, sao băng, cá voi, chòm sao, siêu nhân, UFO, sao ước |
 | Tab ẩn | Không sinh lượt siêu nhân / UFO / sao ước mới |
 | Dữ liệu đồng bộ lại khi đang xem | Câu thoại cập nhật ở lượt nói kế tiếp, cảnh đang bay không bị cắt |
-| Mở dialog / sheet | Lớp nhân vật ở z 20; dialog / sheet "Thêm" cần nằm trên — **chưa kiểm tay**, xem checklist §9 |
+| Mở dialog / sheet | Dialog và sheet "Thêm" của DS là `fixed` z 60, nền `surface-overlay` (đặc) → nằm trên lớp nhân vật z 20. Panel thông báo z 9999. Thiệp 20/10 z 9999+ |
+| Mở menu CLB / menu tài khoản ở sidebar | Sidebar tạm bỏ mờ trong lúc menu mở để lớp bấm-ra-ngoài phủ cả màn (bấm vào nội dung là đóng menu) |
 
 ---
 
@@ -573,6 +574,10 @@ Checklist:
 - [ ] `?sky=owl`: bấm cú → đổi câu + nghiêng đầu; đổi sang Sáng → cú đậu trên vầng trăng non.
 - [ ] Mobile 375px: trăng giữa màn, nhân vật không tràn ngang, footer nav không bị che.
 - [ ] Câu thoại khớp số trên thẻ Hạng mùa giải / Mục tiêu / Phong độ.
+- [ ] Desktop: mở menu CLB (đầu sidebar) và menu tài khoản (cuối sidebar) → bấm vào vùng nội dung
+  là menu đóng.
+- [ ] Mở video ở thẻ "Trận của bạn có video", mở chuông thông báo: lớp phủ phủ kín màn, nằm trên
+  nhân vật.
 
 ---
 

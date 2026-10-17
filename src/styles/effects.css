@@ -265,6 +265,13 @@
   -webkit-backdrop-filter: none;
   backdrop-filter: none;
 }
+/* backdrop-filter biến phần tử thành khung chứa của con `position: fixed` (như transform): lớp phủ
+   bấm-ra-ngoài-để-đóng của menu sidebar (Sidebar.jsx → S.scrim) sẽ chỉ phủ trong sidebar. Menu mở
+   (có con fixed) thì tạm bỏ mờ để lớp phủ lại phủ cả màn. Sidebar chỉ có ở desktop nên :has đủ dùng. */
+[data-sky] nav:has([style*="position: fixed"]) {
+  -webkit-backdrop-filter: none;
+  backdrop-filter: none;
+}
 @media (prefers-reduced-motion: reduce) {
   [data-sky-fx] * { animation: none !important; }
 }
