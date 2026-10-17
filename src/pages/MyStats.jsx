@@ -1,5 +1,5 @@
 import { useMemo, useState } from 'react'
-import { Avatar, Button, IconButton, Tabs } from '#ds'
+import { Avatar, IconButton, Tabs } from '#ds'
 import { TabTrack } from '#ui'
 import { useApp } from '#contexts/AppContext.jsx'
 import { useAuth } from '#contexts/AuthContext.jsx'
@@ -369,13 +369,6 @@ export default function MyStats() {
             onClick={toggleTheme}
           />
           <NotificationBell />
-          <Button
-            variant="primary"
-            icon="plus"
-            onClick={handleLogMatch}
-          >
-            {t('home.personal.logMatch')}
-          </Button>
           <Avatar
             name={memberName}
             src={myAvatarUrl}

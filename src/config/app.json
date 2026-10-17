@@ -217,7 +217,17 @@
     "heroFirstMs": 10000,
     "heroGapMs": 33000,
     "ufoFirstMs": 8000,
-    "ufoGapMs": 29000
+    "ufoGapMs": 29000,
+    "_noteActs": "Hoạt cảnh trời đêm định kỳ: lần đầu sau *FirstMs kể từ lúc mở, rồi cứ *EveryMs (tính từ lúc bắt đầu lượt trước). owlIdleMs [min, max]: để màn hình yên chừng đó (không chuột / phím / cuộn / chạm) thì cú ngủ gật.",
+    "owlIdleMs": [20000, 30000],
+    "auroraFirstMs": 50000,
+    "auroraEveryMs": 50000,
+    "cuoiFirstMs": 60000,
+    "cuoiEveryMs": 60000,
+    "fireShuttleFirstMs": 90000,
+    "fireShuttleEveryMs": 90000,
+    "eclipseFirstMs": 120000,
+    "eclipseEveryMs": 120000
   },
   "tournament": {
     "_notePoll": "Trang nhánh / Hub khi giải đang chạy nạp lại bảng trận mỗi pollMs (Supabase free: poll thay realtime). Tab ẩn thì dừng.",

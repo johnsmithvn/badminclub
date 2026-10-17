@@ -4,8 +4,11 @@ import { useApp } from '#contexts/AppContext.jsx'
 import { useTheme } from '#contexts/ThemeContext.jsx'
 import { t, tBranch } from '#i18n'
 import { myMember } from '#lib/money.js'
-import { getMyHeroStats, getPlayerForm5, getSurroundingSeasonStandings } from '#lib/homePersonal.js'
-import { SKY_CAST, UFO_GIVE_BACK, UFO_HUH, createBags, drawCast, isLate, lastPlayedAt, moonAge, skyFacts, skyLines, ufoPool, ufoScript } from '#lib/sky.js'
+import { getMyHeroStats, getPlayerForm5 } from '#lib/homePersonal.js'
+import { getPersonalHighlights } from '#lib/activity.js'
+import { isFemalePlayer } from '#lib/rating.js'
+import { calculateSeasonLeaderboard } from '#lib/season.js'
+import { OWL_WAKE, SKY_ACT_MS, SKY_CAST, UFO_GIVE_BACK, UFO_HUH, beatenBy, createBags, drawCast, isLate, lastMatchOf, moonAge, shortName, skyFacts, skyFoes, skyLines, ufoPool, ufoScript } from '#lib/sky.js'
 import cfg from '#config/app.js'
 
 /**
@@ -40,7 +43,10 @@ const MOON_M = 895
 const rnd = (i) => { const x = Math.sin(i * 12.9898 + 78.233) * 43758.5453; return x - Math.floor(x) }
 const px = (n) => n.toFixed(1) + 'px'
 const esc = (s) => String(s).replace(/[&<>"']/g, (c) => '&#' + c.charCodeAt(0) + ';')
-const tl = (line) => (line ? t(line[0], line[1]) : '')
+// Mọi câu có {name} (tên bạn, người trên, đối thủ) đi qua đây → tên dài được cắt gọn một chỗ.
+/** Cỡ px hiển thị cố định trong lớp nhân vật (bù phần phóng khung, xem `--sky-k`). */
+const sk = (n) => `calc(${n}px * var(--sky-k, 1))`
+const tl = (line) => (line ? t(line[0], line[1]?.name ? { ...line[1], name: shortName(line[1].name) } : line[1]) : '')
 /** Số ngẫu nhiên trong khoảng [min, max] (ms) — nhịp nghỉ ở app.json → sky.*RestMs. */
 const pickMs = ([a, b]) => a + Math.random() * (b - a)
 /** Túi xáo nhân vật nhớ qua các lần mở trang (lib/sky.js → drawCast). */
@@ -88,12 +94,15 @@ function useViewport() {
 
 export default function SkyBackdrop({ chars, isMobile, scrollRef }) {
   const { db } = useApp()
-  const { isDark } = useTheme()
+  const { isDark, skyMotion } = useTheme()
   const [params] = useSearchParams()
   const vp = useViewport()
-  const [motion] = useState(() => {
+  const [osMotion] = useState(() => {
     try { return !window.matchMedia('(prefers-reduced-motion: reduce)').matches } catch { return true }
   })
+  // Tắt khi hệ điều hành bật "Giảm chuyển động" hoặc người dùng tắt ở Cài đặt → Chung (theo thiết bị):
+  // trời vẫn vẽ đủ nhưng đứng yên, không nhân vật bay / sao ước / hoạt cảnh.
+  const motion = osMotion && skyMotion
   // Trang con (chỉ nền) vẽ trời đứng yên: hay mở cả buổi tối (ghi điểm ở chi tiết buổi tập), trời
   // chạy liên tục suốt chừng đó là tốn pin, nóng máy.
   const live = motion && chars
@@ -120,11 +129,23 @@ export default function SkyBackdrop({ chars, isMobile, scrollRef }) {
   const st = useMemo(() => {
     const now = new Date(opened.now)
     if (!chars || !id) return skyFacts({ now })
-    return skyFacts({ hero: getMyHeroStats(db, id), form: getPlayerForm5(db, id), season: getSurroundingSeasonStandings(db, id, 3), lastAt: lastPlayedAt(db.matches, id), now })
-  }, [chars, db, id, opened.now])
+    const last = lastMatchOf(db.matches, id)
+    // Người để réo tên (chỉ thành viên CLB, không lấy khách): { id, name, female }.
+    const who = (pid) => {
+      const m = pid && (db.members || []).find((x) => x.id === pid)
+      return m ? { id: m.id, name: m.name, female: isFemalePlayer(m) } : null
+    }
+    const top = (calculateSeasonLeaderboard(db)?.leaderboard || []).map((r) => who(r.id)).filter(Boolean)
+    const arch = getPersonalHighlights(id, db).find((x) => x.type === 'arch_rival')?.rivalId
+    return {
+      ...skyFacts({ hero: getMyHeroStats(db, id), form: getPlayerForm5(db, id), lastAt: last?.at || 0, now }),
+      ...skyFoes({ meId: id, female: isFemalePlayer(me), top, arch: who(arch), beatBy: who(beatenBy(last, id)) }),
+    }
+  }, [chars, db, id, me, opened.now])
+  // Điều ước giữ nguyên [key, tham số]: câu réo tên đối thủ rút tên lúc ước (xem burst).
   const lines = useMemo(() => {
     const L = skyLines(st, name)
-    return { owl: L.owl.map(tl), banner: L.banner.map(tl), hero: L.hero.map(tl), wish: L.wish.map(tl) }
+    return { owl: L.owl.map(tl), banner: L.banner.map(tl), hero: L.hero.map(tl), wish: L.wish }
   }, [st, name])
 
   // Cảnh khung 1440 phủ kín màn (desktop) / lấy khúc quanh trăng ở tỉ lệ 1:1 (mobile).
@@ -138,7 +159,9 @@ export default function SkyBackdrop({ chars, isMobile, scrollRef }) {
   const vhRef = useRef(vh)
   useEffect(() => { vhRef.current = vh }, [vh])
   const ly = useMemo(() => (isMobile ? mobileLayout(mw) : LD), [isMobile, mw])
-  const box = isMobile ? { position: 'absolute', left: 0, top: 0, width: mw, height: H, transformOrigin: '0 0', transform: `scale(${s.toFixed(4)})` } : stage
+  // Lớp nhân vật phóng theo màn (×1.3–1.6 ở màn lớn) nên chữ cũng phóng theo. `--sky-k` = 1/phóng: bóng thoại,
+  // băng rôn, thẻ điều ước nhân cỡ chữ với nó (sk()) để luôn đúng cỡ thiết kế 11–12px.
+  const box = { ...(isMobile ? { position: 'absolute', left: 0, top: 0, width: mw, height: H, transformOrigin: '0 0', transform: `scale(${s.toFixed(4)})` } : stage), '--sky-k': (1 / s).toFixed(4) }
   const nightOpt = useMemo(() => (isMobile ? nightMobile(mw) : {}), [isMobile, mw])
   const age = moonAge(C.moon, opened.now)
 
@@ -146,6 +169,16 @@ export default function SkyBackdrop({ chars, isMobile, scrollRef }) {
     () => (isDark ? <Night o={nightOpt} motion={live} age={age} full={C.moon === 'full'} /> : <Day motion={live} />),
     [isDark, nightOpt, live, age],
   )
+
+  // Hoạt cảnh trời đêm định kỳ (app.json → sky.*FirstMs / *EveryMs). Trang con & giảm chuyển động: không.
+  const nightLive = live && isDark
+  const aurora = useEvery(nightLive, C.auroraFirstMs, C.auroraEveryMs, SKY_ACT_MS.aurora)
+  const cuoi = useEvery(nightLive, C.cuoiFirstMs, C.cuoiEveryMs, SKY_ACT_MS.cuoi)
+  const fire = useEvery(nightLive, C.fireShuttleFirstMs, C.fireShuttleEveryMs, SKY_ACT_MS.fireShuttle)
+  const eclipse = useEvery(nightLive, C.eclipseFirstMs, C.eclipseEveryMs, SKY_ACT_MS.eclipse)
+  // Sao băng cầu lửa xuất phát trong khúc trời đang thấy, lệch phải; chỗ đổi theo lượt (giả ngẫu nhiên, đứng yên khi re-render).
+  const visW = vp.w / s, vis0 = -left / s
+  const fireAt = { x: vis0 + visW * (0.55 + 0.35 * rnd(fire.n * 3 + 1)), y: 10 + 90 * rnd(fire.n * 3 + 2), dx: -(visW * 0.55 + 220), dy: (visW * 0.55 + 220) * 0.5317 }
 
   // Câu thoại mới nhất cho cảnh viết tay (siêu nhân, UFO, sao ước) — đọc lúc cảnh bắt đầu, không
   // dựng lại cảnh đang bay khi db đồng bộ.
@@ -207,11 +240,34 @@ export default function SkyBackdrop({ chars, isMobile, scrollRef }) {
   }, [motion, isDark, chars, ly, bags])
 
   // Cú mèo: `k` đổi để nghiêng đầu + chạy lại bóng thoại; `i` = câu đang nói, rút từ túi xáo.
-  const [owl, setOwl] = useState(() => ({ k: 0, i: bags('owl', lines.owl.length) }))
+  // Để màn hình yên owlIdleMs thì `sleep` (ngủ gật, zzZ); bấm lúc đang ngủ → `wake` tăng (giật mình, rơi
+  // lông) và `say` = câu giật mình, thay câu thường cho tới lần đổi câu kế. Bấm bóng thoại → `hide` (tắt bóng
+  // cho khỏi che nội dung) tới khi bấm con cú.
+  const hasOwl = cast.includes('owl')
+  const [owl, setOwl] = useState(() => ({ k: 0, i: bags('owl', lines.owl.length), say: null, sleep: false, wake: 0, hide: false }))
   const nextOwl = () => {
+    if (owl.sleep) {
+      const say = OWL_WAKE[bags('owlWake', OWL_WAKE.length)]
+      setOwl((o) => ({ ...o, say, sleep: false, wake: o.wake + 1, hide: false }))
+      return
+    }
     const i = bags('owl', lines.owl.length)
-    setOwl((o) => ({ k: o.k + 1, i }))
+    setOwl((o) => ({ ...o, k: o.k + 1, i, say: null, hide: false }))
   }
+  const hideOwl = () => setOwl((o) => ({ ...o, hide: true }))
+  const owlAwake = !owl.sleep
+  useEffect(() => {
+    if (!live || !hasOwl || !owlAwake) return
+    let last = Date.now()
+    const wait = pickMs(C.owlIdleMs)
+    const poke = () => { last = Date.now() }
+    const evs = ['pointermove', 'pointerdown', 'keydown', 'wheel', 'touchstart', 'scroll']
+    evs.forEach((e) => window.addEventListener(e, poke, { passive: true, capture: true }))
+    const iv = setInterval(() => {
+      if (!document.hidden && Date.now() - last >= wait) setOwl((o) => ({ ...o, sleep: true }))
+    }, 1000)
+    return () => { clearInterval(iv); evs.forEach((e) => window.removeEventListener(e, poke, { capture: true })) }
+  }, [live, hasOwl, owlAwake])
 
   // Băng rôn: mỗi `lap` là MỘT lượt bay (key đổi → animation chạy lại); bay xong nghỉ ngẫu nhiên
   // bannerRestMs. Mỗi lượt / mỗi lần bấm một câu từ túi xáo.
@@ -242,19 +298,29 @@ export default function SkyBackdrop({ chars, isMobile, scrollRef }) {
   return (
     <>
       <div aria-hidden="true" data-sky-fx="" style={S.back}>
-        <div style={stage}>{back}</div>
+        <div style={stage}>
+          {back}
+          {aurora.on && <Aurora key={aurora.n} />}
+          {isDark && <MoonActs o={nightOpt} age={age} full={C.moon === 'full'} cuoi={cuoi.on ? cuoi.n : 0} eclipse={eclipse.on ? eclipse.n : 0} />}
+        </div>
       </div>
       <div data-sky-fx="" style={S.top}>
-        {isDark && <div style={stage}><Shower motion={live} /></div>}
+        {isDark && (
+          <div style={stage}>
+            <Shower motion={live} />
+            {fire.on && <FireShuttle key={fire.n} {...fireAt} />}
+          </div>
+        )}
         <div style={box}>
           <div ref={fadeRef} style={S.fill}>
-            {cast.includes('owl') && (
-              <Owl ly={ly} dark={isDark} motion={motion} k={owl.k} line={lines.owl[owl.i % lines.owl.length]} onNext={nextOwl} />
+            {hasOwl && (
+              <Owl ly={ly} dark={isDark} motion={motion} k={owl.k} sleep={owl.sleep} wake={owl.wake} fy={vh - ly.oy}
+                line={owl.say ? tl(owl.say) : lines.owl[owl.i % lines.owl.length]} hide={owl.hide} onNext={nextOwl} onHide={hideOwl} />
             )}
             {hasBanner && ban.lap > 0 && (
               <Banner key={ban.lap} ly={ly} dark={isDark} line={lines.banner[ban.i % lines.banner.length]} onNext={nextBanner} />
             )}
-            {cast.includes('top1') && <Top1 ly={ly} dark={isDark} motion={motion} shape={shape} onNext={nextShape} />}
+            {cast.includes('top1') && isDark && <Top1 ly={ly} dark={isDark} motion={motion} shape={shape} onNext={nextShape} />}
             <div ref={sceneRef} style={S.fill} />
           </div>
           <div ref={flyRef} style={S.fill} />
@@ -291,12 +357,18 @@ const STAR_TILES = [
 ]
 const SHOOTS = [[70, 1300, 9, 1, 170], [30, 900, 13, 5.5, 130], [200, 1420, 17, 9, 210], [16, 620, 23, 14, 150], [360, 1100, 19, 3, 140]]
 
-function Night({ o, motion, age, full }) {
-  const an = (v) => (motion ? v : 'none')
+/** Vị trí, cỡ, độ sáng và hình (clip theo tuổi trăng) của mặt trăng — Night và MoonActs dùng chung. */
+function moonShape(o, age, full) {
   const ph = (age / 29.530589) * 2 * Math.PI, lit = (1 - Math.cos(ph)) / 2, wax = ph < Math.PI
   const D = o.md || 72, Rr = D / 2, MX = o.mx ?? 960, MY = o.my ?? 22
   const tw = Math.abs(Math.cos(ph)) * D, ts = wax ? (lit < 0.5 ? 0 : 1) : (lit < 0.5 ? 1 : 0)
   const clip = full ? 'none' : `path('M${Rr} 0 A${Rr} ${Rr} 0 0 ${wax ? 1 : 0} ${Rr} ${D} A${(tw / 2).toFixed(2)} ${Rr} 0 0 ${ts} ${Rr} 0 Z')`
+  return { D, Rr, MX, MY, lit, clip }
+}
+
+function Night({ o, motion, age, full }) {
+  const an = (v) => (motion ? v : 'none')
+  const { D, Rr, MX, MY, lit, clip } = moonShape(o, age, full)
   const consNames = tBranch('sky.cons')
 
   // Mỗi vòng hiện, chòm sao đổi chỗ / góc nghiêng một chút quanh header.
@@ -324,18 +396,8 @@ function Night({ o, motion, age, full }) {
       <span style={{ position: 'absolute', left: MX + Rr - 280, top: MY + Rr - 280, width: 560, height: 560, borderRadius: '50%', background: `radial-gradient(closest-side,rgba(220,230,255,${(0.07 + 0.2 * lit).toFixed(2)}),rgba(220,230,255,0))`, animation: an('skyMoonGlow 9s ease-in-out infinite alternate') }} />
       <span style={{ position: 'absolute', left: MX, top: MY, width: D, height: D, borderRadius: '50%', background: 'radial-gradient(circle,rgba(170,190,230,.10),rgba(170,190,230,.04) 70%,transparent 72%)' }}>
         <span style={{ position: 'absolute', inset: 0, filter: `drop-shadow(0 0 ${(6 + 14 * lit).toFixed(0)}px rgba(245,248,255,${(0.4 + 0.4 * lit).toFixed(2)})) drop-shadow(0 0 ${(14 + 30 * lit).toFixed(0)}px rgba(200,215,250,${(0.2 + 0.3 * lit).toFixed(2)}))` }}>
-          <span style={{ position: 'absolute', inset: 0, borderRadius: full ? '50%' : 0, background: MOON_BG, clipPath: clip, WebkitClipPath: clip }}>
-            {/* Chú Cuội ngồi gốc cây đa */}
-            <svg width={D} height={D} viewBox="0 0 64 64" style={{ position: 'absolute', inset: 0 }}>
-              <g fill="rgba(110,120,152,.42)">
-                <path d="M28 26 C26 18 32 13 38 14 C42 9 50 11 51 17 C57 18 58 26 53 29 C54 34 48 37 44 35 C40 38 32 36 32 32 C27 32 26 28 28 26 Z" />
-                <path d="M40 34 C40 40 39 44 37 48 L45 48 C43 44 42 40 42 34 Z" />
-                <path d="M28 48 Q41 46 54 48 Q41 50.5 28 48 Z" />
-                <circle cx="31" cy="40.5" r="2" />
-                <path d="M29.5 42.6 L32.6 42.6 L33.6 46.6 L36.2 46.6 L36.2 48.4 L29 48.4 Z" />
-              </g>
-            </svg>
-          </span>
+          {/* Chú Cuội vẽ ở lớp MoonActs (có hoạt cảnh), nằm ngay trên đĩa trăng này */}
+          <span style={{ position: 'absolute', inset: 0, borderRadius: full ? '50%' : 0, background: MOON_BG, clipPath: clip, WebkitClipPath: clip }} />
         </span>
       </span>
       <Whale o={o} an={an} />
@@ -391,6 +453,14 @@ function Whale({ o, an }) {
           {Array.from({ length: 6 }, (_, i) => (
             <span key={'p' + i} style={{ position: 'absolute', left: 64, top: 26, width: 3, height: 3, borderRadius: '50%', background: '#F2F8FF', boxShadow: '0 0 6px 2px rgba(190,225,255,.85)', opacity: 0, '--dx': ((i - 2.5) * 7).toFixed(0) + 'px', animation: an(`skySpout 9s ease-out ${(i * 0.06).toFixed(2)}s infinite`) }} />
           ))}
+          {/* Mỗi lượt bơi, giữa đường cá voi "nhả" một chùm bụi sao lớn: phun vọt lên rồi lắng, trôi lại
+              phía sau (cùng nhịp với lượt bơi skyWhaleSwim). */}
+          {Array.from({ length: 16 }, (_, i) => {
+            const r = (j) => rnd(i * 7 + j + 980), sz = 2 + r(1) * 2.5
+            return (
+              <span key={'d' + i} style={{ position: 'absolute', left: 64, top: 24, width: sz, height: sz, borderRadius: '50%', background: ['#FFFFFF', '#CFE6FF', '#FFE9A8', '#D9CCFF'][i % 4], boxShadow: '0 0 7px 2px rgba(200,225,255,.85)', opacity: 0, '--dx': ((r(2) - 0.5) * 70).toFixed(0) + 'px', '--dy': (-40 - r(3) * 70).toFixed(0) + 'px', '--dr': (40 + r(4) * 60).toFixed(0) + 'px', animation: an(`skyWhalePuff ${o.wdur || 90}s ease-out ${((o.wdl ?? 4) + i * 0.05).toFixed(2)}s infinite`) }} />
+            )
+          })}
           <svg width="250" height="100" viewBox="0 0 250 100" style={{ position: 'absolute', left: 0, top: 0, overflow: 'visible', filter: 'drop-shadow(0 0 10px rgba(140,190,255,.55))' }}>
             <defs>
               <linearGradient id="sky-wg" x1="0" y1="0" x2="0" y2="1">
@@ -429,6 +499,141 @@ function Shower({ motion }) {
       </div>
     )
   })
+}
+
+/* ============================ HOẠT CẢNH TRỜI ĐÊM ĐỊNH KỲ ============================ */
+
+/**
+ * Hoạt cảnh định kỳ: lượt đầu sau `firstMs`, rồi cứ `everyMs` (tính từ lúc bắt đầu lượt trước); mỗi
+ * lượt bật `on` trong `durMs` rồi tắt — component chỉ dựng lúc đang diễn, xong là gỡ, khỏi tốn GPU khi
+ * vô hình. `n` = số lượt (làm key để animation chạy lại từ đầu). Tab ẩn thì bỏ lượt đó.
+ */
+function useEvery(enabled, firstMs, everyMs, durMs) {
+  const [ev, setEv] = useState({ n: 0, on: false })
+  useEffect(() => {
+    if (!enabled) return
+    const ids = []
+    const later = (fn, ms) => ids.push(setTimeout(fn, ms))
+    // Lượt dở dang từ lần bật trước (đổi theme / sang trang con giữa chừng) không được hiện lại.
+    later(() => setEv((e) => (e.on ? { ...e, on: false } : e)), 0)
+    const tick = (ms) => later(() => {
+      if (!document.hidden) {
+        setEv((e) => ({ n: e.n + 1, on: true }))
+        later(() => setEv((e) => ({ ...e, on: false })), durMs)
+      }
+      tick(everyMs)
+    }, ms)
+    tick(firstMs)
+    return () => ids.forEach(clearTimeout)
+  }, [enabled, firstMs, everyMs, durMs])
+  return enabled ? ev : { n: ev.n, on: false }
+}
+
+const CUOI = 'rgba(110,120,152,.42)'
+
+/**
+ * Lớp ngay trên đĩa trăng: chú Cuội (ngồi gốc cây đa; tới lượt thì đứng dậy vung vợt đánh quả cầu bay
+ * qua mặt trăng) và nguyệt thực trăng máu (bóng Trái Đất trượt qua, trăng đỏ đồng rồi sáng lại).
+ * `cuoi` / `eclipse` = số lượt đang diễn (0 = không diễn).
+ */
+function MoonActs({ o, age, full, cuoi, eclipse }) {
+  const { D, Rr, MX, MY, clip } = moonShape(o, age, full)
+  const disk = full ? { borderRadius: '50%', overflow: 'hidden' } : { clipPath: clip, WebkitClipPath: clip }
+  const act = (name, ms) => `${name} ${ms}ms ease-in-out both`
+  return (
+    <>
+      {eclipse > 0 && (
+        <span key={'eh' + eclipse} style={{ position: 'absolute', left: MX + Rr - D, top: MY + Rr - D, width: D * 2, height: D * 2, borderRadius: '50%', background: 'radial-gradient(closest-side,rgba(200,70,40,.42),rgba(160,40,30,.12) 60%,rgba(160,40,30,0))', opacity: 0, animation: act('skyEclipseHalo', SKY_ACT_MS.eclipse) }} />
+      )}
+      <span style={{ position: 'absolute', left: MX, top: MY, width: D, height: D, ...disk }}>
+        {eclipse > 0 && (
+          <span key={'ec' + eclipse} style={{ position: 'absolute', inset: 0 }}>
+            <span style={{ position: 'absolute', inset: 0, background: 'radial-gradient(circle at 40% 38%,#E8743F,#B23A1F 58%,#5E1A10)', opacity: 0, animation: act('skyEclipseBlood', SKY_ACT_MS.eclipse) }} />
+            <span style={{ position: 'absolute', inset: '-6%', borderRadius: '50%', background: 'radial-gradient(circle at 55% 50%,rgba(18,10,14,.92) 0,rgba(18,10,14,.86) 62%,rgba(18,10,14,0) 74%)', transform: 'translateX(-115%)', animation: act('skyEclipseUmbra', SKY_ACT_MS.eclipse) }} />
+          </span>
+        )}
+        <svg width={D} height={D} viewBox="0 0 64 64" style={{ position: 'absolute', inset: 0, overflow: 'visible' }}>
+          <g fill={CUOI}>
+            {/* Cây đa + gốc */}
+            <path d="M28 26 C26 18 32 13 38 14 C42 9 50 11 51 17 C57 18 58 26 53 29 C54 34 48 37 44 35 C40 38 32 36 32 32 C27 32 26 28 28 26 Z" />
+            <path d="M40 34 C40 40 39 44 37 48 L45 48 C43 44 42 40 42 34 Z" />
+            <path d="M28 48 Q41 46 54 48 Q41 50.5 28 48 Z" />
+          </g>
+          {/* Chú Cuội ngồi */}
+          <g key={'cs' + cuoi} fill={CUOI} style={{ animation: cuoi ? act('skyCuoiSit', SKY_ACT_MS.cuoi) : 'none' }}>
+            <circle cx="31" cy="40.5" r="2" />
+            <path d="M29.5 42.6 L32.6 42.6 L33.6 46.6 L36.2 46.6 L36.2 48.4 L29 48.4 Z" />
+          </g>
+          {/* Lượt diễn: đứng dậy vung vợt, quả cầu bay vào từ mép phải rồi bị đánh văng ra ngoài */}
+          {cuoi > 0 && (
+            <g key={'cu' + cuoi}>
+              <g style={{ opacity: 0, animation: act('skyCuoiStand', SKY_ACT_MS.cuoi) }}>
+                <circle cx="31" cy="35.4" r="2" fill={CUOI} />
+                <path d="M31 37.4 L31 43.5 M31 43.5 L29.3 48.2 M31 43.5 L32.9 48.2 M31 39 L28.6 42" fill="none" stroke={CUOI} strokeWidth="1.5" strokeLinecap="round" />
+                <g style={{ transformOrigin: '31px 38.8px', animation: act('skyCuoiSwing', SKY_ACT_MS.cuoi) }}>
+                  <path d="M31 38.8 L34.4 36.2 L36.8 33.4" fill="none" stroke={CUOI} strokeWidth="1.4" strokeLinecap="round" />
+                  <ellipse cx="38.3" cy="31.6" rx="1.7" ry="2.4" transform="rotate(40 38.3 31.6)" fill="rgba(110,120,152,.18)" stroke={CUOI} strokeWidth=".9" />
+                </g>
+              </g>
+              <g style={{ opacity: 0, animation: act('skyCuoiShuttle', SKY_ACT_MS.cuoi) }}>
+                <circle cx="-1" cy="0" r="1" fill="rgba(80,90,125,.85)" />
+                <path d="M-0.2 -0.9 L2.8 -1.8 L2.8 1.8 L-0.2 0.9 Z" fill="rgba(80,90,125,.7)" />
+              </g>
+            </g>
+          )}
+        </svg>
+      </span>
+    </>
+  )
+}
+
+// Cực quang: ba dải màn sáng xanh ngọc / tím hồng uốn lượn ở nửa trên trời. Mờ (blur) đặt ngay trên phần
+// tử đang chuyển động để trình duyệt chỉ vẽ một lần rồi trượt, không phải làm mờ lại mỗi khung hình.
+const AURORA = [
+  { l: -60, t: 10, w: 1000, h: 300, r: -7, d: 13, c1: 'rgba(80,255,180,.55)', c2: 'rgba(150,110,255,.30)' },
+  { l: 360, t: -20, w: 1100, h: 340, r: 5, d: 17, c1: 'rgba(70,240,200,.50)', c2: 'rgba(255,120,200,.22)' },
+  { l: 820, t: 30, w: 760, h: 260, r: -4, d: 11, c1: 'rgba(120,255,160,.45)', c2: 'rgba(120,140,255,.25)' },
+]
+const FADE_X = 'linear-gradient(90deg,transparent,#000 18%,#000 82%,transparent)'
+const FADE_Y = 'linear-gradient(180deg,transparent,#000 30%,#000 70%,transparent)'
+
+function Aurora() {
+  return (
+    <div style={{ position: 'absolute', inset: 0, pointerEvents: 'none', opacity: 0, animation: `skyAurora ${SKY_ACT_MS.aurora}ms ease-in-out both` }}>
+      {AURORA.map((x, i) => (
+        <div key={i} style={{ position: 'absolute', left: x.l, top: x.t, width: x.w, height: x.h, transform: `rotate(${x.r}deg)` }}>
+          <div style={{ position: 'absolute', inset: 0, borderRadius: '45% 55% 40% 60% / 60% 60% 40% 40%', background: `linear-gradient(180deg,transparent 0%,${x.c2} 22%,${x.c1} 52%,rgba(60,230,160,.18) 78%,transparent 100%)`, filter: 'blur(10px)', WebkitMaskImage: FADE_X, maskImage: FADE_X, animation: `skyAuroraWave ${x.d}s ease-in-out ${-i * 3}s infinite alternate` }} />
+          <div style={{ position: 'absolute', inset: '10% 0', background: 'repeating-linear-gradient(90deg,rgba(220,255,240,.22) 0 2px,transparent 2px 11px)', filter: 'blur(1.5px)', WebkitMaskImage: `${FADE_Y},${FADE_X}`, maskImage: `${FADE_Y},${FADE_X}`, WebkitMaskComposite: 'source-in', maskComposite: 'intersect', animation: `skyAuroraRays ${(x.d * 0.7).toFixed(1)}s ease-in-out infinite alternate` }} />
+        </div>
+      ))}
+    </div>
+  )
+}
+
+/**
+ * Sao băng "quả cầu lông lửa": đầu là quả cầu (đế + váy lông) bốc lửa, đuôi xoè như chùm lông cháy,
+ * lao chéo xuống trái như mưa sao băng. `x`, `y` điểm xuất phát; `dx`, `dy` quãng bay (khung của lớp).
+ */
+function FireShuttle({ x, y, dx, dy }) {
+  return (
+    <div style={{ position: 'absolute', left: x, top: y, width: 0, height: 0, '--dx': px(dx), '--dy': px(dy), opacity: 0, animation: `skyFireShuttle ${SKY_ACT_MS.fireShuttle}ms cubic-bezier(.35,0,.65,1) both` }}>
+      <div style={{ position: 'absolute', left: 0, top: 0, transform: 'rotate(-28deg)', transformOrigin: '0 0' }}>
+        <span style={{ position: 'absolute', left: 8, top: -14, width: 300, height: 28, clipPath: 'polygon(0 40%,100% 0,100% 100%,0 60%)', background: 'linear-gradient(90deg,rgba(255,236,170,.95),rgba(255,160,50,.75) 18%,rgba(255,80,40,.4) 50%,rgba(180,40,90,0))', filter: 'blur(1.5px)' }} />
+        {[-9, -4.5, 0, 4.5, 9].map((a, i) => (
+          <span key={i} style={{ position: 'absolute', left: 14, top: -0.8, width: 170 + (i % 2) * 50, height: 1.6, borderRadius: 1, transformOrigin: '0 50%', transform: `rotate(${a}deg)`, background: 'linear-gradient(90deg,rgba(255,200,90,.9),rgba(255,110,50,.4) 45%,rgba(255,80,60,0))' }} />
+        ))}
+        {[0, 1, 2, 3, 4, 5].map((i) => (
+          <span key={'e' + i} style={{ position: 'absolute', left: 40 + i * 34, top: (rnd(i + 950) - 0.5) * 22, width: 3, height: 3, borderRadius: '50%', background: '#FFD27A', boxShadow: '0 0 6px 2px rgba(255,140,40,.8)', animation: `skyTwinkle ${(0.35 + rnd(i + 960) * 0.3).toFixed(2)}s ease-in-out infinite` }} />
+        ))}
+        <svg width="30" height="20" viewBox="-4 -10 30 20" style={{ position: 'absolute', left: -4, top: -10, overflow: 'visible', filter: 'drop-shadow(0 0 8px rgba(255,150,40,.95))' }}>
+          <ellipse cx="14" cy="0" rx="12" ry="9" fill="rgba(255,140,40,.35)" style={{ transformOrigin: '2px 0', animation: 'skyFlame .12s ease-in-out infinite alternate' }} />
+          <path d="M4 -3 L24 -9 L24 9 L4 3 Z" fill="rgba(255,190,80,.92)" stroke="#FFE7A3" strokeWidth=".8" />
+          <path d="M5 -2 L24 -6 M5 0 L24 0 M5 2 L24 6" stroke="rgba(255,110,40,.85)" strokeWidth=".7" />
+          <circle cx="2" cy="0" r="3.4" fill="#FFF7E0" />
+        </svg>
+      </div>
+    </div>
+  )
 }
 
 /* ============================ HOÀNG HÔN ============================ */
@@ -541,15 +746,24 @@ function Day({ motion }) {
 const bubC = (dark) => (dark ? { bg: 'rgba(10,16,34,.92)', bd: 'rgba(170,200,255,.35)', fg: '#EAF1FF', sh: '0 6px 20px rgba(0,0,0,.4)' } : { bg: 'rgba(255,248,242,.95)', bd: '#EBC3BC', fg: '#4A2A38', sh: '0 6px 18px rgba(150,80,100,.18)' })
 const bubSt = (dark) => {
   const c = bubC(dark)
-  return { padding: '8px 12px', borderRadius: 10, background: c.bg, border: '1px solid ' + c.bd, color: c.fg, boxShadow: c.sh, whiteSpace: 'normal', textWrap: 'pretty', font: '600 12px/1.35 var(--font-sans)' }
+  return { padding: `${sk(7)} ${sk(11)}`, borderRadius: 10, background: c.bg, border: '1px solid ' + c.bd, color: c.fg, boxShadow: c.sh, whiteSpace: 'normal', overflowWrap: 'anywhere', textWrap: 'pretty', font: `600 ${sk(11.5)}/1.35 var(--font-sans)` }
 }
 
-/** Cú mèo đậu trên trăng (chỉ sau 22h). Bấm cú hoặc bóng thoại → câu kế + nghiêng đầu. */
-function Owl({ ly, dark, motion, k, line, onNext }) {
+/**
+ * Cú mèo đậu trên trăng (chỉ sau 22h). Bấm cú hoặc bóng thoại → câu kế + nghiêng đầu.
+ * `sleep`: ngủ gật — gục đầu, mỏ chúc xuống, mắt nhắm, bóng zzZ to dần rồi vỡ "pop!", ẩn bóng thoại.
+ * `wake` tăng: vừa bị bấm đánh thức — bật dậy xù lông, mắt tròn xoe, suýt ngã, một cọng lông rơi xuống
+ * đáy màn (`fy` = khoảng rơi theo khung của lớp).
+ */
+function Owl({ ly, dark, motion, k, sleep, wake, fy, line, hide, onNext, onHide }) {
   const an = (v) => (motion ? v : 'none')
   const sz = ly.os, D = ly.md, R2 = D / 2, c = bubC(dark)
   const body = dark ? '#121A33' : '#3A2E4A', rim = dark ? 'rgba(220,230,255,.45)' : 'rgba(255,228,218,.5)'
-  const lid = (cx) => <rect key={'l' + cx} x={cx - 5.5} y="11.5" width="11" height="11" fill={body} style={{ transform: 'scaleY(0)', transformOrigin: `${cx}px 11.5px`, animation: an('skyOwlBlink 5s ease-in-out infinite') }} />
+  // Mí mắt: ngủ thì sụp dần rồi nhắm hẳn; vừa giật mình thì mở trừng một lúc rồi mới chớp lại.
+  const lidAnim = sleep ? 'skyOwlLidClose 2.5s ease-in both' : wake ? 'skyOwlBlink 5s ease-in-out 1.6s infinite' : 'skyOwlBlink 5s ease-in-out infinite'
+  const lid = (cx) => <rect key={'l' + cx + (sleep ? 's' : 'a' + wake)} x={cx - 5.5} y="11.5" width="11" height="11" fill={body} style={{ transform: 'scaleY(0)', transformOrigin: `${cx}px 11.5px`, animation: an(lidAnim) }} />
+  const pose = sleep ? 'skyOwlDoze 2.5s ease-in-out both, skyOwlBreathe 3s ease-in-out 2.5s infinite' : wake ? 'skyOwlStartle 1.3s ease-out both' : 'none'
+  const fill = { transformBox: 'fill-box', transformOrigin: 'center' }
   const tailTop = ly.tail === 't'
   return (
     <div style={S.fill}>
@@ -562,25 +776,53 @@ function Owl({ ly, dark, motion, k, line, onNext }) {
       <svg width={sz * 3} height={sz * 0.3} viewBox="0 0 60 6" style={{ position: 'absolute', left: ly.ox - sz * 0.8, top: ly.oy + sz * 1.1, overflow: 'visible' }}>
         <path d="M0 4 C14 2.6 30 3.4 44 2.4 C50 2 55 1.4 60 0" fill="none" stroke={body} strokeWidth="1.8" strokeLinecap="round" />
       </svg>
-      <div key={'o' + k} title={t('sky.tip.owl')} onClick={onNext} style={{ position: 'absolute', left: ly.ox, top: ly.oy, width: sz, height: sz * 1.2, cursor: 'pointer', pointerEvents: 'auto', transformOrigin: '50% 90%', animation: k && motion ? 'skyOwlTilt .9s ease-in-out' : 'none' }}>
-        <svg width={sz} height={sz * 1.2} viewBox="0 0 40 46" style={{ display: 'block', overflow: 'visible' }}>
-          <path d="M9 14 L6 2 L15 8 Z M31 14 L34 2 L25 8 Z" fill={body} />
-          <path d="M20 6 C11 6 6 13 6 21 C6 32 10 40 20 44 C30 40 34 32 34 21 C34 13 29 6 20 6 Z" fill={body} stroke={rim} strokeWidth=".8" />
-          <path d="M10 27 C11 34 14 39 18 41 M30 27 C29 34 26 39 22 41" fill="none" stroke={rim} strokeWidth=".7" />
-          <circle cx="14.5" cy="17" r="5" fill="#FFC857" style={{ filter: 'drop-shadow(0 0 3px rgba(255,200,87,.9))' }} />
-          <circle cx="25.5" cy="17" r="5" fill="#FFC857" style={{ filter: 'drop-shadow(0 0 3px rgba(255,200,87,.9))' }} />
-          <circle cx="14.5" cy="17" r="2.2" fill="#1A1208" />
-          <circle cx="25.5" cy="17" r="2.2" fill="#1A1208" />
-          {lid(14.5)}{lid(25.5)}
-          <path d="M20 21 L18 24 L20 27 L22 24 Z" fill="#D99A3E" />
-          <path d="M16 43 L16 46 M24 43 L24 46" stroke="#D99A3E" strokeWidth="1.4" strokeLinecap="round" />
-        </svg>
+      <div key={'o' + k} onClick={onNext} style={{ position: 'absolute', left: ly.ox, top: ly.oy, width: sz, height: sz * 1.2, cursor: 'pointer', pointerEvents: 'auto', transformOrigin: '50% 90%', animation: k && motion ? 'skyOwlTilt .9s ease-in-out' : 'none' }}>
+        <div key={'p' + wake + (sleep ? 's' : '')} style={{ width: '100%', height: '100%', transformOrigin: '50% 90%', animation: an(pose) }}>
+          <svg width={sz} height={sz * 1.2} viewBox="0 0 40 46" style={{ display: 'block', overflow: 'visible' }}>
+            {/* Lông xù khi giật mình */}
+            {wake > 0 && !sleep && (
+              <path key={'x' + wake} d="M6 18 L1 15 L7 16 M5 26 L0 26 L6 24 M8 34 L3 38 L9 33 M34 18 L39 15 L33 16 M35 26 L40 26 L34 24 M32 34 L37 38 L31 33 M13 8 L10 2 L16 6 M27 8 L30 2 L24 6"
+                fill="none" stroke={rim} strokeWidth="1.3" strokeLinecap="round" style={{ ...fill, opacity: 0, animation: an('skyOwlFluff 1.3s ease-out both') }} />
+            )}
+            <path d="M9 14 L6 2 L15 8 Z M31 14 L34 2 L25 8 Z" fill={body} />
+            <path d="M20 6 C11 6 6 13 6 21 C6 32 10 40 20 44 C30 40 34 32 34 21 C34 13 29 6 20 6 Z" fill={body} stroke={rim} strokeWidth=".8" />
+            <path d="M10 27 C11 34 14 39 18 41 M30 27 C29 34 26 39 22 41" fill="none" stroke={rim} strokeWidth=".7" />
+            <g key={'e' + wake} style={{ ...fill, animation: wake && !sleep ? an('skyOwlEyesWide 1.6s ease-out both') : 'none' }}>
+              <circle cx="14.5" cy="17" r="5" fill="#FFC857" style={{ filter: 'drop-shadow(0 0 3px rgba(255,200,87,.9))' }} />
+              <circle cx="25.5" cy="17" r="5" fill="#FFC857" style={{ filter: 'drop-shadow(0 0 3px rgba(255,200,87,.9))' }} />
+              <circle cx="14.5" cy="17" r="2.2" fill="#1A1208" style={{ ...fill, animation: wake && !sleep ? an('skyOwlPupil 1.6s ease-out both') : 'none' }} />
+              <circle cx="25.5" cy="17" r="2.2" fill="#1A1208" style={{ ...fill, animation: wake && !sleep ? an('skyOwlPupil 1.6s ease-out both') : 'none' }} />
+            </g>
+            {lid(14.5)}{lid(25.5)}
+            {/* Mỏ chúc xuống khi ngủ */}
+            <path d="M20 21 L18 24 L20 27 L22 24 Z" fill="#D99A3E" style={{ transformOrigin: '20px 21px', transform: sleep ? 'rotate(32deg)' : 'none', transition: motion ? 'transform 2.2s ease-in' : 'none' }} />
+            <path d="M16 43 L16 46 M24 43 L24 46" stroke="#D99A3E" strokeWidth="1.4" strokeLinecap="round" />
+          </svg>
+        </div>
       </div>
-      {/* Bóng thoại hiện/ẩn theo nhịp 16 giây, hết một vòng tự sang câu kế */}
-      <div key={'ob' + k} onClick={onNext} onAnimationIteration={onNext} style={{ position: 'absolute', right: ly.br, top: ly.bt, pointerEvents: 'auto', cursor: 'pointer', ...bubSt(dark), maxWidth: ly.bw, opacity: motion ? 0 : 1, animation: an(`skyBubble 16s ease-in-out ${k ? 0 : 2}s infinite`) }}>
-        <span style={{ position: 'absolute', right: tailTop ? ly.tailR : -5, top: tailTop ? -5 : 13, width: 9, height: 9, transform: 'rotate(45deg)', background: c.bg, borderTop: '1px solid ' + c.bd, [tailTop ? 'borderLeft' : 'borderRight']: '1px solid ' + c.bd }} />
-        <span>{line}</span>
-      </div>
+      {/* Ngủ gật: bóng zzZ to dần rồi vỡ "pop!", lặp mỗi 4 giây */}
+      {sleep && motion && (
+        <>
+          <span style={{ position: 'absolute', left: ly.ox + sz * 0.75, top: ly.oy - sz * 0.95, padding: `${sk(2)} ${sk(8)}`, borderRadius: 999, background: c.bg, border: '1px solid ' + c.bd, color: c.fg, font: `700 ${sk(11)}/1.3 var(--font-sans)`, whiteSpace: 'nowrap', transformOrigin: '0% 100%', opacity: 0, animation: 'skyOwlZzz 4s ease-in 2.5s infinite' }}>{t('sky.owl.zzz')}</span>
+          <span style={{ position: 'absolute', left: ly.ox + sz * 1.05, top: ly.oy - sz * 1.25, color: c.fg, font: `800 ${sk(11)}/1 var(--font-display)`, whiteSpace: 'nowrap', textShadow: '0 1px 3px rgba(0,0,0,.35)', opacity: 0, animation: 'skyOwlPop 4s ease-out 2.5s infinite' }}>{t('sky.owl.pop')}</span>
+        </>
+      )}
+      {/* Giật mình: một cọng lông lơ lửng rơi xuống đáy màn */}
+      {wake > 0 && !sleep && motion && (
+        <span key={'f' + wake} style={{ position: 'absolute', left: ly.ox + sz * 0.55, top: ly.oy + sz * 0.6, width: 0, height: 0, '--fy': Math.max(80, fy) + 'px', opacity: 0, animation: 'skyFeather 5.5s ease-in both' }}>
+          <svg width="16" height="7" viewBox="0 0 16 7" style={{ position: 'absolute', left: -8, top: -3.5, overflow: 'visible' }}>
+            <path d="M1 3.5 C5 0 11 0 15 3.5 C11 7 5 7 1 3.5 Z" fill={dark ? 'rgba(205,215,245,.92)' : '#6B5A80'} />
+            <path d="M0 3.5 L15 3.5" stroke={dark ? 'rgba(255,255,255,.75)' : '#4A3A5E'} strokeWidth=".6" />
+          </svg>
+        </span>
+      )}
+      {/* Bóng thoại hiện/ẩn theo nhịp 16 giây, hết một vòng tự sang câu kế. Đang ngủ thì im. Bấm bóng → tắt bóng. */}
+      {!sleep && !hide && (
+        <div key={'ob' + k + '.' + wake} onClick={onHide} onAnimationIteration={onNext} style={{ position: 'absolute', right: ly.br, top: ly.bt, pointerEvents: 'auto', cursor: 'pointer', ...bubSt(dark), maxWidth: sk(ly.bw), opacity: motion ? 0 : 1, animation: an(`skyBubble 16s ease-in-out ${k || wake ? 0 : 2}s infinite`) }}>
+          <span style={{ position: 'absolute', right: tailTop ? ly.tailR : -5, top: tailTop ? -5 : 13, width: 9, height: 9, transform: 'rotate(45deg)', background: c.bg, borderTop: '1px solid ' + c.bd, [tailTop ? 'borderLeft' : 'borderRight']: '1px solid ' + c.bd }} />
+          <span>{line}</span>
+        </div>
+      )}
     </div>
   )
 }
@@ -593,8 +835,8 @@ function Banner({ ly, dark, line, onNext }) {
   // Chỉ dựng khi có chuyển động: cha không cho bay lúc giảm chuyển động / ở trang chỉ nền.
   return (
     <div style={{ position: 'absolute', left: -440, top: ly.bnT, '--fd': ly.bnD + 'px', opacity: 0, animation: 'skyBannerOnce ' + BANNER_FLY_MS + 'ms linear both' }}>
-      <div title={t('sky.tip.banner')} onClick={onNext} style={{ display: 'flex', alignItems: 'center', pointerEvents: 'auto', cursor: 'pointer' }}>
-        <span style={{ padding: '3px 12px', borderRadius: 3, background: c.bg, border: '1px solid ' + c.bd, color: c.fg, font: '600 11.5px/1.3 var(--font-sans)', whiteSpace: 'nowrap', transformOrigin: '100% 50%', animation: 'skyFlagWave 1.4s ease-in-out infinite alternate' }}>{line}</span>
+      <div onClick={onNext} style={{ display: 'flex', alignItems: 'center', pointerEvents: 'auto', cursor: 'pointer' }}>
+        <span style={{ borderRadius: 3, background: c.bg, border: '1px solid ' + c.bd, color: c.fg, padding: `${sk(3)} ${sk(12)}`, font: `600 ${sk(11)}/1.3 var(--font-sans)`, whiteSpace: 'nowrap', maxWidth: sk(ly.m ? 260 : 440), overflow: 'hidden', textOverflow: 'ellipsis', transformOrigin: '100% 50%', animation: 'skyFlagWave 1.4s ease-in-out infinite alternate' }} title={line}>{line}</span>
         <span style={{ width: 22, height: 1, background: c.rope }} />
         <svg width="32" height="14" viewBox="0 0 26 12" style={{ overflow: 'visible' }}>
           <path d={PLANE_D} fill={c.pl} />
@@ -606,27 +848,29 @@ function Banner({ ly, dark, line, onNext }) {
   )
 }
 
-// Xếp hình: đom đóm (đêm) / chim (ngày) bay tới xếp thành chữ TOP 1, tim, mèo, mặt cười, ^_^,
-// quả cầu lông, ngôi sao. 30 giây một hình, hết vòng đổi sang hình khác.
-const FONT = { T: ['#####', '..#..', '..#..', '..#..', '..#..'], O: ['.###.', '#...#', '#...#', '#...#', '.###.'], P: ['####.', '#...#', '####.', '#....', '#....'], 1: ['..#..', '.##..', '..#..', '..#..', '.###.'] }
+// Xếp hình: chỉ ban đêm, đom đóm bay tới xếp thành chữ SIU, trái tim viền, mặt cười, ^_^, nháy mắt ;).
+// 30 giây một hình, hết vòng đổi sang hình khác từ túi xáo.
 const grid = (rows) => {
   const p = []
   rows.forEach((row, r) => [...row].forEach((v, c) => { if (v === '#') p.push([c, r]) }))
   return { p, c: rows[0].length, r: rows.length }
 }
-const TOP1 = []
-;[['T', 0], ['O', 6], ['P', 12], ['1', 19]].forEach(([ch, c0]) => FONT[ch].forEach((row, r) => [...row].forEach((v, cc) => { if (v === '#') TOP1.push([c0 + cc, r]) })))
-const SHAPES = [{ p: TOP1, c: 24, r: 5 }].concat([
-  ['.##...##.', '####.####', '#########', '.#######.', '..#####..', '...###...', '....#....'],
-  ['#.......#', '##.....##', '#.#####.#', '#.......#', '#.#...#.#', '#...#...#', '.#.#.#.#.', '..#####..'],
+const SHAPES = [
+  // 1. Chữ SIU
+  ['.####...###...#...#', '#........#....#...#', '.###.....#....#...#', '....#....#....#...#', '####....###....###.'],
+  // 2. Trái tim viền (outline, rỗng bên trong)
+  ['..##...##..', '.#..#.#..#.', '#....#....#', '#.........#', '.#.......#.', '..#.....#..', '...#...#...', '....#.#....', '.....#.....'],
+  // 3. Mặt cười
   ['..#####..', '.#.....#.', '#..#.#..#', '#.......#', '#.#...#.#', '#..###..#', '.#.....#.', '..#####..'],
+  // 4. Mặt ^_^
   ['.#.......#.', '#.#.....#.#', '...........', '...#####...'],
-  ['#.#.#.#', '#.#.#.#', '.#.#.#.', '.#####.', '..###..', '..###..', '...#...'],
-  ['....#....', '...###...', '#########', '.#######.', '..#####..', '.###.###.', '##.....##'],
-].map(grid))
+  // 5. Mặt nháy mắt ;)
+  ['..#####..', '.#.....#.', '#..#.##.#', '#.......#', '#.#...#.#', '#..###..#', '.#.....#.', '..#####..'],
+].map(grid)
 const NDOT = Math.max(...SHAPES.map((sp) => sp.p.length))
 
 function Top1({ ly, dark, motion, shape, onNext }) {
+  if (!dark) return null
   const an = (v) => (motion ? v : 'none')
   const SP = SHAPES[shape % SHAPES.length]
   const u = Math.min((ly.tG * 24) / SP.c, (ly.tG * 7) / SP.r)
@@ -636,21 +880,13 @@ function Top1({ ly, dark, motion, shape, onNext }) {
       {Array.from({ length: NDOT }, (_, i) => {
         const hid = i >= SP.p.length, [x0, y0] = SP.p[i % SP.p.length], x = x0 * u, y = y0 * u
         const r = (j) => rnd(i * 13 + j + 1200)
-        // Đêm: đom đóm bay lên từ dưới rồi tản ra. Ngày: chim bay tới từ phải, rời đi về trái.
-        const sx = dark ? (r(1) - 0.5) * 520 : ly.W + 80 - (OX + x) + r(1) * 160
-        const sy = dark ? 260 + r(2) * 420 : (r(2) - 0.5) * 160
-        const ex = dark ? (r(3) - 0.5) * 380 : -(OX + x + 140) - r(3) * 160
-        const ey = dark ? (r(4) - 0.5) * 220 : -60 - r(4) * 120
+        // Đêm: đom đóm bay lên từ dưới rồi tản ra
+        const sx = (r(1) - 0.5) * 520, sy = 260 + r(2) * 420
+        const ex = (r(3) - 0.5) * 380, ey = (r(4) - 0.5) * 220
         return (
           <span key={i} onAnimationIteration={i === 0 ? (ev) => { if (ev.target === ev.currentTarget) onNext() } : undefined}
             style={{ position: 'absolute', visibility: hid ? 'hidden' : 'visible', left: OX + x, top: OY + y, width: 0, height: 0, '--sx': sx.toFixed(0) + 'px', '--sy': sy.toFixed(0) + 'px', '--ex': ex.toFixed(0) + 'px', '--ey': ey.toFixed(0) + 'px', opacity: 0, animation: an(`skyFormTop 30s ease-in-out ${(3 + i * 0.04).toFixed(2)}s infinite`) }}>
-            {dark ? (
-              <span style={{ position: 'absolute', left: -2.5, top: -2.5, width: 5, height: 5, borderRadius: '50%', background: 'radial-gradient(circle,#F7FFD6 0,#D9F99D 40%,rgba(190,242,100,0) 75%)', boxShadow: '0 0 10px 3px rgba(190,242,100,.6)', animation: an(`skyFfBlink ${(1.6 + r(5) * 1.6).toFixed(2)}s ease-in-out ${(-r(6) * 2).toFixed(2)}s infinite`) }} />
-            ) : (
-              <svg width="11" height="5" viewBox="0 0 10 4" style={{ position: 'absolute', left: -5.5, top: -2.5, overflow: 'visible', transformOrigin: '50% 60%', animation: an(`skyFlap ${(0.36 + r(5) * 0.12).toFixed(2)}s ease-in-out infinite alternate`) }}>
-                <path d="M0 3 Q2.5 0 5 3 Q7.5 0 10 3" fill="none" stroke="#3A2E4A" strokeWidth="1.3" strokeLinecap="round" />
-              </svg>
-            )}
+            <span style={{ position: 'absolute', left: -2.5, top: -2.5, width: 5, height: 5, borderRadius: '50%', background: 'radial-gradient(circle,#F7FFD6 0,#D9F99D 40%,rgba(190,242,100,0) 75%)', boxShadow: '0 0 10px 3px rgba(190,242,100,.6)', animation: an(`skyFfBlink ${(1.6 + r(5) * 1.6).toFixed(2)}s ease-in-out ${(-r(6) * 2).toFixed(2)}s infinite`) }} />
           </span>
         )
       })}
@@ -679,7 +915,7 @@ function mv(e, F, dur, delay) {
 }
 function bub(par, text, dark, pos, maxW) {
   const c = bubC(dark), b = document.createElement('div')
-  b.style.cssText = `position:absolute;${pos};width:max-content;max-width:${maxW}px;padding:7px 11px;border-radius:10px;font:600 12px/1.35 var(--font-sans);text-wrap:pretty;white-space:normal;opacity:0;pointer-events:none;background:${c.bg};border:1px solid ${c.bd};color:${c.fg};box-shadow:${c.sh}`
+  b.style.cssText = `position:absolute;${pos};width:max-content;max-width:${sk(maxW)};padding:${sk(7)} ${sk(11)};border-radius:10px;font:600 ${sk(11.5)}/1.35 var(--font-sans);text-wrap:pretty;white-space:normal;overflow-wrap:anywhere;opacity:0;pointer-events:none;background:${c.bg};border:1px solid ${c.bd};color:${c.fg};box-shadow:${c.sh}`
   b.textContent = text
   par.appendChild(b)
   return b
@@ -703,7 +939,7 @@ function heroFly(ctx) {
   const { host, later, bags, dark: d, ly, lines } = ctx
   const y = ly.sc, s = y.hs, hw = 80 * s, hh = 34 * s, L = lines.hero
   // Mỗi lượt bay / mỗi lần bấm một câu rút từ túi xáo.
-  const e = mk(host, `<div data-a style="position:relative;animation:skyHover 1.6s ease-in-out infinite;pointer-events:auto;cursor:pointer" title="${esc(t('sky.tip.hero'))}">${heroSVG(s, d)}</div>`, -hw - 20, y.hy)
+  const e = mk(host, `<div data-a style="position:relative;animation:skyHover 1.6s ease-in-out infinite;pointer-events:auto;cursor:pointer">${heroSVG(s, d)}</div>`, -hw - 20, y.hy)
   const b = bub(e, L[bags('hero', L.length)], d, `right:calc(100% + 8px);top:${hh / 2 - 16}px`, y.bw)
   b.style.opacity = 1
   const x0 = -hw - 20, x1 = ly.W + b.offsetWidth + 30, dur = ((x1 - x0) / y.vH) * 1000
@@ -796,7 +1032,7 @@ function ufoScene(ctx) {
   const bh = Math.round((H - uy) / k + 30), yg = H + 40
 
   // Bóng thoại đặt trong phần tử đã phóng k → chia ngược để chữ vẫn 11px.
-  const bubF = (kk) => `${d ? 'background:rgba(10,16,34,.92);color:#EAF1FF;border:1px solid rgba(170,200,255,.35)' : 'background:rgba(255,248,242,.96);color:#4A2A38;border:1px solid #EBC3BC'};padding:${(4 / kk).toFixed(1)}px ${(8 / kk).toFixed(1)}px;border-radius:9px;font:600 ${(11 / kk).toFixed(1)}px/1.3 var(--font-sans);width:max-content;max-width:${((mob ? 170 : 220) / kk).toFixed(0)}px;text-wrap:pretty;white-space:normal;opacity:0`
+  const bubF = (kk) => `${d ? 'background:rgba(10,16,34,.92);color:#EAF1FF;border:1px solid rgba(170,200,255,.35)' : 'background:rgba(255,248,242,.96);color:#4A2A38;border:1px solid #EBC3BC'};padding:${sk(4 / kk)} ${sk(8 / kk)};border-radius:9px;font:600 ${sk(11 / kk)}/1.3 var(--font-sans);width:max-content;max-width:${sk((mob ? 170 : 220) / kk)};text-wrap:pretty;white-space:normal;overflow-wrap:anywhere;opacity:0`
   const bubS = bubF(k)
   const show = (a, b) => [{ opacity: 0, offset: 0 }, { opacity: 0, offset: a }, { opacity: 1, offset: a + 0.02 }, { opacity: 1, offset: b }, { opacity: 0, offset: Math.min(1, b + 0.03) }].concat(b + 0.03 < 1 ? [{ opacity: 0, offset: 1 }] : [])
 
@@ -809,9 +1045,11 @@ function ufoScene(ctx) {
   const qSide = ux > W / 2 ? 'right:46px' : 'left:46px'
   const q = (txt) => `<div data-k="q" style="position:absolute;${qSide};top:-6px;${bubS}">${esc(txt)}</div>`
 
-  // Người bị hút: đung đưa dưới tia, nhãn "Bạn" hoặc tên người kề trên BXH.
+  // Người bị hút: đung đưa dưới tia (áo teal là bạn, áo hồng là người kề), nhãn tên dưới chân — tên dài
+  // cắt "…" ở 80px (chưa ghép thành viên thì bạn không có tên → không nhãn).
   const pw = 20, ph = 28, vSide = ux > W / 2 ? `right:${pw - 2}px` : `left:${pw - 2}px`, vin = 'transform-origin:50% 0;animation:skySway .45s ease-in-out infinite alternate'
-  const vs = personSVG(1, isMe ? '#00B2A9' : '#E86A9A', !isMe) + `<span style="position:absolute;left:50%;top:30px;transform:translateX(-50%);padding:1px 4px;border-radius:4px;background:${d ? 'rgba(10,16,34,.85)' : 'rgba(255,248,242,.92)'};font:600 ${(9 / k).toFixed(1)}px/1.3 var(--font-mono);color:${d ? '#EAF1FF' : '#4A2A38'};white-space:nowrap">${esc(isMe ? t('sky.you') : sc.victim)}</span>`
+  const vName = isMe ? name : sc.victim
+  const vs = personSVG(1, isMe ? '#00B2A9' : '#E86A9A', !isMe) + (vName ? `<span style="position:absolute;left:50%;top:30px;transform:translateX(-50%);max-width:${sk(80 / k)};overflow:hidden;text-overflow:ellipsis;padding:1px 4px;border-radius:4px;background:${d ? 'rgba(10,16,34,.85)' : 'rgba(255,248,242,.92)'};font:600 ${sk(9 / k)}/1.3 var(--font-mono);color:${d ? '#EAF1FF' : '#4A2A38'};white-space:nowrap">${esc(vName)}</span>` : '')
   const bubV = (key, txt) => `<div data-k="${key}" style="position:absolute;${vSide};bottom:${ph - 4}px;${bubS}">${esc(txt)}</div>`
   const cry = tl(sc.rise[bags('rise' + who, sc.rise.length)])
 
@@ -907,7 +1145,7 @@ function add(host, html, x, y, fr, dur) {
   e.animate(fr, { duration: dur, fill: 'both' }).onfinish = () => e.remove()
 }
 
-/** Sao ước bay ngang header 6,8 giây kèm nhãn "Bấm để ước". */
+/** Sao ước bay ngang header 6,8 giây (không nhãn — bấm vào là ước). */
 function spawnWish(host, w, wishes, bags) {
   if (!host.isConnected) return
   const R = Math.random
@@ -918,7 +1156,6 @@ function spawnWish(host, w, wishes, bags) {
     + '<span style="position:absolute;left:-28px;top:-28px;width:56px;height:56px;border-radius:50%"></span>'
     + '<span data-h style="position:absolute;left:-4px;top:-4px;width:8px;height:8px;border-radius:50%;background:#fff;box-shadow:0 0 8px 3px rgba(255,244,200,.95),0 0 26px 10px rgba(240,183,92,.45)"></span>'
     + '<span style="position:absolute;left:-22px;top:-22px;width:44px;height:44px;box-sizing:border-box;border-radius:50%;border:1px dashed rgba(255,240,200,.55);animation:badgeSpin 5s linear infinite"></span>'
-    + `<span style="position:absolute;left:0;top:26px;transform:translateX(-50%);white-space:nowrap;font:600 11.5px/1 var(--font-sans);color:#FFF4D6;text-shadow:0 0 8px rgba(240,183,92,.9),0 1px 2px rgba(0,0,0,.8)">${esc(t('sky.tip.wish'))}</span>`
   host.appendChild(el)
   const a = el.animate([{ transform: 'translate(0px,0px)', opacity: 0 }, { opacity: 1, offset: 0.08 }, { opacity: 1, offset: 0.9 }, { transform: `translate(${dx.toFixed(0)}px,${dy.toFixed(0)}px)`, opacity: 0 }], { duration: WISH_FLY_MS, fill: 'both' })
   a.onfinish = () => el.remove()
@@ -932,7 +1169,7 @@ function spawnWish(host, w, wishes, bags) {
   })
 }
 
-/** Bung sáng tại chỗ bấm + thẻ "Điều ước" với một điều ước ngẫu nhiên. */
+/** Bung sáng tại chỗ bấm + thẻ hiện một điều ước rút từ túi xáo (câu réo tên rút thêm tên từ túi riêng). */
 function burst(host, x, y, wishes, bags) {
   const R = Math.random
   for (let i = 0; i < 18; i++) {
@@ -940,7 +1177,9 @@ function burst(host, x, y, wishes, bags) {
     add(host, `<span style="position:absolute;left:${-s / 2}px;top:${-s / 2}px;width:${s}px;height:${s}px;border-radius:50%;background:#FFF7D6;box-shadow:0 0 6px 2px rgba(253,230,138,.85)"></span>`, x, y, [{ transform: 'translate(0,0)', opacity: 1 }, { transform: `translate(${(Math.cos(a) * r).toFixed(1)}px,${(Math.sin(a) * r).toFixed(1)}px)`, opacity: 0 }], 900 + R() * 500)
   }
   add(host, '<svg width="40" height="40" viewBox="-20 -20 40 40" style="position:absolute;left:-20px;top:-20px;overflow:visible;filter:drop-shadow(0 0 8px rgba(253,230,138,.95))"><path d="M0 -18 L4 -4 L18 0 L4 4 L0 18 L-4 4 L-18 0 L-4 -4 Z" fill="#FFF7D6"/></svg>', x, y, [{ transform: 'scale(.2) rotate(0deg)', opacity: 0 }, { transform: 'scale(1.2) rotate(45deg)', opacity: 1, offset: 0.3 }, { transform: 'scale(0) rotate(120deg)', opacity: 0 }], 1200)
-  const w = wishes[bags('wish', wishes.length)] || ''
-  const hw = Math.min(180, host.offsetWidth / 2 - 10), bx = Math.max(hw, Math.min(host.offsetWidth - hw, x))
-  add(host, `<div style="position:absolute;left:0;top:0;transform:translateX(-50%);padding:9px 14px;border-radius:12px;background:rgba(8,14,30,.92);border:1px solid rgba(253,230,138,.45);box-shadow:0 0 26px rgba(253,230,138,.22);display:flex;flex-direction:column;align-items:center;gap:5px;white-space:nowrap"><span style="font:600 10px/1 var(--font-mono);letter-spacing:.14em;text-transform:uppercase;color:#FDE68A">${esc(t('sky.wishTitle'))}</span><span style="font:600 13.5px/1.25 var(--font-sans);color:#F4F7FF">${esc(w)}</span></div>`, bx, y + 28, [{ opacity: 0, transform: 'translateY(6px)' }, { opacity: 1, transform: 'translateY(0)', offset: 0.08 }, { opacity: 1, transform: 'translateY(0)', offset: 0.86 }, { opacity: 0, transform: 'translateY(-6px)' }], 4400)
+  const e = wishes[bags('wish', wishes.length)]
+  const foes = e?.[1]?.foes
+  const w = tl(foes ? [e[0], { name: foes[bags('foe', foes.length)] }] : e)
+  const hw = Math.min(160, host.offsetWidth / 2 - 12), bx = Math.max(hw, Math.min(host.offsetWidth - hw, x))
+  add(host, `<div style="position:absolute;left:0;top:0;transform:translateX(-50%);padding:${sk(7)} ${sk(12)};border-radius:10px;background:rgba(8,14,30,.92);border:1px solid rgba(253,230,138,.45);box-shadow:0 0 20px rgba(253,230,138,.2);width:max-content;max-width:min(${hw * 2}px, ${sk(280)});box-sizing:border-box;text-align:center"><span style="font:600 ${sk(12)}/1.3 var(--font-sans);color:#F4F7FF;text-wrap:balance;overflow-wrap:anywhere">${esc(w)}</span></div>`, bx, y + 28, [{ opacity: 0, transform: 'translateY(6px)' }, { opacity: 1, transform: 'translateY(0)', offset: 0.08 }, { opacity: 1, transform: 'translateY(0)', offset: 0.86 }, { opacity: 0, transform: 'translateY(-6px)' }], 4400)
 }

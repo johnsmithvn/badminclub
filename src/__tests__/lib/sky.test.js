@@ -1,7 +1,7 @@
 // node src/__tests__/lib/sky.test.js
 // Nền bầu trời trang chủ: chọn nhân vật + câu thoại theo số liệu (lib/sky.js, docs/HOME_SKY.md).
 import assert from 'node:assert/strict'
-import { SKY_CAST, UFO_GIVE_BACK, UFO_HUH, UFO_OUTCOMES, createBags, drawCast, isLate, lastPlayedAt, moonAge, shuffled, skyFacts, skyLines, skyMode, ufoPool, ufoScript } from '#lib/sky.js'
+import { OWL_WAKE, SKY_ACT_MS, SKY_CAST, UFO_GIVE_BACK, UFO_HUH, UFO_OUTCOMES, beatenBy, createBags, drawCast, isLate, lastMatchOf, lastPlayedAt, moonAge, shortName, shuffled, skyFacts, skyFoes, skyLines, skyMode, ufoPool, ufoScript } from '#lib/sky.js'
 import vi from '#i18n/vi.json' with { type: 'json' }
 import cfg from '#config/app.json' with { type: 'json' }
 import { ROUTE_KEYS } from '#routes'
@@ -10,10 +10,12 @@ const keys = (arr) => arr.map((l) => l[0])
 const get = (key) => key.split('.').reduce((o, k) => (o == null ? undefined : o[k]), vi)
 
 // Ba tình huống mẫu của thiết kế (Tweaks → Tình huống).
-const DEFAULT = { rank: 2, rd: -1, gap: 5, rival: 'Hương Giang', streak: 2, off: 1, chaser: '', cg: 0 }
-const LEADER = { rank: 1, rd: 1, gap: 0, rival: '', streak: 3, off: 1, chaser: 'Hương Giang', cg: 4 }
-const AWAY = { rank: 4, rd: -2, gap: 23, rival: 'VA', streak: 0, off: 12, chaser: '', cg: 0 }
-const HOT = { rank: 2, rd: 1, gap: 2, rival: 'Hương Giang', streak: 5, off: 0, chaser: '', cg: 0 }
+const DEFAULT = { rank: 2, rd: -1, gap: 5, rival: 'Hương Giang', streak: 2, off: 1 }
+const LEADER = { rank: 1, rd: 1, gap: 0, rival: '', streak: 3, off: 1 }
+const AWAY = { rank: 4, rd: -2, gap: 23, rival: 'VA', streak: 0, off: 12 }
+const HOT = { rank: 2, rd: 1, gap: 2, rival: 'Hương Giang', streak: 5, off: 0 }
+const HERO = ['sky.hero.top1', 'sky.hero.saveWorld', 'sky.hero.forgotBag', 'sky.hero.supersonic', 'sky.hero.riceCooker', 'sky.hero.noRacket']
+const BANNER = ['sky.banner.chores', 'sky.banner.moms', 'sky.banner.wow', 'sky.banner.sneak', 'sky.banner.hoaSen']
 
 /* ---------- giờ khuya & bốc nhân vật ---------- */
 assert.ok(isLate(22) && isLate(23) && isLate(0) && isLate(3), '22h–4h là khuya: cú mèo phải được ra')
@@ -70,28 +72,25 @@ assert.deepEqual(unknown, [], 'app.json gõ sai tên route thì trang đó lặn
 
 /* ---------- câu theo số liệu ---------- */
 const d = skyLines(DEFAULT, 'Canh lá ngón')
-assert.deepEqual(keys(d.owl), ['sky.owl.sleep', 'sky.owl.peek', 'sky.owl.hunt', 'sky.owl.late', 'sky.owl.bed', 'sky.line.near', 'sky.line.drop', 'sky.line.streak'],
-  'mặc định (hạng 2, cách 5, tụt 1, chuỗi 2): cú phải giục vượt, an ủi tụt hạng và khen chuỗi')
-assert.deepEqual(d.owl[5][1], { n: 5, name: 'Hương Giang' })
-assert.deepEqual(keys(d.banner), ['sky.banner.tonight', 'sky.banner.chores', 'sky.line.near', 'sky.line.drop', 'sky.line.streak'])
+assert.deepEqual(keys(d.owl), ['sky.owl.sleep', 'sky.owl.peek', 'sky.owl.hunt', 'sky.owl.late', 'sky.owl.bed', 'sky.line.drop', 'sky.line.streak'],
+  'mặc định (hạng 2, tụt 1, chuỗi 2): cú an ủi tụt hạng và khen chuỗi — không còn câu "còn N điểm là vượt" / "cách hạng"')
+assert.deepEqual(d.owl[5][1], { n: 1 })
+assert.deepEqual(keys(d.banner), ['sky.banner.tonight', ...BANNER, 'sky.line.drop', 'sky.line.streak'])
 assert.deepEqual(d.banner[0][1], { name: 'Canh lá ngón' }, 'băng rôn phải gọi đúng tên người đang xem')
-assert.deepEqual(keys(d.hero), ['sky.hero.top1', 'sky.hero.saveWorld', 'sky.hero.forgotBag', 'sky.hero.supersonic', 'sky.line.near', 'sky.line.drop', 'sky.line.streak'])
+assert.deepEqual(keys(d.hero), [...HERO, 'sky.line.drop', 'sky.line.streak'])
 assert.ok(keys(d.wish).includes('sky.wish.pass'), 'có người trên thì có điều ước "vượt <tên>"')
 
 const l = skyLines(LEADER, 'A')
-assert.deepEqual(keys(l.owl), ['sky.owl.sleep', 'sky.owl.peek', 'sky.owl.hunt', 'sky.owl.late', 'sky.owl.bed', 'sky.line.leader', 'sky.line.chaser', 'sky.line.streak'],
-  'đang hạng 1: không được khen "vừa lên hạng" (đã hết hạng để lên) mà phải nhắc người đuổi theo')
-assert.deepEqual(l.owl[6][1], { name: 'Hương Giang', n: 4 })
+assert.deepEqual(keys(l.owl), ['sky.owl.sleep', 'sky.owl.peek', 'sky.owl.hunt', 'sky.owl.late', 'sky.owl.bed', 'sky.line.leader', 'sky.line.streak'],
+  'đang hạng 1: không được khen "vừa lên hạng" (đã hết hạng để lên)')
 assert.ok(!keys(l.wish).includes('sky.wish.pass'), 'đang hạng 1 thì không còn ai để ước vượt')
-assert.ok(!keys(skyLines({ ...LEADER, chaser: '' }, 'A').owl).includes('sky.line.chaser'), 'CLB một người thì không có người đuổi theo')
 
 const a = skyLines(AWAY, 'A')
-assert.deepEqual(keys(a.owl), ['sky.line.missRacket', 'sky.line.daysOff', 'sky.line.far'],
+assert.deepEqual(keys(a.owl), ['sky.line.missRacket', 'sky.line.daysOff'],
   'nghỉ 12 ngày: cú thôi giục đi ngủ / phục thù, không xát muối tụt hạng, chỉ nhắc ra sân')
 assert.deepEqual(a.owl[1][1], { n: 12 })
-assert.deepEqual(a.owl[2][1], { rank: 3, n: 23 }, 'cách xa (> nearGap) thì nói "cách hạng 3 còn 23 điểm"')
-assert.deepEqual(keys(a.banner), ['sky.banner.missRacket', 'sky.banner.chores', 'sky.line.daysOff', 'sky.line.far'],
-  'nghỉ lâu: băng rôn mở bằng "Vợt đang nhớ bạn đấy" và không lặp lại câu đó lần nữa')
+assert.deepEqual(keys(a.banner), ['sky.banner.missRacket', ...BANNER.filter((k) => k !== 'sky.banner.sneak'), 'sky.line.daysOff'],
+  'nghỉ lâu: băng rôn mở bằng "Vợt đang nhớ bạn đấy", không lặp lại câu đó, không trêu "trốn đi đánh cầu hơi nhiều"')
 
 const h = skyLines(HOT, 'A')
 assert.ok(keys(h.owl).includes('sky.line.rise') && !keys(h.owl).includes('sky.line.drop'))
@@ -109,11 +108,11 @@ const rv = ufoScript(DEFAULT, false, 'Canh lá ngón')
 assert.equal(rv.victim, 'Hương Giang', 'đang hạng 2: UFO bắt người NGAY TRÊN mình')
 assert.deepEqual(rv.rise[2], ['sky.ufo.rise.ahead', { name: 'Canh lá ngón', n: 5 }])
 assert.deepEqual(rv.abduct, ['sky.ufo.abductRival', { name: 'Hương Giang' }])
+assert.deepEqual(keys(rv.rise), ['sky.ufo.rise.court', 'sky.ufo.rise.help', 'sky.ufo.rise.ahead'])
 const ch = ufoScript(LEADER, false, 'A')
-assert.equal(ch.victim, 'Hương Giang', 'đang hạng 1: UFO bắt người đang đuổi theo mình')
-assert.deepEqual(keys(ch.rise), ['sky.ufo.rise.court', 'sky.ufo.rise.help', 'sky.ufo.rise.chasing'])
-assert.equal(ch.abduct[0], 'sky.ufo.abductChaser')
-assert.ok(ufoScript({ ...LEADER, chaser: '' }, false, 'A').me, 'không có ai kề trên BXH thì UFO bắt chính mình')
+assert.ok(ch.me && ch.victim === '', 'đang hạng 1: không có người trên → UFO luôn bắt chính mình (bỏ cảnh bắt người đuổi theo)')
+assert.deepEqual(ch.abduct, ['sky.ufo.abductMe', { rank: 1 }])
+assert.deepEqual([me.heroSay, rv.heroSay], [['sky.hero.rescue'], ['sky.hero.rescue']], 'siêu nhân cứu ai cũng nói cùng một câu')
 assert.equal(ufoScript({ ...DEFAULT, rank: null, rival: '' }, true, 'A').abduct, null, 'chưa có hạng thì bỏ câu "Mượn tay vợt hạng …"')
 assert.ok(keys(ufoScript(AWAY, true, 'A').rise).includes('sky.ufo.rise.away'))
 assert.deepEqual([me.thank, rv.thank], [['sky.ufo.thankMe'], ['sky.ufo.thankRival']], 'được siêu nhân cứu: bạn và người kia cảm ơn khác nhau')
@@ -140,21 +139,53 @@ const now = new Date(2026, 9, 17, 23, 0)
 const facts = skyFacts({
   hero: { seasonRank: 1, seasonRankDelta: 1, seasonPointsToNextRank: 0, seasonTargetRival: null },
   form: { streak: 3 },
-  season: [{ name: 'Bạn', points: 287, isMe: true }, { name: 'Hương Giang', points: 283 }],
   lastAt: new Date(2026, 9, 5, 20, 30).getTime(),
   now,
 })
-assert.deepEqual(facts, { rank: 1, rd: 1, gap: 0, rival: '', streak: 3, off: 12, chaser: 'Hương Giang', cg: 4 })
-assert.equal(skyFacts({ hero: null, form: null, season: [], lastAt: 0, now }).off, 0, 'chưa đánh trận nào không phải là "nghỉ lâu"')
-assert.equal(skyFacts({ hero: {}, form: {}, season: [], lastAt: new Date(2026, 9, 17, 6).getTime(), now }).off, 0, 'đánh sáng nay là 0 ngày, không phải 1')
-assert.deepEqual(skyFacts({ now }), { rank: null, rd: 0, gap: 0, rival: '', streak: 0, off: 0, chaser: '', cg: 0 }, 'trang chỉ có nền / chưa ghép thành viên: số liệu rỗng, không throw')
+assert.deepEqual(facts, { rank: 1, rd: 1, gap: 0, rival: '', streak: 3, off: 12 })
+assert.equal(skyFacts({ hero: null, form: null, lastAt: 0, now }).off, 0, 'chưa đánh trận nào không phải là "nghỉ lâu"')
+assert.equal(skyFacts({ hero: {}, form: {}, lastAt: new Date(2026, 9, 17, 6).getTime(), now }).off, 0, 'đánh sáng nay là 0 ngày, không phải 1')
+assert.deepEqual(skyFacts({ now }), { rank: null, rd: 0, gap: 0, rival: '', streak: 0, off: 0 }, 'trang chỉ có nền / chưa ghép thành viên: số liệu rỗng, không throw')
 
 const MS = [{ at: 100, teamA: ['me', 'x'], teamB: ['y', 'z'] }, { at: 300, teamA: ['y', 'z'], teamB: ['x', 'w'] }, { at: 200, teamA: ['y', 'w'], teamB: ['me', 'z'] }, { teamA: ['me'] }]
 assert.equal(lastPlayedAt(MS, 'me'), 200, 'trận gần nhất của MÌNH, không phải của cả CLB')
 assert.equal(lastPlayedAt(MS, 'nobody'), 0)
 assert.equal(lastPlayedAt(undefined, 'me'), 0)
+assert.equal(lastMatchOf(MS, 'me').at, 200)
 
-assert.deepEqual(keys(skyLines(DEFAULT, '').banner).slice(0, 2), ['sky.banner.chores', 'sky.line.near'], 'không có tên thì băng rôn không được kéo " ơi, tối nay đánh không?"')
+/* ---------- tên dài ---------- */
+assert.equal(shortName('Canh lá đắng :)))'), 'Canh lá đắng :)))', 'tên ≤ 20 ký tự giữ nguyên')
+assert.equal(shortName('Tiểu Công Chúa đang muốn đi ngủ'), 'Tiểu Công Chúa đang…', 'cắt ở khoảng trắng gần nhất')
+assert.equal(shortName('Trông kia đàn gà con lông vàng ◕⩊◕ Đi theo mẹ tìm ăn trong vườn  ◍•ᴗ•◍'), 'Trông kia đàn gà…')
+assert.equal(shortName('A'.repeat(30)), 'A'.repeat(20) + '…', 'không có khoảng trắng thì cắt cứng')
+assert.equal(shortName(''), '')
+
+/* ---------- réo tên đối thủ: gạ kèo (băng rôn) & điều ước ---------- */
+assert.equal(beatenBy({ winnerTeam: 'B', teamA: ['me', 'x'], teamB: ['y', 'z'] }, 'me'), 'y', 'thua trận gần nhất → người đội thắng')
+assert.equal(beatenBy({ winnerTeam: 'A', teamA: ['me', 'x'], teamB: ['y', 'z'] }, 'me'), '', 'thắng thì không có ai "vừa thắng mình"')
+assert.equal(beatenBy({ winnerTeam: 'A', teamA: ['y'], teamB: ['me'] }, 'me'), 'y')
+assert.equal(beatenBy({ winnerTeam: null, teamA: ['me'], teamB: ['y'] }, 'me'), '', 'trận chưa có kết quả')
+assert.equal(beatenBy(null, 'me'), '')
+
+const P = (id, female = false) => ({ id, name: 'N' + id, female })
+const TOP = [P('a'), P('me'), P('b', true), P('c'), P('d', true), P('e'), P('f'), P('g', true)]
+assert.deepEqual(skyFoes({ meId: 'me', female: false, top: TOP }).foes, ['Na', 'Nb', 'Nc', 'Nd', 'Ne'], 'nam: 5 người cao nhất BXH mùa, trừ mình')
+assert.deepEqual(skyFoes({ meId: 'me', female: true, top: TOP }).foes, ['Nb', 'Nd', 'Ng'], 'nữ: chỉ réo tên các bạn nữ')
+assert.deepEqual(skyFoes({ meId: 'me', female: true, top: [P('a'), P('c')] }).foes, ['Na', 'Nc'], 'nữ mà BXH không có bạn nữ nào thì lấy như thường')
+assert.deepEqual(skyFoes({ meId: 'me', female: false, top: TOP, arch: P('c') }).foes, ['Nc', 'Na', 'Nb', 'Nd', 'Ne'], 'kỳ phùng địch thủ đứng đầu, không trùng tên')
+assert.deepEqual(skyFoes({ meId: 'me', female: true, top: TOP, arch: P('c') }).foes, ['Nb', 'Nd', 'Ng'], 'nữ: kỳ phùng địch thủ là nam thì bỏ')
+assert.deepEqual(skyFoes({ meId: 'me', female: false }).foes, [], 'chưa có BXH mùa: không réo ai')
+assert.equal(skyFoes({ meId: 'me', top: TOP, arch: P('c'), beatBy: P('z') }).dare, 'Nz', 'gạ kèo: ưu tiên người vừa thắng mình')
+assert.equal(skyFoes({ meId: 'me', top: TOP, arch: P('c') }).dare, 'Nc', 'không ai vừa thắng mình → kỳ phùng địch thủ')
+assert.equal(skyFoes({ meId: 'me', top: TOP }).dare, '', 'không có ai để gạ thì không có câu gạ kèo')
+
+const fo = skyLines({ ...DEFAULT, dare: 'Vương', foes: ['Vương', 'Hương Giang'] }, 'A')
+assert.deepEqual(fo.banner[1], ['sky.banner.dare', { name: 'Vương' }])
+assert.deepEqual(fo.wish.slice(-2), [['sky.wish.own', { foes: ['Vương', 'Hương Giang'] }], ['sky.wish.bonk', { foes: ['Vương', 'Hương Giang'] }]],
+  'điều ước réo tên giữ cả danh sách để tên rút lúc ước')
+assert.ok(!keys(d.wish).includes('sky.wish.own') && !keys(d.banner).includes('sky.banner.dare'), 'không có ai để réo thì không có câu réo tên')
+
+assert.deepEqual(keys(skyLines(DEFAULT, '').banner).slice(0, 2), ['sky.banner.chores', 'sky.banner.moms'], 'không có tên thì băng rôn không được kéo " ơi, tối nay đánh không?"')
 
 /* ---------- trăng ---------- */
 assert.equal(moonAge('full', now), 29.530589 / 2)
@@ -162,16 +193,25 @@ const age = moonAge('lunar', now)
 assert.ok(age >= 0 && age < 29.6, 'tuổi trăng phải nằm trong một chu kỳ')
 
 /* ---------- mọi key nhân vật có thể nói đều có chữ trong vi.json ---------- */
-const all = [DEFAULT, LEADER, AWAY, HOT, { ...DEFAULT, rank: null }].flatMap((st) => {
+const all = [DEFAULT, LEADER, AWAY, HOT, { ...DEFAULT, rank: null }, { ...DEFAULT, dare: 'B', foes: ['B'] }].flatMap((st) => {
   const L = skyLines(st, 'A')
   const u = [true, false].map((m) => ufoScript(st, m, 'A'))
   return [...L.owl, ...L.banner, ...L.hero, ...L.wish, ...u.flatMap((x) => [...x.rise, x.abduct, x.heroSay, x.thank, x.safe, ...x.slip].filter(Boolean))]
-}).concat(UFO_GIVE_BACK, UFO_HUH)
+}).concat(UFO_GIVE_BACK, UFO_HUH, OWL_WAKE)
 const missing = [...new Set(keys(all))].filter((k) => typeof get(k) !== 'string')
 assert.deepEqual(missing, [], 'nhân vật sẽ nói nguyên chuỗi key thay vì câu thoại')
-for (const k of ['sky.you', 'sky.boom', 'sky.wishTitle', 'sky.ufo.huh', 'sky.ufo.hit', 'sky.ufo.slip', 'sky.tip.owl', 'sky.tip.banner', 'sky.tip.hero', 'sky.tip.wish', 'sky.tip.ufo']) {
+for (const k of ['sky.boom', 'sky.ufo.huh', 'sky.ufo.hit', 'sky.ufo.slip', 'sky.owl.zzz', 'sky.owl.pop']) {
   assert.equal(typeof get(k), 'string', 'thiếu chữ ' + k)
 }
 assert.equal(get('sky.cons').length, 6, 'sáu chòm sao vẽ trong SkyBackdrop phải có đủ sáu tên')
+
+/* ---------- hoạt cảnh định kỳ & cú ngủ gật ---------- */
+for (const [act, ms] of Object.entries(SKY_ACT_MS)) {
+  assert.ok(cfg.sky[act + 'FirstMs'] > 0, act + 'FirstMs phải > 0')
+  assert.ok(cfg.sky[act + 'EveryMs'] > ms, act + ': nhịp lặp ' + cfg.sky[act + 'EveryMs'] + ' ms ngắn hơn một lượt diễn ' + ms + ' ms — lượt mới sẽ cắt ngang lượt đang diễn')
+}
+const [idleMin, idleMax] = cfg.sky.owlIdleMs
+assert.ok(idleMin > 0 && idleMin <= idleMax, 'owlIdleMs phải là [min, max] với 0 < min ≤ max')
+assert.equal(UFO_GIVE_BACK.length, 9, 'UFO trả người: 9 câu (thêm galaxy, sweat)')
 
 console.log('sky check: OK')

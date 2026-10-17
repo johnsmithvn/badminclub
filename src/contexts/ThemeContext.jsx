@@ -8,6 +8,12 @@ import { createContext, useCallback, useContext, useEffect, useMemo, useState } 
 const Ctx = createContext(null)
 
 export const THEME_KEY = 'badminclub.theme'
+// Hoạt ảnh nền trời (SkyBackdrop) trên thiết bị này: 'off' = trời đứng yên cho nhẹ máy (Cài đặt → Chung).
+export const SKY_MOTION_KEY = 'badminclub.skyMotion'
+
+function getInitialSkyMotion() {
+  try { return localStorage.getItem(SKY_MOTION_KEY) !== 'off' } catch { return true }
+}
 
 function getInitialTheme() {
   if (typeof window === 'undefined') return 'light'
@@ -25,6 +31,7 @@ function getInitialTheme() {
 
 export function ThemeProvider({ children }) {
   const [theme, setThemeState] = useState(getInitialTheme)
+  const [skyMotion, setSkyMotionState] = useState(getInitialSkyMotion)
 
   // Đồng bộ theme với thẻ <html>, <body> và localStorage
   useEffect(() => {
@@ -55,6 +62,7 @@ export function ThemeProvider({ children }) {
       if (e.key === THEME_KEY && (e.newValue === 'dark' || e.newValue === 'light')) {
         setThemeState(e.newValue)
       }
+      if (e.key === SKY_MOTION_KEY) setSkyMotionState(e.newValue !== 'off')
     }
     window.addEventListener('storage', onStorage)
     return () => window.removeEventListener('storage', onStorage)
@@ -70,12 +78,19 @@ export function ThemeProvider({ children }) {
     }
   }, [])
 
+  const setSkyMotion = useCallback((on) => {
+    setSkyMotionState(on)
+    try { localStorage.setItem(SKY_MOTION_KEY, on ? 'on' : 'off') } catch { /* private mode: chỉ áp dụng phiên này */ }
+  }, [])
+
   const value = useMemo(() => ({
     theme,
     isDark: theme === 'dark',
     toggleTheme,
     setTheme,
-  }), [theme, toggleTheme, setTheme])
+    skyMotion,
+    setSkyMotion,
+  }), [theme, toggleTheme, setTheme, skyMotion, setSkyMotion])
 
   return <Ctx.Provider value={value}>{children}</Ctx.Provider>
 }
@@ -88,6 +103,8 @@ export function useTheme() {
       isDark: false,
       toggleTheme: () => {},
       setTheme: () => {},
+      skyMotion: true,
+      setSkyMotion: () => {},
     }
   }
   return ctx

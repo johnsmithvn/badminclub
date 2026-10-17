@@ -219,6 +219,25 @@
 @keyframes skyWhaleFin { 0%, 100% { transform: rotate(-6deg); } 50% { transform: rotate(10deg); } }
 @keyframes skyTrail { 0% { transform: translate(0, 0) scale(1); opacity: 0; } 12% { opacity: .9; } 100% { transform: translate(var(--dx), var(--dy)) scale(.3); opacity: 0; } }
 @keyframes skySpout { 0%, 70% { transform: translate(0, 0); opacity: 0; } 74% { opacity: 1; } 100% { transform: translate(var(--dx), -34px); opacity: 0; } }
+/* Cá voi nhả bụi sao: giữa lượt bơi (25% chu kỳ skyWhaleSwim) phun vọt lên, rồi lắng & trôi lại phía sau. */
+@keyframes skyWhalePuff { 0%, 24% { transform: translate(0, 0) scale(.4); opacity: 0; } 25% { opacity: 1; } 28% { transform: translate(var(--dx), var(--dy)) scale(1); opacity: 1; } 34% { transform: translate(calc(var(--dx) * 1.3 + var(--dr)), calc(var(--dy) * .7 + 26px)) scale(.8); opacity: .9; } 38% { transform: translate(calc(var(--dx) * 1.4 + var(--dr) * 1.5), calc(var(--dy) * .55 + 40px)) scale(.5); opacity: 0; } 100% { transform: translate(calc(var(--dx) * 1.4 + var(--dr) * 1.5), calc(var(--dy) * .55 + 40px)) scale(.5); opacity: 0; } }
+
+/* Hoạt cảnh trời đêm định kỳ — thời lượng ở lib/sky.js → SKY_ACT_MS (component chỉ dựng lúc đang diễn). */
+/* Chú Cuội (7 s): đứng dậy, lấy đà, vung vợt đánh trúng quả cầu bay vào từ mép phải, cầu văng ra, ngồi lại. */
+@keyframes skyCuoiSit { 0% { opacity: 1; } 6% { opacity: 0; } 90% { opacity: 0; } 96%, 100% { opacity: 1; } }
+@keyframes skyCuoiStand { 0%, 6% { opacity: 0; } 10% { opacity: 1; } 88% { opacity: 1; } 93%, 100% { opacity: 0; } }
+@keyframes skyCuoiSwing { 0%, 14% { transform: rotate(0deg); } 26% { transform: rotate(-70deg); } 36% { transform: rotate(-75deg); } 39% { transform: rotate(0deg); } 43% { transform: rotate(60deg); } 52% { transform: rotate(35deg); } 62%, 100% { transform: rotate(0deg); } }
+@keyframes skyCuoiShuttle { 0%, 20% { opacity: 0; transform: translate(68px, 24px) rotate(-8deg); } 23% { opacity: 1; transform: translate(64px, 25px) rotate(-8deg); } 39% { opacity: 1; transform: translate(39.5px, 31px) rotate(-14deg); } 48% { opacity: 1; transform: translate(53px, 15px) rotate(140deg); } 58% { opacity: 1; transform: translate(70px, 2px) rotate(140deg); } 62%, 100% { opacity: 0; transform: translate(74px, -2px) rotate(140deg); } }
+/* Nguyệt thực trăng máu (32 s): bóng Trái Đất trượt vào, trăng đỏ đồng + quầng đỏ, rồi bóng trượt ra. */
+@keyframes skyEclipseUmbra { 0% { transform: translateX(-115%); opacity: 1; } 22% { transform: translateX(0); opacity: 1; } 32% { opacity: .22; } 68% { opacity: .22; } 78% { transform: translateX(0); opacity: 1; } 100% { transform: translateX(115%); opacity: 1; } }
+@keyframes skyEclipseBlood { 0%, 18% { opacity: 0; } 32% { opacity: .92; } 68% { opacity: .92; } 82%, 100% { opacity: 0; } }
+@keyframes skyEclipseHalo { 0%, 20% { opacity: 0; } 34% { opacity: 1; } 66% { opacity: 1; } 82%, 100% { opacity: 0; } }
+/* Cực quang (30 s): hiện dần, màn sáng uốn lượn + tia dọc trôi, rồi tắt dần. */
+@keyframes skyAurora { 0% { opacity: 0; } 14% { opacity: 1; } 80% { opacity: 1; } 100% { opacity: 0; } }
+@keyframes skyAuroraWave { 0% { transform: translateX(-50px) skewX(-12deg) scaleY(.9); } 50% { transform: translateX(10px) skewX(4deg) scaleY(1.06); } 100% { transform: translateX(50px) skewX(10deg) scaleY(.95); } }
+@keyframes skyAuroraRays { 0% { transform: translateX(0) skewX(-6deg); opacity: .6; } 100% { transform: translateX(40px) skewX(6deg); opacity: 1; } }
+/* Sao băng quả cầu lông lửa (3,6 s): lao chéo xuống trái, --dx / --dy = quãng bay. */
+@keyframes skyFireShuttle { 0% { transform: translate(0, 0); opacity: 0; } 6% { opacity: 1; } 86% { opacity: 1; } 100% { transform: translate(var(--dx), var(--dy)); opacity: 0; } }
 @keyframes skyBubble { 0% { opacity: 0; transform: translateY(4px); } 4% { opacity: 1; transform: translateY(0); } 34% { opacity: 1; transform: translateY(0); } 40% { opacity: 0; transform: translateY(-3px); } 100% { opacity: 0; transform: translateY(-3px); } }
 /* Băng rôn: MỘT lượt bay 16,64 s; nghỉ giữa hai lượt do SkyBackdrop hẹn giờ ngẫu nhiên (app.json → sky.bannerRestMs). */
 @keyframes skyBannerOnce { 0% { transform: translate3d(0, 0, 0); opacity: 0; } 3.85% { opacity: 1; } 96.15% { transform: translate3d(var(--fd, 1960px), 8px, 0); opacity: 1; } 100% { transform: translate3d(var(--fd, 1960px), 8px, 0); opacity: 0; } }
@@ -226,6 +245,19 @@
 @keyframes skyNavBlink { 0%, 60%, 100% { opacity: .15; } 70%, 80% { opacity: 1; } }
 @keyframes skyOwlBlink { 0%, 90%, 100% { transform: scaleY(0); } 94% { transform: scaleY(1); } }
 @keyframes skyOwlTilt { 0%, 100% { transform: rotate(0deg); } 25% { transform: rotate(-14deg); } 60% { transform: rotate(10deg); } }
+/* Cú ngủ gật: gục dần (có một cái giật đầu), rồi thở đều trong tư thế gục; mí sụp có chớp chớp. */
+@keyframes skyOwlDoze { 0% { transform: rotate(0deg) translateY(0) scaleY(1); } 30% { transform: rotate(5deg) translateY(1px) scaleY(.98); } 42% { transform: rotate(1deg) translateY(0) scaleY(1); } 70% { transform: rotate(10deg) translateY(1.5px) scaleY(.96); } 100% { transform: rotate(14deg) translateY(2px) scaleY(.94); } }
+@keyframes skyOwlBreathe { 0%, 100% { transform: rotate(14deg) translateY(2px) scaleY(.94); } 50% { transform: rotate(11deg) translateY(1.4px) scaleY(.97); } }
+@keyframes skyOwlLidClose { 0% { transform: scaleY(0); } 30% { transform: scaleY(.55); } 42% { transform: scaleY(.2); } 70% { transform: scaleY(.85); } 100% { transform: scaleY(1); } }
+@keyframes skyOwlZzz { 0% { opacity: 0; transform: translateY(4px) scale(.3); } 10% { opacity: 1; } 72% { opacity: 1; transform: translateY(-8px) scale(1.25); } 78% { opacity: 0; transform: translateY(-9px) scale(1.5); } 100% { opacity: 0; transform: translateY(-9px) scale(1.5); } }
+@keyframes skyOwlPop { 0%, 74% { opacity: 0; transform: scale(.6); } 79% { opacity: 1; transform: scale(1.15); } 90% { opacity: 1; transform: scale(1); } 96%, 100% { opacity: 0; transform: scale(1); } }
+/* Cú giật mình: bật dậy xù lông, chao suýt ngã rồi đứng vững; mắt tròn xoe, đồng tử co. */
+@keyframes skyOwlStartle { 0% { transform: rotate(14deg) translateY(2px) scale(1, .94); } 10% { transform: rotate(-16deg) translateY(-9px) scale(1.18, 1.14); } 26% { transform: rotate(18deg) translateY(-2px) scale(1.12); } 40% { transform: rotate(-12deg) translateX(-3px) scale(1.08); } 55% { transform: rotate(9deg) scale(1.05); } 72% { transform: rotate(-4deg) scale(1.02); } 100% { transform: none; } }
+@keyframes skyOwlFluff { 0% { opacity: 0; transform: scale(.8); } 12% { opacity: 1; transform: scale(1.12); } 60% { opacity: 1; transform: scale(1); } 100% { opacity: 0; transform: scale(1); } }
+@keyframes skyOwlEyesWide { 0% { transform: scale(1.35); } 60% { transform: scale(1.2); } 100% { transform: scale(1); } }
+@keyframes skyOwlPupil { 0% { transform: scale(.45); } 70% { transform: scale(.6); } 100% { transform: scale(1); } }
+/* Cọng lông rơi lơ lửng xuống đáy màn (--fy = quãng rơi). */
+@keyframes skyFeather { 0% { transform: translate(0, 0) rotate(0deg); opacity: 0; } 6% { opacity: 1; } 25% { transform: translate(16px, calc(var(--fy) * .25)) rotate(28deg); } 50% { transform: translate(-14px, calc(var(--fy) * .5)) rotate(-22deg); } 75% { transform: translate(12px, calc(var(--fy) * .75)) rotate(18deg); } 94% { opacity: .9; } 100% { transform: translate(-4px, var(--fy)) rotate(-8deg); opacity: 0; } }
 @keyframes skyFlame { 0% { transform: scaleY(1); opacity: 1; } 100% { transform: scaleY(.6); opacity: .75; } }
 @keyframes skyFormTop { 0% { transform: translate3d(var(--sx), var(--sy), 0); opacity: 0; } 4% { opacity: 1; } 28% { transform: translate3d(0, 0, 0); } 54% { transform: translate3d(0, 0, 0); opacity: 1; } 76% { transform: translate3d(var(--ex), var(--ey), 0); opacity: 1; } 80% { opacity: 0; } 100% { transform: translate3d(var(--ex), var(--ey), 0); opacity: 0; } }
 @keyframes skyHover { 0%, 100% { transform: translateY(0); } 50% { transform: translateY(-4px); } }

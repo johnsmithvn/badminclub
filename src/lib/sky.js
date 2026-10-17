@@ -13,14 +13,36 @@ export const SKY_CAST = ['owl', 'banner', 'top1', 'hero', 'ufo']
 /** Route nào vẽ nền trời: 'full' (nền + nhân vật), 'bg' (chỉ nền — trang con), null (không). */
 export const skyMode = (route) => (C.routes.includes(route) ? 'full' : C.bgRoutes.includes(route) ? 'bg' : null)
 
-/** Mốc (ms) trận gần nhất có `memberId` trong đội, 0 nếu chưa đánh trận nào. */
-export function lastPlayedAt(matches, memberId) {
-  let last = 0
+/** Trận gần nhất có `memberId` trong đội, null nếu chưa đánh trận nào. */
+export function lastMatchOf(matches, memberId) {
+  let last = null
   for (const m of matches || []) {
-    const at = m?.at || 0
-    if (at > last && ((m.teamA || []).includes(memberId) || (m.teamB || []).includes(memberId))) last = at
+    if ((m?.at || 0) > (last?.at || 0) && ((m.teamA || []).includes(memberId) || (m.teamB || []).includes(memberId))) last = m
   }
   return last
+}
+
+/** Mốc (ms) trận gần nhất có `memberId` trong đội, 0 nếu chưa đánh trận nào. */
+export const lastPlayedAt = (matches, memberId) => lastMatchOf(matches, memberId)?.at || 0
+
+/** `memberId` thua trận `m` thì trả id người đầu đội thắng, không thì '' (thắng / chưa có kết quả). */
+export function beatenBy(m, memberId) {
+  if (!m?.winnerTeam) return ''
+  const inA = (m.teamA || []).includes(memberId)
+  if ((m.winnerTeam === 'A') === inA) return ''
+  return ((inA ? m.teamB : m.teamA) || [])[0] || ''
+}
+
+/**
+ * Tên chèn vào câu thoại: dài quá `max` ký tự thì cắt, ưu tiên cắt ở khoảng trắng, thêm "…". CLB có tên
+ * hơn 70 ký tự (kèm mặt cười ◕⩊◕) — để nguyên thì bóng thoại / thẻ điều ước dài ba bốn dòng.
+ */
+export function shortName(s, max = 20) {
+  const ch = Array.from(String(s || '').trim())
+  if (ch.length <= max) return ch.join('')
+  const cut = ch.slice(0, max).join('')
+  const sp = cut.lastIndexOf(' ')
+  return (sp >= max / 2 ? cut.slice(0, sp) : cut).trimEnd() + '…'
 }
 
 /** Khuya: từ lateFrom giờ tối tới trước lateUntil giờ sáng. */
@@ -77,15 +99,11 @@ export function drawCast(left, late, r = Math.random) {
  * @param {object} p
  * @param {object} p.hero    getMyHeroStats
  * @param {object} p.form    getPlayerForm5
- * @param {Array}  p.season  getSurroundingSeasonStandings (cần dòng ngay dưới mình khi đang hạng 1)
  * @param {number} p.lastAt  mốc trận gần nhất của mình (ms), 0 = chưa đánh trận nào
  * @param {Date}   p.now
  */
-export function skyFacts({ hero, form, season, lastAt, now }) {
+export function skyFacts({ hero, form, lastAt, now }) {
   const rank = hero?.seasonRank || null
-  const rows = season || []
-  const meIdx = rows.findIndex((r) => r.isMe)
-  const below = rank === 1 && meIdx >= 0 ? rows[meIdx + 1] : null
   const dayOf = (ms) => new Date(ms).setHours(0, 0, 0, 0)
   return {
     rank,
@@ -94,9 +112,24 @@ export function skyFacts({ hero, form, season, lastAt, now }) {
     rival: rank > 1 ? hero?.seasonTargetRival?.name || '' : '',
     streak: form?.streak || 0,
     off: lastAt ? Math.max(0, Math.round((dayOf(now) - dayOf(lastAt)) / DAY)) : 0,
-    chaser: below?.name || '',
-    cg: below ? Math.max(0, (rows[meIdx].points || 0) - (below.points || 0)) : 0,
   }
+}
+
+/**
+ * Người để nhân vật réo tên. Mỗi người dạng { id, name, female }: `top` = BXH mùa theo hạng, `arch` =
+ * kỳ phùng địch thủ (activity.js → getPersonalHighlights), `beatBy` = người vừa thắng mình ở trận gần nhất.
+ * - `dare` (băng rôn "Gạ kèo …"): người vừa thắng mình, không có thì kỳ phùng địch thủ.
+ * - `foes` (điều ước réo tên): kỳ phùng địch thủ + 5 người cao nhất BXH mùa, trừ mình. Người xem là nữ
+ *   thì chỉ lấy nữ (kỳ phùng địch thủ nếu là nữ + 5 bạn nữ cao nhất); không có ai thì lấy như thường.
+ */
+export function skyFoes({ meId, female, top = [], arch = null, beatBy = null }) {
+  const pick = (girls) => {
+    const ok = (p) => p && p.id !== meId && (!girls || p.female)
+    const ppl = [arch, ...top.filter(ok).slice(0, 5)].filter(ok)
+    return [...new Map(ppl.map((p) => [p.id, p.name])).values()]
+  }
+  const girls = female ? pick(true) : []
+  return { dare: beatBy?.name || arch?.name || '', foes: girls.length ? girls : pick(false) }
 }
 
 /** Câu theo số liệu — dùng chung cho cú mèo, băng rôn, siêu nhân. */
@@ -104,14 +137,7 @@ function dataLines(st) {
   const out = []
   const away = st.off >= C.awayDays
   if (away) out.push(['sky.line.missRacket'], ['sky.line.daysOff', { n: st.off }])
-  if (st.rank === 1) {
-    out.push(['sky.line.leader'])
-    if (st.chaser) out.push(['sky.line.chaser', { name: st.chaser, n: st.cg }])
-  } else if (st.rank > 1 && st.rival && st.gap <= C.nearGap) {
-    out.push(['sky.line.near', { n: st.gap, name: st.rival }])
-  } else if (st.rank > 1) {
-    out.push(['sky.line.far', { rank: st.rank - 1, n: st.gap }])
-  }
+  if (st.rank === 1) out.push(['sky.line.leader'])
   if (st.rd < 0 && !away) out.push(['sky.line.drop', { n: -st.rd }])
   if (st.rd > 0 && st.rank > 1) out.push(['sky.line.rise', { n: st.rd }])
   if (st.streak >= C.streakMin) out.push(['sky.line.streak', { n: st.streak }])
@@ -128,32 +154,27 @@ export function skyLines(st, name) {
   return {
     owl: (away ? [] : [['sky.owl.sleep'], ['sky.owl.peek'], ['sky.owl.hunt'], ['sky.owl.late'], ['sky.owl.bed']]).concat(dl),
     // Nghỉ lâu: câu "Vợt đang nhớ bạn đấy" lên đầu băng rôn bản không mặt cười, nên bỏ câu cùng ý trong dl.
-    // Chưa ghép thành viên (không có tên) thì bỏ câu gọi tên.
+    // Chưa ghép thành viên (không có tên) thì bỏ câu gọi tên. Nghỉ lâu thì bỏ câu "trốn đi đánh cầu hơi nhiều".
     banner: (away ? [['sky.banner.missRacket']] : name ? [['sky.banner.tonight', { name }]] : [])
-      .concat([['sky.banner.chores']], dl.slice(away ? 1 : 0)),
-    hero: [['sky.hero.top1'], ['sky.hero.saveWorld'], ['sky.hero.forgotBag'], ['sky.hero.supersonic']].concat(dl),
+      .concat(st.dare ? [['sky.banner.dare', { name: st.dare }]] : [])
+      .concat([['sky.banner.chores'], ['sky.banner.moms'], ['sky.banner.wow']], away ? [] : [['sky.banner.sneak']], [['sky.banner.hoaSen']])
+      .concat(dl.slice(away ? 1 : 0)),
+    hero: [['sky.hero.top1'], ['sky.hero.saveWorld'], ['sky.hero.forgotBag'], ['sky.hero.supersonic'], ['sky.hero.riceCooker'], ['sky.hero.noRacket']].concat(dl),
     wish: [['sky.wish.smash'], ['sky.wish.net']]
       .concat(st.rival ? [['sky.wish.pass', { name: st.rival }]] : [])
-      .concat([
-        ['sky.wish.court'],
-        ['sky.wish.feather'],
-        ['sky.wish.partner'],
-        ['sky.wish.string'],
-        ['sky.wish.miss'],
-        ['sky.wish.wife'],
-        ['sky.wish.both'],
-        ['sky.wish.serve'],
-      ]),
+      .concat([['sky.wish.feather'], ['sky.wish.partner'], ['sky.wish.miss'], ['sky.wish.both'], ['sky.wish.serve'], ['sky.wish.vibe'], ['sky.wish.boss']])
+      // Réo tên đối thủ: tên rút lúc ước (túi xáo riêng), nên giữ cả danh sách `foes` trong tham số.
+      .concat(st.foes?.length ? [['sky.wish.own', { foes: st.foes }], ['sky.wish.bonk', { foes: st.foes }]] : []),
   }
 }
 
 /**
- * Cảnh UFO bắt cóc. `isMe`: bắt chính mình (áo teal) hay người kề mình trên BXH (áo hồng):
- * đang hạng 1 thì là người đuổi theo, không thì là người ngay trên. Không có ai kề → luôn là mình.
+ * Cảnh UFO bắt cóc. `isMe`: bắt chính mình (áo teal) hay người ngay trên mình trên BXH (áo hồng).
+ * Đang hạng 1 / chưa có hạng (không có người trên) → luôn là mình.
  * Trả về người bị bắt, các câu kêu (cảnh rút 1 câu bằng túi xáo) và lời của năm kết cục (UFO_OUTCOMES).
  */
 export function ufoScript(st, isMe, name) {
-  const victim = st.rank === 1 ? st.chaser : st.rival
+  const victim = st.rank > 1 ? st.rival : ''
   const me = isMe || !victim
   const rise = me
     ? [['sky.ufo.rise.court'], ['sky.ufo.rise.letGo']]
@@ -161,8 +182,7 @@ export function ufoScript(st, isMe, name) {
       .concat(st.rank === 1 ? [['sky.ufo.rise.leader']] : [])
       .concat(st.streak >= C.streakMin ? [['sky.ufo.rise.streak', { n: st.streak }]] : [])
       .concat(st.off >= C.awayDays ? [['sky.ufo.rise.away', { n: st.off }]] : [])
-    : [['sky.ufo.rise.court'], ['sky.ufo.rise.help', { name }],
-      st.rank > 1 ? ['sky.ufo.rise.ahead', { name, n: st.gap }] : ['sky.ufo.rise.chasing', { name }]]
+    : [['sky.ufo.rise.court'], ['sky.ufo.rise.help', { name }], ['sky.ufo.rise.ahead', { name, n: st.gap }]]
   return {
     me,
     victim: me ? '' : victim,
@@ -170,9 +190,9 @@ export function ufoScript(st, isMe, name) {
     // Chưa có hạng thì không có câu "Mượn tay vợt hạng …" → bỏ kết cục bắt cóc.
     abduct: me
       ? st.rank ? ['sky.ufo.abductMe', { rank: st.rank }] : null
-      : [st.rank > 1 ? 'sky.ufo.abductRival' : 'sky.ufo.abductChaser', { name: victim }],
+      : ['sky.ufo.abductRival', { name: victim }],
     // Siêu nhân cứu: siêu nhân nói, người được cứu cảm ơn.
-    heroSay: me ? ['sky.hero.rescueMe'] : ['sky.hero.rescueRival'],
+    heroSay: ['sky.hero.rescue'],
     thank: me ? ['sky.ufo.thankMe'] : ['sky.ufo.thankRival'],
     // Bị bắn rơi: người bung dù đáp xuống.
     safe: me ? ['sky.ufo.safeMe'] : ['sky.ufo.safeRival', { name }],
@@ -188,10 +208,20 @@ export const UFO_GIVE_BACK = [
   ['sky.ufo.giveBack.doubles'],
   ['sky.ufo.giveBack.elo'],
   ['sky.ufo.giveBack.boba'],
-  ['sky.ufo.giveBack.tension'],
+  ['sky.ufo.giveBack.heavy'],
   ['sky.ufo.giveBack.roof'],
+  ['sky.ufo.giveBack.galaxy'],
+  ['sky.ufo.giveBack.sweat'],
 ]
-export const UFO_HUH = [['sky.ufo.huhBack.a'], ['sky.ufo.huhBack.b'], ['sky.ufo.huhBack.c'], ['sky.ufo.huhBack.d']]
+/**
+ * Thời lượng một lượt hoạt cảnh trời đêm định kỳ (ms) — khớp keyframe ở effects.css. Nhịp lặp
+ * (app.json → sky.*EveryMs) phải dài hơn, không thì lượt mới cắt ngang lượt đang diễn.
+ */
+export const SKY_ACT_MS = { aurora: 30000, cuoi: 7000, fireShuttle: 3600, eclipse: 32000 }
+
+/** Cú mèo bị bấm đánh thức khi đang ngủ gật (rút 1 bằng túi xáo). */
+export const OWL_WAKE = [['sky.owl.wake.dream'], ['sky.owl.wake.fall']]
+export const UFO_HUH =[['sky.ufo.huhBack.a'], ['sky.ufo.huhBack.b'], ['sky.ufo.huhBack.c'], ['sky.ufo.huhBack.d']]
 
 /**
  * Năm kết cục UFO: bắt cóc · siêu nhân cứu · bị bắn rơi · tia chập tuột · trả lại. Rút bằng túi xáo
