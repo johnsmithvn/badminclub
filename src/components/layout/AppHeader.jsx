@@ -4,6 +4,7 @@ import { useTheme } from '#contexts/ThemeContext.jsx'
 import { useMobile } from '#hooks/useMobile.js'
 import { pageOf } from '#routes'
 import { can, footerSlots } from '#lib/roles.js'
+import { skyMode } from '#lib/sky.js'
 import { monthTxt } from '#utils/dates.js'
 import { adhocForm, scheduleForm, memberForm } from '#lib/forms.js'
 import NotificationBell from '#components/notification/NotificationBell.jsx'
@@ -111,7 +112,8 @@ function MobileUnifiedHeader({
   const hasTitle = !inMobileNav
 
   return (
-    <header style={S.mobileHeaderH4}>
+    // Trang có nền bầu trời: header thành kính (như footer nav) để thấy trăng và nhân vật phía sau.
+    <header style={skyMode(route) ? { ...S.mobileHeaderH4, ...S.mobileHeaderSky } : S.mobileHeaderH4}>
       {/* Vòng hào quang góc phải theo thiết kế H4 */}
       <div style={S.glowCircleH4} />
 
@@ -328,6 +330,7 @@ const S = {
     borderBottom: '1px solid #2A3A58',
     overflow: 'hidden',
   },
+  mobileHeaderSky: { background: 'var(--surface-nav)', borderBottom: '1px solid var(--border-nav)' },
   glowCircleH4: {
     position: 'absolute',
     top: -56,

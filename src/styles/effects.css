@@ -192,3 +192,137 @@
 @keyframes skSlam { 0% { opacity: 0; transform: scale(1.5) rotate(-4deg); } 55% { opacity: 1; transform: scale(.94) rotate(1deg); } 75% { transform: scale(1.03); } 100% { opacity: 1; transform: none; } }
 @keyframes skWobble { 0%, 100% { transform: rotate(-8deg); } 50% { transform: rotate(8deg) translateY(-3px); } }
 @keyframes skBonk { 0% { transform: scale(0) rotate(-30deg); } 60% { transform: scale(1.25) rotate(10deg); } 100% { transform: scale(1) rotate(0); } }
+
+/* Nền bầu trời (layout/SkyBackdrop.jsx). Animation viết inline nên tên keyframe là hợp đồng —
+   đổi tên phải tìm cả chuỗi 'sky<Tên> ' trong SkyBackdrop.jsx. Biến --dx/--dy/--by/--fd/--wd/--wdy/
+   --sx/--sy/--ex/--ey/--x1..--y3 đặt inline trên từng phần tử. */
+@keyframes skyTwinkle { 0%, 100% { opacity: .2; } 50% { opacity: .9; } }
+@keyframes skyTwinkleB { 0%, 100% { opacity: .55; } 50% { opacity: 1; } }
+@keyframes skyStarPulse { 0%, 100% { opacity: .5; transform: scale(.8) rotate(0deg); } 50% { opacity: 1; transform: scale(1.1) rotate(12deg); } }
+@keyframes skyShoot { 0% { transform: translate3d(0, 0, 0) rotate(-28deg); opacity: 0; } 1.5% { opacity: 1; } 8% { transform: translate3d(-560px, 298px, 0) rotate(-28deg); opacity: 0; } 100% { transform: translate3d(-560px, 298px, 0) rotate(-28deg); opacity: 0; } }
+@keyframes skyComet { 0% { transform: translate3d(0, 0, 0); opacity: 0; } 4% { opacity: 1; } 38% { opacity: 1; } 44% { transform: translate3d(-1750px, 310px, 0); opacity: 0; } 100% { transform: translate3d(-1750px, 310px, 0); opacity: 0; } }
+@keyframes skyNeb { 0% { transform: translate3d(0, 0, 0) scale(1); } 100% { transform: translate3d(50px, -30px, 0) scale(1.12); } }
+@keyframes skyMoonGlow { 0% { transform: scale(1); opacity: .8; } 100% { transform: scale(1.1); opacity: 1; } }
+@keyframes skySunBreath { 0% { transform: scale(1); opacity: .85; } 100% { transform: scale(1.07); opacity: 1; } }
+@keyframes skyDrift { 0% { transform: translate3d(0, 0, 0); } 100% { transform: translate3d(var(--dx), 0, 0); } }
+@keyframes skyBob { 0% { transform: translate3d(0, 0, 0); } 100% { transform: translate3d(0, var(--by), 0); } }
+@keyframes skySea { to { transform: translate3d(-1440px, 0, 0); } }
+@keyframes skyMist { 0% { transform: translate3d(-90px, 0, 0); opacity: .6; } 100% { transform: translate3d(90px, 10px, 0); opacity: 1; } }
+@keyframes skyFlap { 0% { transform: scaleY(1); } 100% { transform: scaleY(-.45); } }
+/* Đàn chim: bay ~17,5 s qua màn rồi nghỉ 44 s (chu kỳ 62,24 s — duration ở SkyBackdrop.jsx). */
+@keyframes skyBirds { 0% { transform: translate3d(0, 0, 0); opacity: 0; } 1.22% { opacity: 1; } 28.08% { transform: translate3d(-1720px, -80px, 0); opacity: 1; } 29.31% { opacity: 0; } 100% { transform: translate3d(-1720px, -80px, 0); opacity: 0; } }
+@keyframes skyPlane { 0% { transform: translate3d(0, 0, 0); opacity: 0; } 1.5% { opacity: 1; } 40% { transform: translate3d(1760px, -50px, 0); opacity: 1; } 41.5% { opacity: 0; } 100% { transform: translate3d(1760px, -50px, 0); opacity: 0; } }
+@keyframes skyFloatUp { 0% { transform: translate3d(0, 0, 0); opacity: 0; } 15% { opacity: .9; } 80% { opacity: .9; } 100% { transform: translate3d(var(--dx), var(--dy), 0); opacity: 0; } }
+@keyframes skyWhaleSwim { 0% { transform: translate3d(0, 0, 0); opacity: 0; } 3% { opacity: 1; } 55% { transform: translate3d(var(--wd, -1840px), var(--wdy, 50px), 0); opacity: 1; } 58% { opacity: 0; } 100% { transform: translate3d(var(--wd, -1840px), var(--wdy, 50px), 0); opacity: 0; } }
+@keyframes skyWhaleBob { 0%, 100% { transform: translateY(0) rotate(-2deg); } 50% { transform: translateY(14px) rotate(2deg); } }
+@keyframes skyWhaleTail { 0%, 100% { transform: rotate(-10deg); } 50% { transform: rotate(12deg); } }
+@keyframes skyWhaleFin { 0%, 100% { transform: rotate(-6deg); } 50% { transform: rotate(10deg); } }
+@keyframes skyTrail { 0% { transform: translate(0, 0) scale(1); opacity: 0; } 12% { opacity: .9; } 100% { transform: translate(var(--dx), var(--dy)) scale(.3); opacity: 0; } }
+@keyframes skySpout { 0%, 70% { transform: translate(0, 0); opacity: 0; } 74% { opacity: 1; } 100% { transform: translate(var(--dx), -34px); opacity: 0; } }
+/* Cá voi nhả bụi sao: giữa lượt bơi (25% chu kỳ skyWhaleSwim) phun vọt lên, rồi lắng & trôi lại phía sau. */
+@keyframes skyWhalePuff { 0%, 24% { transform: translate(0, 0) scale(.4); opacity: 0; } 25% { opacity: 1; } 28% { transform: translate(var(--dx), var(--dy)) scale(1); opacity: 1; } 34% { transform: translate(calc(var(--dx) * 1.3 + var(--dr)), calc(var(--dy) * .7 + 26px)) scale(.8); opacity: .9; } 38% { transform: translate(calc(var(--dx) * 1.4 + var(--dr) * 1.5), calc(var(--dy) * .55 + 40px)) scale(.5); opacity: 0; } 100% { transform: translate(calc(var(--dx) * 1.4 + var(--dr) * 1.5), calc(var(--dy) * .55 + 40px)) scale(.5); opacity: 0; } }
+
+/* Hoạt cảnh trời đêm định kỳ — thời lượng ở lib/sky.js → SKY_ACT_MS (component chỉ dựng lúc đang diễn). */
+/* Chú Cuội (7 s): đứng dậy, lấy đà, vung vợt đánh trúng quả cầu bay vào từ mép phải, cầu văng ra, ngồi lại. */
+@keyframes skyCuoiSit { 0% { opacity: 1; } 6% { opacity: 0; } 90% { opacity: 0; } 96%, 100% { opacity: 1; } }
+@keyframes skyCuoiStand { 0%, 6% { opacity: 0; } 10% { opacity: 1; } 88% { opacity: 1; } 93%, 100% { opacity: 0; } }
+@keyframes skyCuoiSwing { 0%, 14% { transform: rotate(0deg); } 26% { transform: rotate(-70deg); } 36% { transform: rotate(-75deg); } 39% { transform: rotate(0deg); } 43% { transform: rotate(60deg); } 52% { transform: rotate(35deg); } 62%, 100% { transform: rotate(0deg); } }
+@keyframes skyCuoiShuttle { 0%, 20% { opacity: 0; transform: translate(68px, 24px) rotate(-8deg); } 23% { opacity: 1; transform: translate(64px, 25px) rotate(-8deg); } 39% { opacity: 1; transform: translate(39.5px, 31px) rotate(-14deg); } 48% { opacity: 1; transform: translate(53px, 15px) rotate(140deg); } 58% { opacity: 1; transform: translate(70px, 2px) rotate(140deg); } 62%, 100% { opacity: 0; transform: translate(74px, -2px) rotate(140deg); } }
+/* Nguyệt thực trăng máu (32 s): bóng Trái Đất trượt vào, trăng đỏ đồng + quầng đỏ, rồi bóng trượt ra. */
+@keyframes skyEclipseUmbra { 0% { transform: translateX(-115%); opacity: 1; } 22% { transform: translateX(0); opacity: 1; } 32% { opacity: .22; } 68% { opacity: .22; } 78% { transform: translateX(0); opacity: 1; } 100% { transform: translateX(115%); opacity: 1; } }
+@keyframes skyEclipseBlood { 0%, 18% { opacity: 0; } 32% { opacity: .92; } 68% { opacity: .92; } 82%, 100% { opacity: 0; } }
+@keyframes skyEclipseHalo { 0%, 20% { opacity: 0; } 34% { opacity: 1; } 66% { opacity: 1; } 82%, 100% { opacity: 0; } }
+/* Cực quang (30 s): hiện dần, màn sáng uốn lượn + tia dọc trôi, rồi tắt dần. */
+@keyframes skyAurora { 0% { opacity: 0; } 14% { opacity: 1; } 80% { opacity: 1; } 100% { opacity: 0; } }
+@keyframes skyAuroraWave { 0% { transform: translateX(-50px) skewX(-12deg) scaleY(.9); } 50% { transform: translateX(10px) skewX(4deg) scaleY(1.06); } 100% { transform: translateX(50px) skewX(10deg) scaleY(.95); } }
+@keyframes skyAuroraRays { 0% { transform: translateX(0) skewX(-6deg); opacity: .6; } 100% { transform: translateX(40px) skewX(6deg); opacity: 1; } }
+/* Sao băng quả cầu lông lửa (3,6 s): lao chéo xuống trái, --dx / --dy = quãng bay. */
+@keyframes skyFireShuttle { 0% { transform: translate(0, 0); opacity: 0; } 6% { opacity: 1; } 86% { opacity: 1; } 100% { transform: translate(var(--dx), var(--dy)); opacity: 0; } }
+@keyframes skyBubble { 0% { opacity: 0; transform: translateY(4px); } 4% { opacity: 1; transform: translateY(0); } 34% { opacity: 1; transform: translateY(0); } 40% { opacity: 0; transform: translateY(-3px); } 100% { opacity: 0; transform: translateY(-3px); } }
+/* Băng rôn: MỘT lượt bay 16,64 s; nghỉ giữa hai lượt do SkyBackdrop hẹn giờ ngẫu nhiên (app.json → sky.bannerRestMs). */
+@keyframes skyBannerOnce { 0% { transform: translate3d(0, 0, 0); opacity: 0; } 3.85% { opacity: 1; } 96.15% { transform: translate3d(var(--fd, 1960px), 8px, 0); opacity: 1; } 100% { transform: translate3d(var(--fd, 1960px), 8px, 0); opacity: 0; } }
+@keyframes skyFlagWave { 0% { transform: skewY(-2deg); } 100% { transform: skewY(2deg); } }
+@keyframes skyNavBlink { 0%, 60%, 100% { opacity: .15; } 70%, 80% { opacity: 1; } }
+@keyframes skyOwlBlink { 0%, 90%, 100% { transform: scaleY(0); } 94% { transform: scaleY(1); } }
+@keyframes skyOwlTilt { 0%, 100% { transform: rotate(0deg); } 25% { transform: rotate(-14deg); } 60% { transform: rotate(10deg); } }
+/* Cú ngủ gật: gục dần (có một cái giật đầu), rồi thở đều trong tư thế gục; mí sụp có chớp chớp. */
+@keyframes skyOwlDoze { 0% { transform: rotate(0deg) translateY(0) scaleY(1); } 30% { transform: rotate(5deg) translateY(1px) scaleY(.98); } 42% { transform: rotate(1deg) translateY(0) scaleY(1); } 70% { transform: rotate(10deg) translateY(1.5px) scaleY(.96); } 100% { transform: rotate(14deg) translateY(2px) scaleY(.94); } }
+@keyframes skyOwlBreathe { 0%, 100% { transform: rotate(14deg) translateY(2px) scaleY(.94); } 50% { transform: rotate(11deg) translateY(1.4px) scaleY(.97); } }
+@keyframes skyOwlLidClose { 0% { transform: scaleY(0); } 30% { transform: scaleY(.55); } 42% { transform: scaleY(.2); } 70% { transform: scaleY(.85); } 100% { transform: scaleY(1); } }
+@keyframes skyOwlZzz { 0% { opacity: 0; transform: translateY(4px) scale(.3); } 10% { opacity: 1; } 72% { opacity: 1; transform: translateY(-8px) scale(1.25); } 78% { opacity: 0; transform: translateY(-9px) scale(1.5); } 100% { opacity: 0; transform: translateY(-9px) scale(1.5); } }
+@keyframes skyOwlPop { 0%, 74% { opacity: 0; transform: scale(.6); } 79% { opacity: 1; transform: scale(1.15); } 90% { opacity: 1; transform: scale(1); } 96%, 100% { opacity: 0; transform: scale(1); } }
+/* Cú giật mình: bật dậy xù lông, chao suýt ngã rồi đứng vững; mắt tròn xoe, đồng tử co. */
+@keyframes skyOwlStartle { 0% { transform: rotate(14deg) translateY(2px) scale(1, .94); } 10% { transform: rotate(-16deg) translateY(-9px) scale(1.18, 1.14); } 26% { transform: rotate(18deg) translateY(-2px) scale(1.12); } 40% { transform: rotate(-12deg) translateX(-3px) scale(1.08); } 55% { transform: rotate(9deg) scale(1.05); } 72% { transform: rotate(-4deg) scale(1.02); } 100% { transform: none; } }
+@keyframes skyOwlFluff { 0% { opacity: 0; transform: scale(.8); } 12% { opacity: 1; transform: scale(1.12); } 60% { opacity: 1; transform: scale(1); } 100% { opacity: 0; transform: scale(1); } }
+@keyframes skyOwlEyesWide { 0% { transform: scale(1.35); } 60% { transform: scale(1.2); } 100% { transform: scale(1); } }
+@keyframes skyOwlPupil { 0% { transform: scale(.45); } 70% { transform: scale(.6); } 100% { transform: scale(1); } }
+/* Cọng lông rơi lơ lửng xuống đáy màn (--fy = quãng rơi). */
+@keyframes skyFeather { 0% { transform: translate(0, 0) rotate(0deg); opacity: 0; } 6% { opacity: 1; } 25% { transform: translate(16px, calc(var(--fy) * .25)) rotate(28deg); } 50% { transform: translate(-14px, calc(var(--fy) * .5)) rotate(-22deg); } 75% { transform: translate(12px, calc(var(--fy) * .75)) rotate(18deg); } 94% { opacity: .9; } 100% { transform: translate(-4px, var(--fy)) rotate(-8deg); opacity: 0; } }
+@keyframes skyFlame { 0% { transform: scaleY(1); opacity: 1; } 100% { transform: scaleY(.6); opacity: .75; } }
+@keyframes skyFormTop { 0% { transform: translate3d(var(--sx), var(--sy), 0); opacity: 0; } 4% { opacity: 1; } 28% { transform: translate3d(0, 0, 0); } 54% { transform: translate3d(0, 0, 0); opacity: 1; } 76% { transform: translate3d(var(--ex), var(--ey), 0); opacity: 1; } 80% { opacity: 0; } 100% { transform: translate3d(var(--ex), var(--ey), 0); opacity: 0; } }
+@keyframes skyHover { 0%, 100% { transform: translateY(0); } 50% { transform: translateY(-4px); } }
+@keyframes skyWobble { 0%, 100% { transform: rotate(-3deg); } 50% { transform: rotate(3deg); } }
+@keyframes skySway { 0% { transform: rotate(-6deg); } 100% { transform: rotate(6deg); } }
+@keyframes skyCapeFlap { 0% { transform: scaleY(1) skewX(0deg); } 100% { transform: scaleY(.82) skewX(-8deg); } }
+@keyframes skyConsShow { 0% { opacity: 0; } 3% { opacity: 1; } 11% { opacity: 1; } 14% { opacity: 0; } 100% { opacity: 0; } }
+@keyframes skyConsLine { 0% { stroke-dashoffset: 1; } 3% { stroke-dashoffset: 1; } 8% { stroke-dashoffset: 0; } 100% { stroke-dashoffset: 0; } }
+@keyframes skyFfWander { 0%, 100% { transform: translate3d(0, 0, 0); } 25% { transform: translate3d(var(--x1), var(--y1), 0); } 50% { transform: translate3d(var(--x2), var(--y2), 0); } 75% { transform: translate3d(var(--x3), var(--y3), 0); } }
+@keyframes skyFfBlink { 0%, 100% { opacity: .15; } 50% { opacity: 1; } }
+@keyframes skyShower { 0% { transform: translate3d(0, 0, 0) rotate(-28deg); opacity: 0; } .4% { opacity: 1; } 2.6% { transform: translate3d(-460px, 245px, 0) rotate(-28deg); opacity: 0; } 100% { transform: translate3d(-460px, 245px, 0) rotate(-28deg); opacity: 0; } }
+
+/* Kính cho nền bầu trời: AppLayout gắn [data-sky] ở các route có nền (app.json → sky.routes /
+   bgRoutes). Chỉ surface-card / inset / nav / field (và hai nền soft của bản sáng) có độ trong để
+   thấy trời phía sau — cùng màu với tokens/dark.css · semantic.css, chỉ thêm alpha. Dialog dùng
+   surface-overlay nên vẫn đặc. */
+[data-sky] {
+  --surface-card: rgba(255, 255, 255, .74);
+  --surface-inset: rgba(250, 251, 253, .65);
+  --surface-nav: rgba(13, 43, 94, .70);
+  --surface-accent-soft: rgba(239, 251, 250, .92);
+  --surface-brand-soft: rgba(239, 245, 253, .92);
+  --field-bg: rgba(255, 255, 255, .74);
+}
+[data-theme="dark"] [data-sky], .theme-dark [data-sky] {
+  --surface-card: rgba(20, 29, 46, .74);
+  --surface-inset: rgba(16, 25, 39, .65);
+  --surface-nav: rgba(8, 15, 28, .70);
+  --surface-accent-soft: rgba(0, 178, 169, .14);
+  --surface-brand-soft: rgba(60, 116, 196, .14);
+  --field-bg: rgba(16, 25, 39, .65);
+}
+/* Mờ trời sau thẻ và thanh điều hướng (sidebar, footer nav, header mobile). Thẻ viết style inline
+   nên bắt theo chuỗi token trong style; thẻ lồng trong thẻ (nút gạt, avatar viền) không mờ lần nữa. */
+[data-sky] :is(nav, header)[style*="var(--surface-nav)"],
+[data-sky] [style*="var(--surface-card)"] {
+  -webkit-backdrop-filter: saturate(160%) blur(14px);
+  backdrop-filter: saturate(160%) blur(14px);
+}
+[data-sky] [style*="var(--surface-card)"] [style*="var(--surface-card)"] {
+  -webkit-backdrop-filter: none;
+  backdrop-filter: none;
+}
+/* Ô / thanh dính (cột ghim của bảng, thanh lọc): nội dung cuộn chui bên dưới nền đã trong, phải mờ
+   đi để chữ phía trên đọc được — kể cả khi nằm trong thẻ. */
+[data-sky] [style*="position: sticky"][style*="background"] {
+  -webkit-backdrop-filter: saturate(160%) blur(14px);
+  backdrop-filter: saturate(160%) blur(14px);
+}
+/* backdrop-filter biến phần tử thành khung chứa của con `position: fixed` (như transform): lớp phủ
+   bấm-ra-ngoài của menu (sidebar, thẻ kèo ArenaChallengeCard…) hay modal render bên trong thẻ sẽ chỉ
+   phủ trong thẻ. Bên trong đang có con fixed thì tạm bỏ mờ. Chỉ xét đúng các phần tử bị làm mờ ở
+   trên — app viết style inline nên `[style]:has(...)` trần sẽ bắt trình duyệt dò con cháu của gần
+   như mọi phần tử. Đặt cuối, độ ưu tiên ≥ luật làm mờ tương ứng, để luôn thắng. */
+[data-sky] :is(nav, header)[style*="var(--surface-nav)"]:has([style*="position: fixed"]),
+[data-sky] [style*="var(--surface-card)"]:has([style*="position: fixed"]),
+[data-sky] [style*="position: sticky"][style*="background"]:has([style*="position: fixed"]) {
+  -webkit-backdrop-filter: none;
+  backdrop-filter: none;
+}
+/* Có dialog / lớp phủ mờ toàn màn đang mở: dừng hoạt hình trời. Lớp mờ đó phải làm mờ lại cả màn
+   mỗi khung hình nếu trời phía sau còn chạy — gõ form trong dialog trên máy yếu sẽ giật. */
+[data-sky]:has([aria-modal="true"], [style*="position: fixed"][style*="backdrop-filter"]) [data-sky-fx] * {
+  animation-play-state: paused;
+}
+@media (prefers-reduced-motion: reduce) {
+  [data-sky-fx] * { animation: none !important; }
+}

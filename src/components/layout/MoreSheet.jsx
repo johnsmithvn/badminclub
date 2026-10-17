@@ -1,5 +1,6 @@
 // Sheet "Thêm" dán đáy trên mobile (Handoff N1 & §B2).
-// Dùng <Dialog sheet>, mọi màu qua token CSS var(--*), giữ đủ mục sidebar và tính năng Chia sân.
+// Dùng <Dialog sheet>, mọi màu qua token CSS var(--*), giữ các mục sidebar trừ trang trong
+// app.json → ui.mobileHidden, và tính năng Chia sân.
 
 import { useState } from 'react'
 import { useNavigate } from 'react-router-dom'
@@ -10,6 +11,7 @@ import { PUBLIC_PATHS } from '#routes'
 import { allowedRoutes, can, footerSlots, roleName } from '#lib/roles.js'
 import { clubDebtCounts, monthSessions, myDebtCounts } from '#lib/money.js'
 import { t } from '#i18n'
+import cfg from '#config/app.js'
 
 export default function MoreSheet({ open, onClose, route }) {
   const { db, a } = useApp()
@@ -115,10 +117,12 @@ export default function MoreSheet({ open, onClose, route }) {
     },
   ]
 
+  // Trang gọn lại cho mobile (app.json → ui.mobileHidden) không hiện ở đây; link trong app vẫn mở được.
+  // Hết mục thì cả nhóm ẩn (nhóm Tiền chỉ còn Công nợ + Sổ quỹ → ẩn cả nhóm).
   const ok = allowedRoutes(role)
   const visibleGroups = GROUPS.map((g) => ({
     ...g,
-    items: g.items.filter((it) => !ok || ok.includes(it.value)),
+    items: g.items.filter((it) => (!ok || ok.includes(it.value)) && !cfg.ui.mobileHidden.includes(it.value)),
   })).filter((g) => g.items.length > 0)
 
   const handleItemClick = (it) => {

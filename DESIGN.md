@@ -1,6 +1,6 @@
 # DESIGN.md
 
-**Version:** v0.5.0 · **Updated:** 2026-10-03
+**Version:** v0.6.0 · **Updated:** 2026-10-17
 
 Hệ thiết kế của app là **TDMS**, lấy nguyên từ handoff. **Không hard-code màu/chữ/khoảng cách mới**
 — mọi giá trị đi qua `var(--*)`. Đọc file này trước khi sửa bất cứ thứ gì thuộc UI/CSS/layout.
@@ -62,6 +62,33 @@ token thì không ai phát hiện ra trong lúc dùng thường ngày.
 | `index.html` → 2 thẻ `<meta name="theme-color">` | `#00B2A9` / `#0B1220` | như trên |
 
 Đổi `--teal-500` hoặc `--surface-page` dark → sửa luôn ba chỗ này.
+
+### 2.2 Kính trên nền bầu trời
+
+Các trang trong `app.json → sky.routes` (nền + nhân vật) và `sky.bgRoutes` (trang con, chỉ nền đứng yên) vẽ
+nền bầu trời động phía sau (`layout/SkyBackdrop.jsx`, chi tiết `docs/HOME_SKY.md`). `AppLayout`
+gắn component đó + `data-sky` + nền gốc trong suốt; `effects.css → [data-sky]` cho alpha vào đúng
+các token dưới, **giữ nguyên màu** của `dark.css` / `semantic.css`:
+
+| Token | Alpha | Ghi chú |
+| --- | --- | --- |
+| `--surface-card` · `--field-bg` | .74 | |
+| `--surface-inset` | .65 | |
+| `--surface-nav` | .70 | sidebar, footer nav mobile, header mobile (`AppHeader` đổi sang token này trên trang có nền) |
+| `--surface-accent-soft` · `--surface-brand-soft` | .92 | chỉ bản sáng (bản tối vốn đã trong) |
+
+Được `backdrop-filter: saturate(160%) blur(14px)`: phần tử có `background` inline chứa
+`var(--surface-card)` (thẻ lồng trong thẻ thì không mờ lần nữa), `nav` / `header` dùng
+`var(--surface-nav)`, và phần tử `position: sticky` có nền (cột ghim bảng, thanh lọc). Dialog dùng
+`--surface-overlay` nên vẫn đặc; `--surface-page` không đổi (thanh dính nền trang vẫn đặc).
+
+- `backdrop-filter` biến phần tử thành khung chứa của con `position: fixed` — lớp phủ / modal đặt
+  bên trong thẻ sẽ chỉ phủ trong thẻ. Đã chặn chung bằng `[style]:has([style*="position: fixed"])`
+  (đang chứa con fixed thì tạm bỏ mờ), nhưng vẫn nên render modal ở cấp trang. Lớp phủ viết bằng
+  class CSS (không inline) thì luật này **không** thấy.
+- Thêm / bớt trang có nền: sửa `app.json → sky`, test `lib/sky.test.js` khoá danh sách.
+- Bảng màu bầu trời (trời, trăng, mây, nhân vật) là tranh vẽ, cố ý nằm ngoài token — giống bảng màu
+  Sakura của `SakuraEvent.jsx`.
 
 ## 3. Typography
 
@@ -144,7 +171,10 @@ Bản mobile áp dụng cho màn hình ≤768px với **ngưỡng duy nhất: `u
   - Slot 5 luôn là **Thêm**. Chạm slot đang active: cuộn mượt lên đầu trang; chạm slot khác: điều hướng.
 - **Sheet "Thêm" (N1):**
   - Dùng `<Dialog sheet>` với `var(--radius-sheet)` 18px, tay nắm `var(--border-default)`, nền `var(--surface-card)`, scrim `var(--surface-scrim)`.
-  - Giữ đúng nhóm chức năng:
+  - **Ẩn trên mobile** các trang trong `app.json → ui.mobileHidden` (hiện tại: Tổng quan CLB, Lịch
+    tháng, Giải đấu, Công nợ, Sổ quỹ). Chỉ ẩn khỏi sheet — link trong app vẫn mở được trang. Nhóm hết
+    mục thì ẩn cả nhóm (nhóm **Tiền** hiện không còn).
+  - Giữ đúng nhóm chức năng (trừ mục bị ẩn ở trên):
     - **Tiền:** Công nợ (khi không ở slot) · Sổ quỹ (`/so-quy`).
     - **Người và lịch:** Thành viên (`/thanh-vien`) · Chia sân (`/chia-san`, nhảy thẳng buổi khả dụng) · Lịch tháng (`/lich-thang`) · Lịch cố định (`/lich-co-dinh`) · Hồ sơ của tôi (`/ca-nhan`).
     - **Hệ thống:** Cài đặt (`/cai-dat`) · Sơ đồ dữ liệu (`/so-do-du-lieu`).
