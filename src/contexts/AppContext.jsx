@@ -99,6 +99,9 @@ export function StoreProvider({ children }) {
     if (!activeClubId) return undefined
     const onShow = () => {
       if (document.visibilityState === 'visible') refresh(cfg.sync.refreshMinMs)
+      // Khoá màn hình / chuyển app ngay sau khi bấm lưu: đẩy luôn, đừng chờ debounce. Điện thoại có
+      // thể treo JS của trang ngay sau đó — trận vừa ghi nằm lại trên máy, chưa xuống DB.
+      else flushNow()
     }
     const onPush = (e) => { if (e.data?.type === 'push-received') refresh() }
     const sw = navigator.serviceWorker

@@ -47,7 +47,7 @@ Code chạm Supabase/React không có mặt trong bộ này — kiểm tay trên
 | **Tách biệt dòng tiền**: Giá thành buổi và Quỹ tháng tuyệt đối không bị ảnh hưởng bởi Kèo & Elo | `money/isolation.test.js` |
 | Kèo đấu: Sinh mã C-XXXX · hướng kèo · độ cân · quyền huỷ · thành viên có mặt | `lib/challenge.test.js` · `lib/challenge_full.test.js` |
 | **Truy vết điểm mùa**: tua dữ liệu bằng lịch sử thay đổi (0070), chia công từng lần ghi, tổng khớp chênh lệch | `lib/trace.test.js` |
-| **Hai máy cùng ghi sân**: số ván kèo (`set_no`, 0068) · kèo đã xong không nhận thêm ván · trận thường không chặn trùng · tên người ghi · trận nháp trên sân (0069) → trận thật · ghép dữ liệu một buổi khi hỏi server | `lib/two_scorers.test.js` · `sync/dbmap.test.js` |
+| **Hai máy cùng ghi sân**: số ván kèo (`set_no`, 0068) · kèo đã xong không nhận thêm ván · trận thường không chặn trùng · tên người ghi · trận nháp trên sân (0069) → trận thật · ghép dữ liệu một buổi khi hỏi server · trận nháp đã có kết quả thì rời sân (`isLiveDone`, danh sách bản cũ, ghi từ khung sân, 0072) | `lib/two_scorers.test.js` · `sync/dbmap.test.js` |
 | **Đổi trình độ không viết lại quá khứ** (0071): tiến bộ giữ trình xuất phát → tính lại ra y như trước · ghi nhầm / chưa đánh trận thì trình mới từ đầu · `start_level` đi về hai chiều | `lib/member_start_level.test.js` |
 | Elo Engine: Expected score · tính delta có upset · R1–R5 · cascade replay sửa điểm | `lib/rating.test.js` · `lib/rating_full.test.js` |
 | **Nâng cấp Rating**: Dynamic K (R1–R5) · Margin of Victory (21-19 vs 21-5) · Elo Floor >= 0 · Rank Tiers · Inactivity Decay | `lib/rating_upgrades.test.js` |

@@ -684,3 +684,39 @@ export function calculatePlayerWaitTime({
   }
 }
 
+
+/** Những người trong một trận, KHÔNG kể chia đội — cùng 4 người đổi cặp vẫn là một lượt ra sân. */
+const playerSetKey = (teamA, teamB) => [...(teamA || []), ...(teamB || [])].filter(Boolean).sort().join('|')
+
+/**
+ * Trận nháp trên sân (0069) đã có kết quả chưa:
+ *   - có trận mang đúng mã nháp (`liveId`), HOẶC
+ *   - cùng buổi, ĐÚNG những người đó, ghi lúc / sau khi nháp được xếp lên sân: người kia ghi từ
+ *     khung sân của họ thay vì bấm thẻ trận, hoặc máy còn bản app cũ không biết tới trận nháp.
+ * Cùng mấy người đó đánh lại thì là nháp MỚI xếp SAU trận cũ → không bị coi là xong.
+ * @param {{ id?: string, sessionId: string, teamA: string[], teamB: string[], startedAt?: number }} live
+ * @param {Array} matches
+ */
+export function isLiveDone(live, matches) {
+  if (!live) return false
+  const key = playerSetKey(live.teamA, live.teamB)
+  const started = live.startedAt || 0
+  return (matches || []).some((m) => (live.id && m.liveId === live.id)
+    || (key && m.sessionId === live.sessionId && (m.at || 0) >= started && playerSetKey(m.teamA, m.teamB) === key))
+}
+
+/**
+ * Bản cũ (trước 0069) giữ trận trên sân trong localStorage TỪNG máy. Lần đầu mở bản mới, những trận
+ * còn dở được đẩy lên thành trận nháp — CHỈ trận của buổi hôm nay mà chưa ai ghi. Bản cũ không cho
+ * máy này biết máy kia đã ghi trận nào, nên đẩy hết lên là trận đã ghi "bay" lại lên sân
+ * (2026-10-16). Buổi đã qua thì không còn ai đứng trên sân nữa.
+ * @param {Array} entries - nội dung `badmin_ongoing_<buổi>`
+ * @param {{ id: string, date: string }} session
+ * @param {Array} matches
+ * @param {string} today - YYYY-MM-DD
+ */
+export function legacyOngoingToPush(entries, session, matches, today) {
+  if (!Array.isArray(entries) || !session || session.date !== today) return []
+  // Mã cũ không phải mã nháp — chỉ so người + giờ.
+  return entries.filter((om) => om && !isLiveDone({ ...om, id: null, sessionId: session.id }, matches))
+}
