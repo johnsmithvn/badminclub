@@ -65,7 +65,7 @@ token thì không ai phát hiện ra trong lúc dùng thường ngày.
 
 ### 2.2 Kính trên nền bầu trời
 
-Các trang trong `app.json → sky.routes` (nền + nhân vật) và `sky.bgRoutes` (trang con, chỉ nền) vẽ
+Các trang trong `app.json → sky.routes` (nền + nhân vật) và `sky.bgRoutes` (trang con, chỉ nền đứng yên) vẽ
 nền bầu trời động phía sau (`layout/SkyBackdrop.jsx`, chi tiết `docs/HOME_SKY.md`). `AppLayout`
 gắn component đó + `data-sky` + nền gốc trong suốt; `effects.css → [data-sky]` cho alpha vào đúng
 các token dưới, **giữ nguyên màu** của `dark.css` / `semantic.css`:

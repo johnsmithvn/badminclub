@@ -26,7 +26,7 @@ Danh sách ở `app.json → sky`:
 | Loại | Trang (route) | Có gì |
 | --- | --- | --- |
 | `routes` — nền + nhân vật | Trang chủ (`home`) · Trận đấu & Kèo (`matches`) · Bảng xếp hạng (`leaderboard`) · Danh hiệu (`badges`) · Buổi tập (`sessions`) · Thư viện (`library`) · Thành viên (`members`) · Hồ sơ của tôi (`profile`) · Cài đặt (`settings`) | Trời + nhân vật ghé thăm + sao ước (đêm) — đúng như mục 2–4 |
-| `bgRoutes` — chỉ nền | Chi tiết buổi tập (`session`) · Bài thư viện (`libraryPost`) | Chỉ trời (kể cả mưa sao băng, cá voi, chòm sao). **Không** nhân vật, **không** sao ước, không tính số liệu |
+| `bgRoutes` — chỉ nền, đứng yên | Chi tiết buổi tập (`session`) · Bài thư viện (`libraryPost`) | Trời **tĩnh** (không hoạt hình — trang ghi điểm hay mở cả buổi tối, chạy liên tục tốn pin): nền, sao, trăng, ngân hà, đom đóm đứng yên / mây, núi, biển mây. Không sao băng, sao chổi, cá voi, chòm sao, mưa sao băng, máy bay, chim. **Không** nhân vật, **không** sao ước, không tính số liệu |
 | Không có nền | Tổng quan CLB, Lịch tháng, Giải đấu (mọi trang con), Công nợ, Sổ quỹ, Sơ đồ dữ liệu | Như cũ |
 
 - Nhân vật được bốc **một lần** khi vào nhóm trang có nền; đi qua lại giữa các trang có nền vẫn là
@@ -691,7 +691,8 @@ Checklist:
 - [ ] Câu thoại khớp số trên thẻ Hạng mùa giải / Mục tiêu / Phong độ.
 - [ ] Lần lượt mở 9 trang có nền (§1): thẻ / bảng / form đọc rõ ở cả sáng lẫn tối; cột ghim bảng ở
   Trận đấu & Kèo cuộn ngang không bị chữ ô bên dưới đè.
-- [ ] Chi tiết buổi tập, bài thư viện: có trời, không nhân vật, không sao ước.
+- [ ] Chi tiết buổi tập, bài thư viện: có trời nhưng đứng yên, không nhân vật, không sao ước. Quay
+  lại trang danh sách (Buổi tập / Thư viện) thì trời chạy lại và nhân vật quay về.
 - [ ] Tổng quan CLB, Lịch tháng, Giải đấu, Công nợ, Sổ quỹ: không có trời, giống hệt trước.
 - [ ] Mobile: header các trang Buổi tập / Thành viên / Hồ sơ / Cài đặt là kính thấy trăng phía sau,
   nhân vật bay trên header; sheet "Thêm" không còn Tổng quan CLB, Lịch tháng, Giải đấu, Công nợ,
