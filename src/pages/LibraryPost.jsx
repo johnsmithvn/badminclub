@@ -9,7 +9,7 @@ import { can } from '#lib/roles.js'
 import { myMember } from '#lib/money.js'
 import { activeNoteIdx, clock, loopRange } from '#lib/library.js'
 import { extractYouTubeId } from '#utils/videoUtils.js'
-import { ddmy } from '#utils/dates.js'
+import { ddmy, isoOf } from '#utils/dates.js'
 import { pathOf } from '#routes'
 import { t } from '#i18n'
 import cfg from '#config/app.js'
@@ -94,7 +94,7 @@ export default function LibraryPost() {
       <div style={{ display: 'grid', gap: 12, minWidth: 0 }}>
         <h1 style={{ margin: 0, font: '700 22px/1.25 var(--font-display)', color: 'var(--text-primary)', overflowWrap: 'anywhere' }}>{post.title}</h1>
         <div style={{ font: '400 12.5px/1.4 var(--font-sans)', color: 'var(--text-secondary)' }}>
-          {t('library.byline', { name: nameOf(post.authorId), date: post.createdAt ? ddmy(post.createdAt.slice(0, 10)) : '' })}
+          {t('library.byline', { name: nameOf(post.authorId), date: post.createdAt ? ddmy(isoOf(new Date(post.createdAt))) : '' })}
         </div>
         <div style={{ display: 'flex', gap: 6, flexWrap: 'wrap' }}>
           <span style={{ ...S.pill, background: 'var(--status-delayed-bg)', color: 'var(--status-delayed-fg)', borderColor: 'transparent' }}>{post.shelf}</span>
@@ -131,7 +131,7 @@ export default function LibraryPost() {
             {viewers.map((v) => (
               <div key={v.memberId} style={{ display: 'flex', alignItems: 'center', gap: 10, minHeight: 40, minWidth: 0 }}>
                 <span style={{ ...S.ellipsis, flex: 1, minWidth: 0, color: 'var(--text-primary)' }} title={nameOf(v.memberId)}>{nameOf(v.memberId)}</span>
-                <span style={{ font: '400 12px/1 var(--font-mono)', color: 'var(--text-muted)', flexShrink: 0 }}>{ddmy(v.viewedAt.slice(0, 10))}</span>
+                <span style={{ font: '400 12px/1 var(--font-mono)', color: 'var(--text-muted)', flexShrink: 0 }}>{ddmy(isoOf(new Date(v.viewedAt)))}</span>
               </div>
             ))}
           </div>

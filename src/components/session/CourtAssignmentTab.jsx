@@ -1,4 +1,4 @@
-import { useState, useMemo, useCallback, useEffect } from 'react'
+import { useState, useMemo, useCallback, useEffect, useRef } from 'react'
 import { Button, Card, Dialog, Icon, IconButton, Select } from '#ds'
 import { GenderChip, LevelChip } from '#ui'
 import { useApp } from '#contexts/AppContext.jsx'
@@ -8,7 +8,7 @@ import { playerName, genderTxt, isFemaleGender, isMaleGender, openSessions } fro
 import { dd } from '#utils/dates.js'
 import { compareVietnameseNames } from '#lib/members.js'
 import { can } from '#lib/roles.js'
-import { sessionPlayers, detailedCourtBalance, courtSlotIds, calculatePlayerWaitTime } from '#lib/assign.js'
+import { sessionPlayers, detailedCourtBalance, courtSlotIds, calculatePlayerWaitTime, isLiveDone, legacyOngoingToPush } from '#lib/assign.js'
 import { getChallengeSeriesProgress, isChallengeAccepted } from '#lib/challenge.js'
 import {
   expectedScore, getPlayerRating,
@@ -37,7 +37,13 @@ export default function CourtAssignmentTab({ s, preset }) {
 
   // Hai người cùng ghi sân trên hai máy, app không có realtime: mở màn này là nạp lại để thấy trận /
   // kèo máy kia vừa ghi. Vừa nạp trong refreshMinMs (mới mở app, chuyển tab qua lại) thì thôi.
-  useEffect(() => { refresh(cfg.sync.refreshMinMs) }, [s.id, refresh])
+  // `freshFor`: buổi nào đã nạp xong lần đầu — việc chuyển danh sách cũ (dưới) phải chờ mốc này.
+  const [freshFor, setFreshFor] = useState(null)
+  useEffect(() => {
+    let alive = true
+    refresh(cfg.sync.refreshMinMs).then(() => { if (alive) setFreshFor(s.id) })
+    return () => { alive = false }
+  }, [s.id, refresh])
   const [refreshing, setRefreshing] = useState(false)
   const handleRefresh = async () => {
     if (refreshing) return
@@ -57,20 +63,31 @@ export default function CourtAssignmentTab({ s, preset }) {
 
   // Trận đang trên sân (chờ ghi điểm) = trận NHÁP lưu DB (0069): người thứ hai ghi sân cũng thấy và
   // ghi được. Ghi tỉ số thì nháp thành trận thật (saveMatchScore nhận `liveId`).
+  // Nháp đã có kết quả thì ẩn (`isLiveDone`): người kia ghi từ khung sân của họ, máy còn bản app cũ,
+  // hoặc lệnh xoá nháp chưa kịp xuống DB — đừng để trận đã ghi nằm lại trên sân.
   const ongoingMatches = useMemo(() => (db.liveMatches || [])
-    .filter((m) => m.sessionId === s.id)
-    .map((m) => ({ ...m, liveId: m.id, selectedChallengeId: m.challengeId })), [db.liveMatches, s.id])
+    .filter((m) => m.sessionId === s.id && !isLiveDone(m, db.matches))
+    .map((m) => ({ ...m, liveId: m.id, selectedChallengeId: m.challengeId })), [db.liveMatches, db.matches, s.id])
 
-  // Bản cũ giữ trận trên sân trong localStorage của từng máy. Lần đầu mở bản mới: đẩy lên DB rồi xoá,
-  // để trận đang xếp dở lúc cập nhật app không mất.
+  // Bản cũ giữ trận trên sân trong localStorage của từng máy. Lần đầu mở bản mới: đẩy lên DB những
+  // trận CÒN DỞ (xem `legacyOngoingToPush`) rồi xoá, để trận đang xếp dở lúc cập nhật app không mất.
+  // Chờ nạp xong lần đầu (`freshFor`): so với dữ liệu cũ thì trận máy kia vừa ghi vẫn tưởng là còn dở.
+  // Chạy đúng MỘT lần mỗi buổi — xoá localStorage hỏng (bộ nhớ bị chặn) cũng không đẩy lại liên tục.
+  const legacyDoneFor = useRef(null)
   useEffect(() => {
+    if (freshFor !== s.id || legacyDoneFor.current === s.id) return
+    legacyDoneFor.current = s.id
     const key = `badmin_ongoing_${s.id}`
     let old = []
     try { old = JSON.parse(localStorage.getItem(key) || '[]') } catch { old = [] }
     if (!Array.isArray(old) || !old.length) return
-    old.forEach((om) => a.deployLiveMatch({ ...om, sessionId: s.id, challengeId: om.selectedChallengeId || null }))
-    try { localStorage.removeItem(key) } catch { /* bộ nhớ bị chặn: lần sau thử lại */ }
-  }, [s.id, a])
+    // Không có quyền ghi sân thì không đẩy (deployLiveMatch sẽ báo lỗi quyền từng trận) — chỉ dọn.
+    if (canManage) {
+      legacyOngoingToPush(old, s, db.matches, db.today)
+        .forEach((om) => a.deployLiveMatch({ ...om, sessionId: s.id, challengeId: om.selectedChallengeId || null }))
+    }
+    try { localStorage.removeItem(key) } catch { /* bộ nhớ bị chặn: lần mở sau thử lại */ }
+  }, [freshFor, s, a, canManage, db.matches, db.today])
 
   // Hỏi server xem máy kia vừa xếp sân / ghi trận gì — người ghi sân 2 giây, người xem 15 giây.
   // Mỗi nhịp chỉ vài trăm byte; có thay đổi mới tải phần của buổi này (storage.pollSessionSlice).

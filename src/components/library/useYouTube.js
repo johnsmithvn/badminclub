@@ -23,6 +23,7 @@ function loadApi() {
   return api
 }
 
+const ENDED = 0
 const PLAYING = 1
 
 /**
@@ -38,6 +39,9 @@ export function useYouTube(videoId, start, end, loop) {
   const [duration, setDuration] = useState(0)
   const [playing, setPlaying] = useState(false)
   const [rate, setRateState] = useState(1)
+  // onStateChange gắn một lần lúc dựng player, nên đọc đoạn đang lặp qua ref.
+  const loopRef = useRef(loop)
+  useEffect(() => { loopRef.current = loop }, [loop])
 
   // Lần đầu: dựng player. Đổi video (bài nhiều video): nạp video mới vào player sẵn có.
   useEffect(() => {
@@ -59,6 +63,15 @@ export function useYouTube(videoId, start, end, loop) {
         events: {
           onReady: (e) => setDuration(e.target.getDuration() || 0),
           onStateChange: (e) => {
+            // Đoạn lặp chạm giờ kết thúc (hoặc hết video): YouTube tự dừng trước khi vòng đọc giờ
+            // bên dưới kịp tua về → tua ở đây, không thì đoạn cuối chỉ chạy một lần rồi đứng.
+            const lp = loopRef.current
+            if (e.data === ENDED && lp) {
+              e.target.seekTo(lp.a, true)
+              e.target.playVideo()
+              setTime(lp.a)
+              return
+            }
             setPlaying(e.data === PLAYING)
             setTime(e.target.getCurrentTime() || 0)
             const d = e.target.getDuration()

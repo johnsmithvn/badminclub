@@ -8,7 +8,7 @@
 
 import assert from 'node:assert/strict'
 import cfg from '#config/app.json' with { type: 'json' }
-import { TABLES, clubRow, diff, toDb, toRows, videosRow } from '#contexts/dbmap.js'
+import { TABLES, clubRow, diff, libPostRow, toDb, toRows, videosRow } from '#contexts/dbmap.js'
 import { seed } from '../fixture.js'
 
 const db = seed()
@@ -672,6 +672,16 @@ const cgDrop = clone(cgBack)
 cgDrop.challenges.find((c) => c.id === 'CH_G').teamB = []
 assert.ok(diff(cgRows, toRows(cgDrop, ctx)).some((o) => o.table === 'challenge_guests' && o.op === 'delScope'),
   'bỏ khách khỏi kèo phải xoá dòng challenge_guests, không thì F5 khách quay lại')
+
+/* ---------- Thư viện (0066): sửa bài không được xoá buổi đã gắn ----------
+ *
+ * Form đăng / sửa bài không có ô buổi tập. Trước đây libPostRow luôn ghi session_id = null, nên
+ * mỗi lần ai đó bấm Lưu ở màn sửa là bài mất buổi đã gắn ("dặn xem trước buổi").
+ */
+const libPost = { title: 'T', body: '', shelf: 'S', videos: [] }
+assert.ok(!('session_id' in libPostRow(libPost)), 'bài từ form (không có sessionId) không được đụng tới cột session_id')
+assert.equal(libPostRow({ ...libPost, sessionId: 'S1' }).session_id, 'S1', 'có gắn buổi thì phải ghi')
+assert.equal(libPostRow({ ...libPost, sessionId: null }).session_id, null, 'gỡ buổi chủ động (null) thì phải ghi null')
 
 console.log('dbmap check: OK')
 

@@ -11,7 +11,7 @@ import {
   adhocCharges, chargeName, sGuestsOnly, normalizeText, myMember, playerName, recorderName,
 } from '#lib/money.js'
 import { CATS, fundBalance, groupKey, ledger, undoTarget } from '#lib/ledger.js'
-import { modeToast, activeCourtIdxs, arrange, autoSplit, courtSlotIds, matchStats, place, removePlayer, sessionPlayers, slotCourtIdx } from '#lib/assign.js'
+import { modeToast, activeCourtIdxs, arrange, autoSplit, courtSlotIds, isLiveDone, matchStats, place, removePlayer, sessionPlayers, slotCourtIdx } from '#lib/assign.js'
 import { can, membersWithPerm, roleDesc, roleName, viewAsOptions } from '#lib/roles.js'
 import { applyScheduleEdit, planScheduleDelete, planScheduleEdit } from '#lib/schedules.js'
 import { teamRating, replayRatingCascade, MIN_RATING, applyRatingDelta, calcPlayerDeltas, rankTierOf, initialRatingOf, seedLevelOf, startLevelAfter, lastMatchAtOf, computeClubCalibration, confidenceOf } from '#lib/rating.js'
@@ -3914,8 +3914,11 @@ export function makeActions({ setDb, setUi, dbRef, uiRef, navRef, toast, reload,
         return {
           lineups,
           playing,
-          // Nháp đã thành trận thật: rời khỏi sân, cùng lượt ghi với trận (xoá xuống DB SAU khi chèn trận).
-          ...(liveId && { liveMatches: (d.liveMatches || []).filter((m) => m.id !== liveId) }),
+          // Nháp đã thành trận thật: rời khỏi sân, cùng lượt ghi với trận (xoá xuống DB SAU khi chèn trận;
+          // 0072 cho DB tự xoá ngay lúc chèn). Ghi từ khung sân mà đúng những người của một trận nháp
+          // cùng buổi thì nháp đó cũng xong (`isLiveDone`) — không thì nó nằm lại trên sân. Chỉ gỡ
+          // nháp, KHÔNG gắn mã nháp vào trận: hai người cùng ghi một trận thường vẫn lưu cả hai.
+          liveMatches: (d.liveMatches || []).filter((m) => m.id !== liveId && !isLiveDone(m, [newMatch])),
           matches: nextMatches,
           challenges,
           playerRatings,
