@@ -26,10 +26,50 @@ export function lastPlayedAt(matches, memberId) {
 /** Khuya: từ lateFrom giờ tối tới trước lateUntil giờ sáng. */
 export const isLate = (hour) => hour >= C.lateFrom || hour < C.lateUntil
 
-/** Bốc một nhân vật cho lần mở trang. `r` ∈ [0, 1). Chưa khuya thì không có cú mèo. */
-export function pickCast(late, r) {
-  const pool = late ? SKY_CAST : SKY_CAST.slice(1)
-  return pool[Math.min(pool.length - 1, Math.floor(r * pool.length))]
+/** [0, 1, …, n-1] xáo ngẫu nhiên (Fisher–Yates). */
+export function shuffled(n, r = Math.random) {
+  const a = [...Array(n).keys()]
+  for (let i = n - 1; i > 0; i--) {
+    const j = Math.floor(r() * (i + 1))
+    ;[a[i], a[j]] = [a[j], a[i]]
+  }
+  return a
+}
+
+/**
+ * "Túi xáo" cho mọi lựa chọn ngẫu nhiên của nền trời (câu thoại, kết cục UFO, điều ước, hình xếp…):
+ * rút hết một lượt — mỗi phần tử đúng một lần, thứ tự ngẫu nhiên — rồi mới xáo lượt mới, để không câu
+ * nào lặp khi còn câu chưa ra. Hai lượt nối nhau không trùng phần tử ở chỗ nối.
+ * Trả về `draw(key, n)` → chỉ số trong [0, n). Mỗi `key` một túi; `n` đổi (danh sách câu đổi theo số
+ * liệu) thì túi đó xáo lại từ đầu.
+ */
+export function createBags(r = Math.random) {
+  const bags = {}
+  return (key, n) => {
+    if (n <= 1) return 0
+    let b = bags[key]
+    if (!b || b.n !== n) b = bags[key] = { n, left: [], last: -1 }
+    if (!b.left.length) {
+      b.left = shuffled(n, r)
+      if (b.left[0] === b.last) [b.left[0], b.left[n - 1]] = [b.left[n - 1], b.left[0]]
+    }
+    b.last = b.left.shift()
+    return b.last
+  }
+}
+
+/**
+ * Nhân vật cho lần mở trang — túi xáo nhớ qua các lần mở (component lưu `left` vào localStorage):
+ * đủ 5 nhân vật mới lặp. Chưa khuya thì bỏ qua cú mèo (cú vẫn nằm trong túi chờ lần mở lúc khuya);
+ * túi chỉ còn cú mà chưa khuya thì xáo túi mới.
+ * @returns {{ cast: string, left: string[] }} nhân vật lần này và phần túi còn lại
+ */
+export function drawCast(left, late, r = Math.random) {
+  const ok = (c) => late || c !== 'owl'
+  let bag = (Array.isArray(left) ? left : []).filter((c) => SKY_CAST.includes(c))
+  if (!bag.some(ok)) bag = shuffled(SKY_CAST.length, r).map((i) => SKY_CAST[i])
+  const i = bag.findIndex(ok)
+  return { cast: bag[i], left: bag.filter((_, j) => j !== i) }
 }
 
 /**
@@ -110,7 +150,7 @@ export function skyLines(st, name) {
 /**
  * Cảnh UFO bắt cóc. `isMe`: bắt chính mình (áo teal) hay người kề mình trên BXH (áo hồng):
  * đang hạng 1 thì là người đuổi theo, không thì là người ngay trên. Không có ai kề → luôn là mình.
- * Trả về người bị bắt, các câu kêu (cảnh bốc 1 câu) và lời của năm kết cục (xem UFO_OUTCOMES).
+ * Trả về người bị bắt, các câu kêu (cảnh rút 1 câu bằng túi xáo) và lời của năm kết cục (UFO_OUTCOMES).
  */
 export function ufoScript(st, isMe, name) {
   const victim = st.rank === 1 ? st.chaser : st.rival
@@ -136,12 +176,12 @@ export function ufoScript(st, isMe, name) {
     thank: me ? ['sky.ufo.thankMe'] : ['sky.ufo.thankRival'],
     // Bị bắn rơi: người bung dù đáp xuống.
     safe: me ? ['sky.ufo.safeMe'] : ['sky.ufo.safeRival', { name }],
-    // Tia chập, tuột xuống: bốc 1 câu.
+    // Tia chập, tuột xuống: rút 1 câu.
     slip: me ? [['sky.ufo.slipMe.home'], ['sky.ufo.slipMe.game']] : [['sky.ufo.slipRival.rank'], ['sky.ufo.slipRival.phew']],
   }
 }
 
-/** UFO trả người lại (bốc 1 câu mỗi bên) — giống nhau cho mọi người bị bắt. */
+/** UFO trả người lại (rút 1 câu mỗi bên bằng túi xáo) — giống nhau cho mọi người bị bắt. */
 export const UFO_GIVE_BACK = [
   ['sky.ufo.giveBack.talk'],
   ['sky.ufo.giveBack.smash'],
@@ -153,16 +193,13 @@ export const UFO_GIVE_BACK = [
 ]
 export const UFO_HUH = [['sky.ufo.huhBack.a'], ['sky.ufo.huhBack.b'], ['sky.ufo.huhBack.c'], ['sky.ufo.huhBack.d']]
 
-/** Năm kết cục và tỉ lệ của thiết kế: bắt cóc · siêu nhân cứu · bắn rơi · tia chập tuột · trả lại. */
-export const UFO_OUTCOMES = [['ok', 0.2], ['rescue', 0.28], ['down', 0.28], ['slip', 0.11], ['ret', 0.13]]
-
-/** Chọn kết cục từ `r` ∈ [0, 1). `canAbduct` false (chưa có hạng để nói) → bỏ "bắt cóc", chia lại phần còn lại. */
-export function ufoOutcome(r, canAbduct) {
-  const pool = canAbduct ? UFO_OUTCOMES : UFO_OUTCOMES.slice(1)
-  let x = r * pool.reduce((s, [, w]) => s + w, 0)
-  for (const [out, w] of pool) if ((x -= w) < 0) return out
-  return pool[pool.length - 1][0]
-}
+/**
+ * Năm kết cục UFO: bắt cóc · siêu nhân cứu · bị bắn rơi · tia chập tuột · trả lại. Rút bằng túi xáo
+ * (createBags) nên cứ 5 cảnh UFO là đủ cả 5. Chưa có hạng (không có câu "Mượn tay vợt hạng …") thì
+ * bỏ "bắt cóc", túi còn 4.
+ */
+export const UFO_OUTCOMES = ['ok', 'rescue', 'down', 'slip', 'ret']
+export const ufoPool = (canAbduct) => (canAbduct ? UFO_OUTCOMES : UFO_OUTCOMES.slice(1))
 
 const SYNODIC = 29.530589
 /** Tuổi trăng (ngày) theo app.json → sky.moon: rằm, lưỡi liềm, hoặc tính theo lịch âm. */

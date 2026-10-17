@@ -209,7 +209,8 @@
 @keyframes skySea { to { transform: translate3d(-1440px, 0, 0); } }
 @keyframes skyMist { 0% { transform: translate3d(-90px, 0, 0); opacity: .6; } 100% { transform: translate3d(90px, 10px, 0); opacity: 1; } }
 @keyframes skyFlap { 0% { transform: scaleY(1); } 100% { transform: scaleY(-.45); } }
-@keyframes skyBirds { 0% { transform: translate3d(0, 0, 0); opacity: 0; } 2% { opacity: 1; } 46% { transform: translate3d(-1720px, -80px, 0); opacity: 1; } 48% { opacity: 0; } 100% { transform: translate3d(-1720px, -80px, 0); opacity: 0; } }
+/* Đàn chim: bay ~17,5 s qua màn rồi nghỉ 44 s (chu kỳ 62,24 s — duration ở SkyBackdrop.jsx). */
+@keyframes skyBirds { 0% { transform: translate3d(0, 0, 0); opacity: 0; } 1.22% { opacity: 1; } 28.08% { transform: translate3d(-1720px, -80px, 0); opacity: 1; } 29.31% { opacity: 0; } 100% { transform: translate3d(-1720px, -80px, 0); opacity: 0; } }
 @keyframes skyPlane { 0% { transform: translate3d(0, 0, 0); opacity: 0; } 1.5% { opacity: 1; } 40% { transform: translate3d(1760px, -50px, 0); opacity: 1; } 41.5% { opacity: 0; } 100% { transform: translate3d(1760px, -50px, 0); opacity: 0; } }
 @keyframes skyFloatUp { 0% { transform: translate3d(0, 0, 0); opacity: 0; } 15% { opacity: .9; } 80% { opacity: .9; } 100% { transform: translate3d(var(--dx), var(--dy), 0); opacity: 0; } }
 @keyframes skyWhaleSwim { 0% { transform: translate3d(0, 0, 0); opacity: 0; } 3% { opacity: 1; } 55% { transform: translate3d(var(--wd, -1840px), var(--wdy, 50px), 0); opacity: 1; } 58% { opacity: 0; } 100% { transform: translate3d(var(--wd, -1840px), var(--wdy, 50px), 0); opacity: 0; } }
@@ -219,7 +220,8 @@
 @keyframes skyTrail { 0% { transform: translate(0, 0) scale(1); opacity: 0; } 12% { opacity: .9; } 100% { transform: translate(var(--dx), var(--dy)) scale(.3); opacity: 0; } }
 @keyframes skySpout { 0%, 70% { transform: translate(0, 0); opacity: 0; } 74% { opacity: 1; } 100% { transform: translate(var(--dx), -34px); opacity: 0; } }
 @keyframes skyBubble { 0% { opacity: 0; transform: translateY(4px); } 4% { opacity: 1; transform: translateY(0); } 34% { opacity: 1; transform: translateY(0); } 40% { opacity: 0; transform: translateY(-3px); } 100% { opacity: 0; transform: translateY(-3px); } }
-@keyframes skyBannerFly { 0% { transform: translate3d(0, 0, 0); opacity: 0; } 2% { opacity: 1; } 50% { transform: translate3d(var(--fd, 1960px), 8px, 0); opacity: 1; } 52% { opacity: 0; } 100% { transform: translate3d(var(--fd, 1960px), 8px, 0); opacity: 0; } }
+/* Băng rôn: MỘT lượt bay 16,64 s; nghỉ giữa hai lượt do SkyBackdrop hẹn giờ ngẫu nhiên (app.json → sky.bannerRestMs). */
+@keyframes skyBannerOnce { 0% { transform: translate3d(0, 0, 0); opacity: 0; } 3.85% { opacity: 1; } 96.15% { transform: translate3d(var(--fd, 1960px), 8px, 0); opacity: 1; } 100% { transform: translate3d(var(--fd, 1960px), 8px, 0); opacity: 0; } }
 @keyframes skyFlagWave { 0% { transform: skewY(-2deg); } 100% { transform: skewY(2deg); } }
 @keyframes skyNavBlink { 0%, 60%, 100% { opacity: .15; } 70%, 80% { opacity: 1; } }
 @keyframes skyOwlBlink { 0%, 90%, 100% { transform: scaleY(0); } 94% { transform: scaleY(1); } }

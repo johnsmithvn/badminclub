@@ -5,7 +5,7 @@ import { useTheme } from '#contexts/ThemeContext.jsx'
 import { t, tBranch } from '#i18n'
 import { myMember } from '#lib/money.js'
 import { getMyHeroStats, getPlayerForm5, getSurroundingSeasonStandings } from '#lib/homePersonal.js'
-import { SKY_CAST, UFO_GIVE_BACK, UFO_HUH, isLate, lastPlayedAt, moonAge, pickCast, skyFacts, skyLines, ufoOutcome, ufoScript } from '#lib/sky.js'
+import { SKY_CAST, UFO_GIVE_BACK, UFO_HUH, createBags, drawCast, isLate, lastPlayedAt, moonAge, skyFacts, skyLines, ufoPool, ufoScript } from '#lib/sky.js'
 import cfg from '#config/app.js'
 
 /**
@@ -41,6 +41,13 @@ const rnd = (i) => { const x = Math.sin(i * 12.9898 + 78.233) * 43758.5453; retu
 const px = (n) => n.toFixed(1) + 'px'
 const esc = (s) => String(s).replace(/[&<>"']/g, (c) => '&#' + c.charCodeAt(0) + ';')
 const tl = (line) => (line ? t(line[0], line[1]) : '')
+/** Số ngẫu nhiên trong khoảng [min, max] (ms) — nhịp nghỉ ở app.json → sky.*RestMs. */
+const pickMs = ([a, b]) => a + Math.random() * (b - a)
+/** Túi xáo nhân vật nhớ qua các lần mở trang (lib/sky.js → drawCast). */
+const CAST_KEY = 'badminclub.sky.castBag'
+/** Thời lượng một lượt bay — khớp keyframe skyBannerOnce (16,64 s) và spawnWish (6,8 s). */
+const BANNER_FLY_MS = 16640
+const WISH_FLY_MS = 6800
 
 /* ============================ BỐ CỤC ============================ */
 
@@ -90,8 +97,19 @@ export default function SkyBackdrop({ chars, isMobile, scrollRef }) {
   // Trang con (chỉ nền) vẽ trời đứng yên: hay mở cả buổi tối (ghi điểm ở chi tiết buổi tập), trời
   // chạy liên tục suốt chừng đó là tốn pin, nóng máy.
   const live = motion && chars
-  // Bốc nhân vật và chốt giờ đúng MỘT lần khi mở trang (F5 là đổi nhân vật).
-  const [opened] = useState(() => ({ now: Date.now(), cast: pickCast(isLate(new Date().getHours()), Math.random()) }))
+  // Túi xáo dùng chung cho mọi lựa chọn ngẫu nhiên: câu thoại (kể cả khi bấm), kết cục UFO, người bị
+  // bắt, điều ước, hình xếp — rút đủ một lượt mới xáo lượt mới (lib/sky.js → createBags).
+  const [bags] = useState(() => createBags())
+  // Bốc nhân vật và chốt giờ đúng MỘT lần khi mở trang. Túi nhân vật nhớ qua các lần mở (F5 / mở lại):
+  // đủ 5 nhân vật mới lặp lại. Storage bị chặn thì mỗi lần mở là một túi mới.
+  const [opened] = useState(() => {
+    let left = []
+    try { left = JSON.parse(localStorage.getItem(CAST_KEY) || '[]') } catch { /* storage bị chặn */ }
+    return { now: Date.now(), ...drawCast(left, isLate(new Date().getHours())) }
+  })
+  useEffect(() => {
+    try { localStorage.setItem(CAST_KEY, JSON.stringify(opened.left)) } catch { /* private mode */ }
+  }, [opened])
   const q = params.get('sky')
   const castKey = !chars ? '' : q === 'all' ? SKY_CAST.join() : SKY_CAST.includes(q) ? q : opened.cast
   const cast = useMemo(() => (castKey ? castKey.split(',') : []), [castKey])
@@ -150,47 +168,76 @@ export default function SkyBackdrop({ chars, isMobile, scrollRef }) {
     return () => main.removeEventListener('scroll', on)
   }, [s, scrollRef])
 
-  // Siêu nhân / UFO: cảnh viết tay bằng Web Animations, thay phiên nhau, nghỉ sceneGapMs giữa hai lượt.
+  // Siêu nhân / UFO: cảnh viết tay bằng Web Animations, mỗi loại một nhịp riêng (app.json → sky):
+  // lượt đầu sau *FirstMs kể từ lúc mở, bay xong nghỉ *GapMs rồi bay lại.
   const sceneRef = useRef(null)
   const flyKinds = cast.filter((c) => c === 'hero' || c === 'ufo').join()
   useEffect(() => {
     const host = sceneRef.current
     if (!motion || !flyKinds || !host) return
-    const kinds = flyKinds.split(',')
     const timers = new Set()
     const later = (fn, ms) => { const id = setTimeout(() => { timers.delete(id); fn() }, ms); timers.add(id) }
-    const seq = { hero: 0 }
-    let busy = Date.now() + C.sceneFirstMs, rot = 0
-    const iv = setInterval(() => {
-      // Tab ẩn thì animation không chạy tới onfinish — sinh cảnh lúc đó chỉ để phần tử chất đống.
-      if (Date.now() < busy || !host.isConnected || document.hidden) return
-      rot += 1
-      const kind = kinds[rot % kinds.length]
-      const ctx = { host, later, seq, dark: isDark, ly, H: vhRef.current, ...data.current }
-      busy = Date.now() + (kind === 'hero' ? heroFly(ctx) : ufoScene(ctx)) + C.sceneGapMs
-    }, 1000)
-    return () => { clearInterval(iv); timers.forEach(clearTimeout); host.replaceChildren() }
-  }, [motion, flyKinds, isDark, ly])
+    flyKinds.split(',').forEach((kind) => {
+      const run = kind === 'hero' ? heroFly : ufoScene, gap = kind === 'hero' ? C.heroGapMs : C.ufoGapMs
+      const go = () => {
+        // Tab ẩn thì animation không chạy tới onfinish — đợi tab hiện lại mới bay, khỏi chất đống phần tử.
+        if (document.hidden || !host.isConnected) return later(go, 1000)
+        later(go, run({ host, later, bags, dark: isDark, ly, H: vhRef.current, ...data.current }) + gap)
+      }
+      later(go, kind === 'hero' ? C.heroFirstMs : C.ufoFirstMs)
+    })
+    return () => { timers.forEach(clearTimeout); host.replaceChildren() }
+  }, [motion, flyKinds, isDark, ly, bags])
 
-  // Sao ước (chỉ đêm): bay ngang header, bấm vào → bung sáng + một điều ước.
+  // Sao ước (chỉ đêm): bay ngang header, bấm vào → bung sáng + một điều ước. Bay xong nghỉ ngẫu nhiên wishRestMs.
   const flyRef = useRef(null)
   useEffect(() => {
     const host = flyRef.current
     if (!motion || !isDark || !chars || !host) return
-    const go = () => { if (!document.hidden) spawnWish(host, ly.wish, () => data.current.lines.wish) }
-    const first = setTimeout(go, C.wishFirstMs)
-    const iv = setInterval(go, C.wishEveryMs)
-    return () => { clearTimeout(first); clearInterval(iv); host.replaceChildren() }
-  }, [motion, isDark, chars, ly])
+    let id
+    const go = (ms) => {
+      id = setTimeout(() => {
+        if (document.hidden) return go(1000)
+        spawnWish(host, ly.wish, () => data.current.lines.wish, bags)
+        go(WISH_FLY_MS + pickMs(C.wishRestMs))
+      }, ms)
+    }
+    go(C.wishFirstMs)
+    return () => { clearTimeout(id); host.replaceChildren() }
+  }, [motion, isDark, chars, ly, bags])
 
-  const [owlK, setOwlK] = useState(0)
-  const [banK, setBanK] = useState(0)
-  const [shape, setShape] = useState(() => Math.floor(Math.random() * SHAPES.length))
-  // Hình kế luôn khác hình đang xếp.
-  const nextShape = () => {
-    const jump = 1 + Math.floor(Math.random() * (SHAPES.length - 1))
-    setShape((cur) => (cur + jump) % SHAPES.length)
+  // Cú mèo: `k` đổi để nghiêng đầu + chạy lại bóng thoại; `i` = câu đang nói, rút từ túi xáo.
+  const [owl, setOwl] = useState(() => ({ k: 0, i: bags('owl', lines.owl.length) }))
+  const nextOwl = () => {
+    const i = bags('owl', lines.owl.length)
+    setOwl((o) => ({ k: o.k + 1, i }))
   }
+
+  // Băng rôn: mỗi `lap` là MỘT lượt bay (key đổi → animation chạy lại); bay xong nghỉ ngẫu nhiên
+  // bannerRestMs. Mỗi lượt / mỗi lần bấm một câu từ túi xáo.
+  const hasBanner = cast.includes('banner')
+  const [ban, setBan] = useState({ lap: 0, i: 0 })
+  useEffect(() => {
+    if (!live || !hasBanner) return
+    let id
+    const fly = (ms) => {
+      id = setTimeout(() => {
+        const i = bags('banner', data.current.lines.banner.length)
+        setBan((b) => ({ lap: b.lap + 1, i }))
+        fly(BANNER_FLY_MS + pickMs(C.bannerRestMs))
+      }, ms)
+    }
+    fly(C.bannerFirstMs)
+    return () => clearTimeout(id)
+  }, [live, hasBanner, bags])
+  const nextBanner = () => {
+    const i = bags('banner', lines.banner.length)
+    setBan((b) => ({ ...b, i }))
+  }
+
+  // Xếp hình: hết mỗi vòng 30 s rút hình kế từ túi xáo (đủ 7 hình mới lặp).
+  const [shape, setShape] = useState(() => bags('shape', SHAPES.length))
+  const nextShape = () => setShape(bags('shape', SHAPES.length))
 
   return (
     <>
@@ -202,10 +249,10 @@ export default function SkyBackdrop({ chars, isMobile, scrollRef }) {
         <div style={box}>
           <div ref={fadeRef} style={S.fill}>
             {cast.includes('owl') && (
-              <Owl ly={ly} dark={isDark} motion={motion} k={owlK} line={lines.owl[owlK % lines.owl.length]} onNext={() => setOwlK((k) => k + 1)} />
+              <Owl ly={ly} dark={isDark} motion={motion} k={owl.k} line={lines.owl[owl.i % lines.owl.length]} onNext={nextOwl} />
             )}
-            {cast.includes('banner') && (
-              <Banner ly={ly} dark={isDark} motion={motion} line={lines.banner[banK % lines.banner.length]} onNext={() => setBanK((k) => k + 1)} />
+            {hasBanner && ban.lap > 0 && (
+              <Banner key={ban.lap} ly={ly} dark={isDark} line={lines.banner[ban.i % lines.banner.length]} onNext={nextBanner} />
             )}
             {cast.includes('top1') && <Top1 ly={ly} dark={isDark} motion={motion} shape={shape} onNext={nextShape} />}
             <div ref={sceneRef} style={S.fill} />
@@ -461,7 +508,7 @@ function Day({ motion }) {
           <svg width="26" height="12" viewBox="0 0 26 12" style={{ position: 'absolute', left: -2, top: -1 }}><path d={PLANE_D} fill="#5A4A6E" /></svg>
         </div>
       </div>
-      <div style={{ position: 'absolute', left: W + 40, top: 170, width: 0, height: 0, opacity: 0, animation: an('skyBirds 38s linear 4s infinite') }}>
+      <div style={{ position: 'absolute', left: W + 40, top: 170, width: 0, height: 0, opacity: 0, animation: an('skyBirds 62.24s linear 4s infinite') }}>
         {[[0, 0, 1], [28, -14, 0.85], [30, 16, 0.9], [58, -24, 0.75], [60, 26, 0.8], [86, 6, 0.7]].map(([x, y, sz], i) => bird(i, x, y, sz))}
       </div>
       {cum(0, 0.14, 0.14, 280, 92, 10)}
@@ -538,21 +585,21 @@ function Owl({ ly, dark, motion, k, line, onNext }) {
   )
 }
 
-/** Máy bay kéo băng rôn ngang header, 32 giây một lượt; mỗi lượt / mỗi lần bấm đổi chữ. */
-function Banner({ ly, dark, motion, line, onNext }) {
+/** Máy bay kéo băng rôn ngang header — MỘT lượt bay 16,64 s (cha đổi key để bay lượt mới); bấm → đổi chữ. */
+function Banner({ ly, dark, line, onNext }) {
   const c = dark
     ? { bg: 'rgba(16,24,50,.9)', bd: 'rgba(170,200,255,.45)', fg: '#EAF1FF', pl: '#C9D4EC', rope: 'rgba(200,215,245,.6)' }
     : { bg: 'rgba(255,247,240,.95)', bd: '#E7B7B0', fg: '#5A2E3E', pl: '#5A4A6E', rope: 'rgba(90,74,110,.6)' }
-  const an = (v) => (motion ? v : 'none')
+  // Chỉ dựng khi có chuyển động: cha không cho bay lúc giảm chuyển động / ở trang chỉ nền.
   return (
-    <div onAnimationIteration={(ev) => { if (ev.target === ev.currentTarget) onNext() }} style={{ position: 'absolute', left: -440, top: ly.bnT, '--fd': ly.bnD + 'px', opacity: 0, animation: an('skyBannerFly 32s linear 6s infinite') }}>
+    <div style={{ position: 'absolute', left: -440, top: ly.bnT, '--fd': ly.bnD + 'px', opacity: 0, animation: 'skyBannerOnce ' + BANNER_FLY_MS + 'ms linear both' }}>
       <div title={t('sky.tip.banner')} onClick={onNext} style={{ display: 'flex', alignItems: 'center', pointerEvents: 'auto', cursor: 'pointer' }}>
-        <span style={{ padding: '3px 12px', borderRadius: 3, background: c.bg, border: '1px solid ' + c.bd, color: c.fg, font: '600 11.5px/1.3 var(--font-sans)', whiteSpace: 'nowrap', transformOrigin: '100% 50%', animation: an('skyFlagWave 1.4s ease-in-out infinite alternate') }}>{line}</span>
+        <span style={{ padding: '3px 12px', borderRadius: 3, background: c.bg, border: '1px solid ' + c.bd, color: c.fg, font: '600 11.5px/1.3 var(--font-sans)', whiteSpace: 'nowrap', transformOrigin: '100% 50%', animation: 'skyFlagWave 1.4s ease-in-out infinite alternate' }}>{line}</span>
         <span style={{ width: 22, height: 1, background: c.rope }} />
         <svg width="32" height="14" viewBox="0 0 26 12" style={{ overflow: 'visible' }}>
           <path d={PLANE_D} fill={c.pl} />
-          {dark && <circle cx="5.5" cy="1" r="1.1" fill="#FF5A5A" style={{ animation: an('skyNavBlink 1.2s linear infinite') }} />}
-          {dark && <circle cx="5.5" cy="11" r="1.1" fill="#5AFF9A" style={{ animation: an('skyNavBlink 1.2s linear .6s infinite') }} />}
+          {dark && <circle cx="5.5" cy="1" r="1.1" fill="#FF5A5A" style={{ animation: 'skyNavBlink 1.2s linear infinite' }} />}
+          {dark && <circle cx="5.5" cy="11" r="1.1" fill="#5AFF9A" style={{ animation: 'skyNavBlink 1.2s linear .6s infinite' }} />}
         </svg>
       </div>
     </div>
@@ -653,18 +700,17 @@ const personSVG = (s, jer, pony) => `<svg width="${20 * s}" height="${28 * s}" v
 
 /** Siêu nhân bay ngang header kèm một câu; bấm → câu kế + giơ ngón cái. Trả về thời lượng (ms). */
 function heroFly(ctx) {
-  const { host, later, seq, dark: d, ly, lines } = ctx
+  const { host, later, bags, dark: d, ly, lines } = ctx
   const y = ly.sc, s = y.hs, hw = 80 * s, hh = 34 * s, L = lines.hero
-  // Mỗi lượt bay mang câu kế tiếp trong danh sách.
-  let i = (seq.hero += 1)
+  // Mỗi lượt bay / mỗi lần bấm một câu rút từ túi xáo.
   const e = mk(host, `<div data-a style="position:relative;animation:skyHover 1.6s ease-in-out infinite;pointer-events:auto;cursor:pointer" title="${esc(t('sky.tip.hero'))}">${heroSVG(s, d)}</div>`, -hw - 20, y.hy)
-  const b = bub(e, L[i % L.length], d, `right:calc(100% + 8px);top:${hh / 2 - 16}px`, y.bw)
+  const b = bub(e, L[bags('hero', L.length)], d, `right:calc(100% + 8px);top:${hh / 2 - 16}px`, y.bw)
   b.style.opacity = 1
   const x0 = -hw - 20, x1 = ly.W + b.offsetWidth + 30, dur = ((x1 - x0) / y.vH) * 1000
   mv(e, [[x0, y.hy, 1], [x1, y.hy - 6, 1]], dur)
   e.querySelector('[data-a]').onclick = (ev) => {
     ev.stopPropagation()
-    b.textContent = L[++i % L.length]
+    b.textContent = L[bags('hero', L.length)]
     const q = at(host, e, hw * 0.55, -20)
     pop(ctx, '👍', q[0], q[1])
   }
@@ -741,9 +787,10 @@ function flyPath(host, art, w, h, segs, dur, o = {}) {
  * Trả về thời lượng (ms).
  */
 function ufoScene(ctx) {
-  const { host, dark: d, ly, H, st, name } = ctx
-  const W = ly.W, mob = !!ly.m, k = mob ? 0.9 : 1.25, R = Math.random, rr = (a, b) => a + R() * (b - a), pick = (a) => a[Math.floor(R() * a.length)]
-  const sc = ufoScript(st, R() < 0.5, name), isMe = sc.me
+  const { host, bags, dark: d, ly, H, st, name } = ctx
+  const W = ly.W, mob = !!ly.m, k = mob ? 0.9 : 1.25, R = Math.random, rr = (a, b) => a + R() * (b - a)
+  // Người bị bắt, câu kêu, kết cục, câu tuột / trả: rút từ túi xáo — đủ một lượt mới lặp.
+  const sc = ufoScript(st, bags('ufoWho', 2) === 0, name), isMe = sc.me, who = isMe ? 'Me' : 'Rival'
   const s = R() < 0.5 ? 1 : -1, X0 = -120 * k, X1 = W + 120 * k, sx = s > 0 ? X0 : X1, ex = s > 0 ? X1 : X0
   const ux = mob ? W * rr(0.32, 0.68) : W * rr(0.56, 0.74), uy = mob ? rr(28, 36) : rr(30, 42), D = mob ? rr(13, 15) : rr(13, 16)
   const bh = Math.round((H - uy) / k + 30), yg = H + 40
@@ -766,11 +813,11 @@ function ufoScene(ctx) {
   const pw = 20, ph = 28, vSide = ux > W / 2 ? `right:${pw - 2}px` : `left:${pw - 2}px`, vin = 'transform-origin:50% 0;animation:skySway .45s ease-in-out infinite alternate'
   const vs = personSVG(1, isMe ? '#00B2A9' : '#E86A9A', !isMe) + `<span style="position:absolute;left:50%;top:30px;transform:translateX(-50%);padding:1px 4px;border-radius:4px;background:${d ? 'rgba(10,16,34,.85)' : 'rgba(255,248,242,.92)'};font:600 ${(9 / k).toFixed(1)}px/1.3 var(--font-mono);color:${d ? '#EAF1FF' : '#4A2A38'};white-space:nowrap">${esc(isMe ? t('sky.you') : sc.victim)}</span>`
   const bubV = (key, txt) => `<div data-k="${key}" style="position:absolute;${vSide};bottom:${ph - 4}px;${bubS}">${esc(txt)}</div>`
-  const cry = tl(pick(sc.rise))
+  const cry = tl(sc.rise[bags('rise' + who, sc.rise.length)])
 
   const pathU = cr([[sx, uy - 60, 0], [ux, uy, 0.26], [ux + 4, uy + 5, 0.4], [ux - 3, uy - 3, 0.56], [ux, uy + 2, 0.74], [ex + s * 40, -160, 0.88], [ex + s * 80, -220, 1]], 8)
   const fade = (x) => Math.min(1, x / 0.04, (1 - x) / 0.04), wob = 'transform-origin:50% 60%;animation:skyWobble 2.4s ease-in-out infinite'
-  const out = ufoOutcome(R(), !!sc.abduct)
+  const pool = ufoPool(!!sc.abduct), out = pool[bags('ufo', pool.length)]
 
   if (out === 'ok') {
     flyPath(host, ufoA('', q(tl(sc.abduct))), 48, 22, pathU, D, { k, tk: 0, inner: wob, sync: [['[data-k="beam"]', show(0.34, 0.72)], ['[data-k="q"]', show(0.62, 0.78)]] })
@@ -826,7 +873,7 @@ function ufoScene(ctx) {
     const yc = uy + (yg - uy) * 0.45
     const flick = [{ opacity: 0, offset: 0 }, { opacity: 0, offset: 0.34 }, { opacity: 1, offset: 0.36 }, { opacity: 1, offset: 0.48 }, { opacity: 0.15, offset: 0.49 }, { opacity: 1, offset: 0.5 }, { opacity: 0.1, offset: 0.51 }, { opacity: 0.8, offset: 0.52 }, { opacity: 0, offset: 0.53 }, { opacity: 0, offset: 1 }]
     flyPath(host, ufoA('', q(t('sky.ufo.slip'))), 48, 22, pathU, D, { k, tk: 0, inner: wob, sync: [['[data-k="beam"]', flick], ['[data-k="q"]', show(0.55, 0.72)]] })
-    flyPath(host, bubV('bub', cry) + bubV('ph', tl(pick(sc.slip))) + vs, pw, ph, [
+    flyPath(host, bubV('bub', cry) + bubV('ph', tl(sc.slip[bags('slip' + who, sc.slip.length)])) + vs, pw, ph, [
       ...cr([[ux, yg, 0], [ux, yg, 0.4], [ux + 6, (yg + yc) / 2, 0.46], [ux, yc, 0.52]], 8),
       ...cr([[ux, yc, 0.52], [ux + 2, yc + (yg - yc) * 0.3, 0.555], [ux + 4, H - 60 * k, 0.6], [ux + 10 * k, H - 80 * k, 0.64], [ux + 16 * k, H - 60 * k, 0.68]], 6),
       ln([ux + 16 * k, H - 60 * k], [ux + 16 * k, H + 60], 0.68, 1, 4),
@@ -834,8 +881,8 @@ function ufoScene(ctx) {
   } else {
     // UFO hút người lên tàu rồi chê, thả trả lại.
     const yt = uy + 14
-    flyPath(host, ufoA('', q(tl(pick(UFO_GIVE_BACK)))), 48, 22, pathU, D, { k, tk: 0, inner: wob, sync: [['[data-k="beam"]', show(0.34, 0.74)], ['[data-k="q"]', show(0.6, 0.76)]] })
-    flyPath(host, bubV('bub', cry) + bubV('ua', tl(pick(UFO_HUH))) + vs, pw, ph, [
+    flyPath(host, ufoA('', q(tl(UFO_GIVE_BACK[bags('giveBack', UFO_GIVE_BACK.length)]))), 48, 22, pathU, D, { k, tk: 0, inner: wob, sync: [['[data-k="beam"]', show(0.34, 0.74)], ['[data-k="q"]', show(0.6, 0.76)]] })
+    flyPath(host, bubV('bub', cry) + bubV('ua', tl(UFO_HUH[bags('huh', UFO_HUH.length)])) + vs, pw, ph, [
       ...cr([[ux, yg, 0], [ux, yg, 0.38], [ux + 6, (yg + yt) / 2, 0.46], [ux, yt, 0.54]], 8),
       ln([ux, yt], [ux, yt], 0.54, 0.62, 2),
       ...cr([[ux, yt, 0.62], [ux - 6, (yg + yt) / 2, 0.7], [ux, H - 70 * k, 0.76]], 8),
@@ -861,7 +908,7 @@ function add(host, html, x, y, fr, dur) {
 }
 
 /** Sao ước bay ngang header 6,8 giây kèm nhãn "Bấm để ước". */
-function spawnWish(host, w, wishes) {
+function spawnWish(host, w, wishes, bags) {
   if (!host.isConnected) return
   const R = Math.random
   const x0 = w.x + R() * w.xr, y0 = w.y + R() * w.yr, dx = -(w.dx + R() * w.dxr), dy = w.dy + R() * w.dyr, ang = (Math.atan2(dy, dx) * 180) / Math.PI
@@ -873,7 +920,7 @@ function spawnWish(host, w, wishes) {
     + '<span style="position:absolute;left:-22px;top:-22px;width:44px;height:44px;box-sizing:border-box;border-radius:50%;border:1px dashed rgba(255,240,200,.55);animation:badgeSpin 5s linear infinite"></span>'
     + `<span style="position:absolute;left:0;top:26px;transform:translateX(-50%);white-space:nowrap;font:600 11.5px/1 var(--font-sans);color:#FFF4D6;text-shadow:0 0 8px rgba(240,183,92,.9),0 1px 2px rgba(0,0,0,.8)">${esc(t('sky.tip.wish'))}</span>`
   host.appendChild(el)
-  const a = el.animate([{ transform: 'translate(0px,0px)', opacity: 0 }, { opacity: 1, offset: 0.08 }, { opacity: 1, offset: 0.9 }, { transform: `translate(${dx.toFixed(0)}px,${dy.toFixed(0)}px)`, opacity: 0 }], { duration: 6800, fill: 'both' })
+  const a = el.animate([{ transform: 'translate(0px,0px)', opacity: 0 }, { opacity: 1, offset: 0.08 }, { opacity: 1, offset: 0.9 }, { transform: `translate(${dx.toFixed(0)}px,${dy.toFixed(0)}px)`, opacity: 0 }], { duration: WISH_FLY_MS, fill: 'both' })
   a.onfinish = () => el.remove()
   el.addEventListener('click', (e) => {
     e.stopPropagation()
@@ -881,19 +928,19 @@ function spawnWish(host, w, wishes) {
     const x = (b.left + b.width / 2 - hb.left) * k, y = (b.top + b.height / 2 - hb.top) * k
     a.cancel()
     el.remove()
-    burst(host, x, y, wishes())
+    burst(host, x, y, wishes(), bags)
   })
 }
 
 /** Bung sáng tại chỗ bấm + thẻ "Điều ước" với một điều ước ngẫu nhiên. */
-function burst(host, x, y, wishes) {
+function burst(host, x, y, wishes, bags) {
   const R = Math.random
   for (let i = 0; i < 18; i++) {
     const a = (i / 18) * Math.PI * 2, r = 30 + R() * 40, s = 2 + R() * 2.4
     add(host, `<span style="position:absolute;left:${-s / 2}px;top:${-s / 2}px;width:${s}px;height:${s}px;border-radius:50%;background:#FFF7D6;box-shadow:0 0 6px 2px rgba(253,230,138,.85)"></span>`, x, y, [{ transform: 'translate(0,0)', opacity: 1 }, { transform: `translate(${(Math.cos(a) * r).toFixed(1)}px,${(Math.sin(a) * r).toFixed(1)}px)`, opacity: 0 }], 900 + R() * 500)
   }
   add(host, '<svg width="40" height="40" viewBox="-20 -20 40 40" style="position:absolute;left:-20px;top:-20px;overflow:visible;filter:drop-shadow(0 0 8px rgba(253,230,138,.95))"><path d="M0 -18 L4 -4 L18 0 L4 4 L0 18 L-4 4 L-18 0 L-4 -4 Z" fill="#FFF7D6"/></svg>', x, y, [{ transform: 'scale(.2) rotate(0deg)', opacity: 0 }, { transform: 'scale(1.2) rotate(45deg)', opacity: 1, offset: 0.3 }, { transform: 'scale(0) rotate(120deg)', opacity: 0 }], 1200)
-  const w = wishes[Math.floor(R() * wishes.length)] || ''
+  const w = wishes[bags('wish', wishes.length)] || ''
   const hw = Math.min(180, host.offsetWidth / 2 - 10), bx = Math.max(hw, Math.min(host.offsetWidth - hw, x))
   add(host, `<div style="position:absolute;left:0;top:0;transform:translateX(-50%);padding:9px 14px;border-radius:12px;background:rgba(8,14,30,.92);border:1px solid rgba(253,230,138,.45);box-shadow:0 0 26px rgba(253,230,138,.22);display:flex;flex-direction:column;align-items:center;gap:5px;white-space:nowrap"><span style="font:600 10px/1 var(--font-mono);letter-spacing:.14em;text-transform:uppercase;color:#FDE68A">${esc(t('sky.wishTitle'))}</span><span style="font:600 13.5px/1.25 var(--font-sans);color:#F4F7FF">${esc(w)}</span></div>`, bx, y + 28, [{ opacity: 0, transform: 'translateY(6px)' }, { opacity: 1, transform: 'translateY(0)', offset: 0.08 }, { opacity: 1, transform: 'translateY(0)', offset: 0.86 }, { opacity: 0, transform: 'translateY(-6px)' }], 4400)
 }

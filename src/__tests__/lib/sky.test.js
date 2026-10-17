@@ -1,7 +1,7 @@
 // node src/__tests__/lib/sky.test.js
 // Nền bầu trời trang chủ: chọn nhân vật + câu thoại theo số liệu (lib/sky.js, docs/HOME_SKY.md).
 import assert from 'node:assert/strict'
-import { SKY_CAST, UFO_GIVE_BACK, UFO_HUH, isLate, lastPlayedAt, moonAge, pickCast, skyFacts, skyLines, skyMode, ufoOutcome, ufoScript } from '#lib/sky.js'
+import { SKY_CAST, UFO_GIVE_BACK, UFO_HUH, UFO_OUTCOMES, createBags, drawCast, isLate, lastPlayedAt, moonAge, shuffled, skyFacts, skyLines, skyMode, ufoPool, ufoScript } from '#lib/sky.js'
 import vi from '#i18n/vi.json' with { type: 'json' }
 import cfg from '#config/app.json' with { type: 'json' }
 import { ROUTE_KEYS } from '#routes'
@@ -18,12 +18,43 @@ const HOT = { rank: 2, rd: 1, gap: 2, rival: 'Hương Giang', streak: 5, off: 0,
 /* ---------- giờ khuya & bốc nhân vật ---------- */
 assert.ok(isLate(22) && isLate(23) && isLate(0) && isLate(3), '22h–4h là khuya: cú mèo phải được ra')
 assert.ok(!isLate(4) && !isLate(12) && !isLate(21), 'ngoài 22h–4h mà ra cú mèo là sai thiết kế "chỉ sau 22h"')
-for (let r = 0; r < 1; r += 0.01) {
-  assert.notEqual(pickCast(false, r), 'owl', 'chưa khuya mà bốc trúng cú mèo (r=' + r + ')')
-  assert.ok(SKY_CAST.includes(pickCast(true, r)))
+
+/* ---------- túi xáo: đủ một lượt mới lặp ---------- */
+assert.deepEqual([...shuffled(7)].sort(), [0, 1, 2, 3, 4, 5, 6], 'xáo không được mất / lặp phần tử')
+{
+  const draw = createBags()
+  for (const n of [2, 3, 5, 7]) {
+    let prev = -1
+    for (let round = 0; round < 40; round++) {
+      const got = Array.from({ length: n }, () => draw('k' + n, n))
+      assert.deepEqual([...got].sort((a, b) => a - b), [...Array(n).keys()], 'mỗi lượt ' + n + ' phần tử phải ra đủ cả ' + n + ' trước khi lặp: ' + got)
+      assert.notEqual(got[0], prev, 'chỗ nối hai lượt không được lặp lại phần tử vừa ra')
+      prev = got[n - 1]
+    }
+  }
+  assert.equal(draw('one', 1), 0, 'danh sách 1 phần tử luôn ra phần tử đó')
+  draw('chg', 5); draw('chg', 5)
+  const after = Array.from({ length: 3 }, () => draw('chg', 3))
+  assert.deepEqual([...after].sort(), [0, 1, 2], 'danh sách đổi độ dài (câu theo số liệu đổi) thì xáo lượt mới cho đủ độ dài mới')
 }
-assert.equal(pickCast(true, 0), 'owl')
-assert.equal(pickCast(false, 0.9999), 'ufo', 'r sát 1 không được tràn ra ngoài danh sách')
+
+/* ---------- túi nhân vật qua các lần mở trang ---------- */
+{
+  let left = [], seen = []
+  for (let i = 0; i < SKY_CAST.length; i++) { const d = drawCast(left, true); seen.push(d.cast); left = d.left }
+  assert.deepEqual([...seen].sort(), [...SKY_CAST].sort(), 'khuya: 5 lần mở phải gặp đủ 5 nhân vật')
+  for (let n = 0; n < 50; n++) {
+    const d = drawCast(left, false)
+    assert.notEqual(d.cast, 'owl', 'chưa khuya mà ra cú mèo là sai thiết kế "chỉ sau 22h"')
+    left = d.left
+  }
+  const day = Array.from({ length: 4 }, function () { const d = drawCast(this.left, false); this.left = d.left; return d.cast }, { left: [] })
+  assert.deepEqual([...day].sort(), ['banner', 'hero', 'top1', 'ufo'], 'ban ngày: 4 lần mở gặp đủ 4 nhân vật không phải cú')
+  assert.deepEqual(drawCast(['owl', 'ufo'], false), { cast: 'ufo', left: ['owl'] }, 'chưa khuya: cú vẫn nằm trong túi chờ lần mở lúc khuya')
+  const stuck = drawCast(['owl'], false).cast
+  assert.ok(SKY_CAST.includes(stuck) && stuck !== 'owl', 'túi chỉ còn cú mà chưa khuya thì xáo túi mới, không kẹt (ra: ' + stuck + ')')
+  assert.ok(SKY_CAST.includes(drawCast('rác', true).cast), 'localStorage hỏng thì vẫn bốc được nhân vật')
+}
 
 /* ---------- trang nào có nền ---------- */
 for (const r of ['home', 'matches', 'leaderboard', 'badges', 'sessions', 'library', 'members', 'profile', 'settings']) {
@@ -90,20 +121,19 @@ assert.deepEqual(keys(me.slip), ['sky.ufo.slipMe.home', 'sky.ufo.slipMe.game'])
 assert.deepEqual(keys(rv.slip), ['sky.ufo.slipRival.rank', 'sky.ufo.slipRival.phew'])
 assert.deepEqual(rv.safe, ['sky.ufo.safeRival', { name: 'Canh lá ngón' }], 'người kia bị bắn rơi thì nghi chính bạn bắn')
 
-// Tỉ lệ kết cục của thiết kế: bắt cóc 20% · siêu nhân 28% · bắn rơi 28% · tuột 11% · trả lại 13%.
-const tally = (can) => {
-  const n = {}
-  for (let i = 0; i < 10000; i++) { const o = ufoOutcome(i / 10000, can); n[o] = (n[o] || 0) + 1 }
-  return n
+// Kết cục rút bằng túi xáo (như SkyBackdrop → ufoScene): cứ 5 cảnh UFO là đủ cả 5 kết cục.
+assert.deepEqual(ufoPool(true), UFO_OUTCOMES)
+assert.deepEqual(ufoPool(false), ['rescue', 'down', 'slip', 'ret'], 'không có câu bắt cóc thì không được ra kết cục bắt cóc')
+{
+  const draw = createBags()
+  for (const can of [true, false]) {
+    const pool = ufoPool(can)
+    for (let round = 0; round < 10; round++) {
+      const seen = Array.from({ length: pool.length }, () => pool[draw('ufo' + can, pool.length)])
+      assert.deepEqual([...seen].sort(), [...pool].sort(), 'một lượt ' + pool.length + ' cảnh UFO phải gặp đủ ' + pool.length + ' kết cục: ' + seen)
+    }
+  }
 }
-// Quét đều 10.000 điểm; ±1 vì điểm nằm đúng biên rơi về bên nào là do làm tròn số thực.
-const want = { ok: 2000, rescue: 2800, down: 2800, slip: 1100, ret: 1300 }, got = tally(true)
-assert.deepEqual(Object.keys(got).sort(), Object.keys(want).sort(), 'phải ra đủ năm kết cục')
-for (const o in want) assert.ok(Math.abs(got[o] - want[o]) <= 1, 'tỉ lệ kết cục "' + o + '" lệch thiết kế: ' + got[o] + '/10000')
-const noRank = tally(false)
-assert.equal(noRank.ok, undefined, 'không có câu bắt cóc thì không được ra kết cục bắt cóc')
-assert.deepEqual(Object.keys(noRank).sort(), ['down', 'rescue', 'ret', 'slip'], 'bỏ bắt cóc thì bốn kết cục còn lại vẫn phải ra được')
-assert.equal(ufoOutcome(0.9999999, true), 'ret', 'r sát 1 không được tràn ra ngoài danh sách')
 
 /* ---------- đọc số liệu ---------- */
 const now = new Date(2026, 9, 17, 23, 0)
