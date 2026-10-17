@@ -37,7 +37,12 @@ const SK = {
   ghost: '#FFEDF4', ghostLine: 'rgba(232,85,143,.4)',
 }
 const EASE = 'cubic-bezier(.2,.8,.2,1)'
-const TROLL_ICONS = ['🤨', '😏', '🙄', '🤡', '🫵']
+const TROLL_ICONS = ['🤨', '😏', '🙄']
+// Huy hiệu răng cưa 12 cánh cho sticker "+1 nữ tính".
+const SEAL = 'polygon(' + Array.from({ length: 24 }, (_, i) => {
+  const a = (i / 24) * Math.PI * 2, r = i % 2 ? 41 : 50
+  return `${(50 + r * Math.sin(a)).toFixed(1)}% ${(50 - r * Math.cos(a)).toFixed(1)}%`
+}).join(', ') + ')'
 
 /** Số giả ngẫu nhiên theo seed: hiệu ứng đứng yên chỗ cũ giữa các lần render. */
 function rng(seed) {
@@ -56,18 +61,18 @@ function chime(acRef) {
     acRef.current = acRef.current || new C()
     const ac = acRef.current
     const t0 = ac.currentTime + 0.02
-    ;[1046.5, 1318.5, 1568, 2093, 2637].forEach((f, i) => {
-      const o = ac.createOscillator(), g = ac.createGain(), at = t0 + i * 0.085
-      o.type = 'sine'
-      o.frequency.value = f
-      g.gain.setValueAtTime(0, at)
-      g.gain.linearRampToValueAtTime(0.07, at + 0.02)
-      g.gain.exponentialRampToValueAtTime(0.0001, at + 1.1)
-      o.connect(g)
-      g.connect(ac.destination)
-      o.start(at)
-      o.stop(at + 1.2)
-    })
+      ;[1046.5, 1318.5, 1568, 2093, 2637].forEach((f, i) => {
+        const o = ac.createOscillator(), g = ac.createGain(), at = t0 + i * 0.085
+        o.type = 'sine'
+        o.frequency.value = f
+        g.gain.setValueAtTime(0, at)
+        g.gain.linearRampToValueAtTime(0.07, at + 0.02)
+        g.gain.exponentialRampToValueAtTime(0.0001, at + 1.1)
+        o.connect(g)
+        g.connect(ac.destination)
+        o.start(at)
+        o.stop(at + 1.2)
+      })
   } catch {
     // trình duyệt chặn âm thanh — thiệp vẫn chạy bình thường
   }
@@ -167,7 +172,11 @@ export default function SakuraEvent({ member, isMobile }) {
   const g = cfg.greetings?.[target.id] || {}
   const name = g.name || target.name
   const card = trollCard
-    ? { name: t('event2010.trollName'), msg: parseGreeting(t('event2010.trollMsg'), null), final: [] }
+    ? {
+      name: t('event2010.trollName'),
+      msg: { lead: greetingSegs(t('event2010.trollMsg'), null), body: [], close: greetingSegs(t('event2010.trollNudge'), null) },
+      final: [],
+    }
     : {
       name,
       msg: parseGreeting(g.msg || t('event2010.msg'), name),
@@ -495,23 +504,32 @@ function Charging({ isMobile, n, pct }) {
   )
 }
 
-/** Ba sticker quanh thiệp troll. */
+/** Hai sticker chữ dán quanh thiệp troll: "Lỡ bấm rồi" ở góc trên, huy hiệu "+1 nữ tính" ở góc dưới. */
 function Stickers({ isMobile, rm }) {
   const z = isMobile ? 1 : 1.2
-  const st = (e, pos, size, rot, d) => (
-    <span key={e} style={{ position: 'absolute', ...pos, zIndex: 1, fontSize: size * z, lineHeight: 1, transform: `rotate(${rot}deg)`, pointerEvents: 'none' }}>
-      <span style={{
-        display: 'block', filter: 'drop-shadow(0 0 1.5px #fff) drop-shadow(0 0 1.5px #fff) drop-shadow(0 4px 6px rgba(0,0,0,.35))',
-        animation: rm ? 'none' : `skBonk .45s cubic-bezier(.2,1.3,.4,1) ${d}s both, skWobble 1.6s ease-in-out ${d + 0.45}s infinite`,
-      }}>
-        {e}
-      </span>
-    </span>
-  )
+  const pop = (d) => (rm ? 'none' : `skBonk .45s cubic-bezier(.2,1.3,.4,1) ${d}s both`)
   return [
-    st('🤡', { right: 56, top: -24 }, 52, 12, 0.35),
-    st('🤭', { left: -14, bottom: -14 }, 32, -10, 0.5),
-    st('💅', { right: -12, top: '56%' }, 30, -14, 0.65),
+    <span key="oops" style={{ position: 'absolute', right: 6, top: -26, zIndex: 5, pointerEvents: 'none', transform: 'rotate(-8deg)' }}>
+      <span style={{
+        display: 'block', padding: `${8 * z}px ${14 * z}px`, borderRadius: 999, whiteSpace: 'nowrap',
+        background: 'linear-gradient(180deg,#E04883,#B8235F)', border: '3px solid #FFFFFF', boxShadow: '0 6px 14px rgba(122,30,72,.35)',
+        font: `700 ${15 * z}px/1 var(--font-display)`, letterSpacing: '.04em', textTransform: 'uppercase', color: '#FFFFFF', animation: pop(0.35),
+      }}>
+        {t('event2010.badgeOops')}
+      </span>
+    </span>,
+    <span key="plus" style={{
+      position: 'absolute', right: -18, bottom: -34, zIndex: 5, pointerEvents: 'none', transform: 'rotate(-12deg)',
+      filter: 'drop-shadow(0 6px 10px rgba(122,30,72,.3))',
+    }}>
+      <span style={{
+        display: 'flex', flexDirection: 'column', alignItems: 'center', justifyContent: 'center', gap: 3,
+        width: 78 * z, height: 78 * z, background: '#FFD66B', clipPath: SEAL, color: SK.title, animation: pop(0.55),
+      }}>
+        <span style={{ font: `700 ${19 * z}px/1 var(--font-display)` }}>+1</span>
+        <span style={{ font: `700 ${9.5 * z}px/1 var(--font-display)`, letterSpacing: '.06em', textTransform: 'uppercase' }}>{t('event2010.badgeFem')}</span>
+      </span>
+    </span>,
   ]
 }
 

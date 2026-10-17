@@ -5877,6 +5877,9 @@
     "trollNo": "Ờ ha",
     "trollName": "bạn",
     "trollMsg": "Thôi thì lỡ bấm rồi, chúc bạn càng ngày càng nữ tính hơn nhé 💅",
+    "trollNudge": "Mà khoan, hôm nay bạn đã nhớ trao yêu thương cho **những người phụ nữ quanh  mình** chưa đấy? 🤭",
+    "badgeOops": "Lỡ bấm rồi",
+    "badgeFem": "Nữ tính",
     "charge": {
       "open": "Đang mở thiệp…",
       "weird": "Hình như có gì đó sai sai…",
@@ -5918,7 +5921,12 @@
     "notFoundHint": "Bài đã bị ẩn hoặc không thuộc CLB đang xem. Quay lại thư viện để chọn bài khác.",
     "viewersTitle": "Ai đã xem · {{n}}",
     "viewersEmpty": "Chưa ai mở bài này. Người đăng bài không tính vào lượt xem.",
-    "shelfSuggest": ["Di chuyển", "Tấn công", "Phòng thủ", "Lưới"],
+    "shelfSuggest": [
+      "Di chuyển",
+      "Tấn công",
+      "Phòng thủ",
+      "Lưới"
+    ],
     "form": {
       "createTitle": "Bài mới",
       "editTitle": "Sửa bài",
