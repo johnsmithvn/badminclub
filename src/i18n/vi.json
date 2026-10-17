@@ -5880,7 +5880,7 @@
     "trollPeek": "Vẫn xem",
     "trollNo": "Ờ ha",
     "trollName": "bạn",
-    "trollMsg": "Thôi thì lỡ bấm rồi, chúc bạn càng ngày càng nữ tính hơn nhé 💅",
+    "trollMsg": "Thôi thì lỡ bấm rồi, chúc bạn càng ngày càng nữ tính hơn nhé (◕‿◕✿)",
     "trollNudge": "Mà khoan, hôm nay bạn đã nhớ trao yêu thương cho **những người phụ nữ quanh  mình** chưa đấy? 🤭",
     "badgeOops": "Lỡ bấm rồi",
     "badgeFem": "Nữ tính",
@@ -5995,6 +5995,72 @@
       "notFound": "Bài không còn hoặc đã bị ẩn",
       "notMember": "Tài khoản chưa ghép với thành viên nào của CLB — nhờ chủ CLB ghép rồi mới đăng / lưu được",
       "pinOwnerOnly": "Chỉ chủ CLB được ghim bài"
+    }
+  },
+  "sky": {
+    "you": "Bạn",
+    "boom": "BÙM!",
+    "wishTitle": "Điều ước",
+    "cons": ["Bắc Đẩu", "Thiên Hậu", "Lạp Hộ", "Thiên Yết", "Sư Tử", "Thiên Nga"],
+    "tip": {
+      "owl": "Bấm để cú nói câu khác",
+      "banner": "Bấm để đổi chữ",
+      "hero": "Bấm để siêu nhân giơ ngón cái",
+      "ufo": "Bấm để bắn tên lửa",
+      "victim": "Bấm để gọi siêu nhân",
+      "wish": "Bấm để ước"
+    },
+    "line": {
+      "missRacket": "Vợt đang nhớ bạn đấy. (｡•́︿•̀｡)",
+      "daysOff": "{{n}} ngày chưa ra sân rồi. Mai đi đánh nhé?",
+      "leader": "Ngôi vương đang là của bạn, giữ chặt nhé! (￣▽￣)ゞ",
+      "chaser": "{{name}} chỉ kém {{n}} điểm, đừng lơ là.",
+      "near": "Còn {{n}} điểm là vượt {{name}}. Năm nay phải top 1! (ง •̀_•́)ง",
+      "far": "Cách hạng {{rank}} còn {{n}} điểm. Từng trận một thôi.",
+      "drop": "Tụt {{n}} hạng thôi mà, mai lấy lại cả vốn lẫn lời. (•̀ᴗ•́)و",
+      "rise": "Vừa lên {{n}} hạng! Đà này ngon đấy ヽ(•‿•)ノ",
+      "streak": "Chuỗi {{n}} thắng rồi, đừng dừng lại! 🔥"
+    },
+    "owl": {
+      "sleep": "Khuya rồi, ngủ đi. Mai còn phải phục thù. (－_－) zzZ",
+      "peek": "Thức để soi BXH à? Điểm không tự tăng đâu. (¬‿¬)"
+    },
+    "banner": {
+      "missRacket": "Vợt đang nhớ bạn đấy",
+      "tonight": "{{name}} ơi, tối nay đánh không?",
+      "chores": "Cầu lông là lý do chính đáng để trốn việc nhà"
+    },
+    "hero": {
+      "top1": "Năm nay phải top 1! (•̀ᴗ•́)و ✧",
+      "rescueMe": "Đừng lo, tôi đưa bạn ra sân! 💪",
+      "rescueRival": "Muốn thắng thì thắng trên sân nhé! 💪"
+    },
+    "ufo": {
+      "rise": {
+        "court": "Ơ ơ, chuẩn bị đi đánh cầu mà!",
+        "letGo": "Thả tôi xuống, tối nay còn có kèo!",
+        "near": "Khoan! Còn {{n}} điểm nữa là tôi vượt {{name}}!",
+        "leader": "Bắt tôi thì ai giữ ngôi hạng 1?! (ﾟДﾟ;)",
+        "streak": "Chuỗi {{n}} thắng của tôi! Đừng mà 😭",
+        "away": "{{n}} ngày chưa đánh, giờ còn bị bắt cóc… (´・ω・`)",
+        "help": "{{name}} ơi cứu! Hay bạn gọi UFO đấy?! (¬_¬)",
+        "ahead": "Tôi mới hơn {{name}} có {{n}} điểm thôi, thả tôi xuống!",
+        "chasing": "Tôi đang đuổi {{name}} mà, thả tôi ra!"
+      },
+      "abductMe": "Mượn tay vợt hạng {{rank}} về hành tinh luyện tập. 👽",
+      "abductRival": "Đã bắt cóc {{name}}. Ghế trên bạn tạm trống. 👽",
+      "abductChaser": "Đã bắt cóc {{name}}. Ngôi vương của bạn an toàn. 👽",
+      "hero": "Ơ kìa! Siêu nhân! (ﾟдﾟ)",
+      "safeMe": "Phù… vẫn kịp giờ đánh cầu! (；´∀｀)",
+      "safeRival": "Ai bắn đấy? {{name}} à?! (¬_¬)"
+    },
+    "wish": {
+      "smash": "Ước smash nào cũng chạm vạch",
+      "net": "Ước đối thủ đánh lưới cả trận",
+      "pass": "Ước vượt {{name}} ngay tối nay",
+      "court": "Ước buổi sau sân trống cả tối",
+      "feather": "Ước cầu không bao giờ rụng lông",
+      "partner": "Ước partner đỡ hết cầu khó"
     }
   }
 }

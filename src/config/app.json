@@ -197,6 +197,19 @@
     "homeMinPairMatches": 2,
     "pairPageSize": 20
   },
+  "sky": {
+    "_note": "Nền bầu trời trang chủ (SkyBackdrop.jsx · lib/sky.js). Cú mèo chỉ ra từ lateFrom giờ tới trước lateUntil giờ sáng. Câu thoại: cách người trên <= nearGap điểm thì giục vượt, nghỉ >= awayDays ngày thì nhắc ra sân, chuỗi >= streakMin trận thì khen. moon: full (rằm) | lunar (theo lịch âm) | crescent (lưỡi liềm). wishEveryMs: nhịp sao ước bay ngang header (đêm). sceneGapMs: nghỉ giữa hai lượt siêu nhân / UFO.",
+    "lateFrom": 22,
+    "lateUntil": 4,
+    "nearGap": 10,
+    "awayDays": 7,
+    "streakMin": 2,
+    "moon": "full",
+    "wishFirstMs": 3000,
+    "wishEveryMs": 13000,
+    "sceneFirstMs": 2500,
+    "sceneGapMs": 8000
+  },
   "tournament": {
     "_notePoll": "Trang nhánh / Hub khi giải đang chạy nạp lại bảng trận mỗi pollMs (Supabase free: poll thay realtime). Tab ẩn thì dừng.",
     "pollMs": 15000,

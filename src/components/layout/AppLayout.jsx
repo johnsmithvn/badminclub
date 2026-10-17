@@ -14,9 +14,11 @@ export default function AppLayout({ route, children }) {
   const [moreOpen, setMoreOpen] = useState(false)
 
   const isWideRoute = route === 'tournament' || route === 'tournamentFlow' || route === 'tournamentBracket'
+  // Trang chủ cá nhân vẽ nền bầu trời (SkyBackdrop) phía sau: nền gốc trong suốt, thẻ dùng token kính.
+  const sky = route === 'home'
 
   return (
-    <div style={S.root}>
+    <div style={sky ? { ...S.root, background: 'transparent' } : S.root} data-sky={sky ? '' : undefined}>
       {!isMobile && <Sidebar route={route} />}
       <div style={S.col}>
         <AppHeader route={route} />
