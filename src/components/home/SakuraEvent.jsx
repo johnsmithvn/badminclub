@@ -26,7 +26,7 @@ const SK = {
   line: 'rgba(255,170,205,.32)',
   banner: 'radial-gradient(120% 150% at 100% 0%, rgba(255,143,191,.28), transparent 58%), linear-gradient(120deg,#131B30 0%,#1D1832 62%,#2A1A3B 100%)',
   thumb: 'radial-gradient(circle at 50% 40%, rgba(255,190,220,.35), rgba(42,26,59,.6) 70%)',
-  bannerBtn: 'linear-gradient(180deg,#FFB3D3,#F27AB0)',
+  bannerBtn: 'linear-gradient(180deg,#FFB3D3,#F27AB0)', pickBg: 'rgba(255,143,191,.12)', pickLine: 'rgba(255,170,205,.5)', pickFg: '#FFD3E5',
   // thiệp (nền giấy)
   paper: '#FFFBFC', title: '#2E0F22', body: '#4A3442', soft: '#8A5A73', deep: '#8A1F52', rose: '#C2306F',
   paperLine: 'rgba(232,85,143,.22)', chip: '#FFF1F6', chipLine: 'rgba(232,85,143,.25)', hl: '#FFE6EF',
@@ -102,6 +102,8 @@ export default function SakuraEvent({ member, isMobile }) {
   const [trollN, setTrollN] = useState(0)
   const [trollOpen, setTrollOpen] = useState(false)
   const [charge, setCharge] = useState(null)
+  // Đang mở thiệp của người khác (ô "Xem thiệp của…" trên banner) — để mở cho người chưa vào app xem.
+  const [viewId, setViewId] = useState(null)
   const acRef = useRef(null)
   const chargeN = charge?.n
 
@@ -111,7 +113,7 @@ export default function SakuraEvent({ member, isMobile }) {
       return () => clearTimeout(id)
     }
     if (phase === 'closing') {
-      const id = setTimeout(() => { setPhase('closed'); setTrollCard(false) }, 280)
+      const id = setTimeout(() => { setPhase('closed'); setTrollCard(false); setViewId(null) }, 280)
       return () => clearTimeout(id)
     }
   }, [phase, rm])
@@ -134,8 +136,9 @@ export default function SakuraEvent({ member, isMobile }) {
 
   if (!preview && today.slice(5) !== cfg.date) return null
 
+  const viewed = viewId ? (db.members || []).find((m) => m.id === viewId) : null
   const remember = () => {
-    if (preview || trollCard) return
+    if (preview || trollCard || viewed) return
     try { localStorage.setItem(key, '1') } catch { /* storage tắt — mai không còn sự kiện nữa */ }
   }
   const close = () => {
@@ -157,10 +160,20 @@ export default function SakuraEvent({ member, isMobile }) {
       setTrollOpen(true)
       return
     }
+    setViewId(null)
     setTrollCard(false)
     setRcv(false)
     setPhase('open')
   }
+  const openFor = (id) => {
+    setViewId(id)
+    setTrollCard(false)
+    setRcv(false)
+    setPhase('open')
+  }
+  const women = (db.members || [])
+    .filter((m) => m.active !== false && isFemalePlayer(m))
+    .sort((a, b) => a.name.localeCompare(b.name, 'vi'))
   const peek = () => {
     setTrollOpen(false)
     if (!rm) return setCharge((c) => ({ n: (c?.n || 0) + 1, pct: 0 }))
@@ -169,8 +182,9 @@ export default function SakuraEvent({ member, isMobile }) {
     setPhase('open')
   }
 
-  const g = cfg.greetings?.[target.id] || {}
-  const name = g.name || target.name
+  const shown = viewed || target
+  const g = cfg.greetings?.[shown.id] || {}
+  const name = g.name || shown.name
   const card = trollCard
     ? {
       name: t('event2010.trollName'),
@@ -185,10 +199,10 @@ export default function SakuraEvent({ member, isMobile }) {
 
   return (
     <>
-      <Banner isMobile={isMobile} club={club} rm={rm} label={t(female ? 'event2010.reopen' : 'event2010.view')} onTap={onBanner} />
+      <Banner isMobile={isMobile} club={club} rm={rm} label={t(female ? 'event2010.reopen' : 'event2010.view')} onTap={onBanner} people={women} onPick={openFor} />
       {phase !== 'closed' && (
         <Card
-          key={trollCard ? 'troll' : 'card'}
+          key={trollCard ? 'troll' : shown.id}
           isMobile={isMobile}
           rm={rm}
           phase={phase}
@@ -213,11 +227,11 @@ export default function SakuraEvent({ member, isMobile }) {
 
 /* ============================ BANNER ============================ */
 
-function Banner({ isMobile, club, rm, label, onTap }) {
+function Banner({ isMobile, club, rm, label, onTap, people, onPick }) {
   const m = isMobile
   const btn = (
     <button type="button" onClick={onTap} style={{
-      ...S.btnReset, position: 'relative', flexShrink: 0, alignSelf: m ? 'flex-start' : 'center', marginTop: m ? 4 : 0,
+      ...S.btnReset, position: 'relative', flexShrink: 0, alignSelf: m ? 'flex-start' : 'stretch',
       padding: m ? '9px 14px' : '12px 18px', borderRadius: 999, background: SK.bannerBtn, color: SK.ink,
       font: `600 ${m ? 12.5 : 14}px/1 var(--font-sans)`, whiteSpace: 'nowrap',
     }}>
@@ -233,6 +247,23 @@ function Banner({ isMobile, club, rm, label, onTap }) {
       <span style={{ position: 'relative' }}>{label}</span>
     </button>
   )
+  // Ô chọn tự nhiên của trình duyệt: điện thoại bật bảng chọn hệ thống, khỏi dựng dropdown riêng.
+  // value luôn rỗng để chọn lại đúng người vừa xem vẫn mở được.
+  const pick = people.length > 0 && (
+    <span style={{ position: 'relative', display: 'flex', minWidth: 0, maxWidth: m ? '100%' : 220, alignSelf: m ? 'flex-start' : 'stretch' }}>
+      <select value="" aria-label={t('event2010.viewOf')} onChange={(e) => e.target.value && onPick(e.target.value)} style={{
+        appearance: 'none', WebkitAppearance: 'none', minWidth: 0, maxWidth: '100%', margin: 0, cursor: 'pointer',
+        padding: m ? '8px 28px 8px 13px' : '11px 32px 11px 16px', borderRadius: 999, border: '1px solid ' + SK.pickLine,
+        background: SK.pickBg, color: SK.pickFg, font: `600 ${m ? 12.5 : 14}px/1 var(--font-sans)`, textOverflow: 'ellipsis',
+      }}>
+        <option value="" disabled>{t('event2010.viewOf')}</option>
+        {people.map((p) => (
+          <option key={p.id} value={p.id} style={{ color: SK.title, background: SK.paper }}>{p.name}</option>
+        ))}
+      </select>
+      <span aria-hidden="true" style={{ position: 'absolute', right: m ? 11 : 14, top: '50%', transform: 'translateY(-50%)', pointerEvents: 'none', color: SK.pickFg, fontSize: 10 }}>▾</span>
+    </span>
+  )
   return (
     <div style={{ position: 'relative', borderRadius: m ? 16 : 18, overflow: 'hidden', border: '1px solid ' + SK.line, background: SK.banner }}>
       <Petals seed={m ? 11 : 23} count={m ? 8 : 14} fall={m ? 150 : 170} scale={m ? 0.8 : 0.9} durK={0.6} rm={rm} />
@@ -247,9 +278,11 @@ function Banner({ isMobile, club, rm, label, onTap }) {
           <span style={{ font: `400 ${m ? 12.5 : 14.5}px/1.45 var(--font-sans)`, color: SK.textBanner }}>
             {t('event2010.bannerText', { club })}
           </span>
-          {m && btn}
+          {m && (
+            <div style={{ display: 'flex', flexWrap: 'wrap', gap: 8, marginTop: 4, minWidth: 0 }}>{btn}{pick}</div>
+          )}
         </div>
-        {!m && btn}
+        {!m && <div style={{ display: 'flex', flexDirection: 'column', gap: 8, flexShrink: 0 }}>{btn}{pick}</div>}
         <div style={{
           position: 'relative', flexShrink: 0, width: m ? 84 : 220, height: m ? 84 : 112, borderRadius: 14,
           overflow: 'hidden', background: SK.thumb, border: '1px solid ' + SK.line, display: 'grid', placeItems: 'center',
