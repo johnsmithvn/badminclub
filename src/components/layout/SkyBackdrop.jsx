@@ -168,11 +168,13 @@ export default function SkyBackdrop({ mode, isMobile, scrollRef }) {
   useEffect(() => { fkRef.current = fk }, [fk])
   const nightOpt = useMemo(() => (isMobile ? nightMobile(mw) : {}), [isMobile, mw])
   const age = moonAge(C.moon, opened.now)
+  // Trời ngày theo giờ mở trang: trước 12h là bình minh, từ 12h là hoàng hôn (không có kiểu nắng trưa gắt).
+  const phase = new Date(opened.now).getHours() < 12 ? 'dawn' : 'dusk'
 
   const amb = full && P.on.ambient
   const back = useMemo(
-    () => (isDark ? <Night o={nightOpt} motion={live} amb={amb} age={age} full={C.moon === 'full'} /> : <Day motion={live} amb={amb} />),
-    [isDark, nightOpt, live, age, amb],
+    () => (isDark ? <Night o={nightOpt} motion={live} amb={amb} age={age} full={C.moon === 'full'} /> : <Day motion={live} amb={amb} phase={phase} />),
+    [isDark, nightOpt, live, age, amb, phase],
   )
 
   // Hoạt cảnh trời đêm định kỳ: bật / "cứ N giây" ở trang Giao diện. Chỉ trang 'full', không giảm chuyển động.
@@ -323,6 +325,7 @@ export default function SkyBackdrop({ mode, isMobile, scrollRef }) {
         <div style={stage}>
           {back}
           {isDark && <MoonActs o={nightOpt} age={age} full={C.moon === 'full'} cuoi={cuoi.on ? cuoi.n : 0} eclipse={eclipse.on ? eclipse.n : 0} />}
+          {isDark && amb && <MoonClouds o={nightOpt} motion={live} />}
         </div>
       </div>
       <div data-sky-fx="" style={S.top}>
@@ -464,9 +467,66 @@ function Night({ o, motion, amb = true, age, full }) {
           </span>
         )
       })}
+      {amb && <span style={{ position: 'absolute', left: -20, top: 64, width: 2.4, height: 2.4, borderRadius: '50%', background: '#F4F8FF', boxShadow: '0 0 4px 1px rgba(220,232,255,.8)', '--sx': '1480px', '--sy': '70px', opacity: 0, animation: an('skySat 120s linear 35s infinite') }} />}
+      {amb && <NightHorizon an={an} />}
       <div style={{ position: 'absolute', left: 0, right: 0, bottom: 0, height: '32%', background: 'linear-gradient(to top,rgba(40,70,130,.32),transparent)' }} />
     </div>
   )
+}
+
+/*
+ * Chân trời đêm (hiệu ứng nền): chớp xa loé sau núi, dãy núi xa, thành phố xa có đèn cửa sổ, đồi gần che chân
+ * phố — cho trời có chiều sâu. Đèn tĩnh vẽ chung một SVG (vẽ một lần); vài đèn nhấp nháy là span riêng (chỉ đổi
+ * opacity) để khỏi vẽ lại cả SVG mỗi khung hình. Phố nằm quanh giữa khung (mobile cũng thấy).
+ */
+const CITY_BASE = 236
+const CITY = (() => {
+  let x = 640
+  return Array.from({ length: 30 }, (_, i) => {
+    const w = 12 + Math.round(rnd(i + 900) * 20), h = 20 + Math.round(rnd(i + 910) * 62), b = [x, w, h]
+    x += w + 2
+    return b
+  })
+})()
+const CITY_LIGHTS = CITY.flatMap(([bx, w, h], i) => {
+  const out = []
+  for (let r = 0; r < Math.floor((h - 6) / 8); r++) for (let c = 0; c < Math.floor((w - 2) / 5); c++) {
+    const k = i * 97 + r * 13 + c
+    if (rnd(k + 2000) < 0.26) out.push([bx + 2 + c * 5, CITY_BASE - h + 4 + r * 8, k])
+  }
+  return out
+})
+function NightHorizon({ an }) {
+  const top = H - 260
+  const blink = CITY_LIGHTS.filter((_, i) => i % 9 === 4).slice(0, 10)
+  return (
+    <>
+      {[[430, 23, 4], [1020, 31, 13]].map(([lx, dur, dl], i) => (
+        <span key={'fl' + i} style={{ position: 'absolute', left: lx - 200, top: top - 70, width: 400, height: 230, background: 'radial-gradient(50% 60% at 50% 72%,rgba(190,205,255,.5),rgba(150,170,240,.16) 50%,rgba(150,170,240,0) 75%)', opacity: 0, animation: an(`skyFlash ${dur}s linear ${dl}s infinite`) }} />
+      ))}
+      <svg width={W} height="260" viewBox="0 0 1440 260" style={{ position: 'absolute', left: 0, top }}>
+        <path d="M0 260 L0 152 L90 122 L180 142 L300 82 L400 130 L520 98 L640 142 L760 94 L880 62 L990 114 L1100 86 L1230 132 L1340 102 L1440 126 L1440 260 Z" fill="#14234A" opacity=".92" />
+        {CITY.map(([bx, w, h], i) => <rect key={i} x={bx} y={CITY_BASE - h} width={w} height={h + 20} fill="#0B1530" />)}
+        <g fill="#FFD98A">{CITY_LIGHTS.map(([lx, ly, k]) => <rect key={k} x={lx} y={ly} width="2.2" height="2.6" opacity={(0.4 + rnd(k + 3000) * 0.5).toFixed(2)} />)}</g>
+        <path d="M0 260 L0 214 L140 200 L280 226 L420 206 L560 230 L700 218 L840 234 L980 214 L1120 232 L1260 210 L1440 224 L1440 260 Z" fill="#081128" />
+      </svg>
+      {blink.map(([lx, ly, k], i) => (
+        <span key={'cl' + k} style={{ position: 'absolute', left: lx, top: top + ly, width: 2.2, height: 2.6, background: '#FFE7A8', boxShadow: '0 0 3px 1px rgba(255,214,140,.6)', animation: an(`skyTwinkle ${(2.4 + rnd(k + 4000) * 3).toFixed(1)}s ease-in-out ${-i}s infinite`) }} />
+      ))}
+    </>
+  )
+}
+
+/** Mây mỏng trôi ngang trăng (hiệu ứng nền đêm): nửa đầu chu kỳ trôi qua, che bớt đĩa trăng; nằm trên lớp chú Cuội. */
+function MoonClouds({ o, motion }) {
+  const { D, MX, MY } = moonShape(o, 0, true)
+  const k = D / 72
+  return [[0.34, 300, 26, 70, -6], [0.68, 220, 18, 88, -40]].map(([fy, w, h, dur, dl], i) => {
+    const cw = w * k, x0 = MX - cw - 60 * k
+    return (
+      <span key={'mc' + i} style={{ position: 'absolute', left: x0, top: MY + D * fy - (h * k) / 2, width: cw, height: h * k, borderRadius: '50%', background: 'radial-gradient(50% 50% at 50% 50%,rgba(118,130,168,.66),rgba(118,130,168,.3) 48%,rgba(118,130,168,0) 72%)', '--cd': (D + cw + 120 * k).toFixed(0) + 'px', opacity: 0, animation: motion ? `skyMoonCloud ${dur}s linear ${dl}s infinite` : 'none' }} />
+    )
+  })
 }
 
 /** Cá voi sao bơi ngang trời: vệt sao sau đuôi, phun bụi sao, chòm sao trên lưng. */
@@ -699,7 +759,32 @@ function FireShuttle({ x, y, dx, dy }) {
 
 const PLANE_D = 'M1 6 L20 5 Q25 5.4 25 6 Q25 6.6 20 7 L1 6 Z M9 5.6 L5 0.5 L8 0.5 L14 5.4 Z M9 6.4 L5 11.5 L8 11.5 L14 6.6 Z M2 5.8 L0.5 2.5 L2.5 2.5 L5 5.7 Z'
 
-function Day({ motion, amb = true }) {
+// Mặt trời theo giờ mở trang (SkyBackdrop → phase): bình minh bên trái, vàng hồng dịu; hoàng hôn bên phải, đỏ cam
+// rực. Cả hai sát dãy núi (nửa dưới khuất sau núi / biển mây), nằm trong khúc trời mobile thấy được (x 700–1090).
+const DAY_SUN = {
+  dawn: { x: 800, y: 414, r: 52, bg: 'radial-gradient(circle at 50% 45%,#FFFBEA 0,#FFE6A8 34%,#FFC285 72%,#FFA478 100%)', sh: '0 0 36px 12px rgba(255,205,140,.45),0 0 110px 46px rgba(255,190,160,.24)', ray: '255,236,200' },
+  dusk: { x: 1000, y: 436, r: 60, bg: 'radial-gradient(circle at 50% 45%,#FFF0D2 0,#FFC07A 28%,#FF7A45 66%,#E2463A 100%)', sh: '0 0 40px 14px rgba(255,118,78,.5),0 0 130px 56px rgba(255,130,100,.3)', ray: '255,214,180' },
+}
+const DAY_BG = {
+  dawn: 'linear-gradient(180deg,#A9C3EC 0%,#C6CDEB 22%,#E9CBDD 42%,#F8D4C4 56%,#FBE0C8 66%,#FDEEDD 100%)',
+  dusk: 'linear-gradient(180deg,#B4C0E6 0%,#CDBFE0 22%,#EBC2D2 40%,#F6CDB8 55%,#FAD9BF 64%,#FBE6D2 100%)',
+}
+
+/** Thuyền buồm trôi trên biển mây (hiệu ứng nền ngày): trôi qua lại chậm + nhấp nhô. */
+function Sailboat({ x, y, s, dx, dur, dl, an }) {
+  return (
+    <div style={{ position: 'absolute', left: x, top: y, '--dx': dx + 'px', animation: an(`skyDrift ${dur}s ease-in-out ${dl}s infinite alternate`) }}>
+      <svg width={34 * s} height={30 * s} viewBox="0 0 34 30" style={{ display: 'block', overflow: 'visible', '--by': '3px', animation: an(`skyBob 3.4s ease-in-out ${dl}s infinite alternate`) }}>
+        <path d="M17 2 L17 22 L5 22 Z" fill="#FFF6EE" />
+        <path d="M19 6 L19 22 L29 22 Z" fill="#F7D9DE" />
+        <path d="M17 1 L17 23" stroke="#7A6690" strokeWidth="1" />
+        <path d="M3 23 L31 23 L27 28 L7 28 Z" fill="#7A6690" />
+      </svg>
+    </div>
+  )
+}
+
+function Day({ motion, amb = true, phase = 'dusk' }) {
   const an = (v) => (motion ? v : 'none')
   // `amb` = nhóm "hiệu ứng nền": mây ti, máy bay, đàn chim, mây tích, hạt sáng; biển mây chỉ cuộn khi bật.
   const anAmb = (v) => (motion && amb ? v : 'none')
@@ -758,12 +843,14 @@ function Day({ motion, amb = true }) {
   )
 
   return (
-    <div style={{ position: 'absolute', inset: 0, overflow: 'hidden', background: 'linear-gradient(180deg,#B4C0E6 0%,#CDBFE0 22%,#EBC2D2 40%,#F6CDB8 55%,#FAD9BF 64%,#FBE6D2 100%)' }}>
+    <div style={{ position: 'absolute', inset: 0, overflow: 'hidden', background: DAY_BG[phase] || DAY_BG.dusk }}>
       <div style={{ position: 'absolute', left: 140, top: H * 0.3, width: 1300, height: 420, borderRadius: '50%', background: 'radial-gradient(closest-side,rgba(255,168,120,.55),rgba(255,150,150,.22) 50%,rgba(255,150,150,0))', filter: 'blur(14px)', animation: an('skySunBreath 12s ease-in-out infinite alternate') }} />
       <div style={{ position: 'absolute', left: -100, right: -100, top: H * 0.2, height: 220, background: 'linear-gradient(180deg,transparent,rgba(255,190,200,.28) 45%,rgba(255,200,170,.18) 70%,transparent)', filter: 'blur(18px)' }} />
       {[[1060, 34, 3.4, 4.2], [420, 22, 1.6, 5.4], [700, 60, 1.4, 6.2], [1270, 70, 1.5, 5], [180, 50, 1.3, 7]].map(([x, y, sz, d], i) => (
         <span key={'e' + i} style={{ position: 'absolute', left: x, top: y, width: sz, height: sz, borderRadius: '50%', background: '#FFFDF6', boxShadow: `0 0 ${(sz * 3).toFixed(0)}px ${(sz * 0.8).toFixed(1)}px rgba(255,250,235,.8)`, animation: an(`skyTwinkle ${d}s ease-in-out ${-i}s infinite`) }} />
       ))}
+      {/* Cầu vồng mờ: mỗi vòng 96 s hiện ~25 s rồi tan; chân khuất sau núi / biển mây */}
+      {amb && <span style={{ position: 'absolute', left: 460, top: H * 0.56 - 440, width: 880, height: 440, background: 'radial-gradient(circle 440px at 50% 100%,transparent 0 372px,rgba(255,96,96,.38) 380px,rgba(255,170,70,.36) 388px,rgba(255,236,96,.32) 396px,rgba(110,214,120,.3) 404px,rgba(90,160,255,.3) 412px,rgba(150,110,230,.28) 420px,transparent 428px)', WebkitMaskImage: 'linear-gradient(90deg,transparent,#000 22%,#000 78%,transparent)', maskImage: 'linear-gradient(90deg,transparent,#000 22%,#000 78%,transparent)', opacity: 0, animation: an('skyRainbow 96s ease-in-out 20s infinite') }} />}
       {amb && [[0.06, 0.07, 560, 40, 70], [0.42, 0.2, 420, 30, -60], [0.7, 0.3, 600, 46, 80]].map(([x, y, w, h, dx], i) => (
         <span key={'ci' + i} style={{ position: 'absolute', left: x * W, top: y * H, width: w, height: h, borderRadius: '50%', background: 'radial-gradient(50% 50% at 50% 50%,rgba(255,206,196,.7),transparent 70%)', filter: 'blur(10px)', '--dx': dx + 'px', animation: an(`skyDrift ${30 + i * 8}s ease-in-out infinite alternate`) }} />
       ))}
@@ -786,6 +873,16 @@ function Day({ motion, amb = true }) {
       {amb && cum(2, 0.63, 0.04, 260, 86, 30)}
       {amb && cum(3, 0.84, 0.33, 260, 84, 40)}
       {amb && cum(4, 0.02, 0.36, 180, 58, 50)}
+      {(() => {
+        const sun = DAY_SUN[phase] || DAY_SUN.dusk
+        return (
+          <>
+            {/* Tia nắng xuyên mây (hiệu ứng nền): chùm tia toả lên từ mặt trời, thở nhẹ */}
+            {amb && <span style={{ position: 'absolute', left: sun.x - 420, top: sun.y - 380, width: 840, height: 380, background: `repeating-conic-gradient(from -90deg at 50% 100%,rgba(${sun.ray},.22) 0deg 3deg,rgba(${sun.ray},0) 3deg 11deg)`, WebkitMaskImage: 'radial-gradient(circle 400px at 50% 100%,#000 18%,transparent 100%)', maskImage: 'radial-gradient(circle 400px at 50% 100%,#000 18%,transparent 100%)', animation: an('skyRays 9s ease-in-out infinite alternate') }} />}
+            <span style={{ position: 'absolute', left: sun.x - sun.r, top: sun.y - sun.r, width: sun.r * 2, height: sun.r * 2, borderRadius: '50%', background: sun.bg, boxShadow: sun.sh }} />
+          </>
+        )
+      })()}
       <svg width={W} height="200" viewBox="0 0 1440 200" style={{ position: 'absolute', left: 0, top: H * 0.5 - 130 }}>
         <defs>
           <linearGradient id="sky-mt" x1="0" y1="0" x2="0" y2="1"><stop offset="0" stopColor="#8E80B4" /><stop offset="1" stopColor="#E2C3D2" /></linearGradient>
@@ -793,6 +890,8 @@ function Day({ motion, amb = true }) {
         <path d="M0 200 L120 130 L190 150 L310 70 L400 130 L500 100 L620 160 L760 80 L860 42 L960 110 L1080 86 L1190 150 L1310 104 L1440 140 L1440 200 Z" fill="url(#sky-mt)" opacity=".75" />
       </svg>
       {sea('s1', H * 0.52, 50, 95, 16, '#E3BFD0', '#CFA9C2', 220, 100, 0.95)}
+      {amb && <Sailboat x={840} y={440} s={1} dx={70} dur={46} dl={-8} an={an} />}
+      {amb && <Sailboat x={1210} y={452} s={0.8} dx={-56} dur={58} dl={-21} an={an} />}
       <div style={{ position: 'absolute', left: -200, right: -200, top: H * 0.58, height: 120, background: 'radial-gradient(50% 50% at 50% 50%,rgba(255,232,224,.75),transparent 70%)', filter: 'blur(14px)', animation: anAmb('skyMist 26s ease-in-out infinite alternate') }} />
       {sea('s2', H * 0.63, 60, 120, 13, '#EDC9CF', '#DDB3C2', 140, 200, 1)}
       {sea('s3', H * 0.76, 70, 140, 11, '#F5DCD6', '#E6C2C8', 90, 300, 1)}

@@ -260,11 +260,10 @@ export default function CareerEloTab({
         <div style={{ display: 'grid', gridTemplateColumns: 'minmax(0, 1fr)', gap: 14 }}>
           {/* Bộ lọc giới tính Nam / Nữ */}
           <GenderFilterTabs
+            isDark={isDark}
             value={genderFilter}
             onChange={onGenderFilterChange}
             counts={{ all: totalCount, nam: maleCount, nu: femaleCount }}
-            isDark={isDark}
-            allActiveBg="#1D50A0"
           />
 
           {/* TỐP ĐẲNG CẤP 14a · Hào nhoáng */}

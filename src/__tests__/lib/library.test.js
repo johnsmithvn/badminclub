@@ -2,7 +2,7 @@
 // Thư viện bài tập: đọc giờ "mm:ss", kiểm form đăng bài, nhãn MỚI, lặp đoạn theo mốc.
 
 import assert from 'node:assert/strict'
-import { activeNoteIdx, blankForm, checkPost, dropVideo, filterPosts, formOf, groupByShelf, isNewPost, loopRange, parseClock, pinnedOf, postLength, startFromUrl } from '#lib/library.js'
+import { activeNoteIdx, blankForm, checkPost, dropVideo, filterPosts, formOf, groupByShelf, isNewPost, loopRange, parseClock, pinnedOf, postLength, searchPosts, startFromUrl } from '#lib/library.js'
 
 const YT = 'https://www.youtube.com/watch?v=dQw4w9WgXcQ'
 
@@ -86,6 +86,23 @@ assert.deepEqual(groupByShelf(posts).map((g) => [g.name, g.items.map((p) => p.id
   [['Di chuyển', ['b']], ['Tấn công', ['c', 'a']]], 'kệ theo ABC, bài mới đăng đứng đầu kệ')
 assert.equal(pinnedOf(posts).id, 'b', 'hai bài cùng còn dấu ghim thì bài ghim sau thắng — mỗi lúc chỉ một bài')
 assert.deepEqual(filterPosts(posts, 'saved', { a: { saved: true } }).map((p) => p.id), ['a'])
+
+/* ---------- tìm bài ---------- */
+{
+  const lib = [
+    { id: 'p1', title: 'Đập cầu thuận tay', body: '', shelf: 'Tấn công', createdAt: '2026-10-01', videos: [] },
+    { id: 'p2', title: 'Bỏ nhỏ', body: 'Kết hợp sau pha đập cầu', shelf: 'Lưới', createdAt: '2026-10-05', videos: [] },
+    { id: 'p3', title: 'Chân bước', body: '', shelf: 'Di chuyển', createdAt: '2026-10-09', videos: [{ notes: [{ t: 3, text: 'Trụ chân trái khi lùi' }] }] },
+  ]
+  const ids = (q) => searchPosts(lib, q).map((p) => p.id)
+  assert.deepEqual(ids('dap cau'), ['p1', 'p2'], 'không dấu vẫn khớp; khớp ngay trong tiêu đề đứng trước bài khớp ở nội dung')
+  assert.deepEqual(ids('  ĐẬP   Cầu '), ['p1', 'p2'], 'hoa thường / khoảng trắng thừa không ảnh hưởng')
+  assert.deepEqual(ids('di chuyen'), ['p3'], 'tìm theo tên kệ')
+  assert.deepEqual(ids('chan trai'), ['p3'], 'tìm trong ghi chú mốc video')
+  assert.deepEqual(ids('dap luoi'), ['p2'], 'mọi từ phải có mặt (ở bất kỳ trường nào)')
+  assert.deepEqual(ids('xyz'), [])
+  assert.deepEqual(ids('   '), [], 'ô trống không trả kết quả')
+}
 
 const now = Date.parse('2026-10-16T00:00:00Z')
 assert.equal(isNewPost(posts[2], null, 'm1', now), true, 'người khác đăng 2 ngày trước, mình chưa mở → MỚI')

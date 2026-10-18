@@ -243,6 +243,13 @@
    nhanh dần) rồi nghỉ; khói tản ở chỗ phóng trong ~9% đầu. Đích bay --rx / --ry, khói tản theo --dx. */
 @keyframes skyRocket { 0% { transform: translate3d(0, 0, 0); opacity: 0; animation-timing-function: cubic-bezier(.55, 0, 1, .45); } 0.6% { opacity: 1; } 13% { opacity: 1; } 14% { transform: translate3d(var(--rx), var(--ry), 0); opacity: 0; } 100% { transform: translate3d(var(--rx), var(--ry), 0); opacity: 0; } }
 @keyframes skyRocketPuff { 0% { transform: translate(0, 0) scale(.3); opacity: 0; animation-timing-function: ease-out; } 1% { opacity: .9; } 9% { transform: translate(var(--dx), -26px) scale(2.6); opacity: 0; } 100% { transform: translate(var(--dx), -26px) scale(2.6); opacity: 0; } }
+/* Hiệu ứng nền — ngày: tia nắng thở nhẹ; cầu vồng hiện ~25 s mỗi vòng 96 s. Đêm: mây qua trăng (nửa đầu chu kỳ trôi
+   ngang, nửa sau nghỉ — "thỉnh thoảng" che trăng), vệ tinh trượt đều (~60% chu kỳ), chớp xa loé hai nhịp. */
+@keyframes skyRays { 0% { opacity: .55; } 100% { opacity: 1; } }
+@keyframes skyRainbow { 0%, 30% { opacity: 0; } 42%, 62% { opacity: .8; } 74%, 100% { opacity: 0; } }
+@keyframes skyMoonCloud { 0% { transform: translate3d(0, 0, 0); opacity: 0; } 5% { opacity: 1; } 45% { opacity: 1; } 50% { transform: translate3d(var(--cd), 0, 0); opacity: 0; } 100% { transform: translate3d(var(--cd), 0, 0); opacity: 0; } }
+@keyframes skySat { 0% { transform: translate3d(0, 0, 0); opacity: 0; } 2% { opacity: .85; } 58% { opacity: .85; } 60% { transform: translate3d(var(--sx), var(--sy), 0); opacity: 0; } 100% { transform: translate3d(var(--sx), var(--sy), 0); opacity: 0; } }
+@keyframes skyFlash { 0%, 86% { opacity: 0; } 87% { opacity: .9; } 88% { opacity: .15; } 89.5% { opacity: .75; } 92%, 100% { opacity: 0; } }
 @keyframes skyNavBlink { 0%, 60%, 100% { opacity: .15; } 70%, 80% { opacity: 1; } }
 @keyframes skyOwlBlink { 0%, 90%, 100% { transform: scaleY(0); } 94% { transform: scaleY(1); } }
 @keyframes skyOwlTilt { 0%, 100% { transform: rotate(0deg); } 25% { transform: rotate(-14deg); } 60% { transform: rotate(10deg); } }

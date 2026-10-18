@@ -5,6 +5,7 @@
 // Lỗi trả về là key i18n `library.err.*` — màn hình dịch bằng t().
 
 import { extractYouTubeId, formatPartsToTimestamp } from '#utils/videoUtils.js'
+import { normalizeText } from '#lib/money.js'
 import cfg from '#config/app.json' with { type: 'json' }
 
 const DAY_MS = 86400000
@@ -156,6 +157,24 @@ export function filterPosts(posts, filter, marks) {
   if (filter === 'saved') return (posts || []).filter((p) => marks?.[p.id]?.saved)
   if (!filter || filter === 'all') return posts || []
   return (posts || []).filter((p) => p.shelf === filter)
+}
+
+/**
+ * Tìm bài theo chữ gõ — không phân biệt dấu / hoa thường: MỌI từ phải có trong tiêu đề, nội dung, tên kệ hoặc ghi
+ * chú mốc video. Bài có đủ các từ ngay trong tiêu đề đứng trước, rồi bài mới đăng trước. Ô trống → [].
+ */
+export function searchPosts(posts, q) {
+  const words = normalizeText(q).split(' ').filter(Boolean)
+  if (!words.length) return []
+  const has = (s) => words.every((w) => s.includes(w))
+  return (posts || [])
+    .map((p) => {
+      const notes = (p.videos || []).flatMap((v) => (v.notes || []).map((n) => n.text))
+      return { p, all: normalizeText([p.title, p.body, p.shelf, ...notes].join(' ')), title: normalizeText(p.title) }
+    })
+    .filter((x) => has(x.all))
+    .sort((a, b) => Number(has(b.title)) - Number(has(a.title)) || String(b.p.createdAt).localeCompare(String(a.p.createdAt)))
+    .map((x) => x.p)
 }
 
 /** MỚI = người khác đăng, trong `cfg.library.newDays` ngày, mình chưa mở lần nào. */

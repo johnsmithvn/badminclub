@@ -2,7 +2,7 @@
 
 import { useState } from 'react'
 import { Button, Card, DataTable, Dialog, Icon, IconButton, StatCard, Tabs } from '#ds'
-import { Empty, GRID_STAT, PageHeader, SessionPill, sessionColumns, TabTrack } from '#ui'
+import { Empty, GRID_STAT, HeaderAction, PageHeader, SessionPill, sessionColumns, TabTrack } from '#ui'
 import { useApp } from '#contexts/AppContext.jsx'
 import { useTheme } from '#contexts/ThemeContext.jsx'
 import { useMobile } from '#hooks/useMobile.js'
@@ -273,7 +273,7 @@ function SessionsTools({ db, a, canEdit, isMobile }) {
   const [open, setOpen] = useState(false)
   return (
     <>
-      <IconButton icon="settings" size="sm" variant="ghost" label={t('session.toolsTitle')} onClick={() => setOpen(true)} />
+      <HeaderAction isMobile={isMobile} icon="settings" label={t('session.toolsTitle')} onClick={() => setOpen(true)} />
       {open && (
         <Dialog title={t('session.toolsTitle')} onClose={() => setOpen(false)} sheet={isMobile} width={400}>
           <div style={{ display: 'grid', gap: 14, padding: '14px 20px 20px' }}>
@@ -344,7 +344,7 @@ export default function Sessions() {
         actions={
           <>
             <NotificationBell />
-            <IconButton icon={isDark ? 'sun' : 'moon'} size="sm" variant="ghost" label={isDark ? t('common.themeLight') : t('common.themeDark')} onClick={toggleTheme} />
+            <HeaderAction isMobile={isMobile} icon={isDark ? 'sun' : 'moon'} label={isDark ? t('common.themeLight') : t('common.themeDark')} onClick={toggleTheme} />
             {canEdit && (
               <Button size="sm" icon="plus" aria-label={t('shell.adhoc')} title={t('shell.adhoc')}
                 onClick={() => a.openDialog('adhoc', adhocForm(db))} style={isMobile ? { padding: 0, aspectRatio: '1' } : undefined}>

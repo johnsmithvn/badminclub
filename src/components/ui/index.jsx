@@ -2,7 +2,7 @@
 // Mọi chữ đi qua t(); mọi màu đi qua var(--*) hoặc helper của #lib/money.js.
 
 import { useState } from 'react'
-import { Alert, Button, Dialog, Icon, Input, Select, StatusPill } from '#ds'
+import { Alert, Button, Dialog, Icon, IconButton, Input, Select, StatusPill } from '#ds'
 import { useAuth } from '#contexts/AuthContext.jsx'
 import {
   courtNet, courtTxt, fmtK, genderTxt, groupMembers, groupOf, guestRev, headCount, levelStyle,
@@ -647,6 +647,13 @@ export { ModalOverlay } from './ModalOverlay.jsx'
  * @param {React.ReactNode} [actions] - cụm nút bên phải
  * @param {boolean} [isMobile]
  */
+/** Nút trên header trong suốt (PageHeader không tiêu đề, BXH, Buổi tập…): điện thoại chỉ icon, desktop icon + chữ. */
+export function HeaderAction({ icon, label, onClick, isMobile = false }) {
+  return isMobile
+    ? <IconButton icon={icon} size="sm" variant="ghost" label={label} onClick={onClick} />
+    : <Button size="sm" variant="ghost" icon={icon} onClick={onClick}>{label}</Button>
+}
+
 export function PageHeader({ title, subtitle, actions, isMobile = false }) {
   if (!title) {
     return (

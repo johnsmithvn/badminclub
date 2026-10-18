@@ -1,14 +1,14 @@
 import { useEffect, useState } from 'react'
 import { useNavigate } from 'react-router-dom'
-import { Alert, Button, IconButton, Skeleton } from '#ds'
-import { Empty, PageHeader, TabTrack } from '#ui'
+import { Alert, Button, Icon, Input, Skeleton } from '#ds'
+import { Empty, HeaderAction, PageHeader, TabTrack } from '#ui'
 import { useApp } from '#contexts/AppContext.jsx'
 import { useTheme } from '#contexts/ThemeContext.jsx'
 import { libErr } from '#contexts/libraryActions.js'
 import { useMobile } from '#hooks/useMobile.js'
 import { can } from '#lib/roles.js'
 import { myMember } from '#lib/money.js'
-import { clock, filterPosts, groupByShelf, isNewPost, pinnedOf, postLength, shelvesOf } from '#lib/library.js'
+import { clock, filterPosts, groupByShelf, isNewPost, pinnedOf, postLength, searchPosts, shelvesOf } from '#lib/library.js'
 import { pathOf } from '#routes'
 import { t } from '#i18n'
 import { Chip, Corner, SaveButton, Thumb } from '#components/library/LibraryBits.jsx'
@@ -25,6 +25,7 @@ export default function Library() {
   const [data, setData] = useState(null)
   const [err, setErr] = useState('')
   const [filter, setFilter] = useState('all')
+  const [q, setQ] = useState('')
   const [composing, setComposing] = useState(false)
 
   useEffect(() => {
@@ -45,12 +46,16 @@ export default function Library() {
   const marks = data?.marks || {}
   const shelves = shelvesOf(posts)
   const savedN = posts.filter((p) => marks[p.id]?.saved).length
-  const pinned = filter === 'all' ? pinnedOf(posts) : null
-  // Mobile: kệ là hàng cuộn ngang, đang lọc thì lưới 2 cột. Desktop: luôn lưới.
-  const row = isMobile && filter === 'all'
-  const groups = filter === 'all'
-    ? groupByShelf(posts)
-    : [{ name: filter === 'saved' ? t('library.savedShelf') : filter, items: filterPosts(posts, filter, marks) }]
+  // Đang tìm: tìm trong chip đang chọn (tất cả / đã lưu / một kệ), kết quả là một lưới phẳng, ẩn bài ghim.
+  const searching = q.trim() !== ''
+  const pinned = filter === 'all' && !searching ? pinnedOf(posts) : null
+  // Mobile: kệ là hàng cuộn ngang, đang lọc / đang tìm thì lưới 2 cột. Desktop: luôn lưới.
+  const row = isMobile && filter === 'all' && !searching
+  const groups = searching
+    ? [{ name: t('library.searchTitle'), items: searchPosts(filterPosts(posts, filter, marks), q), empty: t('library.searchEmpty', { q: q.trim() }) }]
+    : filter === 'all'
+      ? groupByShelf(posts)
+      : [{ name: filter === 'saved' ? t('library.savedShelf') : filter, items: filterPosts(posts, filter, marks) }]
 
   const card = (p) => (
     <PostCard key={p.id} post={p} saved={!!marks[p.id]?.saved} viewed={!!marks[p.id]?.viewedAt}
@@ -64,7 +69,7 @@ export default function Library() {
         isMobile={isMobile}
         actions={(
           <>
-            <IconButton icon={isDark ? 'sun' : 'moon'} size="sm" variant="ghost" label={isDark ? t('common.themeLight') : t('common.themeDark')} onClick={toggleTheme} />
+            <HeaderAction isMobile={isMobile} icon={isDark ? 'sun' : 'moon'} label={isDark ? t('common.themeLight') : t('common.themeDark')} onClick={toggleTheme} />
             {me && (
               <Button icon="plus" aria-label={t('library.post')} title={t('library.post')} onClick={() => setComposing(true)}
                 style={isMobile ? { padding: 0, aspectRatio: '1' } : undefined}>
@@ -85,6 +90,20 @@ export default function Library() {
 
       {data && posts.length > 0 && (
         <>
+          <Input
+            icon="search"
+            value={q}
+            onChange={(e) => setQ(e.target.value)}
+            placeholder={t('library.searchPh')}
+            aria-label={t('library.searchPh')}
+            containerStyle={{ maxWidth: isMobile ? undefined : 420 }}
+            suffix={q ? (
+              <button type="button" onClick={() => setQ('')} aria-label={t('library.searchClear')} title={t('library.searchClear')}
+                style={{ border: 0, background: 'transparent', color: 'var(--text-muted)', cursor: 'pointer', padding: 2, display: 'grid', placeItems: 'center' }}>
+                <Icon name="x" size={15} />
+              </button>
+            ) : null}
+          />
           <TabTrack>
             <div style={{ display: 'flex', gap: 8, flexWrap: isMobile ? 'nowrap' : 'wrap' }}>
               <Chip on={filter === 'all'} onClick={() => setFilter('all')}>{t('library.filterAll')}</Chip>
@@ -101,7 +120,7 @@ export default function Library() {
                 <span style={S.shelfName}>{g.name}</span>
                 <span style={S.mono}>{t('library.shelfCount', { n: g.items.length })}</span>
               </div>
-              {g.items.length === 0 && <div style={S.dashed}>{t('library.savedEmpty')}</div>}
+              {g.items.length === 0 && <div style={S.dashed}>{g.empty || t('library.savedEmpty')}</div>}
               {g.items.length > 0 && (row
                 ? <TabTrack><div style={{ display: 'flex', gap: 10 }}>{g.items.map(card)}</div></TabTrack>
                 : <div style={{ ...S.grid, gridTemplateColumns: isMobile ? 'repeat(2, minmax(0, 1fr))' : 'repeat(auto-fill, minmax(200px, 1fr))' }}>

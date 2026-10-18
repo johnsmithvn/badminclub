@@ -171,11 +171,10 @@ export default function SeasonRaceTab({
 
         {/* Bộ lọc giới tính Nam / Nữ */}
         <GenderFilterTabs
+          isDark={isDark}
           value={genderFilter}
           onChange={onGenderFilterChange}
           counts={{ all: totalCount, nam: maleCount, nu: femaleCount }}
-          isDark={isDark}
-          allActiveBg="#00B2A9"
         />
 
         {/* 2. Podium Top 3 */}

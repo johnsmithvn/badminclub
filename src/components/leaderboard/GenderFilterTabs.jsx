@@ -4,7 +4,7 @@ import { t } from '#i18n'
  * Bộ lọc giới tính Tất cả / Nam / Nữ kèm số người — chung cho tab Elo sự nghiệp và tab Đua mùa.
  * `counts` = { all, nam, nu }. `allActiveBg`: màu nút Tất cả khi đang chọn ở chế độ sáng (mỗi tab một màu riêng).
  */
-export default function GenderFilterTabs({ value, onChange, counts, isDark, allActiveBg }) {
+export default function GenderFilterTabs({ value, onChange, counts, isDark, allActiveBg = '#00B2A9' }) {
   const options = [
     ['all', '', t('gender.all'), isDark ? 'var(--navy-700)' : allActiveBg, counts.all],
     ['nam', '♂ ', t('gender.nam'), '#1D50A0', counts.nam],

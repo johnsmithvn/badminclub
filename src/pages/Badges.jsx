@@ -3,7 +3,7 @@ import { createPortal } from 'react-dom'
 import { t } from '#i18n'
 import { useApp } from '#contexts/AppContext.jsx'
 import { useNavigate, useLocation } from 'react-router-dom'
-import { Avatar } from '#ds'
+import { Avatar, Icon } from '#ds'
 import BadgeHex from '#components/badges/BadgeHex.jsx'
 import BadgeCard from '#components/badges/BadgeCard.jsx'
 import BadgeShelf from '#components/badges/BadgeShelf.jsx'
@@ -35,6 +35,8 @@ import { getSeasonRankLeaderboard, seasonMatchesOf, resolveSeason } from '#lib/s
 import { myMember } from '#lib/money.js'
 import badgesConfig from '#config/badges.js'
 import { useBadgeTone } from '#components/badges/badgeTone.js'
+import { useTheme } from '#contexts/ThemeContext.jsx'
+import NotificationBell from '#components/notification/NotificationBell.jsx'
 
 /**
  * Trang Master: Danh hiệu & Treo thưởng.
@@ -49,6 +51,7 @@ const TAB_IDS = ['collection', 'leaderboard']
 
 export default function Badges() {
   const ts = useBadgeTone()
+  const { isDark, toggleTheme } = useTheme()
   const isMobile = useMobile(768)
   const { db, a } = useApp()
   const navigate = useNavigate()
@@ -759,7 +762,9 @@ export default function Badges() {
           </div>
         </div>
 
-        {/* Chọn mùa + người xem: một nút lọc mở hộp thoại hai ô chọn */}
+        {/* Chọn mùa + người xem: một nút lọc mở hộp thoại hai ô chọn; cạnh đó đổi giao diện + chuông (header chung
+            của app ẩn ở route này). */}
+        <div style={ts({ display: 'flex', alignItems: 'center', gap: 8 })}>
         <BadgeFilterButton
           allSeasons={allSeasons}
           seasonValue={currentSeason?.id || currentSeason?.code || ''}
@@ -784,6 +789,17 @@ export default function Badges() {
             cursor: 'pointer',
           })}
         />
+        <button
+          type="button"
+          aria-label={isDark ? t('common.themeLight') : t('common.themeDark')}
+          title={isDark ? t('common.themeLight') : t('common.themeDark')}
+          onClick={toggleTheme}
+          style={ts({ width: 34, height: 34, padding: 0, display: 'grid', placeItems: 'center', background: '#190C2D', border: '1px solid #3B1B66', borderRadius: 6, color: '#C9BFDC', cursor: 'pointer' })}
+        >
+          <Icon name={isDark ? 'sun' : 'moon'} size={15} />
+        </button>
+        <NotificationBell style={isDark ? undefined : { color: 'var(--text-secondary)' }} />
+        </div>
       </div>
 
       {/* ═══ Hàng Tabs & Tóm tắt số lượng (Thiết kế A1) ═══ */}

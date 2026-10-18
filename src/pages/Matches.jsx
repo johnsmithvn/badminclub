@@ -2,7 +2,7 @@ import { useState, useMemo, useCallback, useEffect, useRef } from 'react'
 import { createPortal } from 'react-dom'
 import { useNavigate, useSearchParams } from 'react-router-dom'
 import { Button, Card, Dialog, Icon, IconButton, Select } from '#ds'
-import { Mono, Overline, PageHeader, SearchSelect, TabBar } from '#ui'
+import { HeaderAction, Mono, Overline, PageHeader, SearchSelect, TabBar } from '#ui'
 import { useApp } from '#contexts/AppContext.jsx'
 import { useTheme } from '#contexts/ThemeContext.jsx'
 import { useMobile } from '#hooks/useMobile.js'
@@ -850,13 +850,7 @@ export default function Matches() {
             {/* AppHeader bị ẩn ở route 'matches' nên trên mobile không còn chỗ nào đổi
                 sáng/tối — và cũng không còn chuông, đúng cái màn hay nhận thông báo kèo nhất */}
             <NotificationBell />
-            <IconButton
-              icon={isDark ? 'sun' : 'moon'}
-              size="sm"
-              variant="ghost"
-              label={isDark ? t('common.themeLight') : t('common.themeDark')}
-              onClick={toggleTheme}
-            />
+            <HeaderAction isMobile={isMobile} icon={isDark ? 'sun' : 'moon'} label={isDark ? t('common.themeLight') : t('common.themeDark')} onClick={toggleTheme} />
             <Button
               size="sm"
               icon="plus"
@@ -888,9 +882,9 @@ export default function Matches() {
         onChange={handleSelectTab}
         style={{ marginBottom: 4 }}
         items={[
-          { key: 'challenges', label: t('matchesPage.tabChallenges'), tone: 'primary', badge: pendingChallenges.length || null },
-          { key: 'search', label: 'History', tone: 'primary', badge: (db.matches || []).length },
-          { key: 'matrix', label: t('matchesPage.tabMatrix'), tone: 'violet' },
+          { key: 'challenges', label: t('matchesPage.tabChallenges'), tone: 'accent', badge: pendingChallenges.length || null },
+          { key: 'search', label: 'History', tone: 'accent', badge: (db.matches || []).length },
+          { key: 'matrix', label: t('matchesPage.tabMatrix'), tone: 'accent' },
         ]}
       />
 

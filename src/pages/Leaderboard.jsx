@@ -1,7 +1,7 @@
 import { useState, useMemo, useEffect } from 'react'
 import { useNavigate, useSearchParams } from 'react-router-dom'
 import { Alert, Button, Dialog, Icon, IconButton } from '#ds'
-import { TabBar, ModalOverlay } from '#ui'
+import { HeaderAction, TabBar, ModalOverlay } from '#ui'
 import { useApp } from '#contexts/AppContext.jsx'
 import { useTheme } from '#contexts/ThemeContext.jsx'
 import { getPlayerRating, DEFAULT_RATING, rankPairs } from '#lib/rating.js'
@@ -200,7 +200,7 @@ export default function Leaderboard() {
     )
   }, [selectedMemberId, activeMembers, db?.members, db?.guests])
 
-  // Header trong suốt như Trang chủ, không chữ — chỉ nút icon: giao diện · (desktop: chuông, xuất CSV) · tính lại
+  // Header trong suốt như Trang chủ, không tiêu đề — nút (mobile chỉ icon, desktop có chữ): giao diện · (desktop: chuông, xuất CSV) · tính lại
   // Elo (admin) · cài đặt mùa. Nút Cài đặt mùa ai cũng thấy: trong đó có ô chọn mùa đang xem.
   // Tab 'h2h' là màn so kè tương tác, 'gamblers' chưa có nhánh xuất: handleExportCsv sẽ xuất nhầm bảng Elo → ẩn nút.
   const canExport = !isMobile && activeTab !== 'h2h' && activeTab !== 'gamblers'
@@ -209,11 +209,11 @@ export default function Leaderboard() {
     <div style={{ display: 'grid', gridTemplateColumns: 'minmax(0, 1fr)', gap: 16 }}>
       {/* ---------------- Header trang Bảng xếp hạng (Duy nhất) ---------------- */}
       <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'flex-end', gap: 6, padding: '4px 2px' }}>
-        <IconButton icon={isDark ? 'sun' : 'moon'} size="sm" variant="ghost" label={isDark ? t('common.themeLight') : t('common.themeDark')} onClick={toggleTheme} />
+        <HeaderAction isMobile={isMobile} icon={isDark ? 'sun' : 'moon'} label={isDark ? t('common.themeLight') : t('common.themeDark')} onClick={toggleTheme} />
         {!isMobile && <NotificationBell />}
-        {canExport && <IconButton icon="download" size="sm" variant="ghost" label={t('common.exportCsv')} onClick={handleExportCsv} />}
-        {isAdmin && <IconButton icon="rotate-ccw" size="sm" variant="ghost" label={t('leaderboard.btnRecalc')} onClick={() => setRecalcConfirmOpen(true)} />}
-        <IconButton icon="settings" size="sm" variant="ghost" label={t('season.settingsBtn')} onClick={() => setSeasonSettingsOpen(true)} />
+        {canExport && <HeaderAction isMobile={isMobile} icon="download" label={t('common.exportCsv')} onClick={handleExportCsv} />}
+        {isAdmin && <HeaderAction isMobile={isMobile} icon="rotate-ccw" label={t('leaderboard.btnRecalc')} onClick={() => setRecalcConfirmOpen(true)} />}
+        <HeaderAction isMobile={isMobile} icon="settings" label={t('season.settingsBtn')} onClick={() => setSeasonSettingsOpen(true)} />
       </div>
 
       <TabBar
@@ -223,10 +223,10 @@ export default function Leaderboard() {
         style={{ marginBottom: 4 }}
         items={[
           { key: 'season', label: t('season.raceTab'), tone: 'accent' },
-          { key: 'elo', label: t('season.careerEloTab'), tone: 'primary' },
+          { key: 'elo', label: t('season.careerEloTab'), tone: 'accent' },
           { key: 'pairs', label: t('leaderboard.tabPairs'), tone: 'accent' },
-          { key: 'h2h', label: t('leaderboard.tabH2H'), tone: 'violet' },
-          { key: 'gamblers', label: t('leaderboard.tabGamblers'), tone: 'violet' },
+          { key: 'h2h', label: t('leaderboard.tabH2H'), tone: 'accent' },
+          { key: 'gamblers', label: t('leaderboard.tabGamblers'), tone: 'accent' },
         ]}
       />
 
