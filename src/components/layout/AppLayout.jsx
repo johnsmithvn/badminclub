@@ -17,12 +17,12 @@ export default function AppLayout({ route, children }) {
   const mainRef = useRef(null)
 
   const isWideRoute = route === 'tournament' || route === 'tournamentFlow' || route === 'tournamentBracket'
-  // Nền bầu trời (app.json → sky.routes / bgRoutes): nền gốc trong suốt để thấy trời, thẻ dùng token kính.
+  // Nền bầu trời (app.json → sky.routes / liteRoutes / bgRoutes): nền gốc trong suốt để thấy trời, thẻ dùng token kính.
   const sky = skyMode(route)
 
   return (
     <div style={sky ? { ...S.root, background: 'transparent' } : S.root} data-sky={sky ? '' : undefined}>
-      {sky && <SkyBackdrop chars={sky === 'full'} isMobile={isMobile} scrollRef={mainRef} />}
+      {sky && <SkyBackdrop mode={sky} isMobile={isMobile} scrollRef={mainRef} />}
       {!isMobile && <Sidebar route={route} />}
       <div style={S.col}>
         <AppHeader route={route} />

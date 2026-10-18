@@ -1,6 +1,6 @@
 # HOME_SKY.md — Nền bầu trời
 
-**Version:** v1.7.0 · **Updated:** 2026-10-18 · trang Giao diện (bật / tắt từng hiệu ứng, "cứ N giây"), nhân vật chạy cùng lúc, theme gốc · xếp hình đom đóm 40 s / lượt · bỏ cực quang · BXH: đối thủ thò đầu trêu (§4.8) · bỏ tooltip / nhãn phụ, bỏ cảnh "người đuổi theo", réo tên đối thủ (gạ kèo, điều ước), câu mới, tên dài cắt gọn, chữ giữ cỡ cố định, công tắc tắt hoạt ảnh
+**Version:** v1.8.0 · **Updated:** 2026-10-18 · nhân vật chỉ ở Trang chủ + BXH, trang chính khác bản nhẹ (`liteRoutes`) · sửa băng rôn nhân đôi (key trùng với lượt đom đóm) · siêu nhân mobile bay nhanh ngang desktop · v1.7.0: trang Giao diện (bật / tắt từng hiệu ứng, "cứ N giây"), nhân vật chạy cùng lúc, theme gốc · xếp hình đom đóm 40 s / lượt · bỏ cực quang · BXH: đối thủ thò đầu trêu (§4.8) · bỏ tooltip / nhãn phụ, bỏ cảnh "người đuổi theo", réo tên đối thủ (gạ kèo, điều ước), câu mới, tên dài cắt gọn, chữ giữ cỡ cố định, công tắc tắt hoạt ảnh
 
 Toàn bộ **tình huống** và **câu thoại** của nền bầu trời động (thiết kế gốc dựng cho trang chủ cá
 nhân, nay dùng chung nhiều trang), cho **cả hai chế độ** Tối (bầu trời sao) và Sáng (hoàng hôn trên
@@ -29,7 +29,8 @@ Danh sách ở `app.json → sky`:
 
 | Loại | Trang (route) | Có gì |
 | --- | --- | --- |
-| `routes` — nền + nhân vật | Trang chủ (`home`) · Trận đấu & Kèo (`matches`) · Bảng xếp hạng (`leaderboard`) · Danh hiệu (`badges`) · Buổi tập (`sessions`) · Thư viện (`library`) · Thành viên (`members`) · Hồ sơ của tôi (`profile`) · Cài đặt (`settings`) | Trời + nhân vật ghé thăm + sao ước (đêm) — đúng như mục 2–4 |
+| `routes` — nền + nhân vật | Trang chủ (`home`) · Bảng xếp hạng (`leaderboard`) | Trời + nhân vật ghé thăm + sao ước (đêm) — đúng như mục 2–4 |
+| `liteRoutes` — bản nhẹ | Trận đấu & Kèo (`matches`) · Danh hiệu (`badges`) · Buổi tập (`sessions`) · Thư viện (`library`) · Thành viên (`members`) · Hồ sơ của tôi (`profile`) · Cài đặt (`settings`) · Giao diện (`theme`) | Theme gốc có chuyển động: trăng, sao, mưa sao băng + **cú mèo** (sau 22h). Không siêu nhân, UFO, băng rôn, xếp hình đom đóm, sao ước, không hoạt cảnh đêm (Cuội, cầu lửa, nguyệt thực), không nhóm hiệu ứng nền — đỡ nặng máy trên điện thoại |
 | `bgRoutes` — chỉ nền, đứng yên | Chi tiết buổi tập (`session`) · Bài thư viện (`libraryPost`) | Trời **tĩnh** (không hoạt hình — trang ghi điểm hay mở cả buổi tối, chạy liên tục tốn pin): nền, sao, trăng, ngân hà, đom đóm đứng yên / mây, núi, biển mây. Không sao băng, sao chổi, cá voi, chòm sao, mưa sao băng, máy bay, chim, không hoạt cảnh đêm (§2.1). **Không** nhân vật, **không** sao ước, không tính số liệu |
 | Không có nền | Tổng quan CLB, Lịch tháng, Giải đấu (mọi trang con), Công nợ, Sổ quỹ, Sơ đồ dữ liệu | Như cũ |
 
@@ -960,7 +961,7 @@ Thời lượng một lượt ở `lib/sky.js → SKY_ACT_MS` (Cuội 7 s · c�
 | Câu số liệu "Còn N điểm là vượt …" / "Cách hạng … còn N điểm" | Bỏ (CLB chọn) |
 | Điều ước "Ước vượt Hương Giang ngay tối nay" | Tên người ngay trên thật; đang hạng 1 thì bỏ điều ước này |
 | Khung cố định 1440×940 / 390×844 | Phóng cho phủ màn thật (§1) |
-| Chỉ trang chủ cá nhân | Dùng chung 9 trang có nhân vật + 2 trang con chỉ có nền (§1) |
+| Chỉ trang chủ cá nhân | Nhân vật ở Trang chủ + BXH; 8 trang chính khác bản nhẹ (trăng, sao, mưa sao băng, cú); 2 trang con chỉ có nền (§1) |
 | — (thiết kế không có trang con) | Trang con vẽ trời **đứng yên**, không nhân vật, không sao ước (đỡ tốn pin) |
 | Cảnh UFO bản 2 tự diễn, không bấm | Giữ đúng như thiết kế (bỏ thử nghiệm bấm UFO bật emoji) |
 | Người bị UFO bắt có nhãn "Bạn" / tên người kia | Nhãn tên thật cho cả hai (bạn cũng hiện tên, không ghi "Bạn"), cắt "…" ở 80px |

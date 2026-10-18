@@ -10,8 +10,12 @@ const DAY = 864e5
 /** Năm nhân vật ghé thăm — `?sky=<tên>` trên URL chỉ cho đúng nhân vật đó ra (xem trước). */
 export const SKY_CAST = ['owl', 'banner', 'top1', 'hero', 'ufo']
 
-/** Route nào vẽ nền trời: 'full' (nền + nhân vật), 'bg' (chỉ nền — trang con), null (không). */
-export const skyMode = (route) => (C.routes.includes(route) ? 'full' : C.bgRoutes.includes(route) ? 'bg' : null)
+/**
+ * Route nào vẽ nền trời: 'full' (nền + nhân vật), 'lite' (trăng, sao, mưa sao băng, cú mèo), 'bg' (nền đứng
+ * yên — trang con), null (không).
+ */
+export const skyMode = (route) =>
+  C.routes.includes(route) ? 'full' : C.liteRoutes.includes(route) ? 'lite' : C.bgRoutes.includes(route) ? 'bg' : null
 
 /** Trận gần nhất có `memberId` trong đội, null nếu chưa đánh trận nào. */
 export function lastMatchOf(matches, memberId) {

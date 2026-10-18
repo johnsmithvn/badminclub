@@ -13,7 +13,8 @@ import cfg from '#config/app.js'
 
 /**
  * Nền bầu trời động (thiết kế "Home · Nền bầu trời"). AppLayout gắn ở các route trong
- * app.json → sky.routes (nền + nhân vật, `chars`) và sky.bgRoutes (trang con: chỉ nền).
+ * app.json → sky.routes (`mode` 'full': nền + nhân vật — Trang chủ, BXH), sky.liteRoutes ('lite': trăng, sao,
+ * mưa sao băng và cú mèo — các trang chính khác, cho nhẹ máy) và sky.bgRoutes ('bg', trang con: nền đứng yên).
  * - Tối: trời sao — trăng có chú Cuội, cá voi sao, ngân hà, sao băng, sao chổi, đom đóm, chòm sao
  *   hiện ở header, mưa sao băng, sao ước bay ngang (bấm để ước).
  * - Sáng: hoàng hôn trên biển mây — ráng chiều, sao sớm, ba lớp mây cuộn, chim, máy bay.
@@ -70,7 +71,7 @@ function mobileLayout(w) {
     m: 1, W: w, mx: 174 + d, my: 1, md: 42, ox: 222 + d, oy: 14, os: 16, br: 14 + d, bt: 46, bw: 196, tail: 't', tailR: 141,
     bnT: 44, bnD: w + 510, tX: 250 + d, tY: 46, tG: 4.5,
     wish: { x: 250 + d, xr: 110, y: 52, yr: 16, dx: 170, dxr: 90, dy: 30, dyr: 30 },
-    sc: { uy: 2, xa: 290 + d, xb: 180 + d, yG: 50, yUp: 16, us: 0.7, ps: 0.85, hy: 46, hs: 0.7, vE: 60, vD: 20, vH: 45, bw: 180, rk: [150, 70], fall: 110 },
+    sc: { uy: 2, xa: 290 + d, xb: 180 + d, yG: 50, yUp: 16, us: 0.7, ps: 0.85, hy: 46, hs: 0.7, vE: 60, vD: 20, vH: 65, bw: 180, rk: [150, 70], fall: 110 },
   }
 }
 /** Trời đêm mobile: trăng nhỏ, chòm sao không tên, cá voi nhỏ bơi ngang đúng bề rộng màn. */
@@ -91,7 +92,9 @@ function useViewport() {
 
 /* ============================ COMPONENT ============================ */
 
-export default function SkyBackdrop({ chars, isMobile, scrollRef }) {
+export default function SkyBackdrop({ mode, isMobile, scrollRef }) {
+  // 'lite' vẫn chuyển động nhưng chỉ cú mèo; 'bg' đứng yên hẳn.
+  const chars = mode !== 'bg', full = mode === 'full'
   const { db } = useApp()
   const { isDark, skyMotion, skyPrefs: P } = useTheme()
   const [params] = useSearchParams()
@@ -113,7 +116,7 @@ export default function SkyBackdrop({ chars, isMobile, scrollRef }) {
   // Nhân vật ghé thăm: bật ở trang Giao diện (cú mèo thêm điều kiện khuya). `?sky=` xem trước thì chỉ đúng
   // nhân vật đó, bỏ qua công tắc.
   const q = params.get('sky')
-  const castKey = !chars ? '' : SKY_CAST.filter((k) => (q ? q === 'all' || q === k : P.on[k] && (k !== 'owl' || opened.late))).join()
+  const castKey = !chars ? '' : SKY_CAST.filter((k) => (full || k === 'owl') && (q ? q === 'all' || q === k : P.on[k] && (k !== 'owl' || opened.late))).join()
   const cast = useMemo(() => (castKey ? castKey.split(',') : []), [castKey])
   // Nhịp "cứ N giây" mới nhất — các lịch đọc qua ref lúc hẹn lượt kế, đổi N không xoá cảnh đang bay.
   const prefRef = useRef(P)
@@ -166,13 +169,14 @@ export default function SkyBackdrop({ chars, isMobile, scrollRef }) {
   const nightOpt = useMemo(() => (isMobile ? nightMobile(mw) : {}), [isMobile, mw])
   const age = moonAge(C.moon, opened.now)
 
+  const amb = full && P.on.ambient
   const back = useMemo(
-    () => (isDark ? <Night o={nightOpt} motion={live} amb={P.on.ambient} age={age} full={C.moon === 'full'} /> : <Day motion={live} amb={P.on.ambient} />),
-    [isDark, nightOpt, live, age, P.on.ambient],
+    () => (isDark ? <Night o={nightOpt} motion={live} amb={amb} age={age} full={C.moon === 'full'} /> : <Day motion={live} amb={amb} />),
+    [isDark, nightOpt, live, age, amb],
   )
 
-  // Hoạt cảnh trời đêm định kỳ: bật / "cứ N giây" ở trang Giao diện. Trang con & giảm chuyển động: không.
-  const nightLive = live && isDark
+  // Hoạt cảnh trời đêm định kỳ: bật / "cứ N giây" ở trang Giao diện. Chỉ trang 'full', không giảm chuyển động.
+  const nightLive = live && isDark && full
   const cuoi = useEvery(nightLive && P.on.cuoi, firstMs('cuoi'), fxMs(P, 'cuoi'), SKY_ACT_MS.cuoi)
   const fire = useEvery(nightLive && P.on.fireShuttle, firstMs('fireShuttle'), fxMs(P, 'fireShuttle'), SKY_ACT_MS.fireShuttle)
   const eclipse = useEvery(nightLive && P.on.eclipse, firstMs('eclipse'), fxMs(P, 'eclipse'), SKY_ACT_MS.eclipse)
@@ -229,7 +233,7 @@ export default function SkyBackdrop({ chars, isMobile, scrollRef }) {
   const flyRef = useRef(null)
   useEffect(() => {
     const host = flyRef.current
-    if (!motion || !isDark || !chars || !P.on.wish || !host) return
+    if (!motion || !isDark || !full || !P.on.wish || !host) return
     let id
     const go = (ms) => {
       id = setTimeout(() => {
@@ -240,7 +244,7 @@ export default function SkyBackdrop({ chars, isMobile, scrollRef }) {
     }
     go(Math.min(C.wishFirstMs, fxMs(prefRef.current, 'wish')))
     return () => { clearTimeout(id); host.replaceChildren() }
-  }, [motion, isDark, chars, P.on.wish, ly, bags])
+  }, [motion, isDark, full, P.on.wish, ly, bags])
 
   // Cú mèo: `k` đổi để nghiêng đầu + chạy lại bóng thoại; `i` = câu đang nói, rút từ túi xáo.
   // Để màn hình yên N giây (trang Giao diện → Cú ngủ gật) thì `sleep` (ngủ gật, zzZ); bấm lúc đang ngủ → `wake` tăng (giật mình, rơi
@@ -315,10 +319,12 @@ export default function SkyBackdrop({ chars, isMobile, scrollRef }) {
               <Owl ly={ly} fk={fk} dark={isDark} motion={motion} k={owl.k} sleep={owl.sleep} wake={owl.wake} fy={vh - ly.oy}
                 line={owl.say ? tl(owl.say) : lines.owl[owl.i % lines.owl.length]} hide={owl.hide} onNext={nextOwl} onHide={hideOwl} />
             )}
+            {/* Key có tiền tố: băng rôn và lượt đom đóm là anh em cùng cha, key số trơn trùng nhau (lượt 4 = lượt 4)
+                thì React để sót bản cũ — từng ra 2–3 máy bay cùng lúc và đọng phần tử chạy ngầm. */}
             {hasBanner && ban.lap > 0 && (
-              <Banner key={ban.lap} ly={ly} fk={fk} dark={isDark} line={lines.banner[ban.i % lines.banner.length]} onNext={nextBanner} />
+              <Banner key={'ban' + ban.lap} ly={ly} fk={fk} dark={isDark} line={lines.banner[ban.i % lines.banner.length]} onNext={nextBanner} />
             )}
-            {form.on && <Top1 key={form.n} ly={ly} bags={bags} />}
+            {form.on && <Top1 key={'form' + form.n} ly={ly} bags={bags} />}
             <div ref={sceneRef} style={S.fill} />
           </div>
           <div ref={flyRef} style={S.fill} />

@@ -201,9 +201,10 @@
   },
   "sky": {
     "_noteRoutes": "routes: trang có nền bầu trời + nhân vật. bgRoutes: trang con chỉ có nền đứng yên (không hoạt hình, đỡ tốn pin), không nhân vật, không sao ước.",
-    "routes": ["home", "matches", "leaderboard", "badges", "sessions", "library", "members", "profile", "settings", "theme"],
+    "routes": ["home", "leaderboard"],
+    "liteRoutes": ["matches", "badges", "sessions", "library", "members", "profile", "settings", "theme"],
     "bgRoutes": ["session", "libraryPost"],
-    "_note": "Nền bầu trời (SkyBackdrop.jsx · lib/sky.js). Cú mèo chỉ ra từ lateFrom giờ tới trước lateUntil giờ sáng. Câu thoại: cách người trên <= nearGap điểm thì giục vượt, nghỉ >= awayDays ngày thì nhắc ra sân, chuỗi >= streakMin trận thì khen. moon: full (rằm) | lunar (theo lịch âm) | crescent (lưỡi liềm). Nhịp: xem _noteFx.",
+    "_note": "Nền bầu trời (SkyBackdrop.jsx · lib/sky.js). routes: nền + nhân vật. liteRoutes: chỉ trăng, sao, mưa sao băng, cú mèo (nhẹ máy). bgRoutes: trang con, nền đứng yên. Cú mèo chỉ ra từ lateFrom giờ tới trước lateUntil giờ sáng. Câu thoại: cách người trên <= nearGap điểm thì giục vượt, nghỉ >= awayDays ngày thì nhắc ra sân, chuỗi >= streakMin trận thì khen. moon: full (rằm) | lunar (theo lịch âm) | crescent (lưỡi liềm). Nhịp: xem _noteFx.",
     "lateFrom": 22,
     "lateUntil": 4,
     "nearGap": 10,

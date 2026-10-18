@@ -68,15 +68,16 @@ assert.deepEqual([...shuffled(7)].sort(), [0, 1, 2, 3, 4, 5, 6], 'xáo không đ
 }
 
 /* ---------- trang nào có nền ---------- */
-for (const r of ['home', 'matches', 'leaderboard', 'badges', 'sessions', 'library', 'members', 'profile', 'settings', 'theme']) {
-  assert.equal(skyMode(r), 'full', r + ': trang đã chọn phải có nền + nhân vật')
+for (const r of ['home', 'leaderboard']) assert.equal(skyMode(r), 'full', r + ': nhân vật chỉ ở Trang chủ và BXH')
+for (const r of ['matches', 'badges', 'sessions', 'library', 'members', 'profile', 'settings', 'theme']) {
+  assert.equal(skyMode(r), 'lite', r + ': trang chính khác chỉ trăng, sao, mưa sao băng, cú — nhẹ máy')
 }
 assert.equal(skyMode('session'), 'bg', 'chi tiết buổi tập: chỉ nền, nhân vật bay qua bảng xếp sân là vướng')
 assert.equal(skyMode('libraryPost'), 'bg')
 for (const r of ['overview', 'calendar', 'tournaments', 'tournament', 'debts', 'fund', 'schema']) {
   assert.equal(skyMode(r), null, r + ': trang không chọn mà có nền là sai yêu cầu')
 }
-const unknown = [...cfg.sky.routes, ...cfg.sky.bgRoutes, ...cfg.ui.mobileHidden].filter((r) => !ROUTE_KEYS.includes(r))
+const unknown = [...cfg.sky.routes, ...cfg.sky.liteRoutes, ...cfg.sky.bgRoutes, ...cfg.ui.mobileHidden].filter((r) => !ROUTE_KEYS.includes(r))
 assert.deepEqual(unknown, [], 'app.json gõ sai tên route thì trang đó lặng lẽ không có nền / không ẩn')
 
 /* ---------- câu theo số liệu ---------- */
