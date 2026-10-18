@@ -55,7 +55,7 @@ export default function AppHeader({ route }) {
   }
 
   return (
-    <header style={S.header}>
+    <header style={skyMode(route) ? { ...S.header, background: 'transparent', borderBottom: 'none' } : S.header}>
       <div style={S.left}>
         <h1 style={S.h1}>{page.title}</h1>
         <span style={S.hint}>{page.desc}</span>
@@ -116,8 +116,8 @@ function MobileUnifiedHeader({
   return (
     // Trang có nền bầu trời: header thành kính (như footer nav) để thấy trăng và nhân vật phía sau.
     <header style={skyMode(route) ? { ...S.mobileHeaderH4, ...S.mobileHeaderSky } : S.mobileHeaderH4}>
-      {/* Vòng hào quang góc phải theo thiết kế H4 */}
-      <div style={S.glowCircleH4} />
+      {/* Vòng hào quang góc phải theo thiết kế H4 (trang có nền trời: bỏ, header trong suốt) */}
+      {!skyMode(route) && <div style={S.glowCircleH4} />}
 
       <div style={hasTitle ? S.mobileContentH4Compact : S.mobileContentH4}>
         {/* Tên màn nhỏ ở đầu giống H1 cho các màn không hiện ở sidebar/tabbar mobile */}
@@ -332,7 +332,8 @@ const S = {
     borderBottom: '1px solid #2A3A58',
     overflow: 'hidden',
   },
-  mobileHeaderSky: { background: 'var(--surface-nav)', borderBottom: '1px solid var(--border-nav)' },
+  // Trang có nền trời: header trong suốt (như header riêng của Trang chủ, BXH…) — không nền, không viền.
+  mobileHeaderSky: { background: 'transparent', borderBottom: 'none' },
   glowCircleH4: {
     position: 'absolute',
     top: -56,

@@ -302,7 +302,7 @@ export default function SeasonRaceTab({
                     <span style={ts({ font: "700 16px/1.15 'Barlow', sans-serif", color: '#FFFFFF', minWidth: 0, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' })}>
                       <span title={top1?.name}>{top1?.name}</span>
                     </span>
-                    <StreakTag streak={top1?.streak} onDark />
+                    <StreakTag streak={top1?.streak} />
                     <div style={ts({ flex: 1 })} />
                     <span style={ts({ font: "600 26px/1 'IBM Plex Mono', monospace", color: '#F7E3A1' })}>
                       {top1?.totalSeasonPoints?.toLocaleString()}
@@ -372,7 +372,7 @@ export default function SeasonRaceTab({
                       <span style={ts({ font: "600 13px/1.2 'IBM Plex Sans', sans-serif", color: '#FFFFFF', minWidth: 0, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' })}>
                         <span title={top2?.name}>{top2?.name}</span>
                       </span>
-                      <StreakTag streak={top2?.streak} onDark compact />
+                      <StreakTag streak={top2?.streak} compact />
                     </div>
                     <div style={ts({ font: "600 19px/1 'IBM Plex Mono', monospace", color: '#DCE6F5' })}>
                       {top2?.totalSeasonPoints?.toLocaleString()}
@@ -438,7 +438,7 @@ export default function SeasonRaceTab({
                       <span style={ts({ font: "600 13px/1.2 'IBM Plex Sans', sans-serif", color: '#FFFFFF', minWidth: 0, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' })}>
                         <span title={top3?.name}>{top3?.name}</span>
                       </span>
-                      <StreakTag streak={top3?.streak} onDark compact />
+                      <StreakTag streak={top3?.streak} compact />
                     </div>
                     <div style={ts({ font: "600 19px/1 'IBM Plex Mono', monospace", color: '#F0C096' })}>
                       {top3?.totalSeasonPoints?.toLocaleString()}
@@ -639,7 +639,7 @@ export default function SeasonRaceTab({
                   </div>
                   <div style={ts({ display: 'flex', alignItems: 'center', gap: 6, flexWrap: 'wrap', justifyContent: 'center' })}>
                     <MiniShelf shelf={shelfById.get(top1?.id)} />
-                    <StreakTag streak={top1?.streak} onDark />
+                    <StreakTag streak={top1?.streak} />
                   </div>
                   <div style={ts({ font: "400 12px/1.3 'IBM Plex Sans', sans-serif", color: '#C6B683' })}>
                     {top1?.matchesCount} {t('units.match')} · {top1?.winsCount}W–{top1?.lossesCount}L · {top1?.winRate}% · {top1?.upsetsCount} upset
@@ -716,27 +716,27 @@ export default function SeasonRaceTab({
           /* Toàn bảng Mobile · M10v2 Hào nhoáng */
           <div>
             <div
-              style={{
+              style={ts({
                 background: '#141D2E',
                 border: '1px solid #22304A',
                 borderRadius: 10,
                 overflow: 'hidden',
-              }}
+              })}
             >
               <div
-                style={{
+                style={ts({
                   padding: '9px 12px',
                   borderBottom: '1px solid #22304A',
                   display: 'flex',
                   alignItems: 'center',
                   gap: 8,
-                }}
+                })}
               >
-                <span style={{ font: "600 12.5px/1.2 'IBM Plex Sans', sans-serif", color: '#E9EFF7' }}>
+                <span style={ts({ font: "600 12.5px/1.2 'IBM Plex Sans', sans-serif", color: '#E9EFF7' })}>
                   {t('season.wholeTable')}
                 </span>
-                <div style={{ flex: 1 }} />
-                <span style={{ font: "400 11px/1 'IBM Plex Mono', monospace", color: '#8494AA' }}>
+                <div style={ts({ flex: 1 })} />
+                <span style={ts({ font: "400 11px/1 'IBM Plex Mono', monospace", color: '#8494AA' })}>
                   {t('season.wholeTableCount', { n: filteredLeaderboard.length, count: filteredLeaderboard.length })}
                 </span>
               </div>
@@ -748,7 +748,7 @@ export default function SeasonRaceTab({
                     key={row.id}
                     onClick={() => onOpenLedger && onOpenLedger(row.id)}
                     title={`${t('season.viewLedgerBtn')}: ${row.name}`}
-                    style={{
+                    style={ts({
                       minWidth: 0,
                       display: 'flex',
                       alignItems: 'center',
@@ -758,59 +758,59 @@ export default function SeasonRaceTab({
                       background: isMe ? 'rgba(29,80,160,.12)' : 'transparent',
                       cursor: 'pointer',
                       transition: 'background 0.15s ease',
-                    }}
+                    })}
                   >
                     <span
-                      style={{
+                      style={ts({
                         width: 20,
                         font: "600 12px/1 'IBM Plex Mono', monospace",
                         color: isMe ? '#B6CDEC' : '#A8B7CB',
-                      }}
+                      })}
                     >
                       {row.rank}
                     </span>
                     <Avatar name={row.name} src={row.avatarUrl || row.avatar} size={30} />
-                    <div style={{ flex: 1, minWidth: 0, display: 'grid', gap: 3 }}>
-                      <div style={{ minWidth: 0, display: 'flex', alignItems: 'center', gap: 6, flexWrap: 'wrap' }}>
+                    <div style={ts({ flex: 1, minWidth: 0, display: 'grid', gap: 3 })}>
+                      <div style={ts({ minWidth: 0, display: 'flex', alignItems: 'center', gap: 6, flexWrap: 'wrap' })}>
                         <span
-                          style={{
+                          style={ts({
                             font: "600 13.5px/1.2 'IBM Plex Sans', sans-serif",
                             color: '#E9EFF7',
                             minWidth: 0,
                             overflow: 'hidden',
                             textOverflow: 'ellipsis',
                             whiteSpace: 'nowrap',
-                          }}
+                          })}
                         >
                           <span title={row.name}>{row.name}</span>
                         </span>
                         {isMe && (
                           <span
-                            style={{
+                            style={ts({
                               font: "600 9.5px/1 'IBM Plex Mono', monospace",
                               padding: '3px 6px',
                               borderRadius: 999,
                               background: 'rgba(29,80,160,.24)',
                               border: '1px solid #1D50A0',
                               color: '#B6CDEC',
-                            }}
+                            })}
                           >
                             {t('season.youTag')}
                           </span>
                         )}
-                        <StreakTag streak={row.streak} onDark />
+                        <StreakTag streak={row.streak} />
                       </div>
-                      <div style={{ display: 'flex', flexWrap: 'wrap', gap: '4px 6px', alignItems: 'center' }}>
+                      <div style={ts({ display: 'flex', flexWrap: 'wrap', gap: '4px 6px', alignItems: 'center' })}>
                         <MiniShelf shelf={shelfById.get(row.id)} size={17} />
                         <MobileStats row={row} fields={['matches', 'record', 'winRate', 'sessions']} />
                       </div>
                     </div>
-                    <div style={{ display: 'grid', justifyItems: 'end', gap: 5 }}>
+                    <div style={ts({ display: 'grid', justifyItems: 'end', gap: 5 })}>
                       <span
-                        style={{
+                        style={ts({
                           font: "600 17px/1 'IBM Plex Mono', monospace",
                           color: '#E9EFF7',
-                        }}
+                        })}
                       >
                         {row.totalSeasonPoints?.toLocaleString()}
                       </span>
@@ -822,7 +822,7 @@ export default function SeasonRaceTab({
             </div>
 
             <div
-              style={{
+              style={ts({
                 padding: '10px 12px',
                 borderRadius: 6,
                 background: '#101927',
@@ -830,7 +830,7 @@ export default function SeasonRaceTab({
                 font: "400 12px/1.5 'IBM Plex Sans', sans-serif",
                 color: '#A8B7CB',
                 marginTop: 10,
-              }}
+              })}
             >
               {t('season.shelfThreeSlotFooterNote14a')}
             </div>

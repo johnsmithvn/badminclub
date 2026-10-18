@@ -383,7 +383,7 @@ export default function CareerEloTab({
                             {t('season.youTag')}
                           </span>
                         )}
-                        <StreakTag streak={displayList[0].streak} onDark />
+                        <StreakTag streak={displayList[0].streak} />
                         <div style={ts({ flex: '1 1 0%' })} />
                         <span style={ts({ font: "600 24px/1 'IBM Plex Mono', monospace", color: '#F7E3A1' })}>
                           {displayList[0].rating}
@@ -453,7 +453,7 @@ export default function CareerEloTab({
                             {t('season.youTag')}
                           </span>
                         )}
-                        <StreakTag streak={displayList[1].streak} onDark />
+                        <StreakTag streak={displayList[1].streak} />
                         <div style={ts({ flex: '1 1 0%' })} />
                         <span style={ts({ font: "600 20px/1 'IBM Plex Mono', monospace", color: '#DCE6F5' })}>
                           {displayList[1].rating}
@@ -523,7 +523,7 @@ export default function CareerEloTab({
                             {t('season.youTag')}
                           </span>
                         )}
-                        <StreakTag streak={displayList[2].streak} onDark />
+                        <StreakTag streak={displayList[2].streak} />
                         <div style={ts({ flex: '1 1 0%' })} />
                         <span style={ts({ font: "600 20px/1 'IBM Plex Mono', monospace", color: '#F0C096' })}>
                           {displayList[2].rating}
@@ -801,13 +801,13 @@ export default function CareerEloTab({
           {/* BẢNG XẾP HẠNG ELO TOÀN BỘ */}
           {isMobile ? (
             /* TOÀN BẢNG MOBILE HÀO NHOÁNG (M11v2) */
-            <div style={{ background: '#141D2E', border: '1px solid #22304A', borderRadius: 10, overflow: 'hidden' }}>
-              <div style={{ padding: '9px 12px', borderBottom: '1px solid #22304A', display: 'flex', alignItems: 'center', gap: 8 }}>
-                <span style={{ font: "600 12.5px/1.2 'IBM Plex Sans', sans-serif", color: '#E9EFF7' }}>
+            <div style={ts({ background: '#141D2E', border: '1px solid #22304A', borderRadius: 10, overflow: 'hidden' })}>
+              <div style={ts({ padding: '9px 12px', borderBottom: '1px solid #22304A', display: 'flex', alignItems: 'center', gap: 8 })}>
+                <span style={ts({ font: "600 12.5px/1.2 'IBM Plex Sans', sans-serif", color: '#E9EFF7' })}>
                   {t('season.wholeTable')}
                 </span>
-                <div style={{ flex: '1 1 0%' }} />
-                <span style={{ font: "400 11px/1 'IBM Plex Mono', monospace", color: '#8494AA' }}>
+                <div style={ts({ flex: '1 1 0%' })} />
+                <span style={ts({ font: "400 11px/1 'IBM Plex Mono', monospace", color: '#8494AA' })}>
                   {t('season.wholeTableCount', { n: displayList.length })}
                 </span>
               </div>
@@ -819,7 +819,7 @@ export default function CareerEloTab({
                   <div
                     key={player.id}
                     onClick={() => onSelectMember && onSelectMember(player)}
-                    style={{ minWidth: 0,
+                    style={ts({ minWidth: 0,
                       display: 'flex',
                       alignItems: 'center',
                       gap: 9,
@@ -827,35 +827,35 @@ export default function CareerEloTab({
                       borderBottom: idx === arr.length - 1 ? 'none' : '1px solid rgba(34,48,74,.6)',
                       background: isMe ? 'rgba(29,80,160,.12)' : 'transparent',
                       cursor: onSelectMember ? 'pointer' : 'default',
-                    }}
+                    })}
                   >
-                    <span style={{ width: 20, font: "600 12px/1 'IBM Plex Mono', monospace", color: isMe ? '#B6CDEC' : '#A8B7CB' }}>
+                    <span style={ts({ width: 20, font: "600 12px/1 'IBM Plex Mono', monospace", color: isMe ? '#B6CDEC' : '#A8B7CB' })}>
                       {player.rank}
                     </span>
                     <Avatar name={player.name} src={player.avatarUrl} size={30} />
                     <SingleBadgeSlot badge={player.highestBadge} size={18} />
-                    <div style={{ flex: '1 1 0%', minWidth: 0, display: 'grid', gap: 2 }}>
-                      <div style={{ minWidth: 0, display: 'flex', alignItems: 'center', gap: 6, flexWrap: 'wrap' }}>
-                        <span style={{ font: "600 13.5px/1.2 'IBM Plex Sans', sans-serif", color: '#E9EFF7', minWidth: 0, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>
+                    <div style={ts({ flex: '1 1 0%', minWidth: 0, display: 'grid', gap: 2 })}>
+                      <div style={ts({ minWidth: 0, display: 'flex', alignItems: 'center', gap: 6, flexWrap: 'wrap' })}>
+                        <span style={ts({ font: "600 13.5px/1.2 'IBM Plex Sans', sans-serif", color: '#E9EFF7', minWidth: 0, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' })}>
                           <span title={player.name}>{player.name}</span>
                         </span>
                         {isMe && (
-                          <span style={{ font: "600 9.5px/1 'IBM Plex Mono', monospace", padding: '3px 6px', borderRadius: 999, background: 'rgba(29,80,160,.24)', border: '1px solid #1D50A0', color: '#B6CDEC' }}>
+                          <span style={ts({ font: "600 9.5px/1 'IBM Plex Mono', monospace", padding: '3px 6px', borderRadius: 999, background: 'rgba(29,80,160,.24)', border: '1px solid #1D50A0', color: '#B6CDEC' })}>
                             {t('season.youTag')}
                           </span>
                         )}
-                        <StreakTag streak={player.streak} onDark />
+                        <StreakTag streak={player.streak} />
                       </div>
                       <EloStats player={player} />
                     </div>
-                    <span style={{ font: "600 17px/1 'IBM Plex Mono', monospace", color: '#E9EFF7' }}>
+                    <span style={ts({ font: "600 17px/1 'IBM Plex Mono', monospace", color: '#E9EFF7' })}>
                       {player.rating}
                     </span>
                   </div>
                 )
               })}
 
-              <div style={{ padding: '10px 12px', background: '#101927', borderTop: '1px solid #22304A', font: "400 12px/1.5 'IBM Plex Sans', sans-serif", color: '#A8B7CB' }}>
+              <div style={ts({ padding: '10px 12px', background: '#101927', borderTop: '1px solid #22304A', font: "400 12px/1.5 'IBM Plex Sans', sans-serif", color: '#A8B7CB' })}>
                 {t('season.eloSingleBadgeFooterNote14a')}
               </div>
             </div>

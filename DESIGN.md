@@ -103,6 +103,14 @@ các token dưới, **giữ nguyên màu** của `dark.css` / `semantic.css`:
 - Luật tạm dừng trời khi mở popup chỉ dò `[aria-modal]` (DS Dialog, `ModalOverlay` đều gắn). Đừng thêm
   `:has([style*=…])` ở gốc trang: mỗi lần một style đổi, trình duyệt phải quét lại cả cây DOM.
 
+### 2.2b Header trên trang có nền trời
+
+Header trong suốt, nút nằm thẳng trên nền trời: header chung (`AppHeader`, mobile lẫn desktop) ở trang có nền trời bỏ nền / viền;
+các màn tự dựng header dùng `PageHeader` không truyền `title` (chỉ cụm nút canh phải) hoặc dòng nút riêng. Nút dùng
+`HeaderAction` (`#ui`): điện thoại chỉ icon, desktop icon + chữ, viền tròn nền kính để khỏi chìm vào nền (`iconOnly` khi
+chỉ cần icon). Chuông thông báo cùng kiểu viền tròn. Header ghim khi cuộn (chi tiết buổi tập mobile) thì dải ghim ngoài
+cùng vẫn có nền để che nội dung trôi bên dưới, còn hàng header bên trong trong suốt.
+
 ### 2.3 Màn Danh hiệu: bản tối arcade + bản sáng
 
 Màn Danh hiệu (trang bộ sưu tập desktop + mobile, `BadgeCard`, `BadgeShelf`, `BountyHeroPoster`,

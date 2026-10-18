@@ -75,7 +75,7 @@ function mobileLayout(w) {
 }
 /** Trời đêm mobile: trăng nhỏ, chòm sao không tên, cá voi nhỏ bơi ngang đúng bề rộng màn. */
 const nightMobile = (w) => ({
-  mx: 874, my: 1, md: 42, cx: 790, cy: 3, cs: 0.28, ch: 34, cw: 56, nl: 1,
+  mx: 874, my: 1, md: 42, cx: 790, cy: 3, cs: 0.28, ch: 34, cw: 56, nl: 1, ff: 10,
   wx: MOON_M + w / 2 + 10, wy: 56, wd: -(w + 250), wdy: 16, wdur: 44, wdl: 3, wsc: 0.58,
 })
 
@@ -246,7 +246,7 @@ export default function SkyBackdrop({ mode, isMobile, scrollRef }) {
     const tick = () => {
       // Tab ẩn thì animation không chạy tới onfinish — đợi tab hiện lại mới diễn, khỏi chất đống phần tử.
       // Đang cuộn xuống (lớp nhân vật ẩn): diễn cũng chẳng ai thấy — đợi cuộn lên, cảnh tới hạn ra ngay.
-      if (document.hidden || awayRef.current || !host.isConnected) return later(tick, 1000)
+      if (document.hidden || awayRef.current || document.querySelector('[aria-modal="true"]') || !host.isConnected) return later(tick, 1000)
       const now = Date.now()
       const { k, at } = stageNext(due, free)
       if (at > now) return later(tick, at - now)
@@ -263,6 +263,26 @@ export default function SkyBackdrop({ mode, isMobile, scrollRef }) {
       setForm((f) => (f.on ? { ...f, on: false } : f))
     }
   }, [live, stageKinds, isDark, ly, bags])
+
+  // Dialog / sheet đang mở (aria-modal): hoạt hình CSS đã dừng (effects.css) nhưng cảnh Web Animations (siêu nhân, UFO,
+  // sao ước) thì không — lớp mờ toàn màn của dialog phải làm mờ lại cả màn mỗi khung hình, máy yếu mất hình / giật.
+  // Dừng tay đúng những animation đang chạy, đóng dialog thì chạy tiếp đúng những cái đó.
+  useEffect(() => {
+    if (!motion) return
+    const held = new Set()
+    const iv = setInterval(() => {
+      const modal = !!document.querySelector('[aria-modal="true"]')
+      if (modal && !held.size) {
+        for (const h of [sceneRef.current, flyRef.current]) {
+          h?.getAnimations?.({ subtree: true }).forEach((x) => { if (x.playState === 'running') { x.pause(); held.add(x) } })
+        }
+      } else if (!modal && held.size) {
+        held.forEach((x) => { if (x.playState === 'paused') x.play() })
+        held.clear()
+      }
+    }, 400)
+    return () => clearInterval(iv)
+  }, [motion])
 
   // Sao ước (chỉ đêm): bay ngang header, bấm vào → bung sáng + một điều ước. Cứ N giây một ngôi.
   const flyRef = useRef(null)
@@ -373,7 +393,17 @@ const CONS = [
   [[[10, 10], [22, 20], [34, 34], [42, 54], [46, 74], [56, 92], [74, 102], [96, 100], [106, 86], [100, 74], [0, 0], [24, 0]], [[0, 1], [1, 2], [2, 3], [3, 4], [4, 5], [5, 6], [6, 7], [7, 8], [8, 9], [0, 10], [0, 11]]],
   [[[14, 30], [30, 10], [54, 8], [64, 30], [52, 56], [120, 48], [150, 66], [112, 78]], [[0, 1], [1, 2], [2, 3], [3, 4], [4, 7], [7, 6], [6, 5], [5, 3]]],
   [[[60, 0], [60, 46], [60, 96], [60, 136], [8, 30], [112, 64]], [[0, 1], [1, 2], [2, 3], [4, 1], [1, 5]]],
+  // Song Tử: hai anh em đứng cạnh nhau, đầu là Castor / Pollux
+  [[[20, 0], [60, 6], [18, 40], [58, 44], [14, 82], [54, 86], [6, 120], [30, 124], [48, 124], [72, 120]], [[0, 1], [0, 2], [1, 3], [2, 3], [2, 4], [3, 5], [4, 6], [4, 7], [5, 8], [5, 9]]],
+  // Ngưu Lang – Chức Nữ: đàn Lyra quanh sao Chức Nữ (trái trên), sao Ngưu Lang kẹp giữa hai sao nhỏ (phải dưới)
+  [[[10, 10], [24, 28], [36, 30], [30, 48], [18, 46], [128, 92], [116, 82], [140, 102]], [[0, 1], [1, 2], [2, 3], [3, 4], [4, 1], [5, 6], [5, 7]]],
+  // Tua Rua (Thất Tinh Mão — Pleiades): chùm sao nhỏ như cái gáo con
+  [[[20, 30], [38, 22], [52, 34], [40, 44], [64, 46], [30, 54], [52, 62]], [[0, 1], [1, 2], [2, 3], [3, 0], [2, 4], [3, 5], [4, 6]]],
+  // Cây Vợt (chòm của CLB): mặt vợt bầu dục + cán
+  [[[40, 0], [66, 10], [76, 36], [66, 62], [40, 72], [14, 62], [4, 36], [14, 10], [40, 100], [40, 136]], [[0, 1], [1, 2], [2, 3], [3, 4], [4, 5], [5, 6], [6, 7], [7, 0], [4, 8], [8, 9]]],
 ]
+/** Mỗi chòm hiện 25 s rồi nhường chòm kế — chu kỳ = số chòm × 25 s (keyframe skyConsShow / skyConsLine tính cho 10 chòm). */
+const CONS_CYC = CONS.length * 25
 const STAR_TILES = [
   ['radial-gradient(1px 1px at 10px 14px,#fff,transparent),radial-gradient(1px 1px at 46px 60px,rgba(220,230,255,.9),transparent),radial-gradient(1px 1px at 88px 22px,#fff,transparent),radial-gradient(1px 1px at 112px 78px,rgba(255,245,220,.9),transparent),radial-gradient(1px 1px at 70px 90px,#fff,transparent),radial-gradient(1px 1px at 28px 44px,rgba(200,255,235,.8),transparent)', '130px 96px', 7, 0, 92],
   ['radial-gradient(1.5px 1.5px at 12px 18px,#fff,transparent),radial-gradient(1px 1px at 86px 64px,#fff,transparent),radial-gradient(1.5px 1.5px at 150px 30px,rgba(190,240,255,1),transparent),radial-gradient(1px 1px at 210px 122px,#fff,transparent),radial-gradient(1.5px 1.5px at 40px 150px,rgba(255,240,210,.95),transparent)', '240px 180px', 4.5, -1, 96],
@@ -410,8 +440,8 @@ function Night({ o, motion, amb = true, age, full }) {
 
   return (
     <div style={{ position: 'absolute', inset: 0, overflow: 'hidden', background: 'linear-gradient(180deg,#040814 0%,#071027 45%,#0A1733 75%,#0E1E40 100%)' }}>
-      {amb && <div style={{ position: 'absolute', inset: '-12%', background: 'radial-gradient(40% 35% at 70% 6%,rgba(88,80,200,.30),transparent 70%),radial-gradient(35% 40% at 10% 72%,rgba(20,140,150,.22),transparent 70%),radial-gradient(30% 30% at 55% 58%,rgba(150,70,180,.14),transparent 70%)', filter: 'blur(30px)', animation: an('skyNeb 34s ease-in-out infinite alternate') }} />}
-      {amb && <div style={{ position: 'absolute', left: -300, top: 240, width: 2100, height: 320, transform: 'rotate(-17deg)', background: 'radial-gradient(50% 50% at 50% 50%,rgba(190,205,255,.18),rgba(170,190,240,.06) 50%,transparent 75%),radial-gradient(30% 40% at 34% 55%,rgba(200,180,255,.14),transparent 70%),radial-gradient(25% 35% at 70% 45%,rgba(140,240,215,.10),transparent 70%)', filter: 'blur(14px)' }} />}
+      {amb && <div style={{ position: 'absolute', inset: '-12%', background: 'radial-gradient(40% 35% at 70% 6%,rgba(88,80,200,.30),transparent 70%),radial-gradient(35% 40% at 10% 72%,rgba(20,140,150,.22),transparent 70%),radial-gradient(30% 30% at 55% 58%,rgba(150,70,180,.14),transparent 70%)', animation: an('skyNeb 34s ease-in-out infinite alternate') }} />}
+      {amb && <div style={{ position: 'absolute', left: -300, top: 240, width: 2100, height: 320, transform: 'rotate(-17deg)', background: 'radial-gradient(50% 50% at 50% 50%,rgba(190,205,255,.18),rgba(170,190,240,.06) 50%,transparent 75%),radial-gradient(30% 40% at 34% 55%,rgba(200,180,255,.14),transparent 70%),radial-gradient(25% 35% at 70% 45%,rgba(140,240,215,.10),transparent 70%)', }} />}
       {amb && <div style={{ position: 'absolute', left: -300, top: 240, width: 2100, height: 320, transform: 'rotate(-17deg)', backgroundImage: 'radial-gradient(1px 1px at 8px 10px,#fff,transparent),radial-gradient(1px 1px at 30px 34px,rgba(220,230,255,.9),transparent),radial-gradient(1px 1px at 52px 18px,#fff,transparent),radial-gradient(1px 1px at 20px 44px,rgba(255,240,220,.9),transparent),radial-gradient(1px 1px at 62px 40px,#fff,transparent)', backgroundSize: '70px 50px', WebkitMaskImage: 'radial-gradient(50% 42% at 50% 50%,#000,transparent)', maskImage: 'radial-gradient(50% 42% at 50% 50%,#000,transparent)', animation: an('skyTwinkleB 9s ease-in-out infinite') }} />}
       {STAR_TILES.map(([img, size, dur, delay, fade], i) => (
         <div key={'s' + i} style={{ position: 'absolute', inset: 0, backgroundImage: img, backgroundSize: size, WebkitMaskImage: `linear-gradient(to bottom,#000,transparent ${fade}%)`, maskImage: `linear-gradient(to bottom,#000,transparent ${fade}%)`, animation: an(`skyTwinkleB ${dur}s ease-in-out ${delay}s infinite`) }} />
@@ -440,7 +470,7 @@ function Night({ o, motion, amb = true, age, full }) {
         <span style={{ position: 'absolute', left: -4, top: -4, width: 8, height: 8, borderRadius: '50%', background: '#fff', boxShadow: '0 0 14px 5px rgba(190,255,240,.85),0 0 46px 14px rgba(94,242,194,.35)' }} />
       </div>
       )}
-      {amb && Array.from({ length: 24 }, (_, i) => {
+      {amb && Array.from({ length: o.ff || 24 }, (_, i) => {
         const r = (j) => rnd(i * 17 + j + 500), sz = 3 + r(1) * 2.5, v = (j) => ((r(j) - 0.5) * 150).toFixed(0) + 'px'
         return (
           <span key={'f' + i} style={{
@@ -452,14 +482,14 @@ function Night({ o, motion, amb = true, age, full }) {
         )
       })}
       {amb && CONS.map(([P, Ls], i) => {
-        const w = Math.max(...P.map((p) => p[0])) + 10, h = Math.max(...P.map((p) => p[1])) + 10, dly = (-150 + i * 25 + 6) + 's'
+        const w = Math.max(...P.map((p) => p[0])) + 10, h = Math.max(...P.map((p) => p[1])) + 10, dly = (-CONS_CYC + i * 25 + 6) + 's'
         return (
           <span key={'c' + i}
             ref={(el) => { if (el && !el.dataset.placed) { el.dataset.placed = '1'; spot(el) } }}
             onAnimationIteration={(ev) => { if (ev.target === ev.currentTarget) spot(ev.currentTarget) }}
-            style={{ position: 'absolute', left: o.cx ?? 1044, top: (o.cy ?? 4) + 2, transform: `scale(${o.cs ? o.cs * 0.8 : 0.34})`, width: w, height: h + 20, transformOrigin: '0 0', opacity: 0, animation: an(`skyConsShow 150s ease-in-out ${dly} infinite`) }}>
+            style={{ position: 'absolute', left: o.cx ?? 1044, top: (o.cy ?? 4) + 2, transform: `scale(${o.cs ? o.cs * 0.8 : 0.34})`, width: w, height: h + 20, transformOrigin: '0 0', opacity: 0, animation: an(`skyConsShow ${CONS_CYC}s ease-in-out ${dly} infinite`) }}>
             <svg width={w} height={h} viewBox={`-5 -5 ${w} ${h}`} style={{ position: 'absolute', left: 0, top: 0, overflow: 'visible' }}>
-              <path d={Ls.map(([a, b]) => `M${P[a][0]} ${P[a][1]}L${P[b][0]} ${P[b][1]}`).join('')} pathLength="1" fill="none" stroke="rgba(190,210,255,.6)" strokeWidth="2.4" strokeDasharray="1" style={{ animation: an(`skyConsLine 150s linear ${dly} infinite`) }} />
+              <path d={Ls.map(([a, b]) => `M${P[a][0]} ${P[a][1]}L${P[b][0]} ${P[b][1]}`).join('')} pathLength="1" fill="none" stroke="rgba(190,210,255,.6)" strokeWidth="2.4" strokeDasharray="1" style={{ animation: an(`skyConsLine ${CONS_CYC}s linear ${dly} infinite`) }} />
               {P.map(([x, y], k) => <circle key={k} cx={x} cy={y} r={k % 3 === 0 ? 4.4 : 3.2} fill="#fff" style={{ filter: 'drop-shadow(0 0 6px rgba(200,220,255,.95))' }} />)}
             </svg>
             {!o.nl && <span style={{ position: 'absolute', left: w + 8, top: Math.round(h * 0.3), font: '500 11px/1 var(--font-sans)', letterSpacing: '.06em', color: 'rgba(200,212,245,.85)', whiteSpace: 'nowrap', textShadow: '0 0 6px rgba(0,0,0,.6)' }}>{consNames[i]}</span>}
@@ -843,15 +873,15 @@ function Day({ motion, amb = true, phase = 'dusk' }) {
 
   return (
     <div style={{ position: 'absolute', inset: 0, overflow: 'hidden', background: DAY_BG[phase] || DAY_BG.dusk }}>
-      <div style={{ position: 'absolute', left: 140, top: H * 0.3, width: 1300, height: 420, borderRadius: '50%', background: 'radial-gradient(closest-side,rgba(255,168,120,.55),rgba(255,150,150,.22) 50%,rgba(255,150,150,0))', filter: 'blur(14px)', animation: an('skySunBreath 12s ease-in-out infinite alternate') }} />
-      <div style={{ position: 'absolute', left: -100, right: -100, top: H * 0.2, height: 220, background: 'linear-gradient(180deg,transparent,rgba(255,190,200,.28) 45%,rgba(255,200,170,.18) 70%,transparent)', filter: 'blur(18px)' }} />
+      <div style={{ position: 'absolute', left: 140, top: H * 0.3, width: 1300, height: 420, borderRadius: '50%', background: 'radial-gradient(closest-side,rgba(255,168,120,.55),rgba(255,150,150,.22) 50%,rgba(255,150,150,0))', animation: an('skySunBreath 12s ease-in-out infinite alternate') }} />
+      <div style={{ position: 'absolute', left: -100, right: -100, top: H * 0.2, height: 220, background: 'linear-gradient(180deg,transparent,rgba(255,190,200,.28) 45%,rgba(255,200,170,.18) 70%,transparent)', }} />
       {[[1060, 34, 3.4, 4.2], [420, 22, 1.6, 5.4], [700, 60, 1.4, 6.2], [1270, 70, 1.5, 5], [180, 50, 1.3, 7]].map(([x, y, sz, d], i) => (
         <span key={'e' + i} style={{ position: 'absolute', left: x, top: y, width: sz, height: sz, borderRadius: '50%', background: '#FFFDF6', boxShadow: `0 0 ${(sz * 3).toFixed(0)}px ${(sz * 0.8).toFixed(1)}px rgba(255,250,235,.8)`, animation: an(`skyTwinkle ${d}s ease-in-out ${-i}s infinite`) }} />
       ))}
       {/* Cầu vồng mờ: mỗi vòng 96 s hiện ~25 s rồi tan; chân khuất sau núi / biển mây */}
       {amb && <span style={{ position: 'absolute', left: 460, top: H * 0.56 - 440, width: 880, height: 440, background: 'radial-gradient(circle 440px at 50% 100%,transparent 0 372px,rgba(255,96,96,.38) 380px,rgba(255,170,70,.36) 388px,rgba(255,236,96,.32) 396px,rgba(110,214,120,.3) 404px,rgba(90,160,255,.3) 412px,rgba(150,110,230,.28) 420px,transparent 428px)', WebkitMaskImage: 'linear-gradient(90deg,transparent,#000 22%,#000 78%,transparent)', maskImage: 'linear-gradient(90deg,transparent,#000 22%,#000 78%,transparent)', opacity: 0, animation: an('skyRainbow 96s ease-in-out 20s infinite') }} />}
       {amb && [[0.06, 0.07, 560, 40, 70], [0.42, 0.2, 420, 30, -60], [0.7, 0.3, 600, 46, 80]].map(([x, y, w, h, dx], i) => (
-        <span key={'ci' + i} style={{ position: 'absolute', left: x * W, top: y * H, width: w, height: h, borderRadius: '50%', background: 'radial-gradient(50% 50% at 50% 50%,rgba(255,206,196,.7),transparent 70%)', filter: 'blur(10px)', '--dx': dx + 'px', animation: an(`skyDrift ${30 + i * 8}s ease-in-out infinite alternate`) }} />
+        <span key={'ci' + i} style={{ position: 'absolute', left: x * W, top: y * H, width: w, height: h, borderRadius: '50%', background: 'radial-gradient(50% 50% at 50% 50%,rgba(255,206,196,.7),transparent 70%)', '--dx': dx + 'px', animation: an(`skyDrift ${30 + i * 8}s ease-in-out infinite alternate`) }} />
       ))}
       {amb && (
       <div style={{ position: 'absolute', left: -80, top: 110, width: 0, height: 0, opacity: 0, animation: an('skyPlane 56s linear 10s infinite') }}>
@@ -891,7 +921,7 @@ function Day({ motion, amb = true, phase = 'dusk' }) {
       {sea('s1', H * 0.52, 50, 95, 16, '#E3BFD0', '#CFA9C2', 220, 100, 0.95)}
       {amb && <Sailboat x={840} y={440} s={1} dx={70} dur={46} dl={-8} an={an} />}
       {amb && <Sailboat x={1210} y={452} s={0.8} dx={-56} dur={58} dl={-21} an={an} />}
-      <div style={{ position: 'absolute', left: -200, right: -200, top: H * 0.58, height: 120, background: 'radial-gradient(50% 50% at 50% 50%,rgba(255,232,224,.75),transparent 70%)', filter: 'blur(14px)', animation: anAmb('skyMist 26s ease-in-out infinite alternate') }} />
+      <div style={{ position: 'absolute', left: -200, right: -200, top: H * 0.58, height: 120, background: 'radial-gradient(50% 50% at 50% 50%,rgba(255,232,224,.75),transparent 70%)', animation: anAmb('skyMist 26s ease-in-out infinite alternate') }} />
       {sea('s2', H * 0.63, 60, 120, 13, '#EDC9CF', '#DDB3C2', 140, 200, 1)}
       {sea('s3', H * 0.76, 70, 140, 11, '#F5DCD6', '#E6C2C8', 90, 300, 1)}
       {amb && Array.from({ length: 12 }, (_, i) => {

@@ -240,7 +240,7 @@ assert.deepEqual(missing, [], 'nhân vật sẽ nói nguyên chuỗi key thay v�
 for (const k of ['sky.boom', 'sky.ufo.huh', 'sky.ufo.hit', 'sky.ufo.slip', 'sky.owl.zzz', 'sky.owl.pop']) {
   assert.equal(typeof get(k), 'string', 'thiếu chữ ' + k)
 }
-assert.equal(get('sky.cons').length, 6, 'sáu chòm sao vẽ trong SkyBackdrop phải có đủ sáu tên')
+assert.equal(get('sky.cons').length, 10, 'mười chòm sao vẽ trong SkyBackdrop (CONS) phải có đủ mười tên')
 
 /* ---------- hoạt cảnh định kỳ ---------- */
 for (const k of Object.keys(SKY_ACT_MS)) assert.ok(cfg.sky[k + 'FirstMs'] > 0, k + 'FirstMs phải > 0')

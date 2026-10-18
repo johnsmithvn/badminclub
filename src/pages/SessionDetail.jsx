@@ -1960,10 +1960,8 @@ const S = {
     display: 'flex',
     flexDirection: 'column',
     gap: 10,
-    padding: '14px 16px',
-    background: '#080F1C',
-    border: '1px solid var(--border-subtle)',
-    borderRadius: 10,
+    // Trong suốt như các header khác — dải ghim phía ngoài (pinnedTopMobile) mới là nền che nội dung cuộn bên dưới.
+    padding: '6px 2px',
     margin: 0,
     maxWidth: '100%',
     boxSizing: 'border-box',
