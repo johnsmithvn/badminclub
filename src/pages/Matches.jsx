@@ -947,12 +947,14 @@ export default function Matches() {
         }
 
         return (
+          // Khung "đấu trường": chế độ Tối trong suốt (thẻ nổi thẳng trên trời đêm như BXH); chế độ Sáng giữ tấm
+          // nền tối — chữ trong đấu trường tô trắng cứng, đặt lên trời hoàng hôn là chìm.
           <div
             style={{
-              background: '#080D18',
-              border: '1px solid #182236',
+              ...(isDark
+                ? { background: 'transparent', padding: 0 }
+                : { background: '#080D18', border: '1px solid #182236', padding: isMobile ? '18px 14px' : '28px 32px' }),
               borderRadius: isMobile ? 16 : 22,
-              padding: isMobile ? '18px 14px' : '28px 32px',
               display: 'flex',
               flexDirection: 'column',
               gap: 22,

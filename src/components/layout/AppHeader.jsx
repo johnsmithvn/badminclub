@@ -30,9 +30,10 @@ export default function AppHeader({ route }) {
   // Giải đấu: danh sách có PageHeader, Hub có hero, nhánh đấu có header riêng.
   // Danh hiệu trên điện thoại: thanh riêng MobileBadgeTopBar (chọn mùa + người xem thế chỗ bộ chọn tháng).
   // Thư viện: danh sách có PageHeader, màn đọc bài có thanh quay lại riêng (bộ chọn tháng không dùng ở đó).
+  // Buổi tập: header trong suốt riêng — chọn tháng + lịch cố định nằm trong nút Cài đặt của màn.
   if (route === 'session' || route === 'fund' || route === 'leaderboard' || route === 'matches' || route === 'home' ||
     route === 'tournaments' || route === 'tournament' || route === 'tournamentBracket' || route === 'tournamentFlow' ||
-    route === 'library' || route === 'libraryPost' ||
+    route === 'library' || route === 'libraryPost' || route === 'sessions' ||
     (isMobile && route === 'badges')) {
     return null
   }

@@ -1479,6 +1479,8 @@
     "statusPlaying": "Đang đánh",
     "statusOpen": "Đã mở",
     "listTitle": "Danh sách buổi",
+    "toolsTitle": "Tháng & lịch tập",
+    "summaryLine": "{{n}} buổi · sân {{court}} · khách +{{guest}}",
     "tabAll": "Tất cả",
     "tabOpen": "Chưa chốt",
     "tabClosed": "Đã chốt",
@@ -6011,7 +6013,7 @@
     "motionNote": "Tắt thì trời đứng yên, không nhân vật hay hoạt cảnh nào. Nhẹ máy, đỡ tốn pin.",
     "motionOs": "Thiết bị đang bật Giảm chuyển động nên nền trời luôn đứng yên.",
     "ambient": "Hiệu ứng nền",
-    "ambientNote": "Đêm: tinh vân, ngân hà, cá voi sao, sao băng nhỏ, sao chổi, đom đóm bay, chòm sao. Ngày: mây trôi, máy bay, đàn chim, biển mây cuộn, hạt sáng. Tắt thì đêm chỉ còn trăng, sao và mưa sao băng.",
+    "ambientNote": "Đêm: tinh vân, ngân hà, cá voi sao, sao băng nhỏ, sao chổi, đom đóm bay, chòm sao, máy bay đêm, tên lửa phóng. Ngày: mây trôi, máy bay, đàn chim, biển mây cuộn, hạt sáng. Tắt thì đêm chỉ còn trăng, sao và mưa sao băng.",
     "group": {
       "chars": "Nhân vật ghé thăm",
       "night": "Hoạt cảnh đêm",

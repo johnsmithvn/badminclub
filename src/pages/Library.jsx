@@ -1,8 +1,9 @@
 import { useEffect, useState } from 'react'
 import { useNavigate } from 'react-router-dom'
-import { Alert, Button, Skeleton } from '#ds'
+import { Alert, Button, IconButton, Skeleton } from '#ds'
 import { Empty, PageHeader, TabTrack } from '#ui'
 import { useApp } from '#contexts/AppContext.jsx'
+import { useTheme } from '#contexts/ThemeContext.jsx'
 import { libErr } from '#contexts/libraryActions.js'
 import { useMobile } from '#hooks/useMobile.js'
 import { can } from '#lib/roles.js'
@@ -16,6 +17,7 @@ import PostComposer from '#components/library/PostComposer.jsx'
 /** Thư viện bài tập: bài ghim + các kệ. Nạp riêng (không nằm trong `db`) — xem libraryActions.js. */
 export default function Library() {
   const { db, a } = useApp()
+  const { isDark, toggleTheme } = useTheme()
   const navigate = useNavigate()
   const isMobile = useMobile(768)
   const me = myMember(db)?.id || null
@@ -60,11 +62,16 @@ export default function Library() {
     <>
       <PageHeader
         isMobile={isMobile}
-        actions={me && (
-          <Button icon="plus" aria-label={t('library.post')} title={t('library.post')} onClick={() => setComposing(true)}
-            style={isMobile ? { padding: 0, aspectRatio: '1' } : undefined}>
-            {isMobile ? null : t('library.post')}
-          </Button>
+        actions={(
+          <>
+            <IconButton icon={isDark ? 'sun' : 'moon'} size="sm" variant="ghost" label={isDark ? t('common.themeLight') : t('common.themeDark')} onClick={toggleTheme} />
+            {me && (
+              <Button icon="plus" aria-label={t('library.post')} title={t('library.post')} onClick={() => setComposing(true)}
+                style={isMobile ? { padding: 0, aspectRatio: '1' } : undefined}>
+                {isMobile ? null : t('library.post')}
+              </Button>
+            )}
+          </>
         )}
       />
       {err && <Alert tone="danger">{err}</Alert>}

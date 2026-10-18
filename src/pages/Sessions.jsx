@@ -1,15 +1,20 @@
 // Buổi tập: StatCard + danh sách buổi có tab lọc theo thiết kế mobile nâng cao.
 
-import { Card, DataTable, Icon, StatCard, Tabs } from '#ds'
-import { Empty, GRID_STAT, SessionPill, sessionColumns, TabTrack } from '#ui'
+import { useState } from 'react'
+import { Button, Card, DataTable, Dialog, Icon, IconButton, StatCard, Tabs } from '#ds'
+import { Empty, GRID_STAT, PageHeader, SessionPill, sessionColumns, TabTrack } from '#ui'
 import { useApp } from '#contexts/AppContext.jsx'
+import { useTheme } from '#contexts/ThemeContext.jsx'
 import { useMobile } from '#hooks/useMobile.js'
+import { can } from '#lib/roles.js'
+import { adhocForm, scheduleForm } from '#lib/forms.js'
+import NotificationBell from '#components/notification/NotificationBell.jsx'
 import {
   billsOf, courtCost, courtNet, courtPayMode, courtTxt, fmt, fmtK,
   groupMembers, groupOf, guestPaidRev, guestRev, headCount,
   monthSessions, presentCount, sGuestsOnly, timeTxt,
 } from '#lib/money.js'
-import { dd, monthOf, wd } from '#utils/dates.js'
+import { dd, monthOf, monthTxt, wd } from '#utils/dates.js'
 import { t } from '#i18n'
 
 /**
@@ -260,9 +265,43 @@ function SessionCardMobile({ s, db, onClick }) {
   )
 }
 
+/**
+ * Nút Cài đặt trên header Buổi tập: hộp thoại chọn tháng + lên lịch cố định (thay cụm chọn tháng và nút "Lịch cố
+ * định" của header chung cũ). Điện thoại mở dạng sheet.
+ */
+function SessionsTools({ db, a, canEdit, isMobile }) {
+  const [open, setOpen] = useState(false)
+  return (
+    <>
+      <IconButton icon="settings" size="sm" variant="ghost" label={t('session.toolsTitle')} onClick={() => setOpen(true)} />
+      {open && (
+        <Dialog title={t('session.toolsTitle')} onClose={() => setOpen(false)} sheet={isMobile} width={400}>
+          <div style={{ display: 'grid', gap: 14, padding: '14px 20px 20px' }}>
+            <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', gap: 8, padding: 4, borderRadius: 10, border: '1px solid var(--border-subtle)', background: 'var(--surface-inset)' }}>
+              <IconButton icon="chevron-left" size="sm" variant="ghost" label={t('common.prevMonth')} onClick={() => a.shiftMonth(-1)} />
+              <span style={{ font: '600 14px/1 var(--font-mono)', color: 'var(--text-primary)' }}>{monthTxt(db.month)}</span>
+              <IconButton icon="chevron-right" size="sm" variant="ghost" label={t('common.nextMonth')} onClick={() => a.shiftMonth(1)} />
+            </div>
+            {canEdit && (
+              <Button variant="secondary" icon="repeat" onClick={() => { setOpen(false); a.openDialog('schedule', scheduleForm(db)) }}>
+                {t('shell.bulkSchedule')}
+              </Button>
+            )}
+            <Button variant="ghost" onClick={() => setOpen(false)}>{t('common.close')}</Button>
+          </div>
+        </Dialog>
+      )}
+    </>
+  )
+}
+
 export default function Sessions() {
   const { db, ui, a } = useApp()
+  const { isDark, toggleTheme } = useTheme()
   const isMobile = useMobile()
+  const canEdit = can(db.myRole || db.viewAs || 'owner', 'sessions')
+  // Khối tiền trên điện thoại: mặc định gọn một dòng tóm tắt, bấm để mở chi tiết.
+  const [moneyOpen, setMoneyOpen] = useState(false)
   const tab = ui.tab.sessions || 'all'
   const sess = monthSessions(db, db.month)
   const closed = sess.filter((s) => s.status === 'closed')
@@ -299,8 +338,54 @@ export default function Sessions() {
 
   return (
     <>
+      {/* Header trong suốt như BXH: chỉ nút icon. Chọn tháng + lịch cố định nằm trong nút Cài đặt. */}
+      <PageHeader
+        isMobile={isMobile}
+        actions={
+          <>
+            <NotificationBell />
+            <IconButton icon={isDark ? 'sun' : 'moon'} size="sm" variant="ghost" label={isDark ? t('common.themeLight') : t('common.themeDark')} onClick={toggleTheme} />
+            {canEdit && (
+              <Button size="sm" icon="plus" aria-label={t('shell.adhoc')} title={t('shell.adhoc')}
+                onClick={() => a.openDialog('adhoc', adhocForm(db))} style={isMobile ? { padding: 0, aspectRatio: '1' } : undefined}>
+                {isMobile ? null : t('shell.adhoc')}
+              </Button>
+            )}
+            <SessionsTools db={db} a={a} canEdit={canEdit} isMobile={isMobile} />
+          </>
+        }
+      />
+
       {isMobile ? (
         <div style={{ display: 'flex', flexDirection: 'column', gap: 10 }}>
+          {/* Tóm tắt một dòng (tháng đang xem · số buổi · tiền sân · thu khách) — bấm để mở / gọn các thẻ chi tiết */}
+          <button
+            type="button"
+            onClick={() => setMoneyOpen((v) => !v)}
+            aria-expanded={moneyOpen}
+            style={{
+              display: 'flex',
+              alignItems: 'center',
+              gap: 10,
+              width: '100%',
+              padding: '10px 13px',
+              borderRadius: 12,
+              background: 'var(--surface-card, #18233A)',
+              border: '1px solid var(--border-subtle, #33456A)',
+              color: 'inherit',
+              cursor: 'pointer',
+              textAlign: 'left',
+            }}
+          >
+            <span style={{ font: '600 13px/1.2 var(--font-mono)', color: 'var(--text-primary)', flexShrink: 0 }}>{monthTxt(db.month)}</span>
+            <span style={{ flex: 1, minWidth: 0, font: '500 12px/1.3 var(--font-mono)', color: 'var(--text-secondary)', whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis' }}>
+              {t('session.summaryLine', { n: sess.length, court: fmtK(courtSpent), guest: fmtK(guestTotal) })}
+            </span>
+            <Icon name={moneyOpen ? 'chevron-up' : 'chevron-down'} size={16} style={{ color: 'var(--text-muted)', flexShrink: 0 }} />
+          </button>
+
+          {moneyOpen && (
+          <>
           {/* Lưới 2 card: Buổi trong tháng & Tiền sân */}
           <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(140px, 1fr))', gap: 10 }}>
             <div style={{
@@ -406,6 +491,8 @@ export default function Sessions() {
               </span>
             </div>
           </div>
+          </>
+          )}
         </div>
       ) : (
         <div style={{ ...GRID_STAT, gridTemplateColumns: 'repeat(auto-fit,minmax(200px,1fr))' }}>
@@ -488,7 +575,7 @@ export default function Sessions() {
         </div>
       ) : (
         <Card
-          title={t('session.listTitle')}
+          title={`${t('session.listTitle')} · ${monthTxt(db.month)}`}
           icon="list"
           padding="0"
           actions={

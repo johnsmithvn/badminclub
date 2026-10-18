@@ -425,6 +425,8 @@ function Night({ o, motion, amb = true, age, full }) {
         </span>
       </span>
       {amb && <Whale o={o} an={an} />}
+      {amb && <NightPlanes an={an} />}
+      {amb && <NightRocket an={an} />}
       {amb && SHOOTS.map(([top, l, dur, delay, w], i) => (
         <div key={'m' + i} style={{ position: 'absolute', top, left: l, width: w, height: 1.5, borderRadius: 1, opacity: 0, transformOrigin: '0 50%', background: 'linear-gradient(90deg,#fff,rgba(190,230,255,.65) 22%,rgba(167,139,250,.25) 60%,transparent)', animation: an(`skyShoot ${dur}s linear ${delay}s infinite`) }}>
           <span style={{ position: 'absolute', left: -2, top: -2, width: 5, height: 5, borderRadius: '50%', background: '#fff', boxShadow: '0 0 10px 3px rgba(200,230,255,.9)' }} />
@@ -468,6 +470,60 @@ function Night({ o, motion, amb = true, age, full }) {
 }
 
 /** Cá voi sao bơi ngang trời: vệt sao sau đuôi, phun bụi sao, chòm sao trên lưng. */
+/**
+ * Máy bay đêm (hiệu ứng nền): hai chiếc xa xa bay ngang hai chiều — chỉ thấy bóng mờ và đèn đỏ / xanh / trắng
+ * nháy. Đèn là span (nháy bằng opacity, không vẽ lại SVG) cho nhẹ máy.
+ */
+function NightPlanes({ an }) {
+  const plane = (
+    <div style={{ position: 'absolute', left: 0, top: 0 }}>
+      <svg width="22" height="10" viewBox="0 0 26 12" style={{ position: 'absolute', left: -2, top: -1 }}><path d={PLANE_D} fill="rgba(150,165,205,.35)" /></svg>
+      {[['#FF5A5A', 4.5, 0, 0], ['#5AFF9A', 4.5, 9, 0.6], ['#FFFFFF', 0, 4.5, 0.3]].map(([c, x, y, d], i) => (
+        <span key={i} style={{ position: 'absolute', left: x - 1.2, top: y - 1.2, width: 2.4, height: 2.4, borderRadius: '50%', background: c, boxShadow: `0 0 4px 1px ${c}`, animation: an(`skyNavBlink 1.4s linear ${d}s infinite`) }} />
+      ))}
+    </div>
+  )
+  return (
+    <>
+      <div style={{ position: 'absolute', left: -60, top: 128, width: 0, height: 0, opacity: 0, animation: an('skyPlane 60s linear 18s infinite') }}>{plane}</div>
+      {/* Chiếc thứ hai bay ngược chiều: lật cả khung toạ độ */}
+      <div style={{ position: 'absolute', left: W + 60, top: 74, width: 0, height: 0, transform: 'scaleX(-1)' }}>
+        <div style={{ position: 'absolute', left: 0, top: 0, opacity: 0, animation: an('skyPlane 76s linear 47s infinite') }}>{plane}</div>
+      </div>
+    </>
+  )
+}
+
+/**
+ * Tên lửa phóng (hiệu ứng nền đêm): cứ `cyc` giây một lần, từ sau chân trời (sau nội dung) vút lên, nhanh dần,
+ * kéo vệt lửa + vệt khói, khói tản ở chỗ phóng. Desktop bay ngang qua mặt trăng; mobile bay bên phải trăng.
+ * Chỉ trượt / co giãn (không nhoè) cho nhẹ máy. Nhịp khớp keyframe skyRocket / skyRocketPuff (effects.css).
+ */
+const RK = { x: 1012, y: 560, rx: 66, ry: -760, a: 5, cyc: 64, dl: 26 }
+function NightRocket({ an }) {
+  const { x, y, rx, ry, a, cyc, dl } = RK
+  return (
+    <>
+      {[0, 1, 2, 3, 4].map((i) => (
+        <span key={'rp' + i} style={{ position: 'absolute', left: x - 14 + (i - 2) * 8, top: y - 4, width: 28, height: 28, borderRadius: '50%', background: 'radial-gradient(circle,rgba(205,212,232,.5),rgba(205,212,232,0) 70%)', opacity: 0, '--dx': (i - 2) * 16 + 'px', animation: an(`skyRocketPuff ${cyc}s linear ${dl + i * 0.08}s infinite`) }} />
+      ))}
+      <div style={{ position: 'absolute', left: x, top: y, width: 0, height: 0, '--rx': rx + 'px', '--ry': ry + 'px', opacity: 0, animation: an(`skyRocket ${cyc}s linear ${dl}s infinite`) }}>
+        <div style={{ position: 'absolute', left: 0, top: 0, transform: `rotate(${a}deg)` }}>
+          <span style={{ position: 'absolute', left: -5, top: 12, width: 10, height: 230, borderRadius: 5, background: 'linear-gradient(rgba(222,228,242,.42),rgba(205,212,232,.1) 60%,rgba(205,212,232,0))' }} />
+          <span style={{ position: 'absolute', left: -1.5, top: 12, width: 3, height: 100, borderRadius: 2, background: 'linear-gradient(rgba(255,222,150,.95),rgba(255,140,60,.5) 40%,rgba(255,90,60,0))' }} />
+          <span style={{ position: 'absolute', left: -3.5, top: 9, width: 7, height: 14, borderRadius: '50% 50% 50% 50% / 30% 30% 70% 70%', background: 'radial-gradient(60% 60% at 50% 30%,#FFF7D6,#FDBA74 50%,rgba(244,63,94,0))', transformOrigin: '50% 0', animation: an('skyFlame .1s ease-in-out infinite alternate') }} />
+          <svg width="12" height="32" viewBox="-6 -20 12 32" style={{ position: 'absolute', left: -6, top: -20, overflow: 'visible' }}>
+            <path d="M-3.5 4 L-6.5 11 L-3 9.5 Z M3.5 4 L6.5 11 L3 9.5 Z" fill="#E5484D" />
+            <path d="M0 -20 Q4 -12 4 0 L4 10 L-4 10 L-4 0 Q-4 -12 0 -20 Z" fill="#EEF2FA" />
+            <path d="M0 -20 Q2.8 -15 3.3 -11 L-3.3 -11 Q-2.8 -15 0 -20 Z" fill="#E5484D" />
+            <circle cx="0" cy="-3" r="1.7" fill="#5FB4FF" stroke="#9AA6BD" strokeWidth=".6" />
+          </svg>
+        </div>
+      </div>
+    </>
+  )
+}
+
 function Whale({ o, an }) {
   return (
     <div style={{ position: 'absolute', left: o.wx ?? W + 40, top: o.wy ?? 30, width: 0, height: 0, '--wd': (o.wd ?? -1840) + 'px', '--wdy': (o.wdy ?? 50) + 'px', opacity: 0, animation: an(`skyWhaleSwim ${o.wdur || 90}s linear ${o.wdl ?? 4}s infinite`) }}>
