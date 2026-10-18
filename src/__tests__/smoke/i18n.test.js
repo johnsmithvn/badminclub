@@ -27,7 +27,7 @@ import { RULE_PRESETS, TEMPLATES } from '#lib/tournament/format.js'
 // Đổi ở nguồn thì phải đổi ở đây — cố ý, để test đòi key mới.
 // Đúng bộ mục sidebar trong Sidebar.jsx (KHÔNG phải toàn bộ route: 'session' không có ở sidebar).
 const NAV = ['home', 'calendar', 'sessions', 'matches', 'leaderboard', 'badges', 'members',
-  'debts', 'fund', 'profile', 'settings', 'tournaments', 'library']
+  'debts', 'fund', 'profile', 'settings', 'theme', 'tournaments', 'library']
 const SECTIONS = ['ops', 'money', 'account']
 const SETUP_STEPS = ['court', 'group', 'member', 'schedule', 'price']
 const CHANGE_FIELDS = ['level', 'phone', 'gender', 'name']

@@ -1,21 +1,23 @@
 import BadgeHex from './BadgeHex.jsx'
 import { NOTCH_CLIP, NOTCH_S_CLIP, BADGE_TIERS } from '#lib/badges.js'
 import { t } from '#i18n'
+import { useBadgeTone } from '#components/badges/badgeTone.js'
 
 /**
  * Kệ danh hiệu của tôi (3 ô - Màn A1 & A5).
  * Cho phép xem và chọn huy hiệu gắn lên kệ.
  */
 export default function BadgeShelf({ shelf = [], onSlotClick }) {
+  const ts = useBadgeTone()
   const slots = [0, 1, 2].map((idx) => shelf[idx] || null)
 
   return (
     <div
-      style={{
+      style={ts({
         display: 'grid',
         gridTemplateColumns: 'repeat(auto-fit, minmax(240px, 1fr))',
         gap: 12,
-      }}
+      })}
     >
       {slots.map((badge, idx) => {
         if (!badge) {
@@ -31,16 +33,16 @@ export default function BadgeShelf({ shelf = [], onSlotClick }) {
                   onSlotClick && onSlotClick(idx, null)
                 }
               }}
-              style={{
+              style={ts({
                 padding: 1,
                 clipPath: NOTCH_CLIP,
                 background: 'rgba(255,255,255,.08)',
                 cursor: 'pointer',
                 transition: 'background 0.15s ease',
-              }}
+              })}
             >
               <div
-                style={{
+                style={ts({
                   clipPath: NOTCH_CLIP,
                   background: '#0D061A',
                   border: '1px dashed #3B2560',
@@ -49,10 +51,10 @@ export default function BadgeShelf({ shelf = [], onSlotClick }) {
                   alignItems: 'center',
                   gap: 13,
                   minHeight: 78,
-                }}
+                })}
               >
                 <div
-                  style={{
+                  style={ts({
                     width: 48,
                     height: 48,
                     clipPath: 'polygon(50% 0%, 95% 25%, 95% 75%, 50% 100%, 5% 75%, 5% 25%)',
@@ -62,15 +64,15 @@ export default function BadgeShelf({ shelf = [], onSlotClick }) {
                     placeItems: 'center',
                     font: '700 18px/1 Oswald, sans-serif',
                     color: '#6B5C8C',
-                  }}
+                  })}
                 >
                   +
                 </div>
-                <div style={{ display: 'flex', flexDirection: 'column', gap: 3 }}>
-                  <span style={{ font: "600 13px/1 'Be Vietnam Pro', sans-serif", color: '#9C8ABE' }}>
+                <div style={ts({ display: 'flex', flexDirection: 'column', gap: 3 })}>
+                  <span style={ts({ font: "600 13px/1 'Be Vietnam Pro', sans-serif", color: '#9C8ABE' })}>
                     {t('badges.shelfEmptySlot')} #{idx + 1}
                   </span>
-                  <span style={{ font: "400 11px/1 'Be Vietnam Pro', sans-serif", color: '#6B5C8C' }}>
+                  <span style={ts({ font: "400 11px/1 'Be Vietnam Pro', sans-serif", color: '#6B5C8C' })}>
                     {t('badges.shelfEmptySlotHint')}
                   </span>
                 </div>
@@ -94,19 +96,19 @@ export default function BadgeShelf({ shelf = [], onSlotClick }) {
                 onSlotClick && onSlotClick(idx, badge)
               }
             }}
-            style={{
+            style={ts({
               position: 'relative',
               padding: 1,
               clipPath: NOTCH_CLIP,
               background: tierMeta.edge || 'linear-gradient(135deg,#FF2E7E,#FFE24B)',
               cursor: 'pointer',
               transition: 'transform 0.15s ease',
-            }}
+            })}
             onMouseEnter={(e) => { e.currentTarget.style.transform = 'translateY(-2px)' }}
             onMouseLeave={(e) => { e.currentTarget.style.transform = 'translateY(0)' }}
           >
             <div
-              style={{
+              style={ts({
                 clipPath: NOTCH_CLIP,
                 background: tierMeta.panel || '#1A0310',
                 padding: '12px 14px',
@@ -114,7 +116,7 @@ export default function BadgeShelf({ shelf = [], onSlotClick }) {
                 alignItems: 'center',
                 gap: 13,
                 minHeight: 78,
-              }}
+              })}
             >
               <BadgeHex
                 tier={badge.tier}
@@ -122,20 +124,20 @@ export default function BadgeShelf({ shelf = [], onSlotClick }) {
                 size={52}
                 spin={badge.tier === 'legend'}
               />
-              <div style={{ flex: '1 1 0%', minWidth: 0, display: 'flex', flexDirection: 'column', gap: 5 }}>
+              <div style={ts({ flex: '1 1 0%', minWidth: 0, display: 'flex', flexDirection: 'column', gap: 5 })}>
                 <span
-                  style={{
+                  style={ts({
                     font: "700 14px/1.2 'Be Vietnam Pro', sans-serif",
                     color: '#FFFFFF',
                     overflow: 'hidden',
                     textOverflow: 'ellipsis',
                     whiteSpace: 'nowrap',
-                  }}
+                  })}
                 >
                   {badgeName}
                 </span>
                 <span
-                  style={{
+                  style={ts({
                     alignSelf: 'flex-start',
                     font: '600 9px/1 Oswald, sans-serif',
                     letterSpacing: '.14em',
@@ -144,7 +146,7 @@ export default function BadgeShelf({ shelf = [], onSlotClick }) {
                     background: tierMeta.chipBg,
                     color: tierMeta.ink,
                     borderTop: `1px solid ${tierMeta.bd || 'transparent'}`,
-                  }}
+                  })}
                 >
                   {tierMeta.name}
                 </span>

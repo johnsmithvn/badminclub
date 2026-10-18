@@ -34,6 +34,7 @@ import { calculateMemberXp } from '#lib/xp.js'
 import { getSeasonRankLeaderboard, seasonMatchesOf, resolveSeason } from '#lib/season.js'
 import { myMember } from '#lib/money.js'
 import badgesConfig from '#config/badges.js'
+import { useBadgeTone } from '#components/badges/badgeTone.js'
 
 /**
  * Trang Master: Danh hiệu & Treo thưởng.
@@ -47,6 +48,7 @@ import badgesConfig from '#config/badges.js'
 const TAB_IDS = ['collection', 'leaderboard']
 
 export default function Badges() {
+  const ts = useBadgeTone()
   const isMobile = useMobile(768)
   const { db, a } = useApp()
   const navigate = useNavigate()
@@ -465,7 +467,7 @@ export default function Badges() {
   // ══════════════════════════════════════════════════════════════════
   if (isMobile) {
     return (
-      <div style={{ padding: '0 0 30px', color: '#FFFFFF' }}>
+      <div style={ts({ padding: '0 0 30px', color: '#FFFFFF' })}>
         {/* Thay header chung (AppHeader ẩn ở route này trên điện thoại): chọn mùa thế chỗ bộ chọn tháng */}
         <MobileBadgeTopBar
           allSeasons={allSeasons}
@@ -504,7 +506,7 @@ export default function Badges() {
         ) : (
           /* Tab Xếp hạng trên Mobile */
           <div
-            style={{
+            style={ts({
               width: '100%',
               maxWidth: 480,
               margin: '0 auto',
@@ -515,16 +517,16 @@ export default function Badges() {
               border: '1px solid #2A1F4A',
               background: 'radial-gradient(rgba(255,255,255,.055) 1px,transparent 1px) 0 0/14px 14px, #09060F',
               minHeight: '844px',
-            }}
+            })}
           >
             {/* Đầu thẻ cùng kiểu màn Bộ sưu tập (MobileBadgeCollection): chỉ 2 tab, không tiêu đề */}
             <div
-              style={{
+              style={ts({
                 padding: 12,
                 background: 'linear-gradient(180deg,#1A0C3A,#0D0820)',
-              }}
+              })}
             >
-              <div style={{ display: 'grid', gridTemplateColumns: 'repeat(2, minmax(0, 1fr))', gap: 6 }}>
+              <div style={ts({ display: 'grid', gridTemplateColumns: 'repeat(2, minmax(0, 1fr))', gap: 6 })}>
                 {[
                   { id: 'collection', label: t('badges.tabCollection') },
                   { id: 'leaderboard', label: t('badges.tabLeaderboardShort') },
@@ -535,7 +537,7 @@ export default function Badges() {
                       key={tab.id}
                       type="button"
                       onClick={() => setActiveTab(tab.id)}
-                      style={{
+                      style={ts({
                         minWidth: 0,
                         padding: '11px 4px',
                         border: 'none',
@@ -550,7 +552,7 @@ export default function Badges() {
                         color: isActive ? '#1A0510' : '#8E83A8',
                         clipPath: isActive ? 'polygon(0 0,100% 0,100% 70%,92% 100%,0 100%)' : undefined,
                         transition: 'background 140ms cubic-bezier(.2,.8,.2,1), color 140ms cubic-bezier(.2,.8,.2,1)',
-                      }}
+                      })}
                     >
                       {tab.label}
                     </button>
@@ -560,7 +562,7 @@ export default function Badges() {
             </div>
 
             {/* Nội dung tab */}
-            <div style={{ padding: '14px 14px 24px', display: 'flex', flexDirection: 'column', gap: 14 }}>
+            <div style={ts({ padding: '14px 14px 24px', display: 'flex', flexDirection: 'column', gap: 14 })}>
               {activeTab === 'leaderboard' && (
                 <CollectorLeaderboardTab
                   collectors={collectors}
@@ -702,7 +704,7 @@ export default function Badges() {
   // ══════════════════════════════════════════════════════════════════
   return (
     <div
-      style={{
+      style={ts({
         display: 'flex',
         flexDirection: 'column',
         gap: 20,
@@ -714,22 +716,22 @@ export default function Badges() {
         boxShadow: '0 20px 60px rgba(0, 0, 0, 0.4), 0 0 40px rgba(109, 20, 255, 0.15)',
         position: 'relative',
         overflow: 'hidden',
-      }}
+      })}
     >
       {/* Lớp dot grid 9px x 9px */}
       <div
-        style={{
+        style={ts({
           position: 'absolute',
           inset: 0,
           backgroundImage: 'radial-gradient(rgba(255,255,255,.05) 1px, transparent 1px)',
           backgroundSize: '9px 9px',
           pointerEvents: 'none',
-        }}
+        })}
       />
 
       {/* ═══ Header Bar (Thiết kế A1) ═══ */}
       <div
-        style={{
+        style={ts({
           display: 'flex',
           alignItems: 'center',
           justifyContent: 'space-between',
@@ -739,35 +741,35 @@ export default function Badges() {
           borderBottom: '1px solid #2A1145',
           position: 'relative',
           zIndex: 1,
-        }}
+        })}
       >
-        <div style={{ display: 'flex', flexDirection: 'column', gap: 4 }}>
+        <div style={ts({ display: 'flex', flexDirection: 'column', gap: 4 })}>
           <div
-            style={{
+            style={ts({
               font: '700 26px/1 Oswald, sans-serif',
               letterSpacing: '.03em',
               textTransform: 'uppercase',
               color: '#FFFFFF',
-            }}
+            })}
           >
             {t('badges.title')}
           </div>
-          <div style={{ font: "400 12px/1.4 'IBM Plex Mono', monospace", color: '#9C8ABE' }}>
+          <div style={ts({ font: "400 12px/1.4 'IBM Plex Mono', monospace", color: '#9C8ABE' })}>
             {currentSeason.name || t('badges.seasonHeader')}
           </div>
         </div>
 
-        <div style={{ display: 'flex', alignItems: 'center', gap: 10, flexWrap: 'wrap' }}>
+        <div style={ts({ display: 'flex', alignItems: 'center', gap: 10, flexWrap: 'wrap' })}>
           {/* Dropdown chọn Mùa giải */}
           {allSeasons.length > 0 && (
-            <div style={{ display: 'flex', alignItems: 'center', gap: 6 }}>
-              <span style={{ font: "400 11.5px/1 'Be Vietnam Pro', sans-serif", color: '#9C8ABE' }}>
+            <div style={ts({ display: 'flex', alignItems: 'center', gap: 6 })}>
+              <span style={ts({ font: "400 11.5px/1 'Be Vietnam Pro', sans-serif", color: '#9C8ABE' })}>
                 {t('season.filterSeason')}
               </span>
               <select
                 value={currentSeason?.id || currentSeason?.code || ''}
                 onChange={(e) => setSelectedSeasonId(e.target.value)}
-                style={{
+                style={ts({
                   background: '#190C2D',
                   border: '1px solid #3B1B66',
                   borderRadius: 6,
@@ -778,10 +780,10 @@ export default function Badges() {
                   fontWeight: 600,
                   outline: 'none',
                   cursor: 'pointer',
-                }}
+                })}
               >
                 {allSeasons.map((s) => (
-                  <option key={s.id || s.code} value={s.id || s.code} style={{ background: '#1D0D35', color: '#FFFFFF' }}>
+                  <option key={s.id || s.code} value={s.id || s.code} style={ts({ background: '#1D0D35', color: '#FFFFFF' })}>
                     {s.code || s.name} {s.active ? `(${t('season.activeCurrent')})` : ''}
                   </option>
                 ))}
@@ -790,8 +792,8 @@ export default function Badges() {
           )}
 
           {/* Dropdown xem nhanh bộ sưu tập thành viên khác */}
-          <div style={{ display: 'flex', alignItems: 'center', gap: 6 }}>
-            <span style={{ font: "400 11.5px/1 'Be Vietnam Pro', sans-serif", color: '#9C8ABE' }}>
+          <div style={ts({ display: 'flex', alignItems: 'center', gap: 6 })}>
+            <span style={ts({ font: "400 11.5px/1 'Be Vietnam Pro', sans-serif", color: '#9C8ABE' })}>
               {t('badges.selectMember')}
             </span>
             <select
@@ -801,7 +803,7 @@ export default function Badges() {
                 setViewingMemberId(val === currentMember.id ? null : val)
                 setActiveTab('collection')
               }}
-              style={{
+              style={ts({
                 background: '#190C2D',
                 border: '1px solid #3B1B66',
                 borderRadius: 6,
@@ -811,10 +813,10 @@ export default function Badges() {
                 fontFamily: "'Be Vietnam Pro', sans-serif",
                 outline: 'none',
                 cursor: 'pointer',
-              }}
+              })}
             >
               {(db?.members || []).map((m) => (
-                <option key={m.id} value={m.id} style={{ background: '#1D0D35', color: '#FFFFFF' }}>
+                <option key={m.id} value={m.id} style={ts({ background: '#1D0D35', color: '#FFFFFF' })}>
                   {m.name} {m.id === currentMember.id ? `(${t('badges.collectorProfile.rankMe')})` : ''}
                 </option>
               ))}
@@ -825,15 +827,15 @@ export default function Badges() {
 
       {/* ═══ Hàng Tabs & Tóm tắt số lượng (Thiết kế A1) ═══ */}
       <div
-        style={{
+        style={ts({
           display: 'flex',
           alignItems: 'center',
           justifyContent: 'space-between',
           flexWrap: 'wrap',
           gap: 12,
-        }}
+        })}
       >
-        <div style={{ display: 'flex', gap: 6, flexWrap: 'wrap' }}>
+        <div style={ts({ display: 'flex', gap: 6, flexWrap: 'wrap' })}>
           {tabs.map((tab) => {
             const isActive = activeTab === tab.id
             return (
@@ -841,7 +843,7 @@ export default function Badges() {
                 key={tab.id}
                 type="button"
                 onClick={() => setActiveTab(tab.id)}
-                style={{
+                style={ts({
                   font: '600 12px/1 Oswald, sans-serif',
                   letterSpacing: '.12em',
                   padding: '11px 18px',
@@ -854,7 +856,7 @@ export default function Badges() {
                     : 'rgba(255,255,255,.05)',
                   color: isActive ? '#140109' : '#9C8ABE',
                   boxShadow: isActive ? '0 0 16px rgba(255,46,126,.4)' : 'none',
-                }}
+                })}
               >
                 {tab.label}
               </button>
@@ -862,7 +864,7 @@ export default function Badges() {
           })}
         </div>
 
-        <span style={{ font: "400 12px/1 'IBM Plex Mono', monospace", color: '#9C8ABE' }}>
+        <span style={ts({ font: "400 12px/1 'IBM Plex Mono', monospace", color: '#9C8ABE' })}>
           {t('badges.collectionSummary', {
             opened: officialUnlockedCount,
             total: totalOfficialCount,
@@ -877,11 +879,11 @@ export default function Badges() {
           TAB 1: BỘ SƯU TẬP DANH HIỆU (MÀN A1 · CHUẨN THIẾT KẾ)
          ───────────────────────────────────────────────────────────── */}
       {activeTab === 'collection' && (
-        <div style={{ display: 'flex', flexDirection: 'column', gap: 20 }}>
+        <div style={ts({ display: 'flex', flexDirection: 'column', gap: 20 })}>
           {/* Banner nếu đang xem bộ sưu tập của người khác */}
           {!isViewingSelf && (
             <div
-              style={{
+              style={ts({
                 padding: '12px 18px',
                 clipPath: NOTCH_S_CLIP,
                 background: 'linear-gradient(135deg, rgba(255, 46, 126, 0.25), rgba(121, 40, 202, 0.35))',
@@ -891,18 +893,18 @@ export default function Badges() {
                 justifyContent: 'space-between',
                 gap: 12,
                 flexWrap: 'wrap',
-              }}
+              })}
             >
-              <div style={{ display: 'flex', alignItems: 'center', gap: 10 }}>
-                <span style={{ fontSize: 18 }}>👁</span>
-                <span style={{ font: "600 14px/1.3 'Be Vietnam Pro', sans-serif", color: '#FFFFFF' }}>
+              <div style={ts({ display: 'flex', alignItems: 'center', gap: 10 })}>
+                <span style={ts({ fontSize: 18 })}>👁</span>
+                <span style={ts({ font: "600 14px/1.3 'Be Vietnam Pro', sans-serif", color: '#FFFFFF' })}>
                   {t('badges.viewingOther', { name: activeMember.name })}
                 </span>
               </div>
               <button
                 type="button"
                 onClick={() => setViewingMemberId(null)}
-                style={{
+                style={ts({
                   background: 'rgba(255, 255, 255, 0.1)',
                   border: '1px solid rgba(255, 255, 255, 0.3)',
                   borderRadius: 6,
@@ -910,7 +912,7 @@ export default function Badges() {
                   padding: '6px 14px',
                   cursor: 'pointer',
                   font: "600 12px/1 'Be Vietnam Pro', sans-serif",
-                }}
+                })}
               >
                 {t('badges.backToMyCollection')}
               </button>
@@ -925,17 +927,17 @@ export default function Badges() {
 
           {/* 2. Khối 2 cột: Hồ sơ nhà sưu tập (Profile) & Sáu bậc lục giác (6 Tiers) */}
           <div
-            style={{
+            style={ts({
               display: 'grid',
               gridTemplateColumns: 'repeat(auto-fit, minmax(350px, 1fr))',
               gap: 16,
               alignItems: 'stretch',
-            }}
+            })}
           >
             {/* CỘT TRÁI: THẺ HỒ SƠ — nền hiệu ứng theo cấp ở nửa trên, chữ và chỉ số trên nền tối ở
                 nửa dưới (cùng hệ với MobileBadgeCollection, thiết kế "Bộ sưu tập mobile (hiệu ứng mới)") */}
             <div
-              style={{
+              style={ts({
                 position: 'relative',
                 borderRadius: 16,
                 overflow: 'hidden',
@@ -943,24 +945,24 @@ export default function Badges() {
                 background: '#080615',
                 display: 'flex',
                 flexDirection: 'column',
-              }}
+              })}
             >
               <TierBackdrop tier={levelTierKey} compact />
 
               {/* Dòng 1: Avatar + Tên + Cấp + Kệ + Huy hiệu đã mở */}
-              <div style={{ position: 'relative', padding: '18px 20px 0', display: 'flex', alignItems: 'center', gap: 15 }}>
+              <div style={ts({ position: 'relative', padding: '18px 20px 0', display: 'flex', alignItems: 'center', gap: 15 })}>
                 <div
-                  style={{
+                  style={ts({
                     position: 'relative',
                     width: 66,
                     height: 72,
                     flex: '0 0 auto',
                     filter: `drop-shadow(0 0 16px rgba(${levelFx.rgb},.5))`,
-                  }}
+                  })}
                 >
-                  <div style={{ position: 'absolute', inset: 0, clipPath: HEX_CLIP, background: levelRing }} />
+                  <div style={ts({ position: 'absolute', inset: 0, clipPath: HEX_CLIP, background: levelRing })} />
                   <div
-                    style={{
+                    style={ts({
                       position: 'absolute',
                       inset: 2.5,
                       clipPath: HEX_CLIP,
@@ -968,7 +970,7 @@ export default function Badges() {
                       display: 'grid',
                       placeItems: 'center',
                       overflow: 'hidden',
-                    }}
+                    })}
                   >
                     <Avatar
                       name={activeMember.name}
@@ -978,32 +980,32 @@ export default function Badges() {
                   </div>
                 </div>
 
-                <div style={{ flex: '1 1 0%', minWidth: 0, display: 'flex', flexDirection: 'column', gap: 6 }}>
-                  <div style={{ display: 'flex', alignItems: 'center', gap: 9, flexWrap: 'wrap' }}>
+                <div style={ts({ flex: '1 1 0%', minWidth: 0, display: 'flex', flexDirection: 'column', gap: 6 })}>
+                  <div style={ts({ display: 'flex', alignItems: 'center', gap: 9, flexWrap: 'wrap' })}>
                     <span
-                      style={{
+                      style={ts({
                         font: "700 24px/1.1 'Oswald', sans-serif",
                         letterSpacing: '.04em',
                         textTransform: 'uppercase',
                         color: '#FFFFFF',
-                      }}
+                      })}
                     >
                       {activeMember.name}
                     </span>
                     <span
-                      style={{
+                      style={ts({
                         font: "700 11px/1 'Oswald', sans-serif",
                         letterSpacing: '.14em',
                         padding: '5px 9px',
                         borderRadius: 4,
                         background: levelRing,
                         color: '#04101A',
-                      }}
+                      })}
                     >
                       {t('badges.collectorProfile.level', { level: memberXpData.level })}
                     </span>
                   </div>
-                  <span style={{ font: '400 12px/1 var(--font-mono)', color: '#9A90AD' }}>
+                  <span style={ts({ font: '400 12px/1 var(--font-mono)', color: '#9A90AD' })}>
                     {t('badges.collectorProfile.shelfSlotsLabel', {
                       shelf: memberBadges.shelfBadges?.length || 0,
                       max: badgesConfig.shelfSlots || 3,
@@ -1011,11 +1013,11 @@ export default function Badges() {
                   </span>
                 </div>
 
-                <div style={{ flex: '0 0 auto', display: 'flex', flexDirection: 'column', gap: 5, alignItems: 'flex-end' }}>
-                  <span style={{ font: "700 28px/1 'Oswald', sans-serif", color: '#FFFFFF' }}>
+                <div style={ts({ flex: '0 0 auto', display: 'flex', flexDirection: 'column', gap: 5, alignItems: 'flex-end' })}>
+                  <span style={ts({ font: "700 28px/1 'Oswald', sans-serif", color: '#FFFFFF' })}>
                     {officialUnlockedCount} / {totalOfficialCount}
                   </span>
-                  <span style={{ font: "600 10px/1 'Oswald', sans-serif", letterSpacing: '.14em', color: '#8E83A8' }}>
+                  <span style={ts({ font: "600 10px/1 'Oswald', sans-serif", letterSpacing: '.14em', color: '#8E83A8' })}>
                     {t('badges.collectorProfile.unlockedLabel')}
                   </span>
                 </div>
@@ -1023,7 +1025,7 @@ export default function Badges() {
 
               {/* Nửa dưới trên nền tối: chữ ký · tiến độ cấp · 3 chỉ số */}
               <div
-                style={{
+                style={ts({
                   position: 'relative',
                   flex: '1 1 auto',
                   marginTop: 6,
@@ -1032,7 +1034,7 @@ export default function Badges() {
                   flexDirection: 'column',
                   gap: 12,
                   background: 'linear-gradient(180deg,transparent,rgba(6,4,16,.92) 30%)',
-                }}
+                })}
               >
                 <button
                   type="button"
@@ -1044,7 +1046,7 @@ export default function Badges() {
                   }}
                   disabled={!isViewingSelf}
                   title={isViewingSelf ? t('badges.signatureModal.title') : undefined}
-                  style={{
+                  style={ts({
                     alignSelf: 'flex-start',
                     maxWidth: '100%',
                     display: 'inline-flex',
@@ -1058,47 +1060,47 @@ export default function Badges() {
                     color: activeMember.signature ? '#F6C945' : '#A899C5',
                     cursor: isViewingSelf ? 'pointer' : 'default',
                     textAlign: 'left',
-                  }}
+                  })}
                 >
-                  <span style={{ minWidth: 0, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>
+                  <span style={ts({ minWidth: 0, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' })}>
                     “{activeMember.signature || t('badges.collectorProfile.notSelected')}”
                   </span>
-                  {isViewingSelf && <span style={{ fontStyle: 'normal', color: '#F6C945' }}>✎</span>}
+                  {isViewingSelf && <span style={ts({ fontStyle: 'normal', color: '#F6C945' })}>✎</span>}
                 </button>
 
-                <div style={{ display: 'flex', alignItems: 'baseline', gap: 10 }}>
+                <div style={ts({ display: 'flex', alignItems: 'baseline', gap: 10 })}>
                   <span
-                    style={{
+                    style={ts({
                       flex: '1 1 0%',
                       minWidth: 0,
                       font: "700 11px/1.2 'Oswald', sans-serif",
                       letterSpacing: '.16em',
                       color: levelFx.acc,
-                    }}
+                    })}
                   >
                     {t('badges.collectorProfile.nextLevelTitle', { nextLevel: memberXpData.level + 1 })}
                   </span>
-                  <span style={{ flex: '0 0 auto', font: '500 12px/1 var(--font-mono)', color: '#C9BFDC' }}>
+                  <span style={ts({ flex: '0 0 auto', font: '500 12px/1 var(--font-mono)', color: '#C9BFDC' })}>
                     {t('badges.collectorProfile.nextLevelProgress', {
                       current: (memberXpData.totalXp - memberXpData.currentLevelBaseXp).toLocaleString('vi-VN'),
                       target: (memberXpData.nextLevelXp - memberXpData.currentLevelBaseXp).toLocaleString('vi-VN'),
                     })}
                   </span>
                 </div>
-                <div style={{ height: 8, borderRadius: 999, background: 'rgba(255,255,255,.1)', overflow: 'hidden' }}>
+                <div style={ts({ height: 8, borderRadius: 999, background: 'rgba(255,255,255,.1)', overflow: 'hidden' })}>
                   <div
-                    style={{
+                    style={ts({
                       width: `${memberXpData.levelProgressPct}%`,
                       height: '100%',
                       borderRadius: 999,
                       background: `linear-gradient(90deg,${levelFx.mid},${levelFx.acc})`,
                       transition: 'width 320ms cubic-bezier(.2,.8,.2,1)',
-                    }}
+                    })}
                   />
                 </div>
 
                 {/* 3 ô chỉ số thật từ DB (XP tích luỹ · Điểm mùa · Điểm sưu tập) */}
-                <div style={{ display: 'grid', gridTemplateColumns: 'repeat(3, minmax(0, 1fr))', gap: 10, marginTop: 2 }}>
+                <div style={ts({ display: 'grid', gridTemplateColumns: 'repeat(3, minmax(0, 1fr))', gap: 10, marginTop: 2 })}>
                   {[
                     {
                       key: 'xp',
@@ -1130,7 +1132,7 @@ export default function Badges() {
                   ].map((s) => (
                     <div
                       key={s.key}
-                      style={{
+                      style={ts({
                         minWidth: 0,
                         padding: '11px 13px',
                         borderRadius: 8,
@@ -1139,13 +1141,13 @@ export default function Badges() {
                         display: 'flex',
                         flexDirection: 'column',
                         gap: 6,
-                      }}
+                      })}
                     >
-                      <span style={{ font: "700 10px/1.2 'Oswald', sans-serif", letterSpacing: '.14em', color: s.ink }}>
+                      <span style={ts({ font: "700 10px/1.2 'Oswald', sans-serif", letterSpacing: '.14em', color: s.ink })}>
                         {s.label}
                       </span>
-                      <span style={{ font: "700 22px/1 'Oswald', sans-serif", color: '#FFFFFF' }}>{s.value}</span>
-                      <span style={{ font: '400 10px/1.3 var(--font-mono)', color: '#8E83A8', minHeight: 13 }}>{s.note || '\u00A0'}</span>
+                      <span style={ts({ font: "700 22px/1 'Oswald', sans-serif", color: '#FFFFFF' })}>{s.value}</span>
+                      <span style={ts({ font: '400 10px/1.3 var(--font-mono)', color: '#8E83A8', minHeight: 13 })}>{s.note || '\u00A0'}</span>
                     </div>
                   ))}
                 </div>
@@ -1154,7 +1156,7 @@ export default function Badges() {
 
             {/* CỘT PHẢI: SÁU BẬC · KHUNG LỤC GIÁC (Six Tiers Showcase) */}
             <div
-              style={{
+              style={ts({
                 display: 'flex',
                 flexDirection: 'column',
                 gap: 10,
@@ -1162,12 +1164,12 @@ export default function Badges() {
                 clipPath: NOTCH_CLIP,
                 background: 'rgba(255,255,255,.04)',
                 border: '1px solid #2A1145',
-              }}
+              })}
             >
-              <div style={{ font: '700 13px/1 Oswald, sans-serif', letterSpacing: '.12em', color: '#FFFFFF' }}>
+              <div style={ts({ font: '700 13px/1 Oswald, sans-serif', letterSpacing: '.12em', color: '#FFFFFF' })}>
                 {t('badges.sixTiersTitle')}
               </div>
-              <div style={{ display: 'grid', gridTemplateColumns: 'repeat(2, minmax(0, 1fr))', gap: 10 }}>
+              <div style={ts({ display: 'grid', gridTemplateColumns: 'repeat(2, minmax(0, 1fr))', gap: 10 })}>
                 {Object.keys(BADGE_TIERS).map((k) => {
                   const tMeta = BADGE_TIERS[k]
                   const glyph =
@@ -1184,13 +1186,13 @@ export default function Badges() {
                               : 'crystal'
 
                   return (
-                    <div key={k} style={{ display: 'flex', alignItems: 'center', gap: 10 }}>
+                    <div key={k} style={ts({ display: 'flex', alignItems: 'center', gap: 10 })}>
                       <BadgeHex tier={k} glyph={glyph} size={44} dim={k === 'hidden'} spin={tMeta.spin} />
-                      <div style={{ minWidth: 0, display: 'flex', flexDirection: 'column', gap: 3 }}>
-                        <span style={{ font: '600 13px/1 Oswald, sans-serif', letterSpacing: '.12em', color: tMeta.ink }}>
+                      <div style={ts({ minWidth: 0, display: 'flex', flexDirection: 'column', gap: 3 })}>
+                        <span style={ts({ font: '600 13px/1 Oswald, sans-serif', letterSpacing: '.12em', color: tMeta.ink })}>
                           {tMeta.name}
                         </span>
-                        <span style={{ font: "400 10.5px/1.3 'IBM Plex Mono', monospace", color: '#7E6FA0' }}>
+                        <span style={ts({ font: "400 10.5px/1.3 'IBM Plex Mono', monospace", color: '#7E6FA0' })}>
                           {tMeta.note}
                         </span>
                       </div>
@@ -1203,7 +1205,7 @@ export default function Badges() {
 
           {/* 3. KỆ DANH HIỆU CỦA TÔI (My Badge Shelf) */}
           <div
-            style={{
+            style={ts({
               display: 'flex',
               flexDirection: 'column',
               gap: 11,
@@ -1211,14 +1213,14 @@ export default function Badges() {
               clipPath: NOTCH_CLIP,
               background: 'rgba(255,255,255,.04)',
               border: '1px solid #2A1145',
-            }}
+            })}
           >
-            <div style={{ display: 'flex', alignItems: 'center', gap: 11, justifyContent: 'space-between', flexWrap: 'wrap' }}>
-              <div style={{ display: 'flex', alignItems: 'center', gap: 11 }}>
-                <span style={{ font: '700 15px/1 Oswald, sans-serif', letterSpacing: '.1em', color: '#FFFFFF' }}>
+            <div style={ts({ display: 'flex', alignItems: 'center', gap: 11, justifyContent: 'space-between', flexWrap: 'wrap' })}>
+              <div style={ts({ display: 'flex', alignItems: 'center', gap: 11 })}>
+                <span style={ts({ font: '700 15px/1 Oswald, sans-serif', letterSpacing: '.1em', color: '#FFFFFF' })}>
                   {t('badges.myShelfTitle')}
                 </span>
-                <span style={{ font: "400 11.5px/1 'IBM Plex Mono', monospace", color: '#9C8ABE' }}>
+                <span style={ts({ font: "400 11.5px/1 'IBM Plex Mono', monospace", color: '#9C8ABE' })}>
                   {t('badges.myShelfNote')}
                 </span>
               </div>
@@ -1226,7 +1228,7 @@ export default function Badges() {
                 <button
                   type="button"
                   onClick={() => setShowShelfModal(true)}
-                  style={{
+                  style={ts({
                     font: '600 11px/1 Oswald, sans-serif',
                     letterSpacing: '.12em',
                     padding: '6px 12px',
@@ -1236,7 +1238,7 @@ export default function Badges() {
                     borderTop: '1px solid #8B2BFF',
                     color: '#D9A8FF',
                     cursor: 'pointer',
-                  }}
+                  })}
                 >
                   {t('badges.reorderShelf')}
                 </button>
@@ -1257,7 +1259,7 @@ export default function Badges() {
 
           {/* ═══ 3.5. KHO HUY HIỆU ĐÃ MỞ (Unlocked Vault Reel - Chiều cao compact, không chiếm màn hình) ═══ */}
           <div
-            style={{
+            style={ts({
               display: 'flex',
               flexDirection: 'column',
               gap: 9,
@@ -1265,16 +1267,16 @@ export default function Badges() {
               clipPath: NOTCH_CLIP,
               background: 'linear-gradient(135deg, rgba(255, 226, 75, 0.05), rgba(109, 20, 255, 0.08))',
               border: '1px solid rgba(255, 226, 75, 0.25)',
-            }}
+            })}
           >
             {/* Header Kho */}
-            <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', gap: 10, flexWrap: 'wrap' }}>
-              <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
-                <span style={{ fontSize: 16 }}>🏆</span>
-                <span style={{ font: '700 13.5px/1 Oswald, sans-serif', letterSpacing: '.12em', color: '#FFE24B' }}>
+            <div style={ts({ display: 'flex', alignItems: 'center', justifyContent: 'space-between', gap: 10, flexWrap: 'wrap' })}>
+              <div style={ts({ display: 'flex', alignItems: 'center', gap: 8 })}>
+                <span style={ts({ fontSize: 16 })}>🏆</span>
+                <span style={ts({ font: '700 13.5px/1 Oswald, sans-serif', letterSpacing: '.12em', color: '#FFE24B' })}>
                   {t('badges.unlockedVaultTitle')}
                 </span>
-                <span style={{ font: "400 11px/1 'IBM Plex Mono', monospace", color: '#D9A8FF' }}>
+                <span style={ts({ font: "400 11px/1 'IBM Plex Mono', monospace", color: '#D9A8FF' })}>
                   · {t('badges.unlockedVaultSub', { count: unlockedShowcaseBadges.length, points: memberBadges.collectionScore })}
                 </span>
               </div>
@@ -1283,26 +1285,26 @@ export default function Badges() {
             {/* Dải cuộn ngang Compact Reel */}
             {unlockedShowcaseBadges.length === 0 ? (
               <div
-                style={{
+                style={ts({
                   padding: '10px 12px',
                   background: 'rgba(255,255,255,.02)',
                   borderRadius: 6,
                   font: "400 11.5px/1.4 'Be Vietnam Pro', sans-serif",
                   color: '#8E7DAE',
                   fontStyle: 'italic',
-                }}
+                })}
               >
                 {t('badges.unlockedVaultEmpty')}
               </div>
             ) : (
               <div
-                style={{
+                style={ts({
                   display: 'flex',
                   alignItems: 'center',
                   gap: 10,
                   overflowX: 'auto',
                   paddingBottom: 4,
-                }}
+                })}
               >
                 {unlockedShowcaseBadges.map((badge) => {
                   const tMeta = BADGE_TIERS[badge.tier] || BADGE_TIERS.rare
@@ -1313,7 +1315,7 @@ export default function Badges() {
                       role="button"
                       tabIndex={0}
                       title={t(`badges.items.${badge.id}.name`, { defaultValue: badge.name || '' })}
-                      style={{
+                      style={ts({
                         flex: '0 0 auto',
                         width: 80,
                         height: 84,
@@ -1322,7 +1324,7 @@ export default function Badges() {
                         background: tMeta.edge || 'rgba(255,255,255,.15)',
                         cursor: 'pointer',
                         transition: 'transform 0.15s ease, box-shadow 0.15s ease',
-                      }}
+                      })}
                       onMouseEnter={(e) => {
                         e.currentTarget.style.transform = 'translateY(-2px)'
                       }}
@@ -1331,7 +1333,7 @@ export default function Badges() {
                       }}
                     >
                       <div
-                        style={{
+                        style={ts({
                           clipPath: NOTCH_S_CLIP,
                           background: '#150A26',
                           padding: '7px 4px 5px',
@@ -1341,11 +1343,11 @@ export default function Badges() {
                           justifyContent: 'center',
                           gap: 4,
                           height: '100%',
-                        }}
+                        })}
                       >
                         <BadgeHex tier={badge.tier} glyph={badge.glyph} size={36} spin={badge.tier === 'legend'} />
                         <span
-                          style={{
+                          style={ts({
                             font: "700 9.5px/1.2 'Be Vietnam Pro', sans-serif",
                             textAlign: 'center',
                             color: '#FFFFFF',
@@ -1354,16 +1356,16 @@ export default function Badges() {
                             textOverflow: 'ellipsis',
                             width: '100%',
                             padding: '0 2px',
-                          }}
+                          })}
                         >
                           {t(`badges.items.${badge.id}.name`, { defaultValue: badge.name || '' })}
                         </span>
                         <span
-                          style={{
+                          style={ts({
                             font: "600 7.5px/1 'Oswald', sans-serif",
                             letterSpacing: '.1em',
                             color: tMeta.ink || '#FFFFFF',
-                          }}
+                          })}
                         >
                           {tMeta.name}
                         </span>
@@ -1377,7 +1379,7 @@ export default function Badges() {
 
           {/* ═══ THANH CÔNG CỤ BỘ LỌC & TÌM KIẾM (Filter & Search Toolbar) ═══ */}
           <div
-            style={{
+            style={ts({
               display: 'flex',
               alignItems: 'center',
               justifyContent: 'space-between',
@@ -1387,10 +1389,10 @@ export default function Badges() {
               clipPath: NOTCH_S_CLIP,
               background: 'rgba(255,255,255,.03)',
               border: '1px solid #2A1145',
-            }}
+            })}
           >
             {/* Nhóm Bộ Lọc Loại (Kind Filter) */}
-            <div style={{ display: 'flex', alignItems: 'center', gap: 6, flexWrap: 'wrap' }}>
+            <div style={ts({ display: 'flex', alignItems: 'center', gap: 6, flexWrap: 'wrap' })}>
               {[
                 { id: 'all', label: t('badges.filterKindAll') },
                 { id: 'family', label: t('badges.filterKindFamily') },
@@ -1402,7 +1404,7 @@ export default function Badges() {
                     key={k.id}
                     type="button"
                     onClick={() => setFilterKind(k.id)}
-                    style={{
+                    style={ts({
                       font: '600 11px/1 Oswald, sans-serif',
                       letterSpacing: '.1em',
                       padding: '7px 12px',
@@ -1414,7 +1416,7 @@ export default function Badges() {
                         : 'rgba(255,255,255,.05)',
                       color: isActive ? '#01101F' : '#9C8ABE',
                       transition: 'all .15s ease',
-                    }}
+                    })}
                   >
                     {k.label}
                   </button>
@@ -1423,11 +1425,11 @@ export default function Badges() {
             </div>
 
             {/* Nhóm Bộ Lọc Trạng Thái & Ô Tìm Kiếm */}
-            <div style={{ display: 'flex', alignItems: 'center', gap: 10, flexWrap: 'wrap' }}>
+            <div style={ts({ display: 'flex', alignItems: 'center', gap: 10, flexWrap: 'wrap' })}>
               <select
                 value={filterStatus}
                 onChange={(e) => setFilterStatus(e.target.value)}
-                style={{
+                style={ts({
                   background: '#190C2D',
                   border: '1px solid #3B1B66',
                   borderRadius: 6,
@@ -1438,7 +1440,7 @@ export default function Badges() {
                   letterSpacing: '.06em',
                   outline: 'none',
                   cursor: 'pointer',
-                }}
+                })}
               >
                 <option value="all">{t('badges.filterStatusAll')}</option>
                 <option value="unlocked">{t('badges.filterStatusUnlocked')}</option>
@@ -1447,13 +1449,13 @@ export default function Badges() {
               </select>
 
               {/* Ô Input tìm kiếm danh hiệu */}
-              <div style={{ position: 'relative', display: 'flex', alignItems: 'center' }}>
+              <div style={ts({ position: 'relative', display: 'flex', alignItems: 'center' })}>
                 <input
                   type="text"
                   value={searchQuery}
                   onChange={(e) => setSearchQuery(e.target.value)}
                   placeholder={t('badges.searchPlaceholder')}
-                  style={{
+                  style={ts({
                     background: '#190C2D',
                     border: '1px solid #3B1B66',
                     borderRadius: 6,
@@ -1464,7 +1466,7 @@ export default function Badges() {
                     outline: 'none',
                     width: 170,
                     transition: 'width 0.2s ease, border-color 0.2s ease',
-                  }}
+                  })}
                   onFocus={(e) => {
                     e.target.style.width = '210px'
                     e.target.style.borderColor = '#8B2BFF'
@@ -1478,7 +1480,7 @@ export default function Badges() {
                   <button
                     type="button"
                     onClick={() => setSearchQuery('')}
-                    style={{
+                    style={ts({
                       position: 'absolute',
                       right: 6,
                       background: 'transparent',
@@ -1487,7 +1489,7 @@ export default function Badges() {
                       cursor: 'pointer',
                       fontSize: 12,
                       padding: 2,
-                    }}
+                    })}
                   >
                     ✕
                   </button>
@@ -1502,7 +1504,7 @@ export default function Badges() {
                     setFilterStatus('all')
                     setSearchQuery('')
                   }}
-                  style={{
+                  style={ts({
                     background: 'transparent',
                     border: 'none',
                     color: '#FF2E7E',
@@ -1510,7 +1512,7 @@ export default function Badges() {
                     fontSize: 11,
                     fontFamily: "'Oswald', sans-serif",
                     letterSpacing: '.08em',
-                  }}
+                  })}
                 >
                   {t('badges.clearFilter')}
                 </button>
@@ -1519,7 +1521,7 @@ export default function Badges() {
           </div>
 
           {/* 4. Lưới các Nhóm Danh Hiệu (Phân khu Có Cấp vs Đơn Bậc) */}
-          <div style={{ display: 'flex', flexDirection: 'column', gap: 28 }}>
+          <div style={ts({ display: 'flex', flexDirection: 'column', gap: 28 })}>
             {catalogGroups.map((group) => {
               const groupBadges = group.badges || []
               const openedInGroup = groupBadges.filter((b) => b.unlocked).length
@@ -1569,15 +1571,15 @@ export default function Badges() {
               }
 
               return (
-                <div key={group.id} style={{ display: 'flex', flexDirection: 'column', gap: 16 }}>
+                <div key={group.id} style={ts({ display: 'flex', flexDirection: 'column', gap: 16 })}>
                   {/* Header nhóm chính */}
-                  <div style={{ display: 'flex', alignItems: 'center', gap: 12, flexWrap: 'wrap' }}>
-                    <span style={{ width: 3, height: 20, background: 'linear-gradient(180deg,#FF2E7E,#6D14FF)' }} />
-                    <span style={{ font: '700 17px/1 Oswald, sans-serif', letterSpacing: '.1em', color: '#FFFFFF' }}>
+                  <div style={ts({ display: 'flex', alignItems: 'center', gap: 12, flexWrap: 'wrap' })}>
+                    <span style={ts({ width: 3, height: 20, background: 'linear-gradient(180deg,#FF2E7E,#6D14FF)' })} />
+                    <span style={ts({ font: '700 17px/1 Oswald, sans-serif', letterSpacing: '.1em', color: '#FFFFFF' })}>
                       {t(`badges.groups.${group.key}`).toUpperCase()}
                     </span>
                     <span
-                      style={{
+                      style={ts({
                         display: 'inline-flex',
                         alignItems: 'center',
                         font: '600 10px/1 Oswald, sans-serif',
@@ -1587,19 +1589,19 @@ export default function Badges() {
                         background: toneMeta.chipBg,
                         color: toneMeta.ink,
                         borderTop: `1px solid ${toneMeta.bd}`,
-                      }}
+                      })}
                     >
                       {groupTone === 'fun' ? `${groupBadges.length} / 10` : `${openedInGroup} / ${groupBadges.length}`}
                     </span>
-                    <span style={{ font: "400 12px/1 'Be Vietnam Pro', sans-serif", color: '#7E6FA0' }}>
+                    <span style={ts({ font: "400 12px/1 'Be Vietnam Pro', sans-serif", color: '#7E6FA0' })}>
                       {t(`badges.groups.${group.key}Note`)}
                     </span>
-                    <div style={{ flex: '1 1 0%', height: 1, background: 'linear-gradient(90deg,#2A1145,transparent)' }} />
+                    <div style={ts({ flex: '1 1 0%', height: 1, background: 'linear-gradient(90deg,#2A1145,transparent)' })} />
                   </div>
 
                   {filteredBadges.length === 0 ? (
                     <div
-                      style={{
+                      style={ts({
                         padding: '16px 20px',
                         clipPath: NOTCH_S_CLIP,
                         background: 'rgba(255,255,255,.02)',
@@ -1607,43 +1609,43 @@ export default function Badges() {
                         color: '#7E6FA0',
                         font: "400 12px/1.4 'Be Vietnam Pro', sans-serif",
                         fontStyle: 'italic',
-                      }}
+                      })}
                     >
                       {t('badges.noBadgesMatch')}
                     </div>
                   ) : (
-                    <div style={{ display: 'flex', flexDirection: 'column', gap: 18 }}>
+                    <div style={ts({ display: 'flex', flexDirection: 'column', gap: 18 })}>
                       {/* ─── PHÂN KHU 1: HỌ TIẾN HÓA (CÓ CẤP ĐỘ) ─── */}
                       {familyBadges.length > 0 && (
-                        <div style={{ display: 'flex', flexDirection: 'column', gap: 10 }}>
+                        <div style={ts({ display: 'flex', flexDirection: 'column', gap: 10 })}>
                           {filterKind === 'all' && (
-                            <div style={{ display: 'flex', alignItems: 'center', gap: 8, paddingLeft: 4 }}>
-                              <span style={{ font: "700 12.5px/1 'Oswald', sans-serif", letterSpacing: '.1em', color: '#D9A8FF' }}>
+                            <div style={ts({ display: 'flex', alignItems: 'center', gap: 8, paddingLeft: 4 })}>
+                              <span style={ts({ font: "700 12.5px/1 'Oswald', sans-serif", letterSpacing: '.1em', color: '#D9A8FF' })}>
                                 🧬 {t('badges.sectionFamilyTitle')}
                               </span>
-                              <span style={{ font: "400 11px/1 'Be Vietnam Pro', sans-serif", color: '#7E6FA0' }}>
+                              <span style={ts({ font: "400 11px/1 'Be Vietnam Pro', sans-serif", color: '#7E6FA0' })}>
                                 · {t('badges.sectionFamilySub')}
                               </span>
                               <span
-                                style={{
+                                style={ts({
                                   font: "600 9px/1 'Oswald', sans-serif",
                                   padding: '2px 6px',
                                   borderRadius: 4,
                                   background: 'rgba(109,20,255,.2)',
                                   color: '#D9A8FF',
                                   border: '1px solid rgba(139,43,255,.3)',
-                                }}
+                                })}
                               >
                                 {familyBadges.length}
                               </span>
                             </div>
                           )}
                           <div
-                            style={{
+                            style={ts({
                               display: 'grid',
                               gridTemplateColumns: 'repeat(auto-fill, minmax(210px, 1fr))',
                               gap: 12,
-                            }}
+                            })}
                           >
                             {familyBadges.map((badge) => (
                               <BadgeCard
@@ -1659,35 +1661,35 @@ export default function Badges() {
 
                       {/* ─── PHÂN KHU 2: CHIẾN TÍCH ĐỘC BẬC (ĐƠN BẬC) ─── */}
                       {soloBadges.length > 0 && (
-                        <div style={{ display: 'flex', flexDirection: 'column', gap: 10 }}>
+                        <div style={ts({ display: 'flex', flexDirection: 'column', gap: 10 })}>
                           {filterKind === 'all' && familyBadges.length > 0 && (
-                            <div style={{ display: 'flex', alignItems: 'center', gap: 8, paddingLeft: 4, marginTop: 4 }}>
-                              <span style={{ font: "700 12.5px/1 'Oswald', sans-serif", letterSpacing: '.1em', color: '#FFE24B' }}>
+                            <div style={ts({ display: 'flex', alignItems: 'center', gap: 8, paddingLeft: 4, marginTop: 4 })}>
+                              <span style={ts({ font: "700 12.5px/1 'Oswald', sans-serif", letterSpacing: '.1em', color: '#FFE24B' })}>
                                 🏆 {t('badges.sectionSoloTitle')}
                               </span>
-                              <span style={{ font: "400 11px/1 'Be Vietnam Pro', sans-serif", color: '#7E6FA0' }}>
+                              <span style={ts({ font: "400 11px/1 'Be Vietnam Pro', sans-serif", color: '#7E6FA0' })}>
                                 · {t('badges.sectionSoloSub')}
                               </span>
                               <span
-                                style={{
+                                style={ts({
                                   font: "600 9px/1 'Oswald', sans-serif",
                                   padding: '2px 6px',
                                   borderRadius: 4,
                                   background: 'rgba(255,226,75,.15)',
                                   color: '#FFE24B',
                                   border: '1px solid rgba(255,226,75,.25)',
-                                }}
+                                })}
                               >
                                 {soloBadges.length}
                               </span>
                             </div>
                           )}
                           <div
-                            style={{
+                            style={ts({
                               display: 'grid',
                               gridTemplateColumns: 'repeat(auto-fill, minmax(210px, 1fr))',
                               gap: 12,
-                            }}
+                            })}
                           >
                             {soloBadges.map((badge) => (
                               <BadgeCard

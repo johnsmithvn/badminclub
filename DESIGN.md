@@ -82,6 +82,15 @@ các token dưới, **giữ nguyên màu** của `dark.css` / `semantic.css`:
 `var(--surface-nav)`, và phần tử `position: sticky` có nền (cột ghim bảng, thanh lọc). Dialog dùng
 `--surface-overlay` nên vẫn đặc; `--surface-page` không đổi (thanh dính nền trang vẫn đặc).
 
+**Giới hạn GPU:** mỗi phần tử có `backdrop-filter` cần vùng đệm bằng đúng kích thước nó × mật độ điểm
+ảnh. Thẻ cao trên điện thoại (×3) vượt giới hạn texture → Chrome bỏ không vẽ, nội dung mất từ một
+đường cắt ngang. Vì vậy:
+- **Mobile (≤ 768px):** thẻ và ô dính **không** làm mờ; bù bằng thẻ đặc hơn — `--surface-card` ·
+  `--field-bg` .9, `--surface-inset` .85. Chỉ `nav` / `header` (thấp) còn mờ.
+- **Trong dialog** (`[aria-modal]` hoặc lớp phủ `position: fixed` có `backdrop-filter` như
+  `ModalOverlay`): thẻ không làm mờ ở mọi màn — nền dialog đặc, mờ không thấy gì mà vẫn tốn.
+- Đừng thêm `backdrop-filter` lên phần tử có thể cao hơn ~1 màn hình.
+
 - `backdrop-filter` biến phần tử thành khung chứa của con `position: fixed` — lớp phủ / modal đặt
   bên trong thẻ sẽ chỉ phủ trong thẻ. Đã chặn chung bằng `[style]:has([style*="position: fixed"])`
   (đang chứa con fixed thì tạm bỏ mờ), nhưng vẫn nên render modal ở cấp trang. Lớp phủ viết bằng
@@ -89,6 +98,27 @@ các token dưới, **giữ nguyên màu** của `dark.css` / `semantic.css`:
 - Thêm / bớt trang có nền: sửa `app.json → sky`, test `lib/sky.test.js` khoá danh sách.
 - Bảng màu bầu trời (trời, trăng, mây, nhân vật) là tranh vẽ, cố ý nằm ngoài token — giống bảng màu
   Sakura của `SakuraEvent.jsx`.
+- **Không gắn `backdrop-filter` (không dùng `var(--surface-card)`) cho khung cao cả trang** — luật kính
+  sẽ làm mờ nó và vượt giới hạn GPU. Khung lớn dùng trắng / tối mờ viết thẳng.
+- Luật tạm dừng trời khi mở popup chỉ dò `[aria-modal]` (DS Dialog, `ModalOverlay` đều gắn). Đừng thêm
+  `:has([style*=…])` ở gốc trang: mỗi lần một style đổi, trình duyệt phải quét lại cả cây DOM.
+
+### 2.3 Màn Danh hiệu: bản tối arcade + bản sáng
+
+Màn Danh hiệu (trang bộ sưu tập desktop + mobile, `BadgeCard`, `BadgeShelf`, `BountyHeroPoster`,
+`CollectorLeaderboardTab`) vẽ bằng bảng màu arcade tối viết cứng. Bản sáng không viết lại từng màu mà đi
+qua `components/badges/badgeTone.js`:
+
+- `const ts = useBadgeTone()` rồi `style={ts({ … })}` (cả `style={ts(HẰNG)}`). Bản tối `ts` trả nguyên
+  object — HTML **y hệt** trước; bản sáng đổi nền / viền / bóng theo bảng NỀN (tím tối → token sáng, nền
+  thẻ theo bậc → tông nhạt cùng màu), `color` / `fill` / `stroke` theo bảng CHỮ (trắng → `--text-primary`,
+  tím xám → `--text-muted`, màu nhấn → bản đậm hơn cho đọc được trên nền sáng).
+- Phần tử có nền màu nhấn (nút, tag gradient) giữ nguyên màu chữ.
+- **Thêm màu mới** ở các file này: viết như cũ trong `ts({…})`; màu trung tính mới thì thêm vào bảng
+  trong `badgeTone.js`, không thì bản sáng sẽ giữ màu tối.
+- Giữ tối ở cả hai chế độ: icon huy hiệu (`BadgeHex`), popup chi tiết / mở khoá (`BadgeDetailModal`,
+  `BadgeUnlockModal`) và các popup trong `Badges.jsx` (sắp kệ, sửa châm ngôn).
+- `TierBackdrop compact` (thẻ hồ sơ, poster) bản sáng: bỏ bụi sao trắng, cực quang không hoà `screen`.
 
 ## 3. Typography
 
@@ -177,7 +207,7 @@ Bản mobile áp dụng cho màn hình ≤768px với **ngưỡng duy nhất: `u
   - Giữ đúng nhóm chức năng (trừ mục bị ẩn ở trên):
     - **Tiền:** Công nợ (khi không ở slot) · Sổ quỹ (`/so-quy`).
     - **Người và lịch:** Thành viên (`/thanh-vien`) · Chia sân (`/chia-san`, nhảy thẳng buổi khả dụng) · Lịch tháng (`/lich-thang`) · Lịch cố định (`/lich-co-dinh`) · Hồ sơ của tôi (`/ca-nhan`).
-    - **Hệ thống:** Cài đặt (`/cai-dat`) · Sơ đồ dữ liệu (`/so-do-du-lieu`).
+    - **Hệ thống:** Cài đặt (`/cai-dat`) · Giao diện (`/giao-dien` — sáng / tối, hiệu ứng nền trời) · Sơ đồ dữ liệu (`/so-do-du-lieu`).
   - Switcher CLB dán ở cuối sheet (thẻ viền dashed 56px).
 
 ### 8.2 Density "Driver App" (bắt buộc)

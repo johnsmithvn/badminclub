@@ -5,6 +5,8 @@
 export function ModalOverlay({ onClose, align = 'center', padding = 16, children }) {
   return (
     <div
+      role="dialog"
+      aria-modal="true"
       style={{
         position: 'fixed',
         inset: 0,

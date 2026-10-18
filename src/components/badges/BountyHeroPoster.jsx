@@ -5,6 +5,7 @@ import { TIER_FX } from './tierFx.js'
 import { HEX_CLIP } from '#lib/badges.js'
 import { t } from '#i18n'
 import { useMobile } from '#hooks/useMobile.js'
+import { useBadgeTone } from '#components/badges/badgeTone.js'
 
 const GOLD = '#F6C945'
 
@@ -23,12 +24,13 @@ const CARD = {
  * Điện thoại: avatar nhỏ đứng cạnh tiêu đề, cụm thưởng + nút trải hết chiều ngang.
  */
 export default function BountyHeroPoster({ bounty, onChallenge }) {
+  const ts = useBadgeTone()
   const isMobile = useMobile(768)
 
   if (!bounty) {
     return (
       <div
-        style={{
+        style={ts({
           ...CARD,
           border: '1px solid #221A3A',
           background: 'linear-gradient(150deg,rgba(255,255,255,.045),rgba(255,255,255,.015)), #080615',
@@ -36,17 +38,17 @@ export default function BountyHeroPoster({ bounty, onChallenge }) {
           display: 'flex',
           alignItems: 'center',
           gap: 20,
-        }}
+        })}
       >
         <BadgeHex tier="elite" glyph="shuriken" size={68} />
-        <div style={{ flex: '1 1 0%', display: 'flex', flexDirection: 'column', gap: 6 }}>
-          <span style={{ font: "700 11px/1 'Oswald', sans-serif", letterSpacing: '.18em', color: '#7CC0FF' }}>
+        <div style={ts({ flex: '1 1 0%', display: 'flex', flexDirection: 'column', gap: 6 })}>
+          <span style={ts({ font: "700 11px/1 'Oswald', sans-serif", letterSpacing: '.18em', color: '#7CC0FF' })}>
             {t('badges.wantedTag')} · {t('badges.bountyBoard.seasonTag')}
           </span>
-          <div style={{ font: "700 22px/1.2 'Oswald', sans-serif", color: '#FFFFFF' }}>
+          <div style={ts({ font: "700 22px/1.2 'Oswald', sans-serif", color: '#FFFFFF' })}>
             {t('badges.noBountyHeadline')}
           </div>
-          <div style={{ font: '400 13px/1.4 var(--font-sans)', color: '#C9BFDC' }}>
+          <div style={ts({ font: '400 13px/1.4 var(--font-sans)', color: '#C9BFDC' })}>
             {t('badges.noBountyDesc')}
           </div>
         </div>
@@ -61,11 +63,11 @@ export default function BountyHeroPoster({ bounty, onChallenge }) {
   const pct = Math.min(100, Math.round((streak / 10) * 100))
 
   return (
-    <div style={{ ...CARD, border: `1px solid ${rgba(0.55)}` }}>
+    <div style={ts({ ...CARD, border: `1px solid ${rgba(0.55)}` })}>
       <TierBackdrop tier={tier} compact />
 
       <div
-        style={{
+        style={ts({
           position: 'relative',
           padding: isMobile ? 16 : '22px 26px',
           display: 'flex',
@@ -76,28 +78,28 @@ export default function BountyHeroPoster({ bounty, onChallenge }) {
           background: isMobile
             ? 'linear-gradient(180deg,transparent,rgba(6,4,16,.82) 45%)'
             : 'linear-gradient(90deg,transparent,rgba(6,4,16,.78) 45%)',
-        }}
+        })}
       >
         {/* Cụm avatar người bị truy nã bên trái */}
-        <div style={{ display: 'flex', flexDirection: 'column', alignItems: 'center', gap: 10 }}>
+        <div style={ts({ display: 'flex', flexDirection: 'column', alignItems: 'center', gap: 10 })}>
           <div
-            style={{
+            style={ts({
               position: 'relative',
               width: isMobile ? 66 : 96,
               height: isMobile ? 72 : 106,
               filter: `drop-shadow(0 0 18px ${rgba(0.5)})`,
-            }}
+            })}
           >
             <div
-              style={{
+              style={ts({
                 position: 'absolute',
                 inset: 0,
                 clipPath: HEX_CLIP,
                 background: `linear-gradient(160deg,${fx.light},${fx.acc} 55%,${fx.mid})`,
-              }}
+              })}
             />
             <div
-              style={{
+              style={ts({
                 position: 'absolute',
                 inset: 3,
                 clipPath: HEX_CLIP,
@@ -105,28 +107,28 @@ export default function BountyHeroPoster({ bounty, onChallenge }) {
                 display: 'grid',
                 placeItems: 'center',
                 overflow: 'hidden',
-              }}
+              })}
             >
               <Avatar name={bounty.name} src={bounty.avatarUrl} size={isMobile ? 62 : 92} />
             </div>
           </div>
-          <span style={{ font: "700 11px/1 'Oswald', sans-serif", letterSpacing: '.2em', color: fx.acc }}>
+          <span style={ts({ font: "700 11px/1 'Oswald', sans-serif", letterSpacing: '.2em', color: fx.acc })}>
             {t('badges.wantedTag')}
           </span>
         </div>
 
         {/* Cụm thông tin tiêu đề và chuỗi ở giữa */}
-        <div style={{ flex: isMobile ? '1 1 0%' : '1 1 320px', minWidth: 0, display: 'flex', flexDirection: 'column', gap: 11 }}>
-          <div style={{ display: 'flex', alignItems: 'center', gap: 10, flexWrap: 'wrap' }}>
+        <div style={ts({ flex: isMobile ? '1 1 0%' : '1 1 320px', minWidth: 0, display: 'flex', flexDirection: 'column', gap: 11 })}>
+          <div style={ts({ display: 'flex', alignItems: 'center', gap: 10, flexWrap: 'wrap' })}>
             <span
-              style={{
+              style={ts({
                 font: "700 11px/1 'Oswald', sans-serif",
                 letterSpacing: '.18em',
                 color: '#1A0F00',
                 background: 'linear-gradient(90deg,#F6C945,#FF9A3D)',
                 padding: '6px 11px',
                 borderRadius: 4,
-              }}
+              })}
             >
               {t('badges.bountyActive')}
             </span>
@@ -134,52 +136,52 @@ export default function BountyHeroPoster({ bounty, onChallenge }) {
           </div>
 
           <div
-            style={{
+            style={ts({
               font: `700 ${isMobile ? 20 : 30}px/1.12 'Oswald', sans-serif`,
               letterSpacing: '.01em',
               textTransform: 'uppercase',
               color: '#FFFFFF',
               textShadow: `0 0 26px ${rgba(0.5)}`,
-            }}
+            })}
           >
             {t('badges.bountyHeadline', { name: bounty.name, streak })}
           </div>
 
           {/* Thanh tiến độ chuỗi */}
-          <div style={{ display: 'flex', alignItems: 'center', gap: 12 }}>
-            <span style={{ font: "700 11px/1 'Oswald', sans-serif", letterSpacing: '.16em', color: fx.acc }}>
+          <div style={ts({ display: 'flex', alignItems: 'center', gap: 12 })}>
+            <span style={ts({ font: "700 11px/1 'Oswald', sans-serif", letterSpacing: '.16em', color: fx.acc })}>
               {t('badges.streak')}
             </span>
             <div
-              style={{
+              style={ts({
                 flex: '1 1 auto',
                 maxWidth: 420,
                 height: 8,
                 borderRadius: 999,
                 background: 'rgba(255,255,255,.1)',
                 overflow: 'hidden',
-              }}
+              })}
             >
               <div
-                style={{
+                style={ts({
                   width: `${pct}%`,
                   height: '100%',
                   borderRadius: 999,
                   background: `linear-gradient(90deg,${fx.mid},${fx.acc})`,
-                }}
+                })}
               />
             </div>
-            <span style={{ font: '600 13px/1 var(--font-mono)', color: GOLD }}>{streak} / 10</span>
+            <span style={ts({ font: '600 13px/1 var(--font-mono)', color: GOLD })}>{streak} / 10</span>
           </div>
 
 
         </div>
 
         {/* Cụm phần thưởng và nút GẠ KÈO bên phải */}
-        <div style={{ width: isMobile ? '100%' : 228, display: 'flex', flexDirection: 'column', alignItems: 'stretch', gap: 10 }}>
-          <div style={{ display: 'flex', gap: 8 }}>
+        <div style={ts({ width: isMobile ? '100%' : 228, display: 'flex', flexDirection: 'column', alignItems: 'stretch', gap: 10 })}>
+          <div style={ts({ display: 'flex', gap: 8 })}>
             <span
-              style={{
+              style={ts({
                 flex: '1 1 0%',
                 textAlign: 'center',
                 font: '700 15px/1 var(--font-display)',
@@ -188,12 +190,12 @@ export default function BountyHeroPoster({ bounty, onChallenge }) {
                 background: 'rgba(246,201,69,.12)',
                 border: '1px solid rgba(246,201,69,.4)',
                 color: GOLD,
-              }}
+              })}
             >
               +{bounty.xp || 100} XP
             </span>
             <span
-              style={{
+              style={ts({
                 flex: '1 1 0%',
                 textAlign: 'center',
                 font: '700 15px/1 var(--font-display)',
@@ -202,7 +204,7 @@ export default function BountyHeroPoster({ bounty, onChallenge }) {
                 background: rgba(0.12),
                 border: `1px solid ${rgba(0.45)}`,
                 color: fx.acc,
-              }}
+              })}
             >
               +{bounty.sp || 15} SP
             </span>
@@ -211,7 +213,7 @@ export default function BountyHeroPoster({ bounty, onChallenge }) {
           <button
             type="button"
             onClick={() => onChallenge && onChallenge(bounty)}
-            style={{
+            style={ts({
               border: 'none',
               borderRadius: 10,
               cursor: 'pointer',
@@ -222,7 +224,7 @@ export default function BountyHeroPoster({ bounty, onChallenge }) {
               background: 'linear-gradient(90deg,#F6C945,#FF9A3D)',
               padding: '15px 16px',
               transition: 'filter 140ms cubic-bezier(.2,.8,.2,1)',
-            }}
+            })}
             onMouseEnter={(e) => { e.currentTarget.style.filter = 'brightness(1.12)' }}
             onMouseLeave={(e) => { e.currentTarget.style.filter = 'none' }}
           >

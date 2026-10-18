@@ -7,7 +7,7 @@ import cfg from '#config/app.json' with { type: 'json' }
 const C = cfg.sky
 const DAY = 864e5
 
-/** Năm nhân vật. Cú mèo đứng đầu vì chỉ nó bị loại khi chưa khuya. */
+/** Năm nhân vật ghé thăm — `?sky=<tên>` trên URL chỉ cho đúng nhân vật đó ra (xem trước). */
 export const SKY_CAST = ['owl', 'banner', 'top1', 'hero', 'ufo']
 
 /** Route nào vẽ nền trời: 'full' (nền + nhân vật), 'bg' (chỉ nền — trang con), null (không). */
@@ -81,17 +81,48 @@ export function createBags(r = Math.random) {
 }
 
 /**
- * Nhân vật cho lần mở trang — túi xáo nhớ qua các lần mở (component lưu `left` vào localStorage):
- * đủ 5 nhân vật mới lặp. Chưa khuya thì bỏ qua cú mèo (cú vẫn nằm trong túi chờ lần mở lúc khuya);
- * túi chỉ còn cú mà chưa khuya thì xáo túi mới.
- * @returns {{ cast: string, left: string[] }} nhân vật lần này và phần túi còn lại
+ * Hiệu ứng bật / tắt được ở trang Giao diện (lưu theo thiết bị — ThemeContext → skyPrefs). Bật cái nào
+ * cái đó chạy theo nhịp riêng, cùng lúc. `min` = số giây tối thiểu của ô "cứ N giây" (dài hơn một lượt
+ * diễn để lượt sau không cắt ngang); không có `min` = chỉ bật / tắt. Mặc định N ở app.json → sky.fx.
+ * Ngoài danh sách này còn công tắc `ambient` = nhóm hiệu ứng nền (tinh vân, đom đóm bay, cá voi…).
  */
-export function drawCast(left, late, r = Math.random) {
-  const ok = (c) => late || c !== 'owl'
-  let bag = (Array.isArray(left) ? left : []).filter((c) => SKY_CAST.includes(c))
-  if (!bag.some(ok)) bag = shuffled(SKY_CAST.length, r).map((i) => SKY_CAST[i])
-  const i = bag.findIndex(ok)
-  return { cast: bag[i], left: bag.filter((_, j) => j !== i) }
+export const SKY_FX = [
+  { key: 'owl', group: 'chars' },
+  { key: 'banner', group: 'chars', min: 20 },
+  { key: 'top1', group: 'chars', min: 27 },
+  { key: 'hero', group: 'chars', min: 10 },
+  { key: 'ufo', group: 'chars', min: 15 },
+  { key: 'wish', group: 'chars', min: 8 },
+  { key: 'cuoi', group: 'night', min: 10 },
+  { key: 'fireShuttle', group: 'night', min: 5 },
+  { key: 'eclipse', group: 'night', min: 35 },
+  { key: 'owlDoze', group: 'other', min: 5 },
+  { key: 'peek', group: 'other', min: 6 },
+]
+export const SKY_FX_MAX = 3600
+
+/**
+ * Cài đặt đã lưu (cũ / hỏng / thiếu khoá) → `{ on: { ambient, <key>… }, every: { <key>: giây } }`.
+ * Mặc định bật hết; số giây là số nguyên 1 – 3600 (chưa ép `min` để người dùng gõ dở vẫn giữ được —
+ * fxMs mới ép), sai kiểu thì về mặc định.
+ */
+export function normSkyPrefs(raw) {
+  const r = raw && typeof raw === 'object' ? raw : {}
+  const on = { ambient: r.on?.ambient !== false }
+  const every = {}
+  for (const fx of SKY_FX) {
+    on[fx.key] = r.on?.[fx.key] !== false
+    if (!fx.min) continue
+    const n = Math.round(Number(r.every?.[fx.key]))
+    every[fx.key] = n >= 1 ? Math.min(SKY_FX_MAX, n) : C.fx[fx.key]
+  }
+  return { on, every }
+}
+
+/** Nhịp dùng thật (ms) của hiệu ứng `key`: số giây đã lưu, không dưới `min` của nó. */
+export function fxMs(prefs, key) {
+  const fx = SKY_FX.find((x) => x.key === key)
+  return Math.max(fx.min, prefs?.every?.[key] ?? C.fx[key]) * 1000
 }
 
 /**
@@ -130,6 +161,21 @@ export function skyFoes({ meId, female, top = [], arch = null, beatBy = null }) 
   }
   const girls = female ? pick(true) : []
   return { dare: beatBy?.name || arch?.name || '', foes: girls.length ? girls : pick(false) }
+}
+
+/**
+ * BXH mùa — đối thủ thò đầu trêu (SeasonRaceTab): người NGAY TRÊN `meId` giục đuổi, người NGAY DƯỚI doạ
+ * lật kèo. `rows` = danh sách đang hiện, theo hạng; `shown(id)` = dòng đó có được vẽ không (mobile: top 3
+ * nằm ở bục, không có dòng để thò). Trả về [{ id, line: [key i18n, tham số] }], rỗng nếu không có ai.
+ */
+export function rivalPeeks(rows, meId, shown = () => true) {
+  const i = (rows || []).findIndex((r) => r.id === meId)
+  if (i < 0) return []
+  const me = rows[i], up = rows[i - 1], down = rows[i + 1]
+  return [
+    up && shown(up.id) && { id: up.id, line: ['season.peek.up', { n: Math.max(1, (up.totalSeasonPoints || 0) - (me.totalSeasonPoints || 0)) }] },
+    down && shown(down.id) && { id: down.id, line: ['season.peek.down'] },
+  ].filter(Boolean)
 }
 
 /** Câu theo số liệu — dùng chung cho cú mèo, băng rôn, siêu nhân. */
@@ -214,10 +260,10 @@ export const UFO_GIVE_BACK = [
   ['sky.ufo.giveBack.sweat'],
 ]
 /**
- * Thời lượng một lượt hoạt cảnh trời đêm định kỳ (ms) — khớp keyframe ở effects.css. Nhịp lặp
- * (app.json → sky.*EveryMs) phải dài hơn, không thì lượt mới cắt ngang lượt đang diễn.
+ * Thời lượng một lượt (ms) — khớp keyframe ở effects.css: hoạt cảnh đêm và một lượt xếp hình đom đóm
+ * (chưa tính độ trễ lệch nhau của từng con, ≤ 2 s). `min` của chúng trong SKY_FX phải dài hơn.
  */
-export const SKY_ACT_MS = { aurora: 30000, cuoi: 7000, fireShuttle: 3600, eclipse: 32000 }
+export const SKY_ACT_MS = { cuoi: 7000, fireShuttle: 3600, eclipse: 32000, top1: 24000 }
 
 /** Cú mèo bị bấm đánh thức khi đang ngủ gật (rút 1 bằng túi xáo). */
 export const OWL_WAKE = [['sky.owl.wake.dream'], ['sky.owl.wake.fall']]

@@ -4,15 +4,22 @@
 // Chế độ hiển thị (theme mode) đã bỏ lựa chọn "đơn giản" — app luôn chạy bản 14a "hào nhoáng".
 
 import { createContext, useCallback, useContext, useEffect, useMemo, useState } from 'react'
+import { normSkyPrefs } from '#lib/sky.js'
 
 const Ctx = createContext(null)
 
 export const THEME_KEY = 'badminclub.theme'
-// Hoạt ảnh nền trời (SkyBackdrop) trên thiết bị này: 'off' = trời đứng yên cho nhẹ máy (Cài đặt → Chung).
+// Nền trời (SkyBackdrop) trên thiết bị này — trang Giao diện. skyMotion: 'off' = trời đứng yên cho nhẹ máy.
+// skyPrefs: bật / tắt từng hiệu ứng + 'cứ N giây' (lib/sky.js → SKY_FX, normSkyPrefs).
 export const SKY_MOTION_KEY = 'badminclub.skyMotion'
+export const SKY_PREFS_KEY = 'badminclub.skyPrefs'
 
 function getInitialSkyMotion() {
   try { return localStorage.getItem(SKY_MOTION_KEY) !== 'off' } catch { return true }
+}
+const readSkyPrefs = (raw) => { try { return normSkyPrefs(JSON.parse(raw || 'null')) } catch { return normSkyPrefs(null) } }
+function getInitialSkyPrefs() {
+  try { return readSkyPrefs(localStorage.getItem(SKY_PREFS_KEY)) } catch { return normSkyPrefs(null) }
 }
 
 function getInitialTheme() {
@@ -32,6 +39,10 @@ function getInitialTheme() {
 export function ThemeProvider({ children }) {
   const [theme, setThemeState] = useState(getInitialTheme)
   const [skyMotion, setSkyMotionState] = useState(getInitialSkyMotion)
+  const [skyPrefs, setSkyPrefsState] = useState(getInitialSkyPrefs)
+  useEffect(() => {
+    try { localStorage.setItem(SKY_PREFS_KEY, JSON.stringify(skyPrefs)) } catch { /* private mode: chỉ áp dụng phiên này */ }
+  }, [skyPrefs])
 
   // Đồng bộ theme với thẻ <html>, <body> và localStorage
   useEffect(() => {
@@ -63,6 +74,7 @@ export function ThemeProvider({ children }) {
         setThemeState(e.newValue)
       }
       if (e.key === SKY_MOTION_KEY) setSkyMotionState(e.newValue !== 'off')
+      if (e.key === SKY_PREFS_KEY) setSkyPrefsState(readSkyPrefs(e.newValue))
     }
     window.addEventListener('storage', onStorage)
     return () => window.removeEventListener('storage', onStorage)
@@ -83,6 +95,11 @@ export function ThemeProvider({ children }) {
     try { localStorage.setItem(SKY_MOTION_KEY, on ? 'on' : 'off') } catch { /* private mode: chỉ áp dụng phiên này */ }
   }, [])
 
+  /** Nhận object mới hoặc hàm (cũ → mới); luôn chuẩn hoá lại trước khi lưu. */
+  const setSkyPrefs = useCallback((next) => {
+    setSkyPrefsState((p) => normSkyPrefs(typeof next === 'function' ? next(p) : next))
+  }, [])
+
   const value = useMemo(() => ({
     theme,
     isDark: theme === 'dark',
@@ -90,7 +107,9 @@ export function ThemeProvider({ children }) {
     setTheme,
     skyMotion,
     setSkyMotion,
-  }), [theme, toggleTheme, setTheme, skyMotion, setSkyMotion])
+    skyPrefs,
+    setSkyPrefs,
+  }), [theme, toggleTheme, setTheme, skyMotion, setSkyMotion, skyPrefs, setSkyPrefs])
 
   return <Ctx.Provider value={value}>{children}</Ctx.Provider>
 }
@@ -105,6 +124,8 @@ export function useTheme() {
       setTheme: () => {},
       skyMotion: true,
       setSkyMotion: () => {},
+      skyPrefs: normSkyPrefs(null),
+      setSkyPrefs: () => {},
     }
   }
   return ctx

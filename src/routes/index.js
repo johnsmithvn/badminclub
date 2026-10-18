@@ -6,7 +6,7 @@ import { t } from '#i18n'
 /** Route bên trong một CLB — cần đăng nhập VÀ đã chọn CLB. */
 export const ROUTE_KEYS = [
   'home', 'overview', 'calendar', 'sessions', 'session', 'matches', 'leaderboard', 'badges', 'members',
-  'debts', 'fund', 'profile', 'settings', 'schema', 'tournaments', 'tournament', 'tournamentBracket',
+  'debts', 'fund', 'profile', 'settings', 'theme', 'schema', 'tournaments', 'tournament', 'tournamentBracket',
   'tournamentFlow', 'library', 'libraryPost',
 ]
 
@@ -35,6 +35,7 @@ const PATHS = {
   fund: '/so-quy',
   profile: '/ca-nhan',
   settings: '/cai-dat',
+  theme: '/giao-dien',
   schema: '/so-do-du-lieu',
   tournaments: '/giai-dau',
   tournament: '/giai-dau/:id',
