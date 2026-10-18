@@ -1,4 +1,4 @@
-import { useMemo, useState } from 'react'
+import { useEffect, useMemo, useRef, useState } from 'react'
 import { Avatar, Icon } from '#ds'
 import { t } from '#i18n'
 import { useTheme } from '#contexts/ThemeContext.jsx'
@@ -11,6 +11,41 @@ import { STAT_COLORS } from '#components/leaderboard/statColors.js'
 import GenderFilterTabs from '#components/leaderboard/GenderFilterTabs.jsx'
 import WinRatePill from '#components/leaderboard/WinRatePill.jsx'
 import StreakTag from '#components/leaderboard/StreakTag.jsx'
+import { createBags, rivalPeeks } from '#lib/sky.js'
+
+// Đối thủ thò đầu trêu: lượt đầu sau 10 s, mỗi lượt 4,8 s (khớp keyframe rivalPeek), nghỉ ngẫu nhiên 20 – 30 s.
+const PEEK_FIRST = 10000, PEEK_MS = 4800, PEEK_REST = [20000, 30000]
+const PEEK_OUT = ['caught', 'tease']
+
+/**
+ * Đầu mini của người kề mình thò ra ở mép phải dòng BXH, nghiêng đầu nháy kèm bóng thoại. Bấm → giật mình
+ * thụt vào trốn, kèm "Ủa bị phát hiện rồi!" hoặc mặt cười trêu (`out`). Dòng cha phải `position: relative`.
+ */
+function RivalPeek({ row, line, out, isMobile, onCatch }) {
+  const sz = isMobile ? 26 : 28
+  const say = {
+    position: 'absolute', right: sz + 12, top: '50%', transform: 'translateY(-50%)', zIndex: 2, pointerEvents: 'none',
+    width: 'max-content', maxWidth: isMobile ? 170 : 260, padding: isMobile ? '5px 9px' : '6px 10px', borderRadius: 9,
+    background: 'var(--surface-overlay)', border: '1px solid var(--border-subtle)', boxShadow: 'var(--shadow-sm)',
+    color: 'var(--text-primary)', font: `600 ${isMobile ? 11.5 : 13}px/1.35 'IBM Plex Sans', sans-serif`, textWrap: 'pretty',
+  }
+  return (
+    <span aria-hidden="true">
+      {/* Khung cắt ở mép phải: đầu trượt vào từ ngoài mép như đang nấp sau dòng */}
+      <span style={{ position: 'absolute', top: 0, bottom: 0, right: 0, width: sz + 8, overflow: 'hidden', zIndex: 2, pointerEvents: 'none' }}>
+        <span
+          onClick={(e) => { e.stopPropagation(); if (!out) onCatch() }}
+          style={{ position: 'absolute', right: 0, top: '50%', marginTop: -sz / 2, display: 'flex', pointerEvents: out ? 'none' : 'auto', cursor: 'pointer', transformOrigin: '50% 100%', animation: out ? 'rivalPeekDuck .45s ease-in both' : `rivalPeek ${PEEK_MS}ms ease-in-out both` }}
+        >
+          <Avatar name={row.name} src={row.avatarUrl || row.avatar} size={sz} />
+        </span>
+      </span>
+      {out === 'tease'
+        ? <span style={{ position: 'absolute', right: 6, top: '50%', marginTop: -11, zIndex: 2, pointerEvents: 'none', fontSize: 20, lineHeight: 1, animation: 'rivalPeekTease 1.2s ease-out both' }}>😜</span>
+        : <span style={{ ...say, animation: out ? 'rivalPeekSay 1.8s ease-out both' : `rivalPeekBubble ${PEEK_MS}ms ease-in-out both` }}>{out ? t('season.peek.caught') : t(line[0], line[1])}</span>}
+    </span>
+  )
+}
 
 function MiniShelf({ shelf = [], size = 18 }) {
   const ids = cleanShelf(shelf)
@@ -91,7 +126,7 @@ export default function SeasonRaceTab({
   onSelectSeason,
 }) {
   const { db } = useApp()
-  const { isDark } = useTheme()
+  const { isDark, skyMotion } = useTheme()
   const [progressOpen, setProgressOpen] = useState(false)
 
   const myMember = useMemo(() => {
@@ -122,6 +157,42 @@ export default function SeasonRaceTab({
       .filter((r) => (r.gender || 'nam') === genderFilter)
       .map((r, idx) => ({ ...r, rank: idx + 1, originalRank: r.rank }))
   }, [leaderboard, genderFilter])
+
+  // Đối thủ thò đầu trêu (lib/sky.js → rivalPeeks): người ngay trên / ngay dưới mình, rút bằng túi xáo.
+  // Tắt theo công tắc "Hoạt ảnh nền trời" (Cài đặt → Chung) và "Giảm chuyển động" của hệ điều hành.
+  const [osMotion] = useState(() => {
+    try { return !window.matchMedia('(prefers-reduced-motion: reduce)').matches } catch { return true }
+  })
+  const [bags] = useState(() => createBags())
+  const peeks = useMemo(() => {
+    const onPodium = isMobile && filteredLeaderboard.length >= 3 // mobile: top 3 nằm ở bục, không có dòng để thò
+    return rivalPeeks(filteredLeaderboard, myMember?.id, (pid) => !onPodium || filteredLeaderboard.findIndex((r) => r.id === pid) >= 3)
+  }, [filteredLeaderboard, myMember, isMobile])
+  const peeksRef = useRef(peeks)
+  useEffect(() => { peeksRef.current = peeks }, [peeks])
+  const peekOn = skyMotion && osMotion && peeks.length > 0
+  const [peek, setPeek] = useState(null) // { n, id, out }
+  useEffect(() => {
+    if (!peekOn) return
+    let id
+    const go = (ms) => {
+      id = setTimeout(() => {
+        const ps = peeksRef.current
+        if (!document.hidden && ps.length) {
+          const pid = ps[bags('peek', ps.length)].id
+          setPeek((o) => ({ n: (o?.n || 0) + 1, id: pid, out: null }))
+        }
+        go(PEEK_MS + PEEK_REST[0] + Math.random() * (PEEK_REST[1] - PEEK_REST[0]))
+      }, ms)
+    }
+    go(PEEK_FIRST)
+    return () => clearTimeout(id)
+  }, [peekOn, bags])
+  const peekLine = peekOn && peek ? peeks.find((p) => p.id === peek.id)?.line : null
+  const catchPeek = () => setPeek((o) => o && { ...o, out: PEEK_OUT[bags('peekOut', PEEK_OUT.length)] })
+  const peekFor = (row) => (peekLine && peek.id === row.id
+    ? <RivalPeek key={peek.n + (peek.out || '')} row={row} line={peekLine} out={peek.out} isMobile={isMobile} onCatch={catchPeek} />
+    : null)
 
   const top1 = filteredLeaderboard[0] || null
   const top2 = filteredLeaderboard[1] || null
@@ -904,6 +975,7 @@ export default function SeasonRaceTab({
                     title={`${t('season.viewLedgerBtn')}: ${row.name}`}
                     style={{
                       minWidth: 0,
+                      position: 'relative',
                       display: 'flex',
                       alignItems: 'center',
                       gap: 9,
@@ -970,6 +1042,7 @@ export default function SeasonRaceTab({
                       </span>
                       <TrendSpark logs={row.matchLogs} />
                     </div>
+                    {peekFor(row)}
                   </div>
                 )
               })}
@@ -1168,6 +1241,7 @@ export default function SeasonRaceTab({
                       />
                     </svg>
                   </span>
+                  {peekFor(row)}
                 </div>
               )
             })}

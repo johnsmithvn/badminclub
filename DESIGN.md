@@ -82,6 +82,15 @@ các token dưới, **giữ nguyên màu** của `dark.css` / `semantic.css`:
 `var(--surface-nav)`, và phần tử `position: sticky` có nền (cột ghim bảng, thanh lọc). Dialog dùng
 `--surface-overlay` nên vẫn đặc; `--surface-page` không đổi (thanh dính nền trang vẫn đặc).
 
+**Giới hạn GPU:** mỗi phần tử có `backdrop-filter` cần vùng đệm bằng đúng kích thước nó × mật độ điểm
+ảnh. Thẻ cao trên điện thoại (×3) vượt giới hạn texture → Chrome bỏ không vẽ, nội dung mất từ một
+đường cắt ngang. Vì vậy:
+- **Mobile (≤ 768px):** thẻ và ô dính **không** làm mờ; bù bằng thẻ đặc hơn — `--surface-card` ·
+  `--field-bg` .9, `--surface-inset` .85. Chỉ `nav` / `header` (thấp) còn mờ.
+- **Trong dialog** (`[aria-modal]` hoặc lớp phủ `position: fixed` có `backdrop-filter` như
+  `ModalOverlay`): thẻ không làm mờ ở mọi màn — nền dialog đặc, mờ không thấy gì mà vẫn tốn.
+- Đừng thêm `backdrop-filter` lên phần tử có thể cao hơn ~1 màn hình.
+
 - `backdrop-filter` biến phần tử thành khung chứa của con `position: fixed` — lớp phủ / modal đặt
   bên trong thẻ sẽ chỉ phủ trong thẻ. Đã chặn chung bằng `[style]:has([style*="position: fixed"])`
   (đang chứa con fixed thì tạm bỏ mờ), nhưng vẫn nên render modal ở cấp trang. Lớp phủ viết bằng

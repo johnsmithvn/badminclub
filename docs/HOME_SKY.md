@@ -1,6 +1,6 @@
 # HOME_SKY.md — Nền bầu trời
 
-**Version:** v1.5.0 · **Updated:** 2026-10-17 · bỏ tooltip / nhãn phụ, bỏ cảnh "người đuổi theo", réo tên đối thủ (gạ kèo, điều ước), câu mới, tên dài cắt gọn, chữ giữ cỡ cố định, công tắc tắt hoạt ảnh
+**Version:** v1.6.2 · **Updated:** 2026-10-18 · xếp hình đom đóm 40 s / lượt · bỏ cực quang · BXH: đối thủ thò đầu trêu (§4.8) · bỏ tooltip / nhãn phụ, bỏ cảnh "người đuổi theo", réo tên đối thủ (gạ kèo, điều ước), câu mới, tên dài cắt gọn, chữ giữ cỡ cố định, công tắc tắt hoạt ảnh
 
 Toàn bộ **tình huống** và **câu thoại** của nền bầu trời động (thiết kế gốc dựng cho trang chủ cá
 nhân, nay dùng chung nhiều trang), cho **cả hai chế độ** Tối (bầu trời sao) và Sáng (hoàng hôn trên
@@ -17,6 +17,7 @@ biển mây), trên **cả desktop lẫn mobile**. Thiết kế gốc: `Home · 
 | `src/components/layout/AppHeader.jsx` | Header mobile thành kính trên trang có nền |
 | `src/contexts/ThemeContext.jsx` | `skyMotion` — công tắc hoạt ảnh nền trời theo thiết bị (localStorage `badminclub.skyMotion`) |
 | `src/components/settings/tabs/GeneralTab.jsx` | Thẻ "Hiển thị" ở Cài đặt → Chung: bật / tắt hoạt ảnh nền trời |
+| `src/components/leaderboard/SeasonRaceTab.jsx` | BXH mùa: đối thủ thò đầu trêu (`RivalPeek`, §4.8) |
 | `src/__tests__/lib/sky.test.js` | Khoá danh sách trang, luật chọn câu và đủ key i18n |
 
 ---
@@ -47,17 +48,21 @@ Danh sách ở `app.json → sky`:
   saturate(160%) blur(14px)`. Màu gốc giữ nguyên `tokens/dark.css` · `semantic.css`. Dialog dùng
   `surface-overlay` nên vẫn đặc. Header mobile (vốn nền gradient tối đặc) thành kính `surface-nav`.
   Ô / thanh dính (cột ghim bảng, thanh lọc) được làm mờ phía sau để chữ không bị nội dung cuộn
-  bên dưới đè lên.
+  bên dưới đè lên. **Mobile (≤ 768px):** thẻ và ô dính không làm mờ (thẻ cao vượt giới hạn GPU của
+  điện thoại → mất nội dung từ một đường cắt ngang), bù bằng thẻ đặc hơn (0.9, lõm 0.85). Thẻ trong
+  dialog / popup không làm mờ ở mọi màn. Chi tiết `DESIGN.md §2.2`.
 - **Cuộn xuống:** lớp nhân vật trôi lên theo và mờ dần, quá 80px thì ẩn hẳn (trời vẫn còn).
 - **Tắt hoạt ảnh** (Cài đặt → Chung → Hiển thị → "Hoạt ảnh nền trời"): áp dụng ngay, riêng thiết bị
   đó, mọi người dùng đều chỉnh được (không qua nút Lưu của CLB). Tắt thì trời vẫn vẽ đủ (trăng, sao,
   ngân hà / mây, núi, biển mây) nhưng **đứng yên** — giống hệt khi hệ điều hành bật "Giảm chuyển
   động" (§8). Hệ điều hành đang bật "Giảm chuyển động" thì công tắc khoá ở trạng thái tắt, kèm ghi chú.
 - **Cỡ chữ:** khung phóng theo màn (desktop lớn ×1.3 – 1.6) nhưng chữ bóng thoại, băng rôn, thẻ điều
-  ước, nhãn tên được bù lại (`--sky-k` = 1 / phóng) nên luôn đúng cỡ thiết kế: bóng thoại 11,5px, băng
-  rôn 11px, thẻ điều ước 12px, bóng thoại UFO 11px, nhãn tên 9px.
+  ước, nhãn tên được bù lại (`fk` = 1 / phóng, tính sẵn thành px trong JS) nên luôn đúng một cỡ.
+  Mobile: bóng thoại 11,5px, băng rôn 11px, thẻ điều ước 12px, bóng thoại UFO 11px, nhãn tên 9px.
+  **Desktop to hơn một nấc (×1.15):** bóng thoại ~13px, băng rôn ~12,5px, thẻ điều ước ~14px, bóng
+  thoại UFO ~12,5px, nhãn tên ~10px. Bóng thoại đối thủ thò đầu ở BXH: mobile 11,5px, desktop 13px.
 - **Đổi sáng / tối** (nút mặt trời / mặt trăng ở header trang chủ hoặc góc dưới sidebar): trời đổi
-  ngay; vẫn là nhân vật đã bốc. Cảnh siêu nhân / UFO / sao ước đang bay được dọn, nhịp đếm lại từ đầu (siêu nhân sau 10 s, UFO sau 8 s, sao ước sau 3 s); băng rôn không bị ảnh hưởng. Hoạt cảnh đêm (§2.1) đang diễn thì tắt; quay lại Tối thì đếm lại từ đầu (cực quang sau 50 s …).
+  ngay; vẫn là nhân vật đã bốc. Cảnh siêu nhân / UFO / sao ước đang bay được dọn, nhịp đếm lại từ đầu (siêu nhân sau 10 s, UFO sau 8 s, sao ước sau 3 s); băng rôn không bị ảnh hưởng. Hoạt cảnh đêm (§2.1) đang diễn thì tắt; quay lại Tối thì đếm lại từ đầu (chú Cuội sau 60 s …).
 
 ### Desktop và mobile
 
@@ -76,8 +81,8 @@ Danh sách ở `app.json → sky`:
 
 > Trăng có chú Cuội, cá voi sao bơi ngang trời, ngân hà, sao băng, sao chổi, đom đóm. Khoảng 25 giây
 > một chòm sao hiện lên ở header, 42 giây một trận mưa sao băng quét qua cả màn. Sao ước bay ngang
-> header, bấm vào để ước. Ở lâu trên trang thì lần lượt có cực quang, chú Cuội đứng dậy đánh cầu,
-> quả cầu lông lửa và nguyệt thực trăng máu (§2.1).
+> header, bấm vào để ước. Ở lâu trên trang thì lần lượt có chú Cuội đứng dậy đánh cầu, quả cầu
+> lông lửa và nguyệt thực trăng máu (§2.1).
 
 | Thành phần | Mô tả | Nhịp |
 | --- | --- | --- |
@@ -105,13 +110,12 @@ Chỉ ở chế độ Tối, trên trang có nhân vật (§1), đêm nào cũng
 
 | Hoạt cảnh | Diễn biến | Lượt đầu | Lặp | Dài |
 | --- | --- | --- | --- | --- |
-| Cực quang | Ba dải màn sáng xanh ngọc / tím hồng nằm nghiêng ở nửa trên trời, hiện dần, uốn lượn qua lại, có tia sáng dọc trôi bên trong, rồi tắt dần. Phủ mờ cả trước trăng (như thật — cực quang ở trong khí quyển); nằm sau nhân vật và nội dung | 50 s | 50 s | 30 s |
 | Chú Cuội đánh cầu | Chú Cuội trên mặt trăng đứng dậy, lấy đà vung vợt; quả cầu bay vào từ mép phải mặt trăng, bị đánh văng ra ngoài; chú ngồi lại gốc đa | 60 s | 60 s | 7 s |
 | Quả cầu lông lửa | Sao băng đầu là quả cầu lông bốc lửa (đế + váy lông), đuôi xoè như chùm lông cháy, có tàn lửa lấp lánh; lao chéo xuống trái từ nửa phải phần trời đang thấy, mỗi lượt điểm xuất phát khác nhau. **Nằm trên nội dung** (như mưa sao băng) | 90 s | 90 s | 3,6 s |
 | Nguyệt thực trăng máu | Bóng Trái Đất trượt vào che trăng từ trái, trăng chuyển đỏ đồng, quầng đỏ toả quanh; giữ một lúc rồi bóng trượt ra bên phải, trăng sáng lại. Cú mèo / chú Cuội vẫn ở trên trăng | 2 phút | 2 phút | 32 s |
 
-Các nhịp chạy độc lập nên thỉnh thoảng trùng nhau (vd. giây 120: cực quang đang hiện thì chú Cuội
-và nguyệt thực cùng bắt đầu). Với trăng `lunar` / `crescent`
+Các nhịp chạy độc lập nên thỉnh thoảng trùng nhau (vd. giây 120: chú Cuội và nguyệt thực cùng bắt
+đầu). Cực quang từng có, đã bỏ (CLB chê xấu). Với trăng `lunar` / `crescent`
 (§10), chú Cuội và nguyệt thực chỉ hiện trong phần trăng đang sáng.
 
 ## 3. Chế độ Sáng — hoàng hôn trên biển mây
@@ -209,7 +213,7 @@ một danh sách khác nhau — §7). Số liệu đồng bộ lại làm danh s
 4. **Mặt ^_^**
 5. **Mặt nháy mắt ;)**
 
-- Vòng **30 s** một hình: bay tới ~8 s → giữ ~8 s → tản ra ~8 s → nghỉ.
+- Vòng **40 s** một hình: bay tới ~8,4 s → giữ ~7,8 s → tản ra ~6,6 s → nghỉ ~16 s (lượt đầu bắt đầu sau 3 s).
 - Hình rút từ túi xáo 5 hình: đủ 5 hình mới lặp, không hình nào ra hai lần liền.
 - Ban ngày: **không có xếp hình** (đã bỏ đàn chim xếp hình).
 - Không thoại, không bấm.
@@ -260,6 +264,26 @@ hai nhịp riêng nên có lúc cùng bay.)
 - Bấm trúng → bung 18 hạt sáng + sao bốn cánh, hiện thẻ (không tiêu đề, chữ 12px, rộng tối đa 280px)
   4.4 s với một điều ước rút từ túi xáo (§6.6) — bấm đủ hết các điều ước mới lặp. Điều ước réo tên
   đối thủ rút thêm **tên** từ túi xáo riêng (§5.2), nên hai lần ra cùng câu có thể là hai người khác nhau.
+
+### 4.8 Bảng xếp hạng — đối thủ thò đầu trêu (Rival Peek-a-boo)
+
+Riêng tab **BXH mùa** (`SeasonRaceTab`), không thuộc lớp trời, có cả ở chế độ Sáng lẫn Tối.
+
+- Lượt đầu sau **10 s** khi mở tab; mỗi lượt **4,8 s**; xong nghỉ ngẫu nhiên **20 – 30 s**. Tab trình
+  duyệt ẩn thì bỏ lượt.
+- Ở **mép phải dòng** của người **ngay trên** hoặc **ngay dưới** bạn (theo danh sách đang lọc Nam / Nữ /
+  Tất cả), đầu mini (avatar 28px, mobile 26px) trượt vào từ ngoài mép như đang nấp, nghiêng đầu nháy hai
+  nhịp, kèm bóng thoại bên trái, rồi nấp lại. Trên / dưới rút bằng túi xáo (`lib/sky.js → rivalPeeks`).
+  - Người ngay trên: "Cố lên bạn ơi, còn {n} điểm nữa là dí kịp tui rồi ~" (`season.peek.up`; n = điểm mùa
+    còn thiếu, bằng điểm thì 1).
+  - Người ngay dưới: "Bác giữ hạng cho kỹ đấy, tối nay em lật kèo!" (`season.peek.down`).
+- **Bấm cái đầu** → giật nảy rồi thụt hẳn ra ngoài mép, kèm (túi 2) bóng "Ủa bị phát hiện rồi!"
+  (`season.peek.caught`) hoặc mặt cười 😜 bay lên. Bấm đầu không mở sổ điểm của dòng.
+- Không hiện khi: chưa ghép thành viên / không có mặt trên BXH đang lọc; không có người kề; trên mobile
+  người kề nằm ở bục top 3 (không có dòng để thò); tắt "Hoạt ảnh nền trời" hoặc hệ điều hành bật "Giảm
+  chuyển động".
+- Nhịp ở hằng `PEEK_FIRST` / `PEEK_MS` / `PEEK_REST` đầu `SeasonRaceTab.jsx`; keyframe `rivalPeek*` ở
+  `effects.css`.
 
 ---
 
@@ -802,7 +826,7 @@ Checklist:
 - [ ] `?sky=owl`, buông chuột 20 – 30 s: cú gục đầu, mỏ chúc, zzZ to dần rồi "pop!"; rê chuột không
   đánh thức. Bấm cú → bật nảy, xù lông, mắt tròn xoe, cọng lông rơi tới đáy màn, nói một trong hai
   câu giật mình (bấm đánh thức hai lần liền phải ra hai câu khác nhau).
-- [ ] Tối, để yên trang: cá voi nhả chùm bụi sao mỗi lượt bơi; cực quang ~50 s; chú Cuội đứng dậy
+- [ ] Tối, để yên trang: cá voi nhả chùm bụi sao mỗi lượt bơi; chú Cuội đứng dậy
   đánh cầu ~60 s; quả cầu lông lửa lao qua ~90 s (bay trên thẻ); nguyệt thực trăng máu ~2 phút. Không
   có chữ nào. Desktop và mobile. Sang Sáng hoặc trang con: không có các cảnh này.
 - [ ] Mobile 375px: trăng giữa màn, nhân vật không tràn ngang, footer nav không bị che.
@@ -820,6 +844,9 @@ Checklist:
   là menu đóng.
 - [ ] Mở video ở thẻ "Trận của bạn có video", mở chuông thông báo: lớp phủ phủ kín màn, nằm trên
   nhân vật.
+- [ ] Bảng xếp hạng → tab BXH mùa, chờ ~10 s: đầu mini của người ngay trên / ngay dưới bạn thò ra ở mép phải
+  dòng, có bóng thoại; bấm cái đầu → thụt vào + "Ủa bị phát hiện rồi!" hoặc 😜, không mở sổ điểm. Thử
+  lọc Nam / Nữ, thử mobile (bạn ở hạng 4–5 để người kề có dòng). Tắt "Hoạt ảnh nền trời" → không còn thò.
 - [ ] Cài đặt → Chung → thẻ "Hiển thị": tắt "Hoạt ảnh nền trời" → trời phía sau đứng yên ngay, nhân
   vật bay / sao ước / hoạt cảnh biến mất; F5 vẫn giữ tắt; bật lại → chạy lại. Thành viên thường (không
   phải chủ CLB) cũng bấm được.
@@ -846,14 +873,12 @@ Checklist:
 | `heroFirstMs` / `heroGapMs` | 10000 / 33000 | Siêu nhân lần đầu / nghỉ sau mỗi lượt bay |
 | `ufoFirstMs` / `ufoGapMs` | 8000 / 29000 | UFO lần đầu / nghỉ sau mỗi cảnh |
 | `owlIdleMs` | [20000, 30000] | Màn hình yên ngẫu nhiên trong khoảng này thì cú ngủ gật |
-| `auroraFirstMs` / `auroraEveryMs` | 50000 / 50000 | Cực quang lượt đầu / mỗi lượt |
 | `cuoiFirstMs` / `cuoiEveryMs` | 60000 / 60000 | Chú Cuội đánh cầu lượt đầu / mỗi lượt |
 | `fireShuttleFirstMs` / `fireShuttleEveryMs` | 90000 / 90000 | Quả cầu lông lửa lượt đầu / mỗi lượt |
 | `eclipseFirstMs` / `eclipseEveryMs` | 120000 / 120000 | Nguyệt thực trăng máu lượt đầu / mỗi lượt |
 
-Nhịp nằm ở keyframe `effects.css` (đổi phải sửa CSS): xếp hình 30 s / hình (`skyFormTop`), đàn chim bay ~17,5 s rồi nghỉ 44 s (`skyBirds`, chu kỳ 62,24 s), một lượt băng rôn 16,64 s (`skyBannerOnce`, khớp `BANNER_FLY_MS`).
-Thời lượng mỗi hoạt cảnh đêm ở `lib/sky.js → SKY_ACT_MS` (cực quang 30 s · Cuội 7 s · cầu lửa 3,6 s ·
-nguyệt thực 32 s); test chặn `…EveryMs` nhỏ hơn thời lượng (hai lượt chồng nhau).
+Nhịp nằm ở keyframe `effects.css` (đổi phải sửa CSS): xếp hình 40 s / hình (`skyFormTop`), đàn chim bay ~17,5 s rồi nghỉ 44 s (`skyBirds`, chu kỳ 62,24 s), một lượt băng rôn 16,64 s (`skyBannerOnce`, khớp `BANNER_FLY_MS`).
+Thời lượng mỗi hoạt cảnh đêm ở `lib/sky.js → SKY_ACT_MS` (Cuội 7 s · cầu lửa 3,6 s · nguyệt thực 32 s); test chặn `…EveryMs` nhỏ hơn thời lượng (hai lượt chồng nhau).
 
 ---
 
@@ -907,7 +932,7 @@ nguyệt thực 32 s); test chặn `…EveryMs` nhỏ hơn thời lượng (hai 
 | Bấm bóng thoại cú = câu kế | Bấm bóng thoại = tắt bóng (khỏi che nội dung); bấm con cú mới đổi câu |
 | Chữ phóng theo khung | Chữ giữ cỡ thiết kế dù khung phóng theo màn (§1 "Cỡ chữ") |
 | Siêu nhân cứu người kia: "Muốn thắng thì thắng trên sân nhé!" | Cùng một câu "Đừng lo, tôi đưa bạn ra sân!" cho ai cũng vậy |
-| — (thiết kế không có) | Thêm: cú ngủ gật / giật mình (§4.2), cá voi nhả bụi sao, hoạt cảnh đêm định kỳ — cực quang, chú Cuội đánh cầu, quả cầu lông lửa, nguyệt thực trăng máu (§2.1) |
+| — (thiết kế không có) | Thêm: cú ngủ gật / giật mình (§4.2), cá voi nhả bụi sao, hoạt cảnh đêm định kỳ — chú Cuội đánh cầu, quả cầu lông lửa, nguyệt thực trăng máu (§2.1) |
 
 **Câu bổ sung ngoài thiết kế** (CLB thêm sau, cùng giọng): cú mèo `hunt` · `late` · `bed`, ngủ gật
 `zzz` · `pop` · `wake.dream` · `wake.fall`; siêu nhân `saveWorld` · `forgotBag` · `supersonic` · `riceCooker` ·

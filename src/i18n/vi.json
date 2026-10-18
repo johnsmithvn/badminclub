@@ -76,6 +76,11 @@
     "shelfThreeSlotFooterNote14a": "Kệ hiện tối đa 3 ô huy hiệu, chính chủ sắp thứ tự ở Danh hiệu. Chạm một ô để xem tên danh hiệu.",
     "eloSingleBadgeFooterNote14a": "Ở bảng Elo mỗi dòng chỉ hiện một ô huy hiệu bậc cao nhất, để mắt đọc trình độ trước.",
     "youTag": "bạn",
+    "peek": {
+      "up": "Cố lên bạn ơi, còn {{n}} điểm nữa là dí kịp tui rồi ~",
+      "down": "Bác giữ hạng cho kỹ đấy, tối nay em lật kèo!",
+      "caught": "Ủa bị phát hiện rồi!"
+    },
     "behindTop1": "kém #1 · {{diff}}",
     "eloRankClub": "Elo #{{rank}}",
     "wholeTable": "Toàn bảng",

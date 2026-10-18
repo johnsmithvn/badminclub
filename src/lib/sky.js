@@ -132,6 +132,21 @@ export function skyFoes({ meId, female, top = [], arch = null, beatBy = null }) 
   return { dare: beatBy?.name || arch?.name || '', foes: girls.length ? girls : pick(false) }
 }
 
+/**
+ * BXH mùa — đối thủ thò đầu trêu (SeasonRaceTab): người NGAY TRÊN `meId` giục đuổi, người NGAY DƯỚI doạ
+ * lật kèo. `rows` = danh sách đang hiện, theo hạng; `shown(id)` = dòng đó có được vẽ không (mobile: top 3
+ * nằm ở bục, không có dòng để thò). Trả về [{ id, line: [key i18n, tham số] }], rỗng nếu không có ai.
+ */
+export function rivalPeeks(rows, meId, shown = () => true) {
+  const i = (rows || []).findIndex((r) => r.id === meId)
+  if (i < 0) return []
+  const me = rows[i], up = rows[i - 1], down = rows[i + 1]
+  return [
+    up && shown(up.id) && { id: up.id, line: ['season.peek.up', { n: Math.max(1, (up.totalSeasonPoints || 0) - (me.totalSeasonPoints || 0)) }] },
+    down && shown(down.id) && { id: down.id, line: ['season.peek.down'] },
+  ].filter(Boolean)
+}
+
 /** Câu theo số liệu — dùng chung cho cú mèo, băng rôn, siêu nhân. */
 function dataLines(st) {
   const out = []
@@ -217,7 +232,7 @@ export const UFO_GIVE_BACK = [
  * Thời lượng một lượt hoạt cảnh trời đêm định kỳ (ms) — khớp keyframe ở effects.css. Nhịp lặp
  * (app.json → sky.*EveryMs) phải dài hơn, không thì lượt mới cắt ngang lượt đang diễn.
  */
-export const SKY_ACT_MS = { aurora: 30000, cuoi: 7000, fireShuttle: 3600, eclipse: 32000 }
+export const SKY_ACT_MS = { cuoi: 7000, fireShuttle: 3600, eclipse: 32000 }
 
 /** Cú mèo bị bấm đánh thức khi đang ngủ gật (rút 1 bằng túi xáo). */
 export const OWL_WAKE = [['sky.owl.wake.dream'], ['sky.owl.wake.fall']]

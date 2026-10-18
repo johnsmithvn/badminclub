@@ -232,10 +232,6 @@
 @keyframes skyEclipseUmbra { 0% { transform: translateX(-115%); opacity: 1; } 22% { transform: translateX(0); opacity: 1; } 32% { opacity: .22; } 68% { opacity: .22; } 78% { transform: translateX(0); opacity: 1; } 100% { transform: translateX(115%); opacity: 1; } }
 @keyframes skyEclipseBlood { 0%, 18% { opacity: 0; } 32% { opacity: .92; } 68% { opacity: .92; } 82%, 100% { opacity: 0; } }
 @keyframes skyEclipseHalo { 0%, 20% { opacity: 0; } 34% { opacity: 1; } 66% { opacity: 1; } 82%, 100% { opacity: 0; } }
-/* Cực quang (30 s): hiện dần, màn sáng uốn lượn + tia dọc trôi, rồi tắt dần. */
-@keyframes skyAurora { 0% { opacity: 0; } 14% { opacity: 1; } 80% { opacity: 1; } 100% { opacity: 0; } }
-@keyframes skyAuroraWave { 0% { transform: translateX(-50px) skewX(-12deg) scaleY(.9); } 50% { transform: translateX(10px) skewX(4deg) scaleY(1.06); } 100% { transform: translateX(50px) skewX(10deg) scaleY(.95); } }
-@keyframes skyAuroraRays { 0% { transform: translateX(0) skewX(-6deg); opacity: .6; } 100% { transform: translateX(40px) skewX(6deg); opacity: 1; } }
 /* Sao băng quả cầu lông lửa (3,6 s): lao chéo xuống trái, --dx / --dy = quãng bay. */
 @keyframes skyFireShuttle { 0% { transform: translate(0, 0); opacity: 0; } 6% { opacity: 1; } 86% { opacity: 1; } 100% { transform: translate(var(--dx), var(--dy)); opacity: 0; } }
 @keyframes skyBubble { 0% { opacity: 0; transform: translateY(4px); } 4% { opacity: 1; transform: translateY(0); } 34% { opacity: 1; transform: translateY(0); } 40% { opacity: 0; transform: translateY(-3px); } 100% { opacity: 0; transform: translateY(-3px); } }
@@ -245,6 +241,13 @@
 @keyframes skyNavBlink { 0%, 60%, 100% { opacity: .15; } 70%, 80% { opacity: 1; } }
 @keyframes skyOwlBlink { 0%, 90%, 100% { transform: scaleY(0); } 94% { transform: scaleY(1); } }
 @keyframes skyOwlTilt { 0%, 100% { transform: rotate(0deg); } 25% { transform: rotate(-14deg); } 60% { transform: rotate(10deg); } }
+/* BXH mùa — đối thủ thò đầu trêu (SeasonRaceTab → RivalPeek). Một lượt 4,8 s, khớp PEEK_MS: trượt vào từ
+   mép phải, nghiêng đầu nháy hai nhịp, nấp lại. Bấm → giật nảy rồi thụt hẳn ra ngoài mép. */
+@keyframes rivalPeek { 0% { transform: translateX(115%) rotate(24deg); } 9% { transform: translateX(30%) rotate(-16deg); } 14% { transform: translateX(36%) rotate(-6deg); } 30% { transform: translateX(34%) rotate(-12deg); } 34% { transform: translateX(34%) rotate(-3deg); } 38% { transform: translateX(34%) rotate(-12deg); } 84% { transform: translateX(34%) rotate(-9deg); } 100% { transform: translateX(115%) rotate(20deg); } }
+@keyframes rivalPeekBubble { 0%, 12% { opacity: 0; } 18%, 80% { opacity: 1; } 88%, 100% { opacity: 0; } }
+@keyframes rivalPeekDuck { 0% { transform: translateX(34%) rotate(-9deg); } 30% { transform: translateX(26%) translateY(-5px) rotate(12deg); } 100% { transform: translateX(130%) rotate(30deg); } }
+@keyframes rivalPeekSay { 0% { opacity: 0; } 12%, 75% { opacity: 1; } 100% { opacity: 0; } }
+@keyframes rivalPeekTease { 0% { transform: translateY(4px) scale(.4); opacity: 0; } 25% { transform: translateY(-14px) scale(1.25); opacity: 1; } 70% { transform: translateY(-20px) scale(1); opacity: 1; } 100% { transform: translateY(-26px) scale(1); opacity: 0; } }
 /* Cú ngủ gật: gục dần (có một cái giật đầu), rồi thở đều trong tư thế gục; mí sụp có chớp chớp. */
 @keyframes skyOwlDoze { 0% { transform: rotate(0deg) translateY(0) scaleY(1); } 30% { transform: rotate(5deg) translateY(1px) scaleY(.98); } 42% { transform: rotate(1deg) translateY(0) scaleY(1); } 70% { transform: rotate(10deg) translateY(1.5px) scaleY(.96); } 100% { transform: rotate(14deg) translateY(2px) scaleY(.94); } }
 @keyframes skyOwlBreathe { 0%, 100% { transform: rotate(14deg) translateY(2px) scaleY(.94); } 50% { transform: rotate(11deg) translateY(1.4px) scaleY(.97); } }
@@ -259,7 +262,8 @@
 /* Cọng lông rơi lơ lửng xuống đáy màn (--fy = quãng rơi). */
 @keyframes skyFeather { 0% { transform: translate(0, 0) rotate(0deg); opacity: 0; } 6% { opacity: 1; } 25% { transform: translate(16px, calc(var(--fy) * .25)) rotate(28deg); } 50% { transform: translate(-14px, calc(var(--fy) * .5)) rotate(-22deg); } 75% { transform: translate(12px, calc(var(--fy) * .75)) rotate(18deg); } 94% { opacity: .9; } 100% { transform: translate(-4px, var(--fy)) rotate(-8deg); opacity: 0; } }
 @keyframes skyFlame { 0% { transform: scaleY(1); opacity: 1; } 100% { transform: scaleY(.6); opacity: .75; } }
-@keyframes skyFormTop { 0% { transform: translate3d(var(--sx), var(--sy), 0); opacity: 0; } 4% { opacity: 1; } 28% { transform: translate3d(0, 0, 0); } 54% { transform: translate3d(0, 0, 0); opacity: 1; } 76% { transform: translate3d(var(--ex), var(--ey), 0); opacity: 1; } 80% { opacity: 0; } 100% { transform: translate3d(var(--ex), var(--ey), 0); opacity: 0; } }
+/* Xếp hình đom đóm: vòng 40 s — bay tới ~8,4 s, giữ hình ~7,8 s, tản ra ~6,6 s, nghỉ ~16 s. */
+@keyframes skyFormTop { 0% { transform: translate3d(var(--sx), var(--sy), 0); opacity: 0; } 3% { opacity: 1; } 21% { transform: translate3d(0, 0, 0); } 40.5% { transform: translate3d(0, 0, 0); opacity: 1; } 57% { transform: translate3d(var(--ex), var(--ey), 0); opacity: 1; } 60% { opacity: 0; } 100% { transform: translate3d(var(--ex), var(--ey), 0); opacity: 0; } }
 @keyframes skyHover { 0%, 100% { transform: translateY(0); } 50% { transform: translateY(-4px); } }
 @keyframes skyWobble { 0%, 100% { transform: rotate(-3deg); } 50% { transform: rotate(3deg); } }
 @keyframes skySway { 0% { transform: rotate(-6deg); } 100% { transform: rotate(6deg); } }
@@ -317,6 +321,33 @@
 [data-sky] [style*="position: sticky"][style*="background"]:has([style*="position: fixed"]) {
   -webkit-backdrop-filter: none;
   backdrop-filter: none;
+}
+/* Mỗi phần tử có backdrop-filter cần một vùng đệm GPU bằng đúng kích thước nó × mật độ điểm ảnh. Thẻ
+   cao (danh sách kèo, nội dung popup hồ sơ) trên điện thoại ×3 vượt giới hạn texture của GPU → Chrome
+   bỏ không vẽ, nội dung mất từ một đường cắt ngang trở xuống. Nên:
+   - Trong dialog: thẻ nằm trên nền dialog đặc, làm mờ không thấy gì mà vẫn tốn → bỏ ở mọi màn.
+   - Mobile: bỏ làm mờ thẻ / ô dính (chỉ giữ nav, header — thấp, không vượt), thẻ đặc hơn để chữ rõ. */
+[data-sky] [aria-modal="true"] [style*="var(--surface-card)"],
+[data-sky] [style*="position: fixed"][style*="backdrop-filter"] [style*="var(--surface-card)"] {
+  -webkit-backdrop-filter: none;
+  backdrop-filter: none;
+}
+@media (max-width: 768px) {
+  [data-sky] {
+    --surface-card: rgba(255, 255, 255, .9);
+    --surface-inset: rgba(250, 251, 253, .85);
+    --field-bg: rgba(255, 255, 255, .9);
+  }
+  [data-theme="dark"] [data-sky], .theme-dark [data-sky] {
+    --surface-card: rgba(20, 29, 46, .9);
+    --surface-inset: rgba(16, 25, 39, .85);
+    --field-bg: rgba(16, 25, 39, .85);
+  }
+  [data-sky] [style*="var(--surface-card)"],
+  [data-sky] [style*="position: sticky"][style*="background"] {
+    -webkit-backdrop-filter: none;
+    backdrop-filter: none;
+  }
 }
 /* Có dialog / lớp phủ mờ toàn màn đang mở: dừng hoạt hình trời. Lớp mờ đó phải làm mờ lại cả màn
    mỗi khung hình nếu trời phía sau còn chạy — gõ form trong dialog trên máy yếu sẽ giật. */

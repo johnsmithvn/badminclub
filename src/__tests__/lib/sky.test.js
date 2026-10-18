@@ -1,7 +1,7 @@
 // node src/__tests__/lib/sky.test.js
 // Nền bầu trời trang chủ: chọn nhân vật + câu thoại theo số liệu (lib/sky.js, docs/HOME_SKY.md).
 import assert from 'node:assert/strict'
-import { OWL_WAKE, SKY_ACT_MS, SKY_CAST, UFO_GIVE_BACK, UFO_HUH, UFO_OUTCOMES, beatenBy, createBags, drawCast, isLate, lastMatchOf, lastPlayedAt, moonAge, shortName, shuffled, skyFacts, skyFoes, skyLines, skyMode, ufoPool, ufoScript } from '#lib/sky.js'
+import { OWL_WAKE, SKY_ACT_MS, SKY_CAST, UFO_GIVE_BACK, UFO_HUH, UFO_OUTCOMES, beatenBy, createBags, drawCast, isLate, lastMatchOf, lastPlayedAt, moonAge, rivalPeeks, shortName, shuffled, skyFacts, skyFoes, skyLines, skyMode, ufoPool, ufoScript } from '#lib/sky.js'
 import vi from '#i18n/vi.json' with { type: 'json' }
 import cfg from '#config/app.json' with { type: 'json' }
 import { ROUTE_KEYS } from '#routes'
@@ -152,6 +152,18 @@ assert.equal(lastPlayedAt(MS, 'me'), 200, 'trận gần nhất của MÌNH, khô
 assert.equal(lastPlayedAt(MS, 'nobody'), 0)
 assert.equal(lastPlayedAt(undefined, 'me'), 0)
 assert.equal(lastMatchOf(MS, 'me').at, 200)
+
+/* ---------- BXH: đối thủ thò đầu trêu ---------- */
+{
+  const R = [{ id: 'a', totalSeasonPoints: 300 }, { id: 'b', totalSeasonPoints: 275 }, { id: 'me', totalSeasonPoints: 250 }, { id: 'c', totalSeasonPoints: 240 }]
+  assert.deepEqual(rivalPeeks(R, 'me'), [{ id: 'b', line: ['season.peek.up', { n: 25 }] }, { id: 'c', line: ['season.peek.down'] }],
+    'người ngay trên giục đuổi (kèm số điểm thiếu), người ngay dưới doạ lật kèo')
+  assert.deepEqual(rivalPeeks(R, 'a').map((p) => p.id), ['b'], 'hạng 1: chỉ người dưới thò ra')
+  assert.deepEqual(rivalPeeks(R, 'c').map((p) => p.id), ['me'], 'hạng chót: chỉ người trên')
+  assert.deepEqual(rivalPeeks(R, 'me', (id) => id !== 'b').map((p) => p.id), ['c'], 'dòng không được vẽ (bục mobile) thì không thò')
+  assert.deepEqual(rivalPeeks(R, 'nobody'), [], 'không có mặt trên BXH: không ai thò')
+  assert.deepEqual(rivalPeeks([{ id: 'x', totalSeasonPoints: 9 }, { id: 'me', totalSeasonPoints: 9 }], 'me')[0].line[1], { n: 1 }, 'bằng điểm thì nói "còn 1 điểm", không "còn 0"')
+}
 
 /* ---------- tên dài ---------- */
 assert.equal(shortName('Canh lá đắng :)))'), 'Canh lá đắng :)))', 'tên ≤ 20 ký tự giữ nguyên')
