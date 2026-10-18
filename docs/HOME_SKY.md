@@ -1,6 +1,6 @@
 # HOME_SKY.md — Nền bầu trời
 
-**Version:** v1.9.0 · **Updated:** 2026-10-18 · sân khấu chung: băng rôn, đom đóm, siêu nhân, UFO thay phiên, nghỉ tính từ lúc diễn xong · câu số liệu chỉ ở băng rôn · băng rôn bay xong là gỡ · v1.8.0: nhân vật chỉ ở Trang chủ + BXH, trang chính khác bản nhẹ (`liteRoutes`) · sửa băng rôn nhân đôi (key trùng với lượt đom đóm) · siêu nhân mobile bay nhanh ngang desktop · v1.7.0: trang Giao diện (bật / tắt từng hiệu ứng, "cứ N giây"), nhân vật chạy cùng lúc, theme gốc · xếp hình đom đóm 40 s / lượt · bỏ cực quang · BXH: đối thủ thò đầu trêu (§4.8) · bỏ tooltip / nhãn phụ, bỏ cảnh "người đuổi theo", réo tên đối thủ (gạ kèo, điều ước), câu mới, tên dài cắt gọn, chữ giữ cỡ cố định, công tắc tắt hoạt ảnh
+**Version:** v1.10.0 · **Updated:** 2026-10-18 · mặc định TẮT hết hiệu ứng (migrate mọi thiết bị qua `SKY_PREFS_V`) · v1.9.0: sân khấu chung: băng rôn, đom đóm, siêu nhân, UFO thay phiên, nghỉ tính từ lúc diễn xong · câu số liệu chỉ ở băng rôn · băng rôn bay xong là gỡ · v1.8.0: nhân vật chỉ ở Trang chủ + BXH, trang chính khác bản nhẹ (`liteRoutes`) · sửa băng rôn nhân đôi (key trùng với lượt đom đóm) · siêu nhân mobile bay nhanh ngang desktop · v1.7.0: trang Giao diện (bật / tắt từng hiệu ứng, "cứ N giây"), nhân vật chạy cùng lúc, theme gốc · xếp hình đom đóm 40 s / lượt · bỏ cực quang · BXH: đối thủ thò đầu trêu (§4.8) · bỏ tooltip / nhãn phụ, bỏ cảnh "người đuổi theo", réo tên đối thủ (gạ kèo, điều ước), câu mới, tên dài cắt gọn, chữ giữ cỡ cố định, công tắc tắt hoạt ảnh
 
 Toàn bộ **tình huống** và **câu thoại** của nền bầu trời động (thiết kế gốc dựng cho trang chủ cá
 nhân, nay dùng chung nhiều trang), cho **cả hai chế độ** Tối (bầu trời sao) và Sáng (hoàng hôn trên
@@ -64,7 +64,7 @@ Danh sách ở `app.json → sky`:
   **Desktop to hơn một nấc (×1.15):** bóng thoại ~13px, băng rôn ~12,5px, thẻ điều ước ~14px, bóng
   thoại UFO ~12,5px, nhãn tên ~10px. Bóng thoại đối thủ thò đầu ở BXH: mobile 11,5px, desktop 13px.
 - **Đổi sáng / tối** (nút mặt trời / mặt trăng ở header trang chủ hoặc góc dưới sidebar): trời đổi
-  ngay; vẫn là các nhân vật đang bật. Cảnh siêu nhân / UFO / sao ước đang bay được dọn, nhịp đếm lại từ đầu (siêu nhân sau 10 s, UFO sau 8 s, sao ước sau 3 s); băng rôn không bị ảnh hưởng. Hoạt cảnh đêm (§2.1) đang diễn thì tắt; quay lại Tối thì đếm lại từ đầu (chú Cuội sau 60 s …).
+  ngay; vẫn là các nhân vật đang bật. Cảnh đang diễn trên sân khấu (băng rôn, đom đóm, siêu nhân, UFO) và sao ước đang bay được dọn; sân khấu bắt đầu lại từ lượt đầu (siêu nhân sau 3 s …), sao ước sau 3 s. Hoạt cảnh đêm (§2.1) đang diễn thì tắt; quay lại Tối thì đếm lại từ đầu (chú Cuội sau 60 s …).
 
 ### 1.1 Trang Giao diện (`/giao-dien`)
 
@@ -89,7 +89,12 @@ không qua nút Lưu của CLB. Trang này cũng có nền trời phía sau nên
     không xếp hàng với sân khấu.
   - Mỗi hiệu ứng có **tối thiểu**: gõ thấp hơn vẫn lưu nhưng chạy theo tối thiểu, dòng mô tả báo rõ.
 - Lượt đầu sau khi mở trang: `app.json → sky.*FirstMs`, hoặc sau N nếu N nhỏ hơn (sân khấu: rồi còn xếp hàng).
-- "Về mặc định": bật lại hết, số giây về `app.json → sky.fx`.
+- **Mặc định tắt hết** (kể cả Hiệu ứng nền và Đối thủ thò đầu ở BXH): chỉ còn theme gốc — đêm: trăng, sao,
+  mưa sao băng; ngày: hoàng hôn. Ai muốn thì bật ở trang này. "Bật hoạt ảnh" vẫn mặc định bật (mưa sao băng chạy).
+- **Migrate:** bản lưu có số phiên bản `v` (`lib/sky.js → SKY_PREFS_V`). Bản lưu khác số đó (gồm mọi bản lưu
+  trước 2026-10-18) → công tắc về tắt hết lần tới mở app, số giây giữ nguyên. Lưu theo thiết bị nên không có
+  migration DB; muốn ép mọi người về mặc định lần nữa thì tăng `SKY_PREFS_V`.
+- "Về mặc định": tắt hết, số giây về `app.json → sky.fx`.
 
 | Hiệu ứng | Mặc định N giây | Tối thiểu | Lượt đầu |
 | --- | --- | --- | --- |
@@ -887,7 +892,7 @@ Checklist:
   đứng yên ngay; F5 vẫn giữ. Tắt "Hiệu ứng nền" → đêm mất tinh vân, ngân hà, cá voi, sao chổi, đom đóm,
   chòm sao, chỉ còn trăng, sao, mưa sao băng (và nhân vật đang bật). Tắt từng nhân vật → biến mất ngay.
 - [ ] Đổi "cứ N giây" (vd. siêu nhân 10 s) → lượt sau theo nhịp mới; gõ thấp hơn tối thiểu thì dòng mô tả
-  báo "vẫn chạy N giây". Xoá ô để gõ lại không nhảy số. "Về mặc định" → bật hết, số về mặc định.
+  báo "vẫn chạy N giây". Xoá ô để gõ lại không nhảy số. "Về mặc định" → tắt hết, số về mặc định.
 - [ ] Cài đặt → Chung → Hiển thị: nút "Mở Giao diện" dẫn đúng trang. Thành viên thường cũng vào được.
 - [ ] Màn desktop lớn (2K / 4K hoặc cửa sổ cao): chữ bóng thoại, băng rôn, thẻ điều ước không to lên
   theo màn.

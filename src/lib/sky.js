@@ -107,21 +107,29 @@ export const SKY_FX = [
 export const SKY_FX_MAX = 3600
 
 /**
- * Cài đặt đã lưu (cũ / hỏng / thiếu khoá) → `{ on: { ambient, <key>… }, every: { <key>: giây } }`.
- * Mặc định bật hết; số giây là số nguyên 1 – 3600 (chưa ép `min` để người dùng gõ dở vẫn giữ được —
- * fxMs mới ép), sai kiểu thì về mặc định.
+ * Phiên bản cài đặt Giao diện. Tăng số này = mọi thiết bị bỏ công tắc đã lưu, về mặc định lần tới mở app
+ * (số giây giữ nguyên). 2 (2026-10-18): đổi mặc định sang TẮT hết hiệu ứng.
+ */
+export const SKY_PREFS_V = 2
+
+/**
+ * Cài đặt đã lưu (cũ / hỏng / thiếu khoá) → `{ v, on: { ambient, <key>… }, every: { <key>: giây } }`.
+ * Mặc định TẮT hết: chỉ còn theme gốc (đêm: trăng, sao, mưa sao băng · ngày: hoàng hôn), ai muốn thì bật ở
+ * trang Giao diện. Bản lưu khác `SKY_PREFS_V` → bỏ công tắc. Số giây là số nguyên 1 – 3600 (chưa ép `min`
+ * để người dùng gõ dở vẫn giữ được — fxMs mới ép), sai kiểu thì về mặc định.
  */
 export function normSkyPrefs(raw) {
   const r = raw && typeof raw === 'object' ? raw : {}
-  const on = { ambient: r.on?.ambient !== false }
+  const ons = r.v === SKY_PREFS_V ? r.on : null
+  const on = { ambient: ons?.ambient === true }
   const every = {}
   for (const fx of SKY_FX) {
-    on[fx.key] = r.on?.[fx.key] !== false
+    on[fx.key] = ons?.[fx.key] === true
     if (!fx.min) continue
     const n = Math.round(Number(r.every?.[fx.key]))
     every[fx.key] = n >= 1 ? Math.min(SKY_FX_MAX, n) : C.fx[fx.key]
   }
-  return { on, every }
+  return { v: SKY_PREFS_V, on, every }
 }
 
 /**

@@ -1,7 +1,7 @@
 // node src/__tests__/lib/sky.test.js
 // Nền bầu trời trang chủ: chọn nhân vật + câu thoại theo số liệu (lib/sky.js, docs/HOME_SKY.md).
 import assert from 'node:assert/strict'
-import { OWL_WAKE, SKY_ACT_MS, SKY_CAST, UFO_GIVE_BACK, UFO_HUH, UFO_OUTCOMES, beatenBy, createBags, fxMs, isLate, normSkyPrefs, SKY_FX, SKY_FX_MAX, lastMatchOf, lastPlayedAt, moonAge, rivalPeeks, shortName, shuffled, skyFacts, skyFoes, skyLines, skyMode, stageNext, ufoPool, ufoScript } from '#lib/sky.js'
+import { OWL_WAKE, SKY_ACT_MS, SKY_CAST, UFO_GIVE_BACK, UFO_HUH, UFO_OUTCOMES, beatenBy, createBags, fxMs, isLate, normSkyPrefs, SKY_FX, SKY_FX_MAX, lastMatchOf, lastPlayedAt, moonAge, rivalPeeks, SKY_PREFS_V, shortName, shuffled, skyFacts, skyFoes, skyLines, skyMode, stageNext, ufoPool, ufoScript } from '#lib/sky.js'
 import vi from '#i18n/vi.json' with { type: 'json' }
 import cfg from '#config/app.json' with { type: 'json' }
 import { ROUTE_KEYS } from '#routes'
@@ -43,14 +43,19 @@ assert.deepEqual([...shuffled(7)].sort(), [0, 1, 2, 3, 4, 5, 6], 'xáo không đ
 /* ---------- cài đặt hiệu ứng (trang Giao diện) ---------- */
 {
   const def = normSkyPrefs(undefined)
-  assert.ok(Object.values(def.on).every(Boolean) && def.on.ambient, 'chưa chỉnh gì: bật hết, kể cả hiệu ứng nền')
+  assert.ok(Object.values(def.on).every((x) => x === false), 'chưa chỉnh gì: tắt hết, kể cả hiệu ứng nền — chỉ còn theme gốc')
   for (const fx of SKY_FX.filter((x) => x.min)) {
     assert.equal(def.every[fx.key], cfg.sky.fx[fx.key], fx.key + ': mặc định lấy app.json → sky.fx')
     assert.ok(cfg.sky.fx[fx.key] >= fx.min && cfg.sky.fx[fx.key] <= SKY_FX_MAX, fx.key + ': mặc định nằm ngoài [min, max]')
   }
   for (const k of SKY_CAST) assert.ok(SKY_FX.some((x) => x.key === k), k + ': nhân vật nào cũng phải tắt được ở trang Giao diện')
-  const p = normSkyPrefs({ on: { hero: false, ambient: false, rác: true }, every: { hero: 5, ufo: '50', wish: 99999, banner: 'abc', cuoi: -3, owl: 12 } })
-  assert.equal(p.on.hero, false); assert.equal(p.on.ambient, false); assert.equal(p.on.ufo, true, 'khoá không có trong bản lưu cũ thì bật')
+  const p = normSkyPrefs({ v: SKY_PREFS_V, on: { hero: true, ambient: true, banner: false, rác: true }, every: { hero: 5, ufo: '50', wish: 99999, banner: 'abc', cuoi: -3, owl: 12 } })
+  assert.equal(p.on.hero, true); assert.equal(p.on.ambient, true); assert.equal(p.on.banner, false); assert.equal(p.on.ufo, false, 'khoá không có trong bản lưu thì tắt')
+  assert.equal(normSkyPrefs(p).v, SKY_PREFS_V, 'lưu rồi đọc lại phải giữ được công tắc')
+  // Bản lưu trước khi đổi mặc định (không có v / v cũ): công tắc về tắt hết, số giây giữ nguyên.
+  const old = normSkyPrefs({ on: { hero: true, owl: true, ambient: true }, every: { hero: 20 } })
+  assert.ok(Object.values(old.on).every((x) => x === false), 'migrate: bản lưu cũ bật gì cũng về tắt hết')
+  assert.equal(old.every.hero, 20, 'migrate: giữ số giây người dùng đã chỉnh')
   assert.ok(!('rác' in p.on) && !('owl' in p.every), 'khoá lạ / hiệu ứng chỉ bật-tắt không có ô số giây')
   assert.deepEqual([p.every.hero, p.every.ufo, p.every.wish, p.every.banner, p.every.cuoi], [5, 50, SKY_FX_MAX, cfg.sky.fx.banner, cfg.sky.fx.cuoi],
     'giữ số đang gõ dở (5), đọc chuỗi số, chặn trên 3600, sai kiểu / âm thì về mặc định')
