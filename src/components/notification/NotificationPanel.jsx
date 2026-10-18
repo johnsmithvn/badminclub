@@ -121,7 +121,7 @@ export default function NotificationPanel({ open, onClose }) {
   if (!open) return null
 
   return (
-    <div
+    <div role="dialog" aria-modal="true"
       style={{
         position: 'fixed',
         top: 0,

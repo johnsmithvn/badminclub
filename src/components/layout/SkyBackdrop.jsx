@@ -8,7 +8,7 @@ import { getMyHeroStats, getPlayerForm5 } from '#lib/homePersonal.js'
 import { getPersonalHighlights } from '#lib/activity.js'
 import { isFemalePlayer } from '#lib/rating.js'
 import { calculateSeasonLeaderboard } from '#lib/season.js'
-import { OWL_WAKE, SKY_ACT_MS, SKY_CAST, UFO_GIVE_BACK, UFO_HUH, beatenBy, createBags, fxMs, isLate, lastMatchOf, moonAge, shortName, skyFacts, skyFoes, skyLines, stageNext, ufoPool, ufoScript } from '#lib/sky.js'
+import { OWL_WAKE, SKY_ACT_MS, SKY_CAST, UFO_GIVE_BACK, UFO_HUH, beatenBy, createBags, opponentsOf, fxMs, isLate, lastMatchOf, moonAge, shortName, skyFacts, skyFoes, skyLines, stageNext, ufoPool, ufoScript } from '#lib/sky.js'
 import cfg from '#config/app.js'
 
 /**
@@ -51,6 +51,8 @@ const esc = (s) => String(s).replace(/[&<>"']/g, (c) => '&#' + c.charCodeAt(0) +
 /** Cỡ px hiển thị cố định trong lớp nhân vật: `fk` = 1 / độ phóng khung (xem `fk` trong SkyBackdrop). */
 const sk = (n, fk = 1) => `${(n * fk).toFixed(1)}px`
 const tl = (line) => (line ? t(line[0], line[1]?.name ? { ...line[1], name: shortName(line[1].name) } : line[1]) : '')
+/** Chữ của một câu băng rôn: câu gạ kèo có nhóm tên (`dares`) thì rút một tên bằng túi xáo riêng. */
+const bannerText = (e, bags) => tl(e?.[1]?.dares ? [e[0], { name: e[1].dares[bags('dare', e[1].dares.length)] }] : e)
 /** Thời lượng một lượt bay sao ước — khớp spawnWish (6,8 s). Băng rôn: `ly.bnMs` theo bố cục (xem LD / mobileLayout). */
 const WISH_FLY_MS = 6800
 
@@ -138,13 +140,16 @@ export default function SkyBackdrop({ mode, isMobile, scrollRef }) {
     const arch = getPersonalHighlights(id, db).find((x) => x.type === 'arch_rival')?.rivalId
     return {
       ...skyFacts({ hero: getMyHeroStats(db, id), form: getPlayerForm5(db, id), lastAt: last?.at || 0, now }),
-      ...skyFoes({ meId: id, female: isFemalePlayer(me), top, arch: who(arch), beatBy: who(beatenBy(last, id)) }),
+      ...(() => {
+        const opp = opponentsOf(db.matches, id)
+        return skyFoes({ meId: id, female: isFemalePlayer(me), top, arch: who(arch), beatBy: who(beatenBy(last, id)), beaters: opp.beaters.map(who), rivals: opp.rivals.map(who) })
+      })(),
     }
   }, [chars, db, id, me, opened.now])
-  // Điều ước giữ nguyên [key, tham số]: câu réo tên đối thủ rút tên lúc ước (xem burst).
+  // Điều ước và băng rôn giữ nguyên [key, tham số]: câu réo tên rút tên lúc hiện (burst · bannerText).
   const lines = useMemo(() => {
     const L = skyLines(st, name)
-    return { owl: L.owl.map(tl), banner: L.banner.map(tl), hero: L.hero.map(tl), wish: L.wish }
+    return { owl: L.owl.map(tl), banner: L.banner, hero: L.hero.map(tl), wish: L.wish }
   }, [st, name])
 
   // Cảnh khung 1440 phủ kín màn (desktop) / lấy khúc quanh trăng ở tỉ lệ 1:1 (mobile).
@@ -231,8 +236,8 @@ export default function SkyBackdrop({ mode, isMobile, scrollRef }) {
     /** Cho cảnh `k` lên sân, trả về thời lượng (ms). */
     const play = (k) => {
       if (k === 'banner') {
-        const i = bags('banner', data.current.lines.banner.length)
-        setBan((b) => ({ lap: b.lap + 1, i, on: true }))
+        const i = bags('banner', data.current.lines.banner.length), text = bannerText(data.current.lines.banner[i], bags)
+        setBan((b) => ({ lap: b.lap + 1, i, text, on: true }))
         later(() => setBan((b) => ({ ...b, on: false })), ly.bnMs)
         return ly.bnMs
       }
@@ -267,6 +272,12 @@ export default function SkyBackdrop({ mode, isMobile, scrollRef }) {
   // Dialog / sheet đang mở (aria-modal): hoạt hình CSS đã dừng (effects.css) nhưng cảnh Web Animations (siêu nhân, UFO,
   // sao ước) thì không — lớp mờ toàn màn của dialog phải làm mờ lại cả màn mỗi khung hình, máy yếu mất hình / giật.
   // Dừng tay đúng những animation đang chạy, đóng dialog thì chạy tiếp đúng những cái đó.
+  // Gỡ hẳn hai lớp trời khi có popup — dự phòng cho trình duyệt không hiểu :has (effects.css làm việc này tức thì).
+  const [modal, setModal] = useState(false)
+  useEffect(() => {
+    const iv = setInterval(() => setModal(!!document.querySelector('[aria-modal="true"]')), 300)
+    return () => clearInterval(iv)
+  }, [])
   useEffect(() => {
     if (!motion) return
     const held = new Set()
@@ -334,20 +345,20 @@ export default function SkyBackdrop({ mode, isMobile, scrollRef }) {
   // Băng rôn (lịch ở sân khấu chung phía trên): bấm → câu kế từ túi xáo.
   const hasBanner = cast.includes('banner')
   const nextBanner = () => {
-    const i = bags('banner', lines.banner.length)
-    setBan((b) => ({ ...b, i }))
+    const i = bags('banner', lines.banner.length), text = bannerText(lines.banner[i], bags)
+    setBan((b) => ({ ...b, i, text }))
   }
 
   return (
     <>
-      <div aria-hidden="true" data-sky-fx="" style={S.back}>
+      <div aria-hidden="true" data-sky-fx="" style={modal ? S.gone : S.back}>
         <div style={stage}>
           {back}
           {isDark && <MoonActs o={nightOpt} age={age} full={C.moon === 'full'} cuoi={cuoi.on ? cuoi.n : 0} eclipse={eclipse.on ? eclipse.n : 0} />}
           {isDark && amb && <MoonClouds o={nightOpt} motion={live} />}
         </div>
       </div>
-      <div data-sky-fx="" style={S.top}>
+      <div data-sky-fx="" style={modal ? S.gone : S.top}>
         {isDark && (
           <div style={stage}>
             <Shower motion={live} />
@@ -363,7 +374,7 @@ export default function SkyBackdrop({ mode, isMobile, scrollRef }) {
             {/* Key có tiền tố: băng rôn và lượt đom đóm là anh em cùng cha, key số trơn trùng nhau (lượt 4 = lượt 4)
                 thì React để sót bản cũ — từng ra 2–3 máy bay cùng lúc và đọng phần tử chạy ngầm. */}
             {hasBanner && ban.on && (
-              <Banner key={'ban' + ban.lap} ly={ly} fk={fk} dark={isDark} line={lines.banner[ban.i % lines.banner.length]} onNext={nextBanner} />
+              <Banner key={'ban' + ban.lap} ly={ly} fk={fk} dark={isDark} line={ban.text} onNext={nextBanner} />
             )}
             {form.on && <Top1 key={'form' + form.n} ly={ly} bags={bags} />}
             <div ref={sceneRef} style={S.fill} />
@@ -376,6 +387,7 @@ export default function SkyBackdrop({ mode, isMobile, scrollRef }) {
 }
 
 const S = {
+  gone: { display: 'none' },
   back: { position: 'fixed', inset: 0, zIndex: -1, overflow: 'hidden', pointerEvents: 'none' },
   top: { position: 'fixed', inset: 0, zIndex: 35, overflow: 'hidden', pointerEvents: 'none' },
   fill: { position: 'absolute', inset: 0 },
@@ -443,11 +455,12 @@ function Night({ o, motion, amb = true, age, full }) {
       {amb && <div style={{ position: 'absolute', inset: '-12%', background: 'radial-gradient(40% 35% at 70% 6%,rgba(88,80,200,.30),transparent 70%),radial-gradient(35% 40% at 10% 72%,rgba(20,140,150,.22),transparent 70%),radial-gradient(30% 30% at 55% 58%,rgba(150,70,180,.14),transparent 70%)', animation: an('skyNeb 34s ease-in-out infinite alternate') }} />}
       {amb && <div style={{ position: 'absolute', left: -300, top: 240, width: 2100, height: 320, transform: 'rotate(-17deg)', background: 'radial-gradient(50% 50% at 50% 50%,rgba(190,205,255,.18),rgba(170,190,240,.06) 50%,transparent 75%),radial-gradient(30% 40% at 34% 55%,rgba(200,180,255,.14),transparent 70%),radial-gradient(25% 35% at 70% 45%,rgba(140,240,215,.10),transparent 70%)', }} />}
       {amb && <div style={{ position: 'absolute', left: -300, top: 240, width: 2100, height: 320, transform: 'rotate(-17deg)', backgroundImage: 'radial-gradient(1px 1px at 8px 10px,#fff,transparent),radial-gradient(1px 1px at 30px 34px,rgba(220,230,255,.9),transparent),radial-gradient(1px 1px at 52px 18px,#fff,transparent),radial-gradient(1px 1px at 20px 44px,rgba(255,240,220,.9),transparent),radial-gradient(1px 1px at 62px 40px,#fff,transparent)', backgroundSize: '70px 50px', WebkitMaskImage: 'radial-gradient(50% 42% at 50% 50%,#000,transparent)', maskImage: 'radial-gradient(50% 42% at 50% 50%,#000,transparent)', animation: an('skyTwinkleB 9s ease-in-out infinite') }} />}
+      {/* Điện thoại (o.ff): chỉ 2 lớp sao đầu nháy, 2 lớp sau đứng yên — mỗi lớp nháy là một vùng đệm GPU cỡ cả màn */}
       {STAR_TILES.map(([img, size, dur, delay, fade], i) => (
-        <div key={'s' + i} style={{ position: 'absolute', inset: 0, backgroundImage: img, backgroundSize: size, WebkitMaskImage: `linear-gradient(to bottom,#000,transparent ${fade}%)`, maskImage: `linear-gradient(to bottom,#000,transparent ${fade}%)`, animation: an(`skyTwinkleB ${dur}s ease-in-out ${delay}s infinite`) }} />
+        <div key={'s' + i} style={{ position: 'absolute', inset: 0, backgroundImage: img, backgroundSize: size, WebkitMaskImage: `linear-gradient(to bottom,#000,transparent ${fade}%)`, maskImage: `linear-gradient(to bottom,#000,transparent ${fade}%)`, animation: o.ff && i >= 2 ? 'none' : an(`skyTwinkleB ${dur}s ease-in-out ${delay}s infinite`) }} />
       ))}
       {BRIGHT.map(([x, y, sz, d], i) => (
-        <span key={'b' + i} style={{ position: 'absolute', left: x - sz / 2, top: y - sz / 2, width: sz, height: sz, background: 'radial-gradient(circle,#fff 0,#fff 1.2px,rgba(210,225,255,.6) 2.5px,transparent 5px),linear-gradient(90deg,transparent,rgba(215,228,255,.85),transparent) 50% 50%/100% 1px no-repeat,linear-gradient(0deg,transparent,rgba(215,228,255,.85),transparent) 50% 50%/1px 100% no-repeat', filter: 'drop-shadow(0 0 4px rgba(200,220,255,.9))', animation: an(`skyStarPulse ${d}s ease-in-out ${(-i * 1.3).toFixed(1)}s infinite`) }} />
+        <span key={'b' + i} style={{ position: 'absolute', left: x - sz / 2, top: y - sz / 2, width: sz, height: sz, background: 'radial-gradient(circle,#fff 0,#fff 1.2px,rgba(210,225,255,.6) 2.5px,transparent 5px),linear-gradient(90deg,transparent,rgba(215,228,255,.85),transparent) 50% 50%/100% 1px no-repeat,linear-gradient(0deg,transparent,rgba(215,228,255,.85),transparent) 50% 50%/1px 100% no-repeat', filter: o.ff ? undefined : 'drop-shadow(0 0 4px rgba(200,220,255,.9))', animation: an(`skyStarPulse ${d}s ease-in-out ${(-i * 1.3).toFixed(1)}s infinite`) }} />
       ))}
       <span style={{ position: 'absolute', left: MX + Rr - 280, top: MY + Rr - 280, width: 560, height: 560, borderRadius: '50%', background: `radial-gradient(closest-side,rgba(220,230,255,${(0.07 + 0.2 * lit).toFixed(2)}),rgba(220,230,255,0))`, animation: an('skyMoonGlow 9s ease-in-out infinite alternate') }} />
       <span style={{ position: 'absolute', left: MX, top: MY, width: D, height: D, borderRadius: '50%', background: 'radial-gradient(circle,rgba(170,190,230,.10),rgba(170,190,230,.04) 70%,transparent 72%)' }}>
@@ -651,7 +664,7 @@ function Whale({ o, an }) {
             <circle cx="34" cy="52" r="2" fill="#F4F9FF" />
             <path d="M60 36 L92 32 L124 38 L150 46 L176 52" fill="none" stroke="rgba(220,235,255,.35)" strokeWidth=".7" />
             {[[60, 36, 1.4], [92, 32, 1.8], [124, 38, 1.3], [150, 46, 1.6], [110, 56, 1.2], [70, 50, 1.1], [176, 52, 1.3]].map(([x, y, r], k) => (
-              <circle key={k} cx={x} cy={y} r={r} fill="#FFFFFF" style={{ filter: 'drop-shadow(0 0 3px rgba(220,235,255,.95))', animation: an(`skyTwinkle ${(2 + k * 0.4).toFixed(1)}s ease-in-out ${(-k * 0.3).toFixed(1)}s infinite`) }} />
+              <circle key={k} cx={x} cy={y} r={r} fill="#FFFFFF" style={{ filter: o.ff ? undefined : 'drop-shadow(0 0 3px rgba(220,235,255,.95))', animation: an(`skyTwinkle ${(2 + k * 0.4).toFixed(1)}s ease-in-out ${(-k * 0.3).toFixed(1)}s infinite`) }} />
             ))}
           </svg>
         </div>

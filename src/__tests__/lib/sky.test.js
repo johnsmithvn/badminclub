@@ -1,7 +1,7 @@
 // node src/__tests__/lib/sky.test.js
 // Nền bầu trời trang chủ: chọn nhân vật + câu thoại theo số liệu (lib/sky.js, docs/HOME_SKY.md).
 import assert from 'node:assert/strict'
-import { OWL_WAKE, SKY_ACT_MS, SKY_CAST, UFO_GIVE_BACK, UFO_HUH, UFO_OUTCOMES, beatenBy, createBags, fxMs, isLate, normSkyPrefs, SKY_FX, SKY_FX_MAX, lastMatchOf, lastPlayedAt, moonAge, SKY_PREFS_V, shortName, shuffled, skyFacts, skyFoes, skyLines, skyMode, stageNext, ufoPool, ufoScript } from '#lib/sky.js'
+import { OWL_WAKE, SKY_ACT_MS, SKY_CAST, UFO_GIVE_BACK, UFO_HUH, UFO_OUTCOMES, beatenBy, createBags, fxMs, isLate, normSkyPrefs, SKY_FX, SKY_FX_MAX, lastMatchOf, lastPlayedAt, moonAge, opponentsOf, SKY_PREFS_V, shortName, shuffled, skyFacts, skyFoes, skyLines, skyMode, stageNext, ufoPool, ufoScript } from '#lib/sky.js'
 import vi from '#i18n/vi.json' with { type: 'json' }
 import cfg from '#config/app.json' with { type: 'json' }
 import { ROUTE_KEYS } from '#routes'
@@ -215,6 +215,23 @@ assert.deepEqual(skyFoes({ meId: 'me', female: false }).foes, [], 'chưa có BXH
 assert.equal(skyFoes({ meId: 'me', top: TOP, arch: P('c'), beatBy: P('z') }).dare, 'Nz', 'gạ kèo: ưu tiên người vừa thắng mình')
 assert.equal(skyFoes({ meId: 'me', top: TOP, arch: P('c') }).dare, 'Nc', 'không ai vừa thắng mình → kỳ phùng địch thủ')
 assert.equal(skyFoes({ meId: 'me', top: TOP }).dare, '', 'không có ai để gạ thì không có câu gạ kèo')
+{
+  // Nhóm gạ kèo: người vừa thắng mình + người hạ mình gần đây + người hay đối đầu + kỳ phùng địch thủ, không trùng
+  const f = skyFoes({ meId: 'me', female: false, top: TOP, arch: P('c'), beatBy: P('z'), beaters: [P('z'), P('b')], rivals: [P('d'), P('me')] })
+  assert.deepEqual(f.dares, ['Nz', 'Nb', 'Nd', 'Nc'], 'gạ kèo: vừa thắng mình → hạ mình gần đây → hay đối đầu → kỳ phùng, trừ mình, không trùng')
+  const g = skyFoes({ meId: 'me', female: true, top: TOP, beaters: [P('a'), P('b', true)] })
+  assert.deepEqual(g.dares, ['Na', 'Nb', 'Nb'], 'người xem là nữ: tên nữ góp hai lần (ra nhiều hơn), tên nam vẫn có')
+  assert.deepEqual(skyFoes({ meId: 'me', top: TOP }).dares, [])
+  assert.deepEqual(skyLines({ ...DEFAULT, dares: ['Na', 'Nb'] }, 'A').banner[1], ['sky.banner.dare', { dares: ['Na', 'Nb'] }], 'có nhóm tên → câu gạ kèo mang cả nhóm, rút tên lúc bay')
+}
+{
+  const M = (at, a, b, w) => ({ at, teamA: a, teamB: b, winnerTeam: w })
+  const ms = [M(1, ['me'], ['x'], 'B'), M(2, ['me', 'p'], ['x', 'y'], 'A'), M(3, ['y'], ['me'], 'A'), M(4, ['me'], ['x'], 'A'), M(5, ['q'], ['r'], 'A')]
+  const o = opponentsOf(ms, 'me')
+  assert.deepEqual(o.beaters, ['y', 'x'], 'người hạ mình, trận mới trước, không trùng; đồng đội không tính')
+  assert.deepEqual(o.rivals, ['x', 'y'], 'đối đầu nhiều nhất: x gặp 3 trận, y 2 trận; trận không có mình bỏ qua')
+  assert.deepEqual(opponentsOf(ms, 'me', { recent: 1 }).beaters, [], 'chỉ xét `recent` trận gần nhất (trận 4 mình thắng)')
+}
 
 const fo = skyLines({ ...DEFAULT, dare: 'Vương', foes: ['Vương', 'Hương Giang'] }, 'A')
 assert.deepEqual(fo.banner[1], ['sky.banner.dare', { name: 'Vương' }])

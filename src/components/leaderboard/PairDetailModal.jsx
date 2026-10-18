@@ -144,7 +144,7 @@ export default function PairDetailModal({ pair, onClose, onViewMatches, ratingsM
   // Giao diện P2 Mobile Bottom Sheet
   if (isMobile) {
     return (
-      <div
+      <div role="dialog" aria-modal="true"
         style={{
           position: 'fixed',
           inset: 0,
@@ -364,7 +364,7 @@ export default function PairDetailModal({ pair, onClose, onViewMatches, ratingsM
   }
 
   return (
-    <div
+    <div role="dialog" aria-modal="true"
       style={{
         position: 'fixed',
         inset: 0,

@@ -94,7 +94,7 @@ export default function BalanceScore({
     : t('assign.matchupNotEnoughNote', { games: matchupGames })
 
   return (
-    <div
+    <div role="dialog" aria-modal="true"
       style={{
         position: 'fixed',
         inset: 0,

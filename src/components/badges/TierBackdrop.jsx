@@ -125,7 +125,9 @@ export default function TierBackdrop({ tier, compact = false }) {
                   height: compact ? 260 : 400,
                   marginLeft: -w / 2,
                   background: `linear-gradient(180deg,transparent,rgba(${c1},.5) 30%,rgba(${c2},.45) 62%,transparent)`,
-                  filter: `blur(${compact ? 20 : 22}px)`,
+                  // Rìa mềm bằng mặt nạ mờ dần hai bên thay cho filter blur (vùng đệm nhoè chạy theo animation rất nặng trên điện thoại)
+                  WebkitMaskImage: 'linear-gradient(90deg,transparent,#000 30%,#000 70%,transparent)',
+                  maskImage: 'linear-gradient(90deg,transparent,#000 30%,#000 70%,transparent)',
                   transformOrigin: 'top',
                   mixBlendMode: light ? 'normal' : 'screen',
                   opacity: light ? 0.5 : undefined,

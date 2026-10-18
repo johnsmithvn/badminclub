@@ -728,6 +728,8 @@ export default function SessionPlannerTab({ s: sProp, session: sessionProp, chal
 
   return (
     <div
+      // Toàn màn hình = như một popup: gắn aria-modal để nền trời được gỡ, nhường bộ nhớ vẽ (effects.css)
+      aria-modal={isFullscreen ? 'true' : undefined}
       style={{
         ...S.mainCard,
         ...(isFullscreen ? S.fullscreenWrap : {}),

@@ -38,6 +38,24 @@ export function beatenBy(m, memberId) {
 }
 
 /**
+ * Người hay gặp trên sân của `meId` (chỉ id): `beaters` = người hạ mình trong `recent` trận gần nhất (trận mới
+ * trước), `rivals` = tối đa `top` người đứng phía bên kia lưới với mình nhiều trận nhất (mọi trận).
+ */
+export function opponentsOf(matches, meId, { recent = 10, top = 3 } = {}) {
+  const mine = (matches || [])
+    .filter((m) => (m.teamA || []).includes(meId) || (m.teamB || []).includes(meId))
+    .sort((a, b) => (b.at || 0) - (a.at || 0))
+  const beaters = [], count = new Map()
+  mine.forEach((m, i) => {
+    const inA = (m.teamA || []).includes(meId), opp = (inA ? m.teamB : m.teamA) || []
+    opp.forEach((pid) => count.set(pid, (count.get(pid) || 0) + 1))
+    if (i < recent && m.winnerTeam && (m.winnerTeam === 'A') !== inA) opp.forEach((pid) => { if (!beaters.includes(pid)) beaters.push(pid) })
+  })
+  const rivals = [...count.entries()].sort((a, b) => b[1] - a[1]).slice(0, top).map(([pid]) => pid)
+  return { beaters, rivals }
+}
+
+/**
  * Tên chèn vào câu thoại: dài quá `max` ký tự thì cắt, ưu tiên cắt ở khoảng trắng, thêm "…". CLB có tên
  * hơn 70 ký tự (kèm mặt cười ◕⩊◕) — để nguyên thì bóng thoại / thẻ điều ước dài ba bốn dòng.
  */
@@ -173,18 +191,23 @@ export function skyFacts({ hero, form, lastAt, now }) {
 /**
  * Người để nhân vật réo tên. Mỗi người dạng { id, name, female }: `top` = BXH mùa theo hạng, `arch` =
  * kỳ phùng địch thủ (activity.js → getPersonalHighlights), `beatBy` = người vừa thắng mình ở trận gần nhất.
- * - `dare` (băng rôn "Gạ kèo …"): người vừa thắng mình, không có thì kỳ phùng địch thủ.
+ * - `dare`: người vừa thắng mình, không có thì kỳ phùng địch thủ (người đứng đầu nhóm gạ kèo).
+ * - `dares` (băng rôn "Gạ kèo …", mỗi lượt bay rút một tên): người vừa thắng mình, những người hạ mình gần đây
+ *   (`beaters`), người hay đối đầu nhất (`rivals`), kỳ phùng địch thủ — không trùng, trừ mình. Người xem là nữ thì
+ *   tên nữ góp hai lần (ra nhiều hơn), tên nam vẫn có.
  * - `foes` (điều ước réo tên): kỳ phùng địch thủ + 5 người cao nhất BXH mùa, trừ mình. Người xem là nữ
  *   thì chỉ lấy nữ (kỳ phùng địch thủ nếu là nữ + 5 bạn nữ cao nhất); không có ai thì lấy như thường.
  */
-export function skyFoes({ meId, female, top = [], arch = null, beatBy = null }) {
+export function skyFoes({ meId, female, top = [], arch = null, beatBy = null, beaters = [], rivals = [] }) {
   const pick = (girls) => {
     const ok = (p) => p && p.id !== meId && (!girls || p.female)
     const ppl = [arch, ...top.filter(ok).slice(0, 5)].filter(ok)
     return [...new Map(ppl.map((p) => [p.id, p.name])).values()]
   }
   const girls = female ? pick(true) : []
-  return { dare: beatBy?.name || arch?.name || '', foes: girls.length ? girls : pick(false) }
+  const pool = [...new Map([beatBy, ...beaters, ...rivals, arch].filter((p) => p && p.id !== meId).map((p) => [p.id, p])).values()]
+  const dares = pool.flatMap((p) => (female && p.female ? [p.name, p.name] : [p.name]))
+  return { dare: beatBy?.name || arch?.name || '', dares, foes: girls.length ? girls : pick(false) }
 }
 
 /** Câu theo số liệu — chỉ ở băng rôn (skyLines). */
@@ -212,7 +235,8 @@ export function skyLines(st, name) {
     // Nghỉ lâu: câu "Vợt đang nhớ bạn đấy" lên đầu băng rôn bản không mặt cười, nên bỏ câu cùng ý trong dl.
     // Chưa ghép thành viên (không có tên) thì bỏ câu gọi tên. Nghỉ lâu thì bỏ câu "trốn đi đánh cầu hơi nhiều".
     banner: (away ? [['sky.banner.missRacket']] : name ? [['sky.banner.tonight', { name }]] : [])
-      .concat(st.dare ? [['sky.banner.dare', { name: st.dare }]] : [])
+      // Gạ kèo: có nhóm tên thì mỗi lượt bay rút một tên (SkyBackdrop → bannerText), không thì một tên cố định
+      .concat(st.dares?.length ? [['sky.banner.dare', { dares: st.dares }]] : st.dare ? [['sky.banner.dare', { name: st.dare }]] : [])
       .concat([['sky.banner.chores'], ['sky.banner.moms'], ['sky.banner.wow']], away ? [] : [['sky.banner.sneak']], [['sky.banner.hoaSen']])
       .concat(dl.slice(away ? 1 : 0)),
     hero: [['sky.hero.top1'], ['sky.hero.saveWorld'], ['sky.hero.forgotBag'], ['sky.hero.supersonic'], ['sky.hero.riceCooker'], ['sky.hero.noRacket']],

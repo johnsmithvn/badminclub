@@ -59,11 +59,12 @@ export default function BadgeHex({
           {motion.pulse && (
             <div
               style={{
+                // Quầng sáng: dải tròn tự mềm, KHÔNG filter blur — mỗi huy hiệu một lớp nhoè chạy liên tục làm điện
+                // thoại lag / mất hình ở trang nhiều huy hiệu. Inset nhỏ hơn bù phần toả của blur cũ.
                 position: 'absolute',
-                inset: 6 * k,
+                inset: 2 * k,
                 borderRadius: 999,
-                background: `radial-gradient(circle,${glow},transparent 70%)`,
-                filter: `blur(${8 * k}px)`,
+                background: `radial-gradient(circle,${glow},transparent 66%)`,
                 animation: 'bhPulse 3.2s ease-in-out infinite',
               }}
             />

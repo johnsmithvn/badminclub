@@ -103,6 +103,19 @@ các token dưới, **giữ nguyên màu** của `dark.css` / `semantic.css`:
 - Luật tạm dừng trời khi mở popup chỉ dò `[aria-modal]` (DS Dialog, `ModalOverlay` đều gắn). Đừng thêm
   `:has([style*=…])` ở gốc trang: mỗi lần một style đổi, trình duyệt phải quét lại cả cây DOM.
 
+**Quy tắc hiệu năng điện thoại (nền trời + trang nặng)** — điện thoại có ngân sách bộ nhớ vẽ nhỏ; vượt là Chrome bỏ
+vẽ một phần (mất mảng nội dung, sheet trống nửa dưới):
+- Không `filter: blur()` lên khối chỉ là dải màu (radial / linear gradient đã mềm sẵn); rìa cứng thì dùng `mask-image`.
+- Không `drop-shadow` / `blur` trên phần tử có animation chạy liên tục (mỗi khung hình tính lại bộ lọc) — trên điện
+  thoại bỏ hẳn, desktop chỉ khi phần tử nhỏ.
+- Lớp cỡ cả màn có animation (sao lấp lánh…) là một vùng đệm GPU cỡ màn hình × mật độ điểm ảnh: điện thoại giữ ít nhất có
+  thể, phần còn lại để đứng yên (được vẽ gộp vào nền).
+- **Popup phải mượt là ưu tiên số 1:** popup / sheet mở (`aria-modal`) thì nền trời bị **gỡ hẳn** (`display: none`, mọi máy)
+  và mọi lớp phủ `position: fixed` bỏ `backdrop-filter`; trong popup nền đặc, không kính (`effects.css`; JS dự phòng trong
+  `SkyBackdrop` cho trình duyệt không hiểu `:has`). **Mọi lớp phủ popup mới phải gắn `role="dialog" aria-modal="true"`**
+  (DS `Dialog`, `ModalOverlay` đã có sẵn) — thiếu là popup đó vẫn vẽ chung với trời và có thể trống trên điện thoại.
+- Thanh điều hướng / header điện thoại không `backdrop-filter` (trời chuyển động phía sau → làm mờ lại mỗi khung hình).
+
 ### 2.2b Header trên trang có nền trời
 
 Header trong suốt, nút nằm thẳng trên nền trời: header chung (`AppHeader`, mobile lẫn desktop) ở trang có nền trời bỏ nền / viền;

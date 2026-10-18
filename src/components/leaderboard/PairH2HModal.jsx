@@ -52,7 +52,7 @@ export default function PairH2HModal({
   const recent3 = [...h2hMatches].reverse().slice(0, 3)
 
   return (
-    <div
+    <div role="dialog" aria-modal="true"
       style={{
         position: 'fixed',
         inset: 0,

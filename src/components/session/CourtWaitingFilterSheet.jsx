@@ -47,6 +47,7 @@ export default function CourtWaitingFilterSheet({
 
   return (
     <div
+      role="dialog" aria-modal="true"
       style={S.backdrop}
       onClick={onClose}
     >

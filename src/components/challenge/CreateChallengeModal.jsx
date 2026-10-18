@@ -167,7 +167,7 @@ export default function CreateChallengeModal({ session, onClose, onCreated, init
   ]
 
   return (
-    <div style={S.overlay}>
+    <div role="dialog" aria-modal="true" style={S.overlay}>
       <div style={S.modal}>
         {/* Modal Header */}
         <div style={S.header}>

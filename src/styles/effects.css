@@ -363,8 +363,29 @@
    phải làm mờ lại cả màn mỗi khung hình nếu trời phía sau còn chạy — gõ form trong dialog trên máy yếu sẽ
    giật. Chỉ dò [aria-modal]: dò chuỗi trong style bằng :has ở gốc trang thì MỖI lần một style đổi (cuộn,
    re-render) trình duyệt phải quét lại cả cây DOM — trang lớn như Danh hiệu giật hẳn. */
-[data-sky]:has([aria-modal="true"]) [data-sky-fx] * {
+:root:has([aria-modal="true"]) [data-sky-fx] * {
   animation-play-state: paused;
+}
+/* POPUP PHẢI MƯỢT (ưu tiên số 1, mọi kích thước màn): có popup / sheet đang mở (aria-modal) thì GỠ HẲN nền trời khỏi
+   khung hình (display: none — giải phóng mọi lớp GPU của trời, không chỉ dừng) và bỏ làm mờ của mọi lớp phủ toàn màn.
+   Điện thoại có ngân sách bộ nhớ vẽ nhỏ: nền trời nhiều lớp cỡ cả màn + vùng đệm làm mờ toàn màn ăn hết, nội dung popup
+   chỉ được vẽ một mảng hoặc trống trơn. Trình duyệt không hiểu :has (iOS < 15.4) có SkyBackdrop gỡ dự phòng bằng JS.
+   Mọi lớp phủ popup mới PHẢI gắn role="dialog" aria-modal="true" (DS Dialog, ModalOverlay đã có). */
+:root:has([aria-modal="true"]) [data-sky-fx] { display: none !important; }
+[style*="position: fixed"][style*="backdrop-filter"] {
+  -webkit-backdrop-filter: none !important;
+  backdrop-filter: none !important;
+}
+/* Trong popup: nền đặc (không kính trong suốt) — cùng màu gốc tokens/semantic.css · dark.css. */
+[data-sky] [aria-modal="true"] {
+  --surface-card: #FFFFFF;
+  --surface-inset: #F6F8FB;
+  --field-bg: #FFFFFF;
+}
+[data-theme="dark"] [data-sky] [aria-modal="true"], .theme-dark [data-sky] [aria-modal="true"] {
+  --surface-card: rgb(20, 29, 46);
+  --surface-inset: rgb(16, 25, 39);
+  --field-bg: rgb(16, 25, 39);
 }
 @media (prefers-reduced-motion: reduce) {
   [data-sky-fx] * { animation: none !important; }

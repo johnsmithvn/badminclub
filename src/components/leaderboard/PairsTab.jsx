@@ -24,7 +24,7 @@ function ConfidenceExplainerSheet({ onClose }) {
   const textMuted = isDark ? '#8494AA' : 'var(--text-muted)'
 
   return (
-    <div
+    <div role="dialog" aria-modal="true"
       style={{
         position: 'fixed',
         inset: 0,

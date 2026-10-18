@@ -146,6 +146,7 @@ export default function SessionStatsSheet({
 
   return (
     <div
+      role="dialog" aria-modal="true"
       style={S.backdrop}
       onClick={onClose}
     >
