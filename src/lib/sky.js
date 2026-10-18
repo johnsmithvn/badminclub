@@ -86,8 +86,9 @@ export function createBags(r = Math.random) {
 
 /**
  * Hiệu ứng bật / tắt được ở trang Giao diện (lưu theo thiết bị — ThemeContext → skyPrefs). Bật cái nào
- * cái đó chạy theo nhịp riêng, cùng lúc. `min` = số giây tối thiểu của ô "cứ N giây" (dài hơn một lượt
- * diễn để lượt sau không cắt ngang); không có `min` = chỉ bật / tắt. Mặc định N ở app.json → sky.fx.
+ * cái đó chạy theo nhịp riêng (băng rôn, đom đóm, siêu nhân, UFO thay phiên trên một sân khấu — SkyBackdrop).
+ * `min` = số giây tối thiểu của ô số (hoạt cảnh đêm: dài hơn một lượt diễn để lượt sau không cắt ngang);
+ * không có `min` = chỉ bật / tắt. Mặc định N ở app.json → sky.fx.
  * Ngoài danh sách này còn công tắc `ambient` = nhóm hiệu ứng nền (tinh vân, đom đóm bay, cá voi…).
  */
 export const SKY_FX = [
@@ -196,20 +197,21 @@ function dataLines(st) {
 
 /**
  * Lời của từng nhân vật, theo thứ tự xoay vòng (bấm → câu kế).
- * `name` = tên người đang xem (băng rôn gọi tên).
+ * `name` = tên người đang xem (băng rôn gọi tên). Câu theo số liệu (dataLines) CHỈ ở băng rôn — cú và
+ * siêu nhân nói câu cố định, khỏi ba nhân vật cùng nhắc một câu "Vừa lên N hạng".
  */
 export function skyLines(st, name) {
   const dl = dataLines(st)
   const away = st.off >= C.awayDays
   return {
-    owl: (away ? [] : [['sky.owl.sleep'], ['sky.owl.peek'], ['sky.owl.hunt'], ['sky.owl.late'], ['sky.owl.bed']]).concat(dl),
+    owl: [['sky.owl.sleep'], ['sky.owl.peek'], ['sky.owl.hunt'], ['sky.owl.late'], ['sky.owl.bed']],
     // Nghỉ lâu: câu "Vợt đang nhớ bạn đấy" lên đầu băng rôn bản không mặt cười, nên bỏ câu cùng ý trong dl.
     // Chưa ghép thành viên (không có tên) thì bỏ câu gọi tên. Nghỉ lâu thì bỏ câu "trốn đi đánh cầu hơi nhiều".
     banner: (away ? [['sky.banner.missRacket']] : name ? [['sky.banner.tonight', { name }]] : [])
       .concat(st.dare ? [['sky.banner.dare', { name: st.dare }]] : [])
       .concat([['sky.banner.chores'], ['sky.banner.moms'], ['sky.banner.wow']], away ? [] : [['sky.banner.sneak']], [['sky.banner.hoaSen']])
       .concat(dl.slice(away ? 1 : 0)),
-    hero: [['sky.hero.top1'], ['sky.hero.saveWorld'], ['sky.hero.forgotBag'], ['sky.hero.supersonic'], ['sky.hero.riceCooker'], ['sky.hero.noRacket']].concat(dl),
+    hero: [['sky.hero.top1'], ['sky.hero.saveWorld'], ['sky.hero.forgotBag'], ['sky.hero.supersonic'], ['sky.hero.riceCooker'], ['sky.hero.noRacket']],
     wish: [['sky.wish.smash'], ['sky.wish.net']]
       .concat(st.rival ? [['sky.wish.pass', { name: st.rival }]] : [])
       .concat([['sky.wish.feather'], ['sky.wish.partner'], ['sky.wish.miss'], ['sky.wish.both'], ['sky.wish.serve'], ['sky.wish.vibe'], ['sky.wish.boss']])

@@ -180,8 +180,6 @@ export default function SkyBackdrop({ mode, isMobile, scrollRef }) {
   const cuoi = useEvery(nightLive && P.on.cuoi, firstMs('cuoi'), fxMs(P, 'cuoi'), SKY_ACT_MS.cuoi)
   const fire = useEvery(nightLive && P.on.fireShuttle, firstMs('fireShuttle'), fxMs(P, 'fireShuttle'), SKY_ACT_MS.fireShuttle)
   const eclipse = useEvery(nightLive && P.on.eclipse, firstMs('eclipse'), fxMs(P, 'eclipse'), SKY_ACT_MS.eclipse)
-  // Xếp hình đom đóm: mỗi lượt một hình rút từ túi xáo (đủ cả bộ hình mới lặp).
-  const form = useEvery(nightLive && cast.includes('top1'), firstMs('top1'), fxMs(P, 'top1'), FORM_MS)
   // Sao băng cầu lửa xuất phát trong khúc trời đang thấy, lệch phải; chỗ đổi theo lượt (giả ngẫu nhiên, đứng yên khi re-render).
   const visW = vp.w / s, vis0 = -left / s
   const fireAt = { x: vis0 + visW * (0.55 + 0.35 * rnd(fire.n * 3 + 1)), y: 10 + 90 * rnd(fire.n * 3 + 2), dx: -(visW * 0.55 + 220), dy: (visW * 0.55 + 220) * 0.5317 }
@@ -207,27 +205,53 @@ export default function SkyBackdrop({ mode, isMobile, scrollRef }) {
     return () => main.removeEventListener('scroll', on)
   }, [s, scrollRef])
 
-  // Siêu nhân / UFO: cảnh viết tay bằng Web Animations, mỗi loại một nhịp riêng: lượt đầu sau *FirstMs
-  // (app.json), rồi "cứ N giây" tính từ lúc lượt trước bắt đầu — cảnh dài hơn N thì đợi bay xong.
+  // Sân khấu chung: siêu nhân, UFO (cảnh viết tay bằng Web Animations), băng rôn và xếp hình đom đóm (chỉ
+  // đêm) THAY PHIÊN — mỗi lúc một cảnh. Mỗi cảnh giữ nhịp riêng: lượt đầu sau *FirstMs (app.json), rồi nghỉ
+  // "N giây" (trang Giao diện) tính từ lúc diễn xong. Tới lượt mà sân đang bận thì đợi cảnh kia xong +
+  // sky.stageGapMs; nhiều cảnh cùng chờ thì cảnh tới hạn sớm nhất lên trước.
   const sceneRef = useRef(null)
-  const flyKinds = cast.filter((c) => c === 'hero' || c === 'ufo').join()
+  // Băng rôn: mỗi `lap` là MỘT lượt bay (key đổi → animation chạy lại). Đom đóm: `n` = lượt, `on` = đang xếp
+  // (mỗi lượt một hình rút từ túi xáo, đủ cả bộ hình mới lặp).
+  const [ban, setBan] = useState({ lap: 0, i: 0 })
+  const [form, setForm] = useState({ n: 0, on: false })
+  const stageKinds = cast.filter((k) => k !== 'owl' && (k !== 'top1' || isDark)).join()
   useEffect(() => {
     const host = sceneRef.current
-    if (!motion || !flyKinds || !host) return
+    if (!live || !stageKinds || !host) return
     const timers = new Set()
     const later = (fn, ms) => { const id = setTimeout(() => { timers.delete(id); fn() }, ms); timers.add(id) }
-    flyKinds.split(',').forEach((kind) => {
-      const run = kind === 'hero' ? heroFly : ufoScene
-      const go = () => {
-        // Tab ẩn thì animation không chạy tới onfinish — đợi tab hiện lại mới bay, khỏi chất đống phần tử.
-        if (document.hidden || !host.isConnected) return later(go, 1000)
-        const dur = run({ host, later, bags, dark: isDark, ly, H: vhRef.current, fk: fkRef.current, ...data.current })
-        later(go, Math.max(dur, fxMs(prefRef.current, kind)))
+    const kinds = stageKinds.split(','), t0 = Date.now()
+    const due = Object.fromEntries(kinds.map((k) => [k, t0 + Math.min(C[k + 'FirstMs'], fxMs(prefRef.current, k))]))
+    let free = 0
+    /** Cho cảnh `k` lên sân, trả về thời lượng (ms). */
+    const play = (k) => {
+      if (k === 'banner') {
+        const i = bags('banner', data.current.lines.banner.length)
+        setBan((b) => ({ lap: b.lap + 1, i }))
+        return BANNER_FLY_MS
       }
-      later(go, Math.min(C[kind + 'FirstMs'], fxMs(prefRef.current, kind)))
-    })
-    return () => { timers.forEach(clearTimeout); host.replaceChildren() }
-  }, [motion, flyKinds, isDark, ly, bags])
+      if (k === 'top1') {
+        setForm((f) => ({ n: f.n + 1, on: true }))
+        later(() => setForm((f) => ({ ...f, on: false })), FORM_MS)
+        return FORM_MS
+      }
+      return (k === 'hero' ? heroFly : ufoScene)({ host, later, bags, dark: isDark, ly, H: vhRef.current, fk: fkRef.current, ...data.current })
+    }
+    const tick = () => {
+      // Tab ẩn thì animation không chạy tới onfinish — đợi tab hiện lại mới diễn, khỏi chất đống phần tử.
+      if (document.hidden || !host.isConnected) return later(tick, 1000)
+      const now = Date.now()
+      const k = kinds.reduce((a, b) => (due[b] < due[a] ? b : a))
+      const at = Math.max(free, due[k])
+      if (at > now) return later(tick, at - now)
+      const end = now + play(k)
+      free = end + C.stageGapMs
+      due[k] = end + fxMs(prefRef.current, k)
+      later(tick, free - now)
+    }
+    tick()
+    return () => { timers.forEach(clearTimeout); host.replaceChildren(); setForm((f) => (f.on ? { ...f, on: false } : f)) }
+  }, [live, stageKinds, isDark, ly, bags])
 
   // Sao ước (chỉ đêm): bay ngang header, bấm vào → bung sáng + một điều ước. Cứ N giây một ngôi.
   const flyRef = useRef(null)
@@ -276,23 +300,8 @@ export default function SkyBackdrop({ mode, isMobile, scrollRef }) {
     return () => { clearInterval(iv); evs.forEach((e) => window.removeEventListener(e, poke, { capture: true })) }
   }, [live, hasOwl, owlAwake, P.on.owlDoze])
 
-  // Băng rôn: mỗi `lap` là MỘT lượt bay (key đổi → animation chạy lại); cứ N giây một lượt (N ≥ 20 dài hơn
-  // một lượt bay). Mỗi lượt / mỗi lần bấm một câu từ túi xáo.
+  // Băng rôn (lịch ở sân khấu chung phía trên): bấm → câu kế từ túi xáo.
   const hasBanner = cast.includes('banner')
-  const [ban, setBan] = useState({ lap: 0, i: 0 })
-  useEffect(() => {
-    if (!live || !hasBanner) return
-    let id
-    const fly = (ms) => {
-      id = setTimeout(() => {
-        const i = bags('banner', data.current.lines.banner.length)
-        setBan((b) => ({ lap: b.lap + 1, i }))
-        fly(fxMs(prefRef.current, 'banner'))
-      }, ms)
-    }
-    fly(Math.min(C.bannerFirstMs, fxMs(prefRef.current, 'banner')))
-    return () => clearTimeout(id)
-  }, [live, hasBanner, bags])
   const nextBanner = () => {
     const i = bags('banner', lines.banner.length)
     setBan((b) => ({ ...b, i }))

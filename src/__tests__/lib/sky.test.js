@@ -82,31 +82,30 @@ assert.deepEqual(unknown, [], 'app.json gõ sai tên route thì trang đó lặn
 
 /* ---------- câu theo số liệu ---------- */
 const d = skyLines(DEFAULT, 'Canh lá ngón')
-assert.deepEqual(keys(d.owl), ['sky.owl.sleep', 'sky.owl.peek', 'sky.owl.hunt', 'sky.owl.late', 'sky.owl.bed', 'sky.line.drop', 'sky.line.streak'],
-  'mặc định (hạng 2, tụt 1, chuỗi 2): cú an ủi tụt hạng và khen chuỗi — không còn câu "còn N điểm là vượt" / "cách hạng"')
-assert.deepEqual(d.owl[5][1], { n: 1 })
-assert.deepEqual(keys(d.banner), ['sky.banner.tonight', ...BANNER, 'sky.line.drop', 'sky.line.streak'])
+assert.deepEqual(keys(d.owl), ['sky.owl.sleep', 'sky.owl.peek', 'sky.owl.hunt', 'sky.owl.late', 'sky.owl.bed'], 'câu theo số liệu chỉ ở băng rôn: cú chỉ nói câu cố định')
+assert.deepEqual(keys(d.banner), ['sky.banner.tonight', ...BANNER, 'sky.line.drop', 'sky.line.streak'],
+  'mặc định (hạng 2, tụt 1, chuỗi 2): băng rôn an ủi tụt hạng và khen chuỗi — không còn câu "còn N điểm là vượt" / "cách hạng"')
+assert.deepEqual(d.banner.at(-2)[1], { n: 1 })
 assert.deepEqual(d.banner[0][1], { name: 'Canh lá ngón' }, 'băng rôn phải gọi đúng tên người đang xem')
-assert.deepEqual(keys(d.hero), [...HERO, 'sky.line.drop', 'sky.line.streak'])
+assert.deepEqual(keys(d.hero), HERO, 'câu theo số liệu chỉ ở băng rôn: siêu nhân chỉ nói câu cố định')
 assert.ok(keys(d.wish).includes('sky.wish.pass'), 'có người trên thì có điều ước "vượt <tên>"')
 
 const l = skyLines(LEADER, 'A')
-assert.deepEqual(keys(l.owl), ['sky.owl.sleep', 'sky.owl.peek', 'sky.owl.hunt', 'sky.owl.late', 'sky.owl.bed', 'sky.line.leader', 'sky.line.streak'],
+assert.deepEqual(keys(l.banner).filter((k) => k.startsWith('sky.line.')), ['sky.line.leader', 'sky.line.streak'],
   'đang hạng 1: không được khen "vừa lên hạng" (đã hết hạng để lên)')
 assert.ok(!keys(l.wish).includes('sky.wish.pass'), 'đang hạng 1 thì không còn ai để ước vượt')
 
 const a = skyLines(AWAY, 'A')
-assert.deepEqual(keys(a.owl), ['sky.line.missRacket', 'sky.line.daysOff'],
-  'nghỉ 12 ngày: cú thôi giục đi ngủ / phục thù, không xát muối tụt hạng, chỉ nhắc ra sân')
-assert.deepEqual(a.owl[1][1], { n: 12 })
+assert.deepEqual(keys(a.owl), ['sky.owl.sleep', 'sky.owl.peek', 'sky.owl.hunt', 'sky.owl.late', 'sky.owl.bed'], 'nghỉ lâu cú vẫn nói câu cố định — nhắc ra sân là việc của băng rôn')
+assert.deepEqual(a.banner.at(-1), ['sky.line.daysOff', { n: 12 }], 'nghỉ 12 ngày: không xát muối tụt hạng, chỉ nhắc ra sân')
 assert.deepEqual(keys(a.banner), ['sky.banner.missRacket', ...BANNER.filter((k) => k !== 'sky.banner.sneak'), 'sky.line.daysOff'],
   'nghỉ lâu: băng rôn mở bằng "Vợt đang nhớ bạn đấy", không lặp lại câu đó, không trêu "trốn đi đánh cầu hơi nhiều"')
 
 const h = skyLines(HOT, 'A')
-assert.ok(keys(h.owl).includes('sky.line.rise') && !keys(h.owl).includes('sky.line.drop'))
-assert.deepEqual(h.owl.at(-1), ['sky.line.streak', { n: 5 }])
+assert.ok(keys(h.banner).includes('sky.line.rise') && !keys(h.banner).includes('sky.line.drop'))
+assert.deepEqual(h.banner.at(-1), ['sky.line.streak', { n: 5 }])
 
-assert.deepEqual(keys(skyLines({ ...DEFAULT, rank: null, rival: '', rd: 0, streak: 0 }, 'A').owl), ['sky.owl.sleep', 'sky.owl.peek', 'sky.owl.hunt', 'sky.owl.late', 'sky.owl.bed'],
+assert.deepEqual(keys(skyLines({ ...DEFAULT, rank: null, rival: '', rd: 0, streak: 0 }, 'A').banner).filter((k) => k.startsWith('sky.line.')), [],
   'chưa có hạng mùa thì không được nói "Cách hạng 0" hay "vượt undefined"')
 
 /* ---------- cảnh UFO ---------- */
