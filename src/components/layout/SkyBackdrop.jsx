@@ -8,7 +8,7 @@ import { getMyHeroStats, getPlayerForm5 } from '#lib/homePersonal.js'
 import { getPersonalHighlights } from '#lib/activity.js'
 import { isFemalePlayer } from '#lib/rating.js'
 import { calculateSeasonLeaderboard } from '#lib/season.js'
-import { OWL_WAKE, SKY_ACT_MS, SKY_CAST, UFO_GIVE_BACK, UFO_HUH, beatenBy, createBags, fxMs, isLate, lastMatchOf, moonAge, shortName, skyFacts, skyFoes, skyLines, ufoPool, ufoScript } from '#lib/sky.js'
+import { OWL_WAKE, SKY_ACT_MS, SKY_CAST, UFO_GIVE_BACK, UFO_HUH, beatenBy, createBags, fxMs, isLate, lastMatchOf, moonAge, shortName, skyFacts, skyFoes, skyLines, stageNext, ufoPool, ufoScript } from '#lib/sky.js'
 import cfg from '#config/app.js'
 
 /**
@@ -210,9 +210,10 @@ export default function SkyBackdrop({ mode, isMobile, scrollRef }) {
   // "N giây" (trang Giao diện) tính từ lúc diễn xong. Tới lượt mà sân đang bận thì đợi cảnh kia xong +
   // sky.stageGapMs; nhiều cảnh cùng chờ thì cảnh tới hạn sớm nhất lên trước.
   const sceneRef = useRef(null)
-  // Băng rôn: mỗi `lap` là MỘT lượt bay (key đổi → animation chạy lại). Đom đóm: `n` = lượt, `on` = đang xếp
-  // (mỗi lượt một hình rút từ túi xáo, đủ cả bộ hình mới lặp).
-  const [ban, setBan] = useState({ lap: 0, i: 0 })
+  // Băng rôn: mỗi `lap` là MỘT lượt bay (key đổi → animation chạy lại), `on` = đang bay — bay xong là gỡ, khỏi
+  // để phần tử vô hình chạy hiệu ứng ngầm. Đom đóm: `n` = lượt, `on` = đang xếp (mỗi lượt một hình rút từ túi
+  // xáo, đủ cả bộ hình mới lặp).
+  const [ban, setBan] = useState({ lap: 0, i: 0, on: false })
   const [form, setForm] = useState({ n: 0, on: false })
   const stageKinds = cast.filter((k) => k !== 'owl' && (k !== 'top1' || isDark)).join()
   useEffect(() => {
@@ -220,14 +221,15 @@ export default function SkyBackdrop({ mode, isMobile, scrollRef }) {
     if (!live || !stageKinds || !host) return
     const timers = new Set()
     const later = (fn, ms) => { const id = setTimeout(() => { timers.delete(id); fn() }, ms); timers.add(id) }
-    const kinds = stageKinds.split(','), t0 = Date.now()
-    const due = Object.fromEntries(kinds.map((k) => [k, t0 + Math.min(C[k + 'FirstMs'], fxMs(prefRef.current, k))]))
+    const t0 = Date.now()
+    const due = Object.fromEntries(stageKinds.split(',').map((k) => [k, t0 + Math.min(C[k + 'FirstMs'], fxMs(prefRef.current, k))]))
     let free = 0
     /** Cho cảnh `k` lên sân, trả về thời lượng (ms). */
     const play = (k) => {
       if (k === 'banner') {
         const i = bags('banner', data.current.lines.banner.length)
-        setBan((b) => ({ lap: b.lap + 1, i }))
+        setBan((b) => ({ lap: b.lap + 1, i, on: true }))
+        later(() => setBan((b) => ({ ...b, on: false })), BANNER_FLY_MS)
         return BANNER_FLY_MS
       }
       if (k === 'top1') {
@@ -241,8 +243,7 @@ export default function SkyBackdrop({ mode, isMobile, scrollRef }) {
       // Tab ẩn thì animation không chạy tới onfinish — đợi tab hiện lại mới diễn, khỏi chất đống phần tử.
       if (document.hidden || !host.isConnected) return later(tick, 1000)
       const now = Date.now()
-      const k = kinds.reduce((a, b) => (due[b] < due[a] ? b : a))
-      const at = Math.max(free, due[k])
+      const { k, at } = stageNext(due, free)
       if (at > now) return later(tick, at - now)
       const end = now + play(k)
       free = end + C.stageGapMs
@@ -250,7 +251,12 @@ export default function SkyBackdrop({ mode, isMobile, scrollRef }) {
       later(tick, free - now)
     }
     tick()
-    return () => { timers.forEach(clearTimeout); host.replaceChildren(); setForm((f) => (f.on ? { ...f, on: false } : f)) }
+    return () => {
+      timers.forEach(clearTimeout)
+      host.replaceChildren()
+      setBan((b) => (b.on ? { ...b, on: false } : b))
+      setForm((f) => (f.on ? { ...f, on: false } : f))
+    }
   }, [live, stageKinds, isDark, ly, bags])
 
   // Sao ước (chỉ đêm): bay ngang header, bấm vào → bung sáng + một điều ước. Cứ N giây một ngôi.
@@ -330,7 +336,7 @@ export default function SkyBackdrop({ mode, isMobile, scrollRef }) {
             )}
             {/* Key có tiền tố: băng rôn và lượt đom đóm là anh em cùng cha, key số trơn trùng nhau (lượt 4 = lượt 4)
                 thì React để sót bản cũ — từng ra 2–3 máy bay cùng lúc và đọng phần tử chạy ngầm. */}
-            {hasBanner && ban.lap > 0 && (
+            {hasBanner && ban.on && (
               <Banner key={'ban' + ban.lap} ly={ly} fk={fk} dark={isDark} line={lines.banner[ban.i % lines.banner.length]} onNext={nextBanner} />
             )}
             {form.on && <Top1 key={'form' + form.n} ly={ly} bags={bags} />}

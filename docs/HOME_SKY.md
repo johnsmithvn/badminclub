@@ -1,6 +1,6 @@
 # HOME_SKY.md — Nền bầu trời
 
-**Version:** v1.8.0 · **Updated:** 2026-10-18 · nhân vật chỉ ở Trang chủ + BXH, trang chính khác bản nhẹ (`liteRoutes`) · sửa băng rôn nhân đôi (key trùng với lượt đom đóm) · siêu nhân mobile bay nhanh ngang desktop · v1.7.0: trang Giao diện (bật / tắt từng hiệu ứng, "cứ N giây"), nhân vật chạy cùng lúc, theme gốc · xếp hình đom đóm 40 s / lượt · bỏ cực quang · BXH: đối thủ thò đầu trêu (§4.8) · bỏ tooltip / nhãn phụ, bỏ cảnh "người đuổi theo", réo tên đối thủ (gạ kèo, điều ước), câu mới, tên dài cắt gọn, chữ giữ cỡ cố định, công tắc tắt hoạt ảnh
+**Version:** v1.9.0 · **Updated:** 2026-10-18 · sân khấu chung: băng rôn, đom đóm, siêu nhân, UFO thay phiên, nghỉ tính từ lúc diễn xong · câu số liệu chỉ ở băng rôn · băng rôn bay xong là gỡ · v1.8.0: nhân vật chỉ ở Trang chủ + BXH, trang chính khác bản nhẹ (`liteRoutes`) · sửa băng rôn nhân đôi (key trùng với lượt đom đóm) · siêu nhân mobile bay nhanh ngang desktop · v1.7.0: trang Giao diện (bật / tắt từng hiệu ứng, "cứ N giây"), nhân vật chạy cùng lúc, theme gốc · xếp hình đom đóm 40 s / lượt · bỏ cực quang · BXH: đối thủ thò đầu trêu (§4.8) · bỏ tooltip / nhãn phụ, bỏ cảnh "người đuổi theo", réo tên đối thủ (gạ kèo, điều ước), câu mới, tên dài cắt gọn, chữ giữ cỡ cố định, công tắc tắt hoạt ảnh
 
 Toàn bộ **tình huống** và **câu thoại** của nền bầu trời động (thiết kế gốc dựng cho trang chủ cá
 nhân, nay dùng chung nhiều trang), cho **cả hai chế độ** Tối (bầu trời sao) và Sáng (hoàng hôn trên
@@ -34,8 +34,9 @@ Danh sách ở `app.json → sky`:
 | `bgRoutes` — chỉ nền, đứng yên | Chi tiết buổi tập (`session`) · Bài thư viện (`libraryPost`) | Trời **tĩnh** (không hoạt hình — trang ghi điểm hay mở cả buổi tối, chạy liên tục tốn pin): nền, sao, trăng, ngân hà, đom đóm đứng yên / mây, núi, biển mây. Không sao băng, sao chổi, cá voi, chòm sao, mưa sao băng, máy bay, chim, không hoạt cảnh đêm (§2.1). **Không** nhân vật, **không** sao ước, không tính số liệu |
 | Không có nền | Tổng quan CLB, Lịch tháng, Giải đấu (mọi trang con), Công nợ, Sổ quỹ, Sơ đồ dữ liệu | Như cũ |
 
-- Nhân vật / hoạt cảnh nào **bật** ở trang Giao diện (§1.1) thì cùng ghé, mỗi loại "cứ N giây" một
-  lượt theo nhịp riêng (cú mèo thêm điều kiện khuya). Không còn kiểu "mỗi lần mở trang một nhân vật".
+- Nhân vật / hoạt cảnh nào **bật** ở trang Giao diện (§1.1) thì ghé, mỗi loại một nhịp riêng (cú mèo thêm
+  điều kiện khuya). Băng rôn, đom đóm xếp hình, siêu nhân, UFO dùng chung **một sân khấu**: mỗi lúc một
+  cảnh, thay phiên nhau (§4.1). Không còn kiểu "mỗi lần mở trang một nhân vật".
 - Số liệu nhân vật nói theo (§5) lấy đúng bằng các hàm của thẻ trang chủ, tính lại mỗi khi dữ liệu
   CLB đồng bộ (~4 ms trên dữ liệu thật 24 người / 118 trận).
 - Tài khoản chưa ghép thành viên CLB: vẫn có trời và nhân vật, nhưng không có câu theo số liệu và
@@ -79,18 +80,23 @@ không qua nút Lưu của CLB. Trang này cũng có nền trời phía sau nên
 | Hoạt cảnh đêm | Chú Cuội đánh cầu · Quả cầu lông lửa · Nguyệt thực trăng máu |
 | Khác | Cú ngủ gật (số giây màn hình yên) · Đối thủ thò đầu ở BXH (§4.8) |
 
-- Mỗi dòng có công tắc riêng; dòng có nhịp thêm ô **"cứ N giây"** (gõ số hoặc bấm −/+ 5). N tính từ lúc
-  lượt trước **bắt đầu**; lượt đang diễn dài hơn N thì đợi diễn xong. Mỗi hiệu ứng có **tối thiểu**
-  (dài hơn một lượt diễn): gõ thấp hơn vẫn lưu nhưng chạy theo tối thiểu, dòng mô tả báo rõ.
-- Lượt đầu sau khi mở trang: `app.json → sky.*FirstMs`, hoặc sau N nếu N nhỏ hơn.
+- Mỗi dòng có công tắc riêng; dòng có nhịp thêm ô số giây (gõ số hoặc bấm −/+ 5).
+  - **Băng rôn, đom đóm, siêu nhân, UFO** (sân khấu chung): N = số giây **nghỉ sau khi diễn xong**. Tới lượt
+    mà sân đang có cảnh khác thì đợi cảnh đó xong + `app.json → sky.stageGapMs` (4 s); nhiều cảnh cùng chờ
+    thì cảnh tới hạn sớm nhất lên trước (`lib/sky.js → stageNext`). Với mặc định, bốn cảnh nối nhau thành một
+    vòng ~1,5 phút, mỗi cảnh cách nhau ≥ 4 s.
+  - **Hoạt cảnh đêm, sao ước, đối thủ thò đầu**: "cứ N giây", tính từ lúc lượt trước **bắt đầu**; chạy riêng,
+    không xếp hàng với sân khấu.
+  - Mỗi hiệu ứng có **tối thiểu**: gõ thấp hơn vẫn lưu nhưng chạy theo tối thiểu, dòng mô tả báo rõ.
+- Lượt đầu sau khi mở trang: `app.json → sky.*FirstMs`, hoặc sau N nếu N nhỏ hơn (sân khấu: rồi còn xếp hàng).
 - "Về mặc định": bật lại hết, số giây về `app.json → sky.fx`.
 
-| Hiệu ứng | Mặc định "cứ N giây" | Tối thiểu | Lượt đầu |
+| Hiệu ứng | Mặc định N giây | Tối thiểu | Lượt đầu |
 | --- | --- | --- | --- |
-| Máy bay băng rôn | 38 | 20 | 6 s |
-| Đom đóm xếp hình | 40 | 27 | 3 s |
-| Siêu nhân | 43 | 10 | 10 s |
-| UFO bắt cóc | 44 | 15 | 8 s |
+| Máy bay băng rôn (sân khấu, nghỉ sau khi xong) | 38 | 20 | 6 s → xếp hàng (thường ~17 s) |
+| Đom đóm xếp hình (sân khấu, chỉ đêm) | 40 | 27 | 12 s → xếp hàng |
+| Siêu nhân (sân khấu) | 43 | 10 | 3 s |
+| UFO bắt cóc (sân khấu) | 44 | 15 | 8 s → xếp hàng |
 | Sao ước | 27 | 8 | 3 s |
 | Chú Cuội đánh cầu | 60 | 10 | 60 s |
 | Quả cầu lông lửa | 90 | 5 | 90 s |
@@ -194,11 +200,12 @@ lượt — mỗi phần tử đúng một lần — mới xáo lượt mới**;
 nối. Ví dụ UFO 5 kết cục: `[2, 0, 3, 1, 4]` → `[0, 4, 3, 1, 2]` → … Bấm vào nhân vật cũng rút từ
 cùng túi đó. Vị trí / hướng bay / độ cao vẫn ngẫu nhiên thường.
 
-Túi của mỗi nhân vật gồm **cả câu cố định lẫn câu theo số liệu của chính người đang xem** (mỗi người
-một danh sách khác nhau — §7). Số liệu đồng bộ lại làm danh sách dài / ngắn đi thì túi đó xáo lại từ
+Câu theo số liệu của chính người đang xem (§5.1) **chỉ nằm ở túi băng rôn** (mỗi người một danh sách khác
+nhau — §7); cú mèo và siêu nhân chỉ nói câu cố định, khỏi ba nhân vật cùng nhắc một câu. Số liệu đồng bộ lại làm danh sách dài / ngắn đi thì túi đó xáo lại từ
 đầu; số đổi mà số câu giữ nguyên thì túi đi tiếp, câu ra sau mang số mới.
 
-- **Ai ghé:** mọi nhân vật đang bật ở trang Giao diện (§1.1), **cùng lúc**, mỗi loại một nhịp.
+- **Ai ghé:** mọi nhân vật đang bật ở trang Giao diện (§1.1), mỗi loại một nhịp. Cú mèo đậu yên trên trăng;
+  băng rôn, đom đóm, siêu nhân, UFO **thay phiên trên một sân khấu** — mỗi lúc chỉ một cảnh (§1.1).
   - Cú mèo thêm điều kiện khuya (**22:00 → trước 04:00**, giờ máy người xem), chốt một lần lúc mở
     trang: đang mở mà đồng hồ qua 22h thì cú chưa ra, phải mở lại.
   - Xem trước `?sky=<tên>` / `?sky=all`: chỉ đúng nhân vật đó (hoặc cả 5), bỏ qua công tắc và giờ khuya.
@@ -352,7 +359,7 @@ Ngưỡng ở `app.json → sky`: `nearGap` 10 điểm (câu kêu UFO "Còn N đ
 
 ### 5.1 Bảng tình huống → câu theo số liệu
 
-Các câu dưới đây gọi chung là **câu số liệu**, dùng chung cho cú mèo, băng rôn, siêu nhân, xếp
+Các câu dưới đây gọi chung là **câu số liệu**, chỉ có ở băng rôn (cú mèo, siêu nhân nói câu cố định), xếp
 theo đúng thứ tự này:
 
 | # | Điều kiện | Câu (key `sky.line.*`) |
@@ -389,7 +396,7 @@ Mọi câu thoại được phân định rõ ràng thành hai nhóm:
 
 ### 6.1 Câu số liệu (§5.1) — Nhóm theo dữ liệu 100%
 
-Dùng chung cho Cú mèo, Băng rôn, Siêu nhân (xếp sau các câu mở đầu).
+Chỉ ở Băng rôn (xếp sau các câu mở đầu).
 
 | # | Điều kiện | Loại thoại | Câu (key `sky.line.*`) |
 | --- | --- | --- | --- |
@@ -404,7 +411,7 @@ Dùng chung cho Cú mèo, Băng rôn, Siêu nhân (xếp sau các câu mở đ�
 
 ### 6.2 Cú mèo
 
-Danh sách rút bằng túi xáo (§4.1): **5 câu mở cố định** (bỏ khi nghỉ ≥ 7 ngày) **+ toàn bộ câu số liệu** (§6.1).
+Danh sách rút bằng túi xáo (§4.1): **5 câu cố định**, kể cả khi nghỉ lâu (nhắc ra sân là việc của băng rôn).
 
 | Key | Loại | Câu |
 | --- | --- | --- |
@@ -446,7 +453,7 @@ liệu. Nghỉ ≥ 7 ngày: câu mở là "Vợt đang nhớ bạn đấy", **b�
 
 ### 6.4 Siêu nhân
 
-Danh sách rút bằng túi xáo (§4.1): **6 câu mở cố định** + toàn bộ câu số liệu (§6.1). Câu trong cảnh UFO diễn ra độc lập.
+Danh sách rút bằng túi xáo (§4.1): **6 câu cố định**. Câu trong cảnh UFO diễn ra độc lập.
 
 | Key | Loại | Câu |
 | --- | --- | --- |
@@ -559,15 +566,13 @@ nhau cho chế độ Tối và Sáng (riêng sao ước chỉ có ở Tối). Ng
 
 ### A. Mặc định (hạng 2, tụt 1, cách Hương Giang 5 điểm, chuỗi 2, nghỉ 1 ngày)
 
-**Cú mèo** (túi 7):
+**Cú mèo** (túi 5, câu cố định — câu số liệu chỉ ở băng rôn):
 
 1. Khuya rồi, ngủ đi. Mai còn phải phục thù. (－_－) zzZ
 2. Thức để soi BXH à? Điểm không tự tăng đâu. (¬‿¬)
 3. Cú thức đêm săn mồi, bạn thức đêm săn đối thủ ngày mai à? (¬‿¬)
 4. Thức khuya mai cầm vợt run tay lại đổ thừa cước căng 11kg...
 5. Nửa đêm rồi, vợt đi ngủ rồi, người cũng nên ngủ thôi. (－_－) zzZ
-6. Tụt 1 hạng thôi mà, mai lấy lại cả vốn lẫn lời. (•̀ᴗ•́)و
-7. Chuỗi 2 thắng rồi, đừng dừng lại! 🔥
 
 **Băng rôn máy bay** (túi 9):
 
@@ -581,7 +586,7 @@ nhau cho chế độ Tối và Sáng (riêng sao ước chỉ có ở Tối). Ng
 8. Tụt 1 hạng thôi mà, mai lấy lại cả vốn lẫn lời. (•̀ᴗ•́)و
 9. Chuỗi 2 thắng rồi, đừng dừng lại! 🔥
 
-**Siêu nhân bay ngang** (túi 8):
+**Siêu nhân bay ngang** (túi 6, câu cố định):
 
 1. Năm nay phải top 1! (•̀ᴗ•́)و ✧
 2. Cứu thế giới thì dễ, cứu pha cầu cắm vạch thì chịu! (ง •̀_•́)ง
@@ -589,8 +594,6 @@ nhau cho chế độ Tối và Sáng (riêng sao ước chỉ có ở Tối). Ng
 4. Bay với vận tốc này Smash mới cháy sân! 🔥
 5. Quên bật nồi cơm rồi
 6. Đi đánh cầu mà quên mang vợt :(((
-7. Tụt 1 hạng thôi mà, mai lấy lại cả vốn lẫn lời. (•̀ᴗ•́)و
-8. Chuỗi 2 thắng rồi, đừng dừng lại! 🔥
 
 **UFO bắt chính bạn** (áo teal):
 
@@ -627,15 +630,13 @@ nhau cho chế độ Tối và Sáng (riêng sao ước chỉ có ở Tối). Ng
 
 ### B. Đang chuỗi thắng (hạng 2, vừa lên 1, cách 2 điểm, chuỗi 5, đánh hôm nay)
 
-**Cú mèo** (túi 7):
+**Cú mèo** (túi 5, câu cố định — câu số liệu chỉ ở băng rôn):
 
 1. Khuya rồi, ngủ đi. Mai còn phải phục thù. (－_－) zzZ
 2. Thức để soi BXH à? Điểm không tự tăng đâu. (¬‿¬)
 3. Cú thức đêm săn mồi, bạn thức đêm săn đối thủ ngày mai à? (¬‿¬)
 4. Thức khuya mai cầm vợt run tay lại đổ thừa cước căng 11kg...
 5. Nửa đêm rồi, vợt đi ngủ rồi, người cũng nên ngủ thôi. (－_－) zzZ
-6. Vừa lên 1 hạng! Đà này ngon đấy ヽ(•‿•)ノ
-7. Chuỗi 5 thắng rồi, đừng dừng lại! 🔥
 
 **Băng rôn máy bay** (túi 9):
 
@@ -649,7 +650,7 @@ nhau cho chế độ Tối và Sáng (riêng sao ước chỉ có ở Tối). Ng
 8. Vừa lên 1 hạng! Đà này ngon đấy ヽ(•‿•)ノ
 9. Chuỗi 5 thắng rồi, đừng dừng lại! 🔥
 
-**Siêu nhân bay ngang** (túi 8):
+**Siêu nhân bay ngang** (túi 6, câu cố định):
 
 1. Năm nay phải top 1! (•̀ᴗ•́)و ✧
 2. Cứu thế giới thì dễ, cứu pha cầu cắm vạch thì chịu! (ง •̀_•́)ง
@@ -657,8 +658,6 @@ nhau cho chế độ Tối và Sáng (riêng sao ước chỉ có ở Tối). Ng
 4. Bay với vận tốc này Smash mới cháy sân! 🔥
 5. Quên bật nồi cơm rồi
 6. Đi đánh cầu mà quên mang vợt :(((
-7. Vừa lên 1 hạng! Đà này ngon đấy ヽ(•‿•)ノ
-8. Chuỗi 5 thắng rồi, đừng dừng lại! 🔥
 
 **UFO bắt chính bạn** (áo teal):
 
@@ -695,15 +694,13 @@ nhau cho chế độ Tối và Sáng (riêng sao ước chỉ có ở Tối). Ng
 
 ### C. Đang hạng 1 (vừa lên 1, chuỗi 3)
 
-**Cú mèo** (túi 7):
+**Cú mèo** (túi 5, câu cố định — câu số liệu chỉ ở băng rôn):
 
 1. Khuya rồi, ngủ đi. Mai còn phải phục thù. (－_－) zzZ
 2. Thức để soi BXH à? Điểm không tự tăng đâu. (¬‿¬)
 3. Cú thức đêm săn mồi, bạn thức đêm săn đối thủ ngày mai à? (¬‿¬)
 4. Thức khuya mai cầm vợt run tay lại đổ thừa cước căng 11kg...
 5. Nửa đêm rồi, vợt đi ngủ rồi, người cũng nên ngủ thôi. (－_－) zzZ
-6. Ngôi vương đang là của bạn, giữ chặt nhé! (￣▽￣)ゞ
-7. Chuỗi 3 thắng rồi, đừng dừng lại! 🔥
 
 **Băng rôn máy bay** (túi 9):
 
@@ -717,7 +714,7 @@ nhau cho chế độ Tối và Sáng (riêng sao ước chỉ có ở Tối). Ng
 8. Ngôi vương đang là của bạn, giữ chặt nhé! (￣▽￣)ゞ
 9. Chuỗi 3 thắng rồi, đừng dừng lại! 🔥
 
-**Siêu nhân bay ngang** (túi 8):
+**Siêu nhân bay ngang** (túi 6, câu cố định):
 
 1. Năm nay phải top 1! (•̀ᴗ•́)و ✧
 2. Cứu thế giới thì dễ, cứu pha cầu cắm vạch thì chịu! (ง •̀_•́)ง
@@ -725,8 +722,6 @@ nhau cho chế độ Tối và Sáng (riêng sao ước chỉ có ở Tối). Ng
 4. Bay với vận tốc này Smash mới cháy sân! 🔥
 5. Quên bật nồi cơm rồi
 6. Đi đánh cầu mà quên mang vợt :(((
-7. Ngôi vương đang là của bạn, giữ chặt nhé! (￣▽￣)ゞ
-8. Chuỗi 3 thắng rồi, đừng dừng lại! 🔥
 
 **UFO bắt chính bạn** (áo teal):
 
@@ -755,10 +750,13 @@ nhau cho chế độ Tối và Sáng (riêng sao ước chỉ có ở Tối). Ng
 
 ### D. Lâu không đánh (hạng 4, tụt 2, cách VA 23 điểm, nghỉ 12 ngày)
 
-**Cú mèo** (túi 2, bỏ 5 câu mở đầu):
+**Cú mèo** (túi 5, câu cố định — câu số liệu chỉ ở băng rôn):
 
-1. Vợt đang nhớ bạn đấy. (｡•́︿•̀｡)
-2. 12 ngày chưa ra sân rồi. Mai đi đánh nhé?
+1. Khuya rồi, ngủ đi. Mai còn phải phục thù. (－_－) zzZ
+2. Thức để soi BXH à? Điểm không tự tăng đâu. (¬‿¬)
+3. Cú thức đêm săn mồi, bạn thức đêm săn đối thủ ngày mai à? (¬‿¬)
+4. Thức khuya mai cầm vợt run tay lại đổ thừa cước căng 11kg...
+5. Nửa đêm rồi, vợt đi ngủ rồi, người cũng nên ngủ thôi. (－_－) zzZ
 
 **Băng rôn máy bay** (túi 7):
 
@@ -770,7 +768,7 @@ nhau cho chế độ Tối và Sáng (riêng sao ước chỉ có ở Tối). Ng
 6. Mong Tôn Hoa Sen thấy cảnh này
 7. 12 ngày chưa ra sân rồi. Mai đi đánh nhé?
 
-**Siêu nhân bay ngang** (túi 8):
+**Siêu nhân bay ngang** (túi 6, câu cố định):
 
 1. Năm nay phải top 1! (•̀ᴗ•́)و ✧
 2. Cứu thế giới thì dễ, cứu pha cầu cắm vạch thì chịu! (ง •̀_•́)ง
@@ -778,8 +776,6 @@ nhau cho chế độ Tối và Sáng (riêng sao ước chỉ có ở Tối). Ng
 4. Bay với vận tốc này Smash mới cháy sân! 🔥
 5. Quên bật nồi cơm rồi
 6. Đi đánh cầu mà quên mang vợt :(((
-7. Vợt đang nhớ bạn đấy. (｡•́︿•̀｡)
-8. 12 ngày chưa ra sân rồi. Mai đi đánh nhé?
 
 **UFO bắt chính bạn** (áo teal):
 
@@ -836,7 +832,7 @@ nhau cho chế độ Tối và Sáng (riêng sao ước chỉ có ở Tối). Ng
 | Dữ liệu đồng bộ lại khi đang xem | Câu thoại cập nhật ở lượt nói kế tiếp, cảnh đang bay không bị cắt |
 | Mở dialog / sheet | Dialog và sheet "Thêm" của DS là `fixed` z 60, nền `surface-overlay` (đặc) → nằm trên lớp nhân vật z 35. Panel thông báo z 9999. Thiệp 20/10 z 9999+. Trong lúc có dialog / lớp phủ mờ toàn màn, hoạt hình trời **tạm dừng** (đỡ giật khi gõ form) rồi chạy tiếp khi đóng |
 | Mở menu / lớp phủ nằm trong một thẻ kính (menu CLB, menu tài khoản ở sidebar, menu thả của thẻ kèo, modal render trong thẻ) | Phần tử nào đang chứa con `position: fixed` thì tạm bỏ mờ, để lớp phủ phủ cả màn (bấm ra ngoài là đóng) |
-| Từ trang con (chỉ nền) quay lại trang có nhân vật | Nhân vật cũ quay lại; băng rôn có thể bay ngay một lượt thay vì chờ 6 s |
+| Từ trang con / trang bản nhẹ quay lại Trang chủ, BXH | Sân khấu bắt đầu lại từ lượt đầu (`*FirstMs`); cảnh đang diễn dở lúc rời trang đã gỡ, không hiện tiếp |
 | Bấm liên tục con cú / băng rôn / siêu nhân | Mỗi lần bấm một câu từ túi xáo: đủ cả danh sách mới lặp, không câu nào ra hai lần liền. Bấm **bóng thoại** của cú thì bóng tắt (không đổi câu) tới khi bấm con cú |
 | Thanh dính nền đặc `surface-page` (thanh quay lại ở bài thư viện) | Giữ nền đặc như cũ: một dải màu trang che trời ở đầu bài |
 
@@ -845,7 +841,7 @@ nhau cho chế độ Tối và Sáng (riêng sao ước chỉ có ở Tối). Ng
 ## 9. Xem trước và kiểm tay
 
 Thêm tham số vào URL một trang có nhân vật (§1): `?sky=owl` · `?sky=banner` · `?sky=top1` · `?sky=hero` · `?sky=ufo` ·
-`?sky=all` (tất cả cùng lúc; siêu nhân và UFO chạy hai nhịp riêng nên có lúc cùng bay). `?sky=owl` không cần chờ 22h.
+`?sky=all` (tất cả; băng rôn, đom đóm, siêu nhân, UFO vẫn thay phiên trên sân khấu). `?sky=owl` không cần chờ 22h.
 
 Checklist:
 
@@ -860,7 +856,7 @@ Checklist:
   tuột · trả lại. Desktop và mobile.
 - [ ] `?sky=hero`: siêu nhân lần đầu sau ~10 s, cứ 43 s một lượt. `?sky=banner`: lượt đầu sau 6 s, cứ 38 s.
   Đêm: sao ước đầu sau 3 s, cứ 27 s. Ngày: đàn chim nghỉ ~44 s giữa hai lượt.
-- [ ] Bấm cú mèo / băng rôn liên tục: đủ hết các câu mới lặp. Không có `?sky=`: mọi nhân vật đang bật cùng ghé.
+- [ ] Bấm cú mèo / băng rôn liên tục: đủ hết các câu mới lặp. Không có `?sky=`: mọi nhân vật đang bật đều ghé, sân khấu mỗi lúc một cảnh.
 - [ ] `?sky=owl`: bấm con cú → đổi câu + nghiêng đầu; bấm bóng thoại → bóng tắt, bấm cú lại thì hiện câu mới;
   đổi sang Sáng → cú đậu trên vầng trăng non. Rê chuột lên cú / băng rôn / siêu nhân: không còn tooltip.
 - [ ] `?sky=owl`, buông chuột 20 – 30 s: cú gục đầu, mỏ chúc, zzZ to dần rồi "pop!"; rê chuột không
@@ -911,7 +907,8 @@ Checklist:
 | `awayDays` | 7 | Nghỉ ≥ ngần này ngày là "lâu không đánh" |
 | `streakMin` | 2 | Chuỗi ≥ ngần này trận thì khen |
 | `moon` | `full` | `full` trăng rằm · `lunar` theo lịch âm thật · `crescent` lưỡi liềm |
-| `*FirstMs` | sao ước 3000 · băng rôn 6000 · siêu nhân 10000 · UFO 8000 · xếp hình 3000 · Cuội 60000 · cầu lửa 90000 · nguyệt thực 120000 | Lượt đầu sau khi mở trang (N ở trang Giao diện nhỏ hơn thì lấy N) |
+| `stageGapMs` | 4000 | Sân khấu chung: khoảng trống tối thiểu giữa hai cảnh (§1.1) |
+| `*FirstMs` | sao ước 3000 · băng rôn 6000 · siêu nhân 3000 · UFO 8000 · xếp hình 12000 · Cuội 60000 · cầu lửa 90000 · nguyệt thực 120000 | Lượt đầu sau khi mở trang (N ở trang Giao diện nhỏ hơn thì lấy N) |
 | `fx` | owlDoze 25 · banner 38 · top1 40 · hero 43 · ufo 44 · wish 27 · cuoi 60 · fireShuttle 90 · eclipse 120 · peek 30 | Mặc định "cứ N giây" của trang Giao diện (§1.1); tối thiểu nằm ở `lib/sky.js → SKY_FX` |
 
 Nhịp nằm ở keyframe `effects.css` (đổi phải sửa CSS): một lượt xếp hình 24 s (`skyFormTop`), đàn chim bay ~17,5 s rồi nghỉ 44 s (`skyBirds`, chu kỳ 62,24 s), một lượt băng rôn 16,64 s (`skyBannerOnce`, khớp `BANNER_FLY_MS`).
@@ -950,7 +947,7 @@ Thời lượng một lượt ở `lib/sky.js → SKY_ACT_MS` (Cuội 7 s · c�
 | Thiết kế | App |
 | --- | --- |
 | Tweak "Tình huống" (Theo số liệu / Đang chuỗi thắng / Đang hạng 1 / Lâu không đánh) với số mẫu | Luôn theo **số liệu thật** của người xem (§5); 4 tình huống mẫu nằm ở §7 và trong test |
-| Tweak "Nhân vật" | Trang Giao diện bật / tắt từng nhân vật, các nhân vật bật **cùng ghé**, mỗi loại "cứ N giây" (§1.1); xem trước bằng `?sky=` |
+| Tweak "Nhân vật" | Trang Giao diện bật / tắt từng nhân vật; các nhân vật bật đều ghé, băng rôn / đom đóm / siêu nhân / UFO thay phiên trên một sân khấu, mỗi loại nghỉ N giây sau lượt (§1.1); xem trước bằng `?sky=` |
 | Mọi lựa chọn ngẫu nhiên (câu thoại, kết cục UFO 20/28/28/11/13%, người bị bắt 50/50, điều ước, hình xếp) | **Túi xáo**: đủ một lượt mới lặp, kết cục UFO chia đều (§4.1) |
 | Nhịp: sao ước 13 s · băng rôn 32 s · siêu nhân / UFO thay phiên, nghỉ 8 s · đàn chim 38 s/lượt | "Cứ N giây" chỉnh được ở trang Giao diện, mặc định sao ước 27 s · băng rôn 38 s · siêu nhân 43 s · UFO 44 s · xếp hình 40 s; đàn chim nghỉ 44 s (§1.1, §10) |
 | Tweak "Giờ" (23:00 / Giờ thật) | Giờ thật của máy người xem |

@@ -1,7 +1,7 @@
 // node src/__tests__/lib/sky.test.js
 // Nền bầu trời trang chủ: chọn nhân vật + câu thoại theo số liệu (lib/sky.js, docs/HOME_SKY.md).
 import assert from 'node:assert/strict'
-import { OWL_WAKE, SKY_ACT_MS, SKY_CAST, UFO_GIVE_BACK, UFO_HUH, UFO_OUTCOMES, beatenBy, createBags, fxMs, isLate, normSkyPrefs, SKY_FX, SKY_FX_MAX, lastMatchOf, lastPlayedAt, moonAge, rivalPeeks, shortName, shuffled, skyFacts, skyFoes, skyLines, skyMode, ufoPool, ufoScript } from '#lib/sky.js'
+import { OWL_WAKE, SKY_ACT_MS, SKY_CAST, UFO_GIVE_BACK, UFO_HUH, UFO_OUTCOMES, beatenBy, createBags, fxMs, isLate, normSkyPrefs, SKY_FX, SKY_FX_MAX, lastMatchOf, lastPlayedAt, moonAge, rivalPeeks, shortName, shuffled, skyFacts, skyFoes, skyLines, skyMode, stageNext, ufoPool, ufoScript } from '#lib/sky.js'
 import vi from '#i18n/vi.json' with { type: 'json' }
 import cfg from '#config/app.json' with { type: 'json' }
 import { ROUTE_KEYS } from '#routes'
@@ -79,6 +79,25 @@ for (const r of ['overview', 'calendar', 'tournaments', 'tournament', 'debts', '
 }
 const unknown = [...cfg.sky.routes, ...cfg.sky.liteRoutes, ...cfg.sky.bgRoutes, ...cfg.ui.mobileHidden].filter((r) => !ROUTE_KEYS.includes(r))
 assert.deepEqual(unknown, [], 'app.json gõ sai tên route thì trang đó lặng lẽ không có nền / không ẩn')
+
+/* ---------- sân khấu chung: băng rôn, đom đóm, siêu nhân, UFO thay phiên ---------- */
+{
+  // Giả lập đúng vòng lặp ở SkyBackdrop: lượt đầu theo *FirstMs, nghỉ N tính từ lúc xong, sân bận thì đợi + gap.
+  const dur = { hero: 10000, banner: 16640, ufo: 15000, top1: 26400 }, rest = 40000, gap = 4000
+  const due = { banner: 6000, hero: 3000, ufo: 8000, top1: 12000 }
+  const seq = [], ended = {}
+  let free = 0, prevEnd = -Infinity
+  for (let i = 0; i < 16; i++) {
+    const { k, at } = stageNext(due, free)
+    assert.ok(at >= prevEnd + gap, 'lượt ' + i + ' (' + k + '): hai cảnh không được chồng nhau, cách nhau ít nhất gap')
+    if (k in ended) assert.ok(at - ended[k] >= rest, k + ': phải nghỉ đủ N giây tính từ lúc diễn xong')
+    const end = at + dur[k]
+    seq.push(k); ended[k] = prevEnd = end
+    free = end + gap; due[k] = end + rest
+  }
+  assert.deepEqual(seq.slice(0, 4), ['hero', 'banner', 'ufo', 'top1'], 'lượt đầu: cảnh tới hạn sớm nhất lên trước')
+  assert.deepEqual(new Set(seq.slice(4)).size, 4, 'không cảnh nào bị bỏ đói')
+}
 
 /* ---------- câu theo số liệu ---------- */
 const d = skyLines(DEFAULT, 'Canh lá ngón')

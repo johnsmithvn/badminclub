@@ -124,6 +124,15 @@ export function normSkyPrefs(raw) {
   return { on, every }
 }
 
+/**
+ * Sân khấu chung (SkyBackdrop): cảnh nào lên tiếp và lúc nào. `due` = { cảnh: mốc được diễn (ms) }, `free` =
+ * mốc sân trống (cảnh trước xong + khoảng nghỉ). Cảnh tới hạn sớm nhất lên trước, không sớm hơn `free`.
+ */
+export function stageNext(due, free) {
+  const k = Object.keys(due).reduce((a, b) => (due[b] < due[a] ? b : a))
+  return { k, at: Math.max(free, due[k]) }
+}
+
 /** Nhịp dùng thật (ms) của hiệu ứng `key`: số giây đã lưu, không dưới `min` của nó. */
 export function fxMs(prefs, key) {
   const fx = SKY_FX.find((x) => x.key === key)
