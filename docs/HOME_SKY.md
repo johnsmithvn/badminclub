@@ -1,6 +1,6 @@
 # HOME_SKY.md — Nền bầu trời
 
-**Version:** v1.6.2 · **Updated:** 2026-10-18 · xếp hình đom đóm 40 s / lượt · bỏ cực quang · BXH: đối thủ thò đầu trêu (§4.8) · bỏ tooltip / nhãn phụ, bỏ cảnh "người đuổi theo", réo tên đối thủ (gạ kèo, điều ước), câu mới, tên dài cắt gọn, chữ giữ cỡ cố định, công tắc tắt hoạt ảnh
+**Version:** v1.7.0 · **Updated:** 2026-10-18 · trang Giao diện (bật / tắt từng hiệu ứng, "cứ N giây"), nhân vật chạy cùng lúc, theme gốc · xếp hình đom đóm 40 s / lượt · bỏ cực quang · BXH: đối thủ thò đầu trêu (§4.8) · bỏ tooltip / nhãn phụ, bỏ cảnh "người đuổi theo", réo tên đối thủ (gạ kèo, điều ước), câu mới, tên dài cắt gọn, chữ giữ cỡ cố định, công tắc tắt hoạt ảnh
 
 Toàn bộ **tình huống** và **câu thoại** của nền bầu trời động (thiết kế gốc dựng cho trang chủ cá
 nhân, nay dùng chung nhiều trang), cho **cả hai chế độ** Tối (bầu trời sao) và Sáng (hoàng hôn trên
@@ -9,14 +9,15 @@ biển mây), trên **cả desktop lẫn mobile**. Thiết kế gốc: `Home · 
 | File | Vai trò |
 | --- | --- |
 | `src/components/layout/SkyBackdrop.jsx` | Vẽ trời, nhân vật, cảnh siêu nhân / UFO / sao ước; tự tính số liệu từ `db` |
-| `src/lib/sky.js` | Hàm thuần: trang nào có nền, bốc nhân vật, đọc số liệu, chọn câu thoại |
+| `src/lib/sky.js` | Hàm thuần: trang nào có nền, danh sách hiệu ứng chỉnh được (`SKY_FX`, `normSkyPrefs`, `fxMs`), đọc số liệu, chọn câu thoại |
 | `src/i18n/vi.json` → `sky.*` | Nguyên văn mọi câu thoại và nhãn |
 | `src/config/app.json` → `sky` | Danh sách trang, ngưỡng, giờ khuya, kiểu trăng, nhịp sao ước / cảnh bay / hoạt cảnh đêm, thời gian yên để cú ngủ gật |
 | `src/styles/effects.css` | Keyframe `sky*`, token kính `[data-sky]` |
 | `src/components/layout/AppLayout.jsx` | Gắn `<SkyBackdrop>` + `data-sky` + nền gốc trong suốt theo route |
 | `src/components/layout/AppHeader.jsx` | Header mobile thành kính trên trang có nền |
-| `src/contexts/ThemeContext.jsx` | `skyMotion` — công tắc hoạt ảnh nền trời theo thiết bị (localStorage `badminclub.skyMotion`) |
-| `src/components/settings/tabs/GeneralTab.jsx` | Thẻ "Hiển thị" ở Cài đặt → Chung: bật / tắt hoạt ảnh nền trời |
+| `src/contexts/ThemeContext.jsx` | `skyMotion` (hoạt ảnh chung) + `skyPrefs` (bật / tắt + "cứ N giây" từng hiệu ứng) theo thiết bị — localStorage `badminclub.skyMotion`, `badminclub.skyPrefs` |
+| `src/pages/ThemeSettings.jsx` | Trang **Giao diện** (route `theme`, `/giao-dien`): sáng / tối, hoạt ảnh, hiệu ứng nền, từng nhân vật (§1.1) |
+| `src/components/settings/tabs/GeneralTab.jsx` | Thẻ "Hiển thị" ở Cài đặt → Chung: nút dẫn sang trang Giao diện |
 | `src/components/leaderboard/SeasonRaceTab.jsx` | BXH mùa: đối thủ thò đầu trêu (`RivalPeek`, §4.8) |
 | `src/__tests__/lib/sky.test.js` | Khoá danh sách trang, luật chọn câu và đủ key i18n |
 
@@ -32,8 +33,8 @@ Danh sách ở `app.json → sky`:
 | `bgRoutes` — chỉ nền, đứng yên | Chi tiết buổi tập (`session`) · Bài thư viện (`libraryPost`) | Trời **tĩnh** (không hoạt hình — trang ghi điểm hay mở cả buổi tối, chạy liên tục tốn pin): nền, sao, trăng, ngân hà, đom đóm đứng yên / mây, núi, biển mây. Không sao băng, sao chổi, cá voi, chòm sao, mưa sao băng, máy bay, chim, không hoạt cảnh đêm (§2.1). **Không** nhân vật, **không** sao ước, không tính số liệu |
 | Không có nền | Tổng quan CLB, Lịch tháng, Giải đấu (mọi trang con), Công nợ, Sổ quỹ, Sơ đồ dữ liệu | Như cũ |
 
-- Nhân vật được bốc **một lần** khi vào nhóm trang có nền; đi qua lại giữa các trang có nền vẫn là
-  nhân vật đó. Rời sang trang không có nền rồi quay lại, hoặc F5 → rút nhân vật kế trong túi (§4.1).
+- Nhân vật / hoạt cảnh nào **bật** ở trang Giao diện (§1.1) thì cùng ghé, mỗi loại "cứ N giây" một
+  lượt theo nhịp riêng (cú mèo thêm điều kiện khuya). Không còn kiểu "mỗi lần mở trang một nhân vật".
 - Số liệu nhân vật nói theo (§5) lấy đúng bằng các hàm của thẻ trang chủ, tính lại mỗi khi dữ liệu
   CLB đồng bộ (~4 ms trên dữ liệu thật 24 người / 118 trận).
 - Tài khoản chưa ghép thành viên CLB: vẫn có trời và nhân vật, nhưng không có câu theo số liệu và
@@ -52,17 +53,58 @@ Danh sách ở `app.json → sky`:
   điện thoại → mất nội dung từ một đường cắt ngang), bù bằng thẻ đặc hơn (0.9, lõm 0.85). Thẻ trong
   dialog / popup không làm mờ ở mọi màn. Chi tiết `DESIGN.md §2.2`.
 - **Cuộn xuống:** lớp nhân vật trôi lên theo và mờ dần, quá 80px thì ẩn hẳn (trời vẫn còn).
-- **Tắt hoạt ảnh** (Cài đặt → Chung → Hiển thị → "Hoạt ảnh nền trời"): áp dụng ngay, riêng thiết bị
-  đó, mọi người dùng đều chỉnh được (không qua nút Lưu của CLB). Tắt thì trời vẫn vẽ đủ (trăng, sao,
-  ngân hà / mây, núi, biển mây) nhưng **đứng yên** — giống hệt khi hệ điều hành bật "Giảm chuyển
-  động" (§8). Hệ điều hành đang bật "Giảm chuyển động" thì công tắc khoá ở trạng thái tắt, kèm ghi chú.
+- **Tắt hoạt ảnh** (trang Giao diện → "Bật hoạt ảnh"): trời vẫn vẽ nhưng **đứng yên**, không nhân vật /
+  hoạt cảnh nào — giống hệt khi hệ điều hành bật "Giảm chuyển động" (§8). Hệ điều hành đang bật "Giảm
+  chuyển động" thì công tắc khoá ở trạng thái tắt, kèm ghi chú.
 - **Cỡ chữ:** khung phóng theo màn (desktop lớn ×1.3 – 1.6) nhưng chữ bóng thoại, băng rôn, thẻ điều
   ước, nhãn tên được bù lại (`fk` = 1 / phóng, tính sẵn thành px trong JS) nên luôn đúng một cỡ.
   Mobile: bóng thoại 11,5px, băng rôn 11px, thẻ điều ước 12px, bóng thoại UFO 11px, nhãn tên 9px.
   **Desktop to hơn một nấc (×1.15):** bóng thoại ~13px, băng rôn ~12,5px, thẻ điều ước ~14px, bóng
   thoại UFO ~12,5px, nhãn tên ~10px. Bóng thoại đối thủ thò đầu ở BXH: mobile 11,5px, desktop 13px.
 - **Đổi sáng / tối** (nút mặt trời / mặt trăng ở header trang chủ hoặc góc dưới sidebar): trời đổi
-  ngay; vẫn là nhân vật đã bốc. Cảnh siêu nhân / UFO / sao ước đang bay được dọn, nhịp đếm lại từ đầu (siêu nhân sau 10 s, UFO sau 8 s, sao ước sau 3 s); băng rôn không bị ảnh hưởng. Hoạt cảnh đêm (§2.1) đang diễn thì tắt; quay lại Tối thì đếm lại từ đầu (chú Cuội sau 60 s …).
+  ngay; vẫn là các nhân vật đang bật. Cảnh siêu nhân / UFO / sao ước đang bay được dọn, nhịp đếm lại từ đầu (siêu nhân sau 10 s, UFO sau 8 s, sao ước sau 3 s); băng rôn không bị ảnh hưởng. Hoạt cảnh đêm (§2.1) đang diễn thì tắt; quay lại Tối thì đếm lại từ đầu (chú Cuội sau 60 s …).
+
+### 1.1 Trang Giao diện (`/giao-dien`)
+
+Vào từ sidebar (nhóm Tài khoản → **Giao diện**), sheet "Thêm" trên mobile, hoặc nút "Mở Giao diện" ở
+Cài đặt → Chung → Hiển thị. Ai cũng chỉnh được; **lưu theo thiết bị** (localStorage), áp dụng ngay,
+không qua nút Lưu của CLB. Trang này cũng có nền trời phía sau nên chỉnh xong thấy liền.
+
+| Thẻ | Nội dung |
+| --- | --- |
+| Chế độ | Sáng / Tối |
+| Hoạt ảnh nền trời | "Bật hoạt ảnh" (tắt = trời đứng yên, không gì chạy) · **Hiệu ứng nền** (một công tắc cho cả nhóm, xem dưới) |
+| Nhân vật ghé thăm | Cú mèo (chỉ bật / tắt) · Máy bay băng rôn · Đom đóm xếp hình · Siêu nhân · UFO · Sao ước |
+| Hoạt cảnh đêm | Chú Cuội đánh cầu · Quả cầu lông lửa · Nguyệt thực trăng máu |
+| Khác | Cú ngủ gật (số giây màn hình yên) · Đối thủ thò đầu ở BXH (§4.8) |
+
+- Mỗi dòng có công tắc riêng; dòng có nhịp thêm ô **"cứ N giây"** (gõ số hoặc bấm −/+ 5). N tính từ lúc
+  lượt trước **bắt đầu**; lượt đang diễn dài hơn N thì đợi diễn xong. Mỗi hiệu ứng có **tối thiểu**
+  (dài hơn một lượt diễn): gõ thấp hơn vẫn lưu nhưng chạy theo tối thiểu, dòng mô tả báo rõ.
+- Lượt đầu sau khi mở trang: `app.json → sky.*FirstMs`, hoặc sau N nếu N nhỏ hơn.
+- "Về mặc định": bật lại hết, số giây về `app.json → sky.fx`.
+
+| Hiệu ứng | Mặc định "cứ N giây" | Tối thiểu | Lượt đầu |
+| --- | --- | --- | --- |
+| Máy bay băng rôn | 38 | 20 | 6 s |
+| Đom đóm xếp hình | 40 | 27 | 3 s |
+| Siêu nhân | 43 | 10 | 10 s |
+| UFO bắt cóc | 44 | 15 | 8 s |
+| Sao ước | 27 | 8 | 3 s |
+| Chú Cuội đánh cầu | 60 | 10 | 60 s |
+| Quả cầu lông lửa | 90 | 5 | 90 s |
+| Nguyệt thực trăng máu | 120 | 35 | 120 s |
+| Cú ngủ gật (giây màn hình yên) | 25 | 5 | — |
+| Đối thủ thò đầu ở BXH | 30 | 6 | 10 s |
+
+**Theme gốc và nhóm "Hiệu ứng nền":**
+
+| | Theme gốc (luôn có) | Hiệu ứng nền (một công tắc) |
+| --- | --- | --- |
+| Tối | Nền trời, sao nền (4 lớp lấp lánh), sao sáng chữ thập, trăng + quầng, sương đáy, **mưa sao băng** | Tinh vân, ngân hà + bụi sao, cá voi sao, sao băng nhỏ, sao chổi, đom đóm bay, chòm sao |
+| Sáng | Nền hoàng hôn, ráng chiều, dải hồng, sao sớm, dãy núi, biển mây + sương (đứng yên) | Mây ti, máy bay, đàn chim, mây tích, hạt sáng; biển mây và sương cuộn |
+
+Tắt hết (hiệu ứng nền + mọi nhân vật / hoạt cảnh) thì đêm chỉ còn **trăng, sao và mưa sao băng**.
 
 ### Desktop và mobile
 
@@ -99,14 +141,14 @@ Danh sách ở `app.json → sky`:
 | Chòm sao | Bắc Đẩu · Thiên Hậu · Lạp Hộ · Thiên Yết · Sư Tử · Thiên Nga. Mỗi ~25 s một chòm hiện ở header: nét nối tự vẽ ra, giữ ~12 s rồi tắt. Mỗi lần hiện đổi chỗ một chút và nghiêng ±8° | Vòng 150 s |
 | Mưa sao băng | 14 vệt quét chéo qua cả màn, **nằm trên nội dung** | 42 s/trận (trận đầu sau 10 s) |
 | Sương đáy | 32% dưới cùng ửng xanh | — |
-| Sao ước | Xem §4.7 | Sau 3 s; bay xong nghỉ ngẫu nhiên 15 – 25 s |
+| Sao ước | Xem §4.7 | Sau 3 s; cứ 27 s (mặc định) một ngôi |
 
 ### 2.1 Hoạt cảnh đêm định kỳ
 
-Chỉ ở chế độ Tối, trên trang có nhân vật (§1), đêm nào cũng có — **không** thuộc lượt bốc nhân vật,
-**không thoại, không chữ, không bấm**. Mỗi hoạt cảnh có nhịp riêng: lượt đầu sau `…FirstMs`, rồi cứ
-`…EveryMs` một lượt (tính từ lúc lượt trước bắt đầu). Chỉ dựng lúc đang diễn, diễn xong là gỡ. Tab
-ẩn đúng lúc tới lượt → bỏ lượt đó, chờ lượt sau.
+Chỉ ở chế độ Tối, trên trang có nhân vật (§1); **không thoại, không chữ, không bấm**. Mỗi hoạt cảnh
+bật / tắt và "cứ N giây" riêng ở trang Giao diện (§1.1): lượt đầu sau `…FirstMs`, rồi cứ N giây một
+lượt (tính từ lúc lượt trước bắt đầu). Chỉ dựng lúc đang diễn, diễn xong là gỡ. Tab ẩn đúng lúc tới
+lượt → bỏ lượt đó, chờ lượt sau.
 
 | Hoạt cảnh | Diễn biến | Lượt đầu | Lặp | Dài |
 | --- | --- | --- | --- | --- |
@@ -143,10 +185,10 @@ Ban ngày **không có**: sao ước, mưa sao băng, chòm sao, cá voi, hoạt
 
 ## 4. Nhân vật ghé thăm
 
-### 4.1 Luật bốc — túi xáo
+### 4.1 Ai ghé và túi xáo
 
 Mọi chỗ "ngẫu nhiên" có kết quả (nhân vật, câu thoại, kết cục, điều ước, hình xếp) đều rút bằng
-**túi xáo** (`lib/sky.js → createBags` / `drawCast`): xáo cả danh sách rồi rút lần lượt, **hết một
+**túi xáo** (`lib/sky.js → createBags`): xáo cả danh sách rồi rút lần lượt, **hết một
 lượt — mỗi phần tử đúng một lần — mới xáo lượt mới**; hai lượt nối nhau không trùng phần tử ở chỗ
 nối. Ví dụ UFO 5 kết cục: `[2, 0, 3, 1, 4]` → `[0, 4, 3, 1, 2]` → … Bấm vào nhân vật cũng rút từ
 cùng túi đó. Vị trí / hướng bay / độ cao vẫn ngẫu nhiên thường.
@@ -155,14 +197,11 @@ Túi của mỗi nhân vật gồm **cả câu cố định lẫn câu theo số
 một danh sách khác nhau — §7). Số liệu đồng bộ lại làm danh sách dài / ngắn đi thì túi đó xáo lại từ
 đầu; số đổi mà số câu giữ nguyên thì túi đi tiếp, câu ra sau mang số mới.
 
-- Mỗi lần **mở trang** (F5 / vào lại) rút **một** nhân vật từ túi 5 nhân vật. Túi nhớ qua các lần
-  mở (localStorage `badminclub.sky.castBag`): 5 lần mở gặp đủ 5 nhân vật mới lặp.
-  - Khuya (**22:00 → trước 04:00**, giờ máy người xem) mới được rút cú mèo. Chưa khuya thì bỏ qua
-    cú — cú vẫn nằm trong túi chờ lần mở lúc khuya; túi chỉ còn cú mà chưa khuya thì xáo túi mới.
-  - Trình duyệt chặn storage (chế độ riêng tư) → mỗi lần mở một túi mới.
-- Chốt một lần lúc mở: đang mở trang mà đồng hồ qua 22h thì cú chưa ra, phải mở lại.
-- Đổi sáng / tối **không** rút lại.
-- Sao ước không thuộc lượt rút nhân vật: đêm nào cũng có.
+- **Ai ghé:** mọi nhân vật đang bật ở trang Giao diện (§1.1), **cùng lúc**, mỗi loại một nhịp.
+  - Cú mèo thêm điều kiện khuya (**22:00 → trước 04:00**, giờ máy người xem), chốt một lần lúc mở
+    trang: đang mở mà đồng hồ qua 22h thì cú chưa ra, phải mở lại.
+  - Xem trước `?sky=<tên>` / `?sky=all`: chỉ đúng nhân vật đó (hoặc cả 5), bỏ qua công tắc và giờ khuya.
+- Đổi sáng / tối không đổi ai ghé.
 
 | Nhân vật | Tối | Sáng | Có thoại | Bấm vào |
 | --- | --- | --- | --- | --- |
@@ -183,7 +222,7 @@ một danh sách khác nhau — §7). Số liệu đồng bộ lại làm danh s
 
 **Ngủ gật — giật mình** (cả Tối lẫn Sáng):
 
-1. Để màn hình **yên 20 – 30 s** (ngẫu nhiên, rút lại mỗi lần cú thức) — không rê chuột, bấm, gõ
+1. Để màn hình **yên 25 s** (mặc định — trang Giao diện → Cú ngủ gật; tắt dòng đó thì cú không ngủ) — không rê chuột, bấm, gõ
    phím, lăn chuột, chạm hay cuộn ở bất kỳ đâu trên trang, và tab đang mở — thì cú ngủ gật.
 2. Trong ~2,5 s: mí mắt sụp dần (có một nhịp hé ra như cố gượng) rồi nhắm hẳn; đầu gục dần về phía
    trước, có một cái giật đầu giữa chừng; mỏ chúc xuống. Sau đó thở đều trong tư thế gục.
@@ -197,8 +236,8 @@ một danh sách khác nhau — §7). Số liệu đồng bộ lại làm danh s
 
 ### 4.3 Máy bay kéo băng rôn
 
-- Bay trái → phải ngang header, **lượt đầu sau 6 s**; mỗi lượt bay ~16,6 s, bay xong **nghỉ ngẫu
-  nhiên 16 – 26 s** rồi bay lượt mới.
+- Bay trái → phải ngang header, **lượt đầu sau 6 s**; mỗi lượt bay ~16,6 s; **cứ 38 s** (mặc định) một
+  lượt.
 - Mỗi lượt mang một câu rút từ túi xáo (§6.3); bấm băng rôn → đổi câu ngay (cũng từ túi). Băng rôn
   phấp phới.
 - Không tooltip. Câu dài quá 440px (mobile 260px) thì cắt "…" — rê chuột vào băng rôn xem đủ câu.
@@ -213,7 +252,7 @@ một danh sách khác nhau — §7). Số liệu đồng bộ lại làm danh s
 4. **Mặt ^_^**
 5. **Mặt nháy mắt ;)**
 
-- Vòng **40 s** một hình: bay tới ~8,4 s → giữ ~7,8 s → tản ra ~6,6 s → nghỉ ~16 s (lượt đầu bắt đầu sau 3 s).
+- **Cứ 40 s** (mặc định) một hình; mỗi lượt 24 s: bay tới ~8,4 s → giữ ~7,8 s → tản ra ~6,6 s → tắt dần ~1,2 s (lượt đầu sau 3 s).
 - Hình rút từ túi xáo 5 hình: đủ 5 hình mới lặp, không hình nào ra hai lần liền.
 - Ban ngày: **không có xếp hình** (đã bỏ đàn chim xếp hình).
 - Không thoại, không bấm.
@@ -221,14 +260,14 @@ một danh sách khác nhau — §7). Số liệu đồng bộ lại làm danh s
 ### 4.5 Siêu nhân
 
 - **Lần đầu sau 10 s** kể từ lúc mở; bay trái → phải ngang header, bóng thoại bay theo bên trái.
-  Desktop ~10 s một lượt bay, mobile chậm hơn. Bay xong **nghỉ 33 s** rồi bay lại.
+  Desktop ~10 s một lượt bay, mobile chậm hơn. **Cứ 43 s** (mặc định) một lượt.
 - Mỗi lượt / mỗi lần bấm một câu rút từ túi xáo (§6.4); bấm siêu nhân → đổi câu + bật 👍.
 - Không tooltip.
 
 ### 4.6 UFO bắt cóc
 
-**Lần đầu sau 8 s** kể từ lúc mở; mỗi cảnh dài **13 – 16 s** (mobile 13 – 15 s), xong cảnh **nghỉ
-29 s** rồi cảnh mới. Cảnh **tự diễn, không bấm được**. (Xem trước `?sky=all`: siêu nhân và UFO chạy
+**Lần đầu sau 8 s** kể từ lúc mở; mỗi cảnh dài **13 – 16 s** (mobile 13 – 15 s); **cứ 44 s** (mặc
+định) một cảnh. Cảnh **tự diễn, không bấm được**. (Xem trước `?sky=all`: siêu nhân và UFO chạy
 hai nhịp riêng nên có lúc cùng bay.)
 
 1. UFO bay vào từ **trái hoặc phải** (ngẫu nhiên) theo đường cong, lượn rồi đứng ở header — desktop
@@ -260,7 +299,7 @@ hai nhịp riêng nên có lúc cùng bay.)
 ### 4.7 Sao ước (chỉ chế độ Tối)
 
 - Ngôi sao có vòng gạch xoay (**không nhãn** — để người dùng tự khám phá), bay chéo xuống trái ngang
-  header trong 6,8 s. Ngôi đầu sau 3 s; mỗi ngôi bay xong **nghỉ ngẫu nhiên 15 – 25 s** rồi ngôi mới.
+  header trong 6,8 s. Ngôi đầu sau 3 s; **cứ 27 s** (mặc định) một ngôi.
 - Bấm trúng → bung 18 hạt sáng + sao bốn cánh, hiện thẻ (không tiêu đề, chữ 12px, rộng tối đa 280px)
   4.4 s với một điều ước rút từ túi xáo (§6.6) — bấm đủ hết các điều ước mới lặp. Điều ước réo tên
   đối thủ rút thêm **tên** từ túi xáo riêng (§5.2), nên hai lần ra cùng câu có thể là hai người khác nhau.
@@ -269,7 +308,7 @@ hai nhịp riêng nên có lúc cùng bay.)
 
 Riêng tab **BXH mùa** (`SeasonRaceTab`), không thuộc lớp trời, có cả ở chế độ Sáng lẫn Tối.
 
-- Lượt đầu sau **10 s** khi mở tab; mỗi lượt **4,8 s**; xong nghỉ ngẫu nhiên **20 – 30 s**. Tab trình
+- Lượt đầu sau **10 s** khi mở tab; mỗi lượt **4,8 s**; **cứ 30 s** (mặc định) một lượt. Tab trình
   duyệt ẩn thì bỏ lượt.
 - Ở **mép phải dòng** của người **ngay trên** hoặc **ngay dưới** bạn (theo danh sách đang lọc Nam / Nữ /
   Tất cả), đầu mini (avatar 28px, mobile 26px) trượt vào từ ngoài mép như đang nấp, nghiêng đầu nháy hai
@@ -790,7 +829,7 @@ nhau cho chế độ Tối và Sáng (riêng sao ước chỉ có ở Tối). Ng
 | Đang hạng 1 | Không có người trên → UFO luôn bắt chính bạn; không có điều ước "vượt …" |
 | Tên dài (vd. "Trông kia đàn gà con lông vàng ◕⩊◕ Đi theo mẹ tìm ăn trong vườn ◍•ᴗ•◍", ~70 ký tự) | Tên chèn vào câu cắt còn ≤ 20 ký tự + "…" (§5 "Tên dài"); bóng thoại vẫn xuống dòng trong bề rộng tối đa (desktop 210px cú / 240px cảnh bay; mobile 196 / 180px) nếu câu dài. Băng rôn một dòng, quá 440px (mobile 260px) cắt "…", rê chuột xem đủ. Thẻ điều ước xuống dòng, rộng tối đa 280px. Nhãn tên dưới chân người bị UFO hút cắt "…" ở 80px |
 | Tên có ký tự HTML | Hiện đúng chữ (gắn bằng `textContent` / escape), không chèn được thẻ |
-| Bật "Giảm chuyển động" ở hệ điều hành, hoặc tắt "Hoạt ảnh nền trời" ở Cài đặt → Chung | Mọi thứ đứng yên: chỉ còn trời tĩnh; cú mèo (nếu được bốc) hiện cố định với một câu rút từ túi, không ngủ gật; không băng rôn, xếp hình, sao băng, cá voi, chòm sao, siêu nhân, UFO, sao ước, hoạt cảnh đêm (§2.1). Bật lại công tắc → chạy lại ngay, nhịp đếm từ đầu |
+| Bật "Giảm chuyển động" ở hệ điều hành, hoặc tắt "Bật hoạt ảnh" ở trang Giao diện | Mọi thứ đứng yên: chỉ còn trời tĩnh; cú mèo (nếu được bốc) hiện cố định với một câu rút từ túi, không ngủ gật; không băng rôn, xếp hình, sao băng, cá voi, chòm sao, siêu nhân, UFO, sao ước, hoạt cảnh đêm (§2.1). Bật lại công tắc → chạy lại ngay, nhịp đếm từ đầu |
 | Tab ẩn | Không sinh lượt siêu nhân / UFO / sao ước mới; hoạt cảnh đêm tới lượt thì bỏ lượt đó; cú không ngủ gật (đồng hồ yên lặng vẫn chạy: quay lại tab mà chưa đụng chuột / phím thì cú có thể ngủ ngay) |
 | Đang đọc / xem video không đụng chuột | Quá 20 – 30 s là cú ngủ gật — chủ ý: cú chỉ ngủ khi bạn để yên |
 | Dữ liệu đồng bộ lại khi đang xem | Câu thoại cập nhật ở lượt nói kế tiếp, cảnh đang bay không bị cắt |
@@ -815,12 +854,12 @@ Checklist:
 - [ ] Thẻ, sidebar, footer nav mobile trong mờ thấy trời; chữ trên thẻ vẫn đọc rõ ở cả hai chế độ.
 - [ ] Cuộn nội dung: trời đứng yên, nhân vật mờ dần rồi ẩn.
 - [ ] `?sky=ufo`: UFO vào từ trái hoặc phải, tia hút chạm đáy màn, người bị hút trồi lên từ dưới.
-  Cảnh đầu sau ~8 s, sau đó ~42 – 45 s một lượt (cảnh 13 – 16 s + nghỉ 29 s); 5 lượt liên tiếp (~4 phút)
+  Cảnh đầu sau ~8 s, sau đó cứ ~44 s một lượt; 5 lượt liên tiếp (~4 phút)
   phải gặp đủ năm kết cục, không lặp: bắt cóc · siêu nhân cứu · bắn rơi (BÙM, khói, bung dù) · tia chập
   tuột · trả lại. Desktop và mobile.
-- [ ] `?sky=hero`: siêu nhân lần đầu sau ~10 s, bay xong nghỉ 33 s. `?sky=banner`: lượt đầu sau 6 s, nghỉ
-  16 – 26 s giữa hai lượt. Đêm: sao ước đầu sau 3 s, nghỉ 15 – 25 s. Ngày: đàn chim nghỉ ~44 s giữa hai lượt.
-- [ ] Bấm cú mèo / băng rôn liên tục: đủ hết các câu mới lặp. F5 năm lần (lúc khuya): gặp đủ 5 nhân vật.
+- [ ] `?sky=hero`: siêu nhân lần đầu sau ~10 s, cứ 43 s một lượt. `?sky=banner`: lượt đầu sau 6 s, cứ 38 s.
+  Đêm: sao ước đầu sau 3 s, cứ 27 s. Ngày: đàn chim nghỉ ~44 s giữa hai lượt.
+- [ ] Bấm cú mèo / băng rôn liên tục: đủ hết các câu mới lặp. Không có `?sky=`: mọi nhân vật đang bật cùng ghé.
 - [ ] `?sky=owl`: bấm con cú → đổi câu + nghiêng đầu; bấm bóng thoại → bóng tắt, bấm cú lại thì hiện câu mới;
   đổi sang Sáng → cú đậu trên vầng trăng non. Rê chuột lên cú / băng rôn / siêu nhân: không còn tooltip.
 - [ ] `?sky=owl`, buông chuột 20 – 30 s: cú gục đầu, mỏ chúc, zzZ to dần rồi "pop!"; rê chuột không
@@ -847,9 +886,12 @@ Checklist:
 - [ ] Bảng xếp hạng → tab BXH mùa, chờ ~10 s: đầu mini của người ngay trên / ngay dưới bạn thò ra ở mép phải
   dòng, có bóng thoại; bấm cái đầu → thụt vào + "Ủa bị phát hiện rồi!" hoặc 😜, không mở sổ điểm. Thử
   lọc Nam / Nữ, thử mobile (bạn ở hạng 4–5 để người kề có dòng). Tắt "Hoạt ảnh nền trời" → không còn thò.
-- [ ] Cài đặt → Chung → thẻ "Hiển thị": tắt "Hoạt ảnh nền trời" → trời phía sau đứng yên ngay, nhân
-  vật bay / sao ước / hoạt cảnh biến mất; F5 vẫn giữ tắt; bật lại → chạy lại. Thành viên thường (không
-  phải chủ CLB) cũng bấm được.
+- [ ] Sidebar → Tài khoản → **Giao diện** (mobile: sheet "Thêm"): đổi Sáng / Tối; tắt "Bật hoạt ảnh" → trời
+  đứng yên ngay; F5 vẫn giữ. Tắt "Hiệu ứng nền" → đêm mất tinh vân, ngân hà, cá voi, sao chổi, đom đóm,
+  chòm sao, chỉ còn trăng, sao, mưa sao băng (và nhân vật đang bật). Tắt từng nhân vật → biến mất ngay.
+- [ ] Đổi "cứ N giây" (vd. siêu nhân 10 s) → lượt sau theo nhịp mới; gõ thấp hơn tối thiểu thì dòng mô tả
+  báo "vẫn chạy N giây". Xoá ô để gõ lại không nhảy số. "Về mặc định" → bật hết, số về mặc định.
+- [ ] Cài đặt → Chung → Hiển thị: nút "Mở Giao diện" dẫn đúng trang. Thành viên thường cũng vào được.
 - [ ] Màn desktop lớn (2K / 4K hoặc cửa sổ cao): chữ bóng thoại, băng rôn, thẻ điều ước không to lên
   theo màn.
 - [ ] `?sky=ufo` khi người bị hút là người có tên rất dài: nhãn tên dưới chân cắt "…", câu kêu gọi tên
@@ -868,17 +910,11 @@ Checklist:
 | `awayDays` | 7 | Nghỉ ≥ ngần này ngày là "lâu không đánh" |
 | `streakMin` | 2 | Chuỗi ≥ ngần này trận thì khen |
 | `moon` | `full` | `full` trăng rằm · `lunar` theo lịch âm thật · `crescent` lưỡi liềm |
-| `wishFirstMs` / `wishRestMs` | 3000 / [15000, 25000] | Sao ước đầu tiên / nghỉ ngẫu nhiên sau mỗi ngôi |
-| `bannerFirstMs` / `bannerRestMs` | 6000 / [16000, 26000] | Băng rôn lượt đầu / nghỉ ngẫu nhiên sau mỗi lượt |
-| `heroFirstMs` / `heroGapMs` | 10000 / 33000 | Siêu nhân lần đầu / nghỉ sau mỗi lượt bay |
-| `ufoFirstMs` / `ufoGapMs` | 8000 / 29000 | UFO lần đầu / nghỉ sau mỗi cảnh |
-| `owlIdleMs` | [20000, 30000] | Màn hình yên ngẫu nhiên trong khoảng này thì cú ngủ gật |
-| `cuoiFirstMs` / `cuoiEveryMs` | 60000 / 60000 | Chú Cuội đánh cầu lượt đầu / mỗi lượt |
-| `fireShuttleFirstMs` / `fireShuttleEveryMs` | 90000 / 90000 | Quả cầu lông lửa lượt đầu / mỗi lượt |
-| `eclipseFirstMs` / `eclipseEveryMs` | 120000 / 120000 | Nguyệt thực trăng máu lượt đầu / mỗi lượt |
+| `*FirstMs` | sao ước 3000 · băng rôn 6000 · siêu nhân 10000 · UFO 8000 · xếp hình 3000 · Cuội 60000 · cầu lửa 90000 · nguyệt thực 120000 | Lượt đầu sau khi mở trang (N ở trang Giao diện nhỏ hơn thì lấy N) |
+| `fx` | owlDoze 25 · banner 38 · top1 40 · hero 43 · ufo 44 · wish 27 · cuoi 60 · fireShuttle 90 · eclipse 120 · peek 30 | Mặc định "cứ N giây" của trang Giao diện (§1.1); tối thiểu nằm ở `lib/sky.js → SKY_FX` |
 
-Nhịp nằm ở keyframe `effects.css` (đổi phải sửa CSS): xếp hình 40 s / hình (`skyFormTop`), đàn chim bay ~17,5 s rồi nghỉ 44 s (`skyBirds`, chu kỳ 62,24 s), một lượt băng rôn 16,64 s (`skyBannerOnce`, khớp `BANNER_FLY_MS`).
-Thời lượng mỗi hoạt cảnh đêm ở `lib/sky.js → SKY_ACT_MS` (Cuội 7 s · cầu lửa 3,6 s · nguyệt thực 32 s); test chặn `…EveryMs` nhỏ hơn thời lượng (hai lượt chồng nhau).
+Nhịp nằm ở keyframe `effects.css` (đổi phải sửa CSS): một lượt xếp hình 24 s (`skyFormTop`), đàn chim bay ~17,5 s rồi nghỉ 44 s (`skyBirds`, chu kỳ 62,24 s), một lượt băng rôn 16,64 s (`skyBannerOnce`, khớp `BANNER_FLY_MS`).
+Thời lượng một lượt ở `lib/sky.js → SKY_ACT_MS` (Cuội 7 s · cầu lửa 3,6 s · nguyệt thực 32 s · xếp hình 24 s); test chặn tối thiểu trong `SKY_FX` ngắn hơn thời lượng (hai lượt chồng nhau).
 
 ---
 
@@ -913,11 +949,11 @@ Thời lượng mỗi hoạt cảnh đêm ở `lib/sky.js → SKY_ACT_MS` (Cuộ
 | Thiết kế | App |
 | --- | --- |
 | Tweak "Tình huống" (Theo số liệu / Đang chuỗi thắng / Đang hạng 1 / Lâu không đánh) với số mẫu | Luôn theo **số liệu thật** của người xem (§5); 4 tình huống mẫu nằm ở §7 và trong test |
-| Tweak "Nhân vật" | Mỗi lần mở rút một nhân vật từ túi xáo nhớ qua các lần mở (§4.1); xem trước bằng `?sky=` |
+| Tweak "Nhân vật" | Trang Giao diện bật / tắt từng nhân vật, các nhân vật bật **cùng ghé**, mỗi loại "cứ N giây" (§1.1); xem trước bằng `?sky=` |
 | Mọi lựa chọn ngẫu nhiên (câu thoại, kết cục UFO 20/28/28/11/13%, người bị bắt 50/50, điều ước, hình xếp) | **Túi xáo**: đủ một lượt mới lặp, kết cục UFO chia đều (§4.1) |
-| Nhịp: sao ước 13 s · băng rôn 32 s · siêu nhân / UFO thay phiên, nghỉ 8 s · đàn chim 38 s/lượt | Sao ước nghỉ 15 – 25 s · băng rôn nghỉ 16 – 26 s · siêu nhân lần đầu 10 s rồi nghỉ 33 s · UFO lần đầu 8 s rồi nghỉ 29 s · đàn chim nghỉ 44 s (§10) |
+| Nhịp: sao ước 13 s · băng rôn 32 s · siêu nhân / UFO thay phiên, nghỉ 8 s · đàn chim 38 s/lượt | "Cứ N giây" chỉnh được ở trang Giao diện, mặc định sao ước 27 s · băng rôn 38 s · siêu nhân 43 s · UFO 44 s · xếp hình 40 s; đàn chim nghỉ 44 s (§1.1, §10) |
 | Tweak "Giờ" (23:00 / Giờ thật) | Giờ thật của máy người xem |
-| Tweak "Chuyển động" | Theo "Giảm chuyển động" của hệ điều hành **và** công tắc "Hoạt ảnh nền trời" ở Cài đặt → Chung (theo thiết bị) |
+| Tweak "Chuyển động" | Theo "Giảm chuyển động" của hệ điều hành **và** trang Giao diện (hoạt ảnh chung, hiệu ứng nền, từng nhân vật — theo thiết bị) |
 | Tweak "Trăng" (Rằm / Theo lịch âm / Lưỡi liềm) | `app.json → sky.moon`, mặc định rằm như thiết kế |
 | Tweak "Độ trong thẻ" (0.5 – 0.95) | Cố định 0.74 như mặc định thiết kế |
 | Đang hạng 1: UFO bắt người hạng 2 đuổi theo ("Tôi đang đuổi … mà", "Ngôi vương an toàn"); cú / băng rôn / siêu nhân nhắc "… chỉ kém N điểm" | Bỏ hẳn cảnh và câu về người đuổi theo: hạng 1 thì UFO luôn bắt chính bạn |

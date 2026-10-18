@@ -262,8 +262,9 @@
 /* Cọng lông rơi lơ lửng xuống đáy màn (--fy = quãng rơi). */
 @keyframes skyFeather { 0% { transform: translate(0, 0) rotate(0deg); opacity: 0; } 6% { opacity: 1; } 25% { transform: translate(16px, calc(var(--fy) * .25)) rotate(28deg); } 50% { transform: translate(-14px, calc(var(--fy) * .5)) rotate(-22deg); } 75% { transform: translate(12px, calc(var(--fy) * .75)) rotate(18deg); } 94% { opacity: .9; } 100% { transform: translate(-4px, var(--fy)) rotate(-8deg); opacity: 0; } }
 @keyframes skyFlame { 0% { transform: scaleY(1); opacity: 1; } 100% { transform: scaleY(.6); opacity: .75; } }
-/* Xếp hình đom đóm: vòng 40 s — bay tới ~8,4 s, giữ hình ~7,8 s, tản ra ~6,6 s, nghỉ ~16 s. */
-@keyframes skyFormTop { 0% { transform: translate3d(var(--sx), var(--sy), 0); opacity: 0; } 3% { opacity: 1; } 21% { transform: translate3d(0, 0, 0); } 40.5% { transform: translate3d(0, 0, 0); opacity: 1; } 57% { transform: translate3d(var(--ex), var(--ey), 0); opacity: 1; } 60% { opacity: 0; } 100% { transform: translate3d(var(--ex), var(--ey), 0); opacity: 0; } }
+/* Xếp hình đom đóm: MỘT lượt 24 s (lib/sky.js → SKY_ACT_MS.top1) — bay tới 8,4 s, giữ hình 7,8 s, tản ra 6,6 s,
+   tắt dần 1,2 s. Nhịp lặp "cứ N giây" do SkyBackdrop hẹn (trang Giao diện). */
+@keyframes skyFormTop { 0% { transform: translate3d(var(--sx), var(--sy), 0); opacity: 0; } 5% { opacity: 1; } 35% { transform: translate3d(0, 0, 0); } 67.5% { transform: translate3d(0, 0, 0); opacity: 1; } 95% { transform: translate3d(var(--ex), var(--ey), 0); opacity: 1; } 100% { transform: translate3d(var(--ex), var(--ey), 0); opacity: 0; } }
 @keyframes skyHover { 0%, 100% { transform: translateY(0); } 50% { transform: translateY(-4px); } }
 @keyframes skyWobble { 0%, 100% { transform: rotate(-3deg); } 50% { transform: rotate(3deg); } }
 @keyframes skySway { 0% { transform: rotate(-6deg); } 100% { transform: rotate(6deg); } }

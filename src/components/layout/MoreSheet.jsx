@@ -98,6 +98,7 @@ export default function MoreSheet({ open, onClose, route }) {
           icon: 'settings',
           badge: counts.pendingJoins > 0 ? counts.pendingJoins : null,
         },
+        { value: 'theme', icon: 'sparkles' },
         { value: 'schema', icon: 'database' },
         ...(can(role, 'settings') ? [
           {

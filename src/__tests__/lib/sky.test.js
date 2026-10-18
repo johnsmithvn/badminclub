@@ -1,7 +1,7 @@
 // node src/__tests__/lib/sky.test.js
 // Nền bầu trời trang chủ: chọn nhân vật + câu thoại theo số liệu (lib/sky.js, docs/HOME_SKY.md).
 import assert from 'node:assert/strict'
-import { OWL_WAKE, SKY_ACT_MS, SKY_CAST, UFO_GIVE_BACK, UFO_HUH, UFO_OUTCOMES, beatenBy, createBags, drawCast, isLate, lastMatchOf, lastPlayedAt, moonAge, rivalPeeks, shortName, shuffled, skyFacts, skyFoes, skyLines, skyMode, ufoPool, ufoScript } from '#lib/sky.js'
+import { OWL_WAKE, SKY_ACT_MS, SKY_CAST, UFO_GIVE_BACK, UFO_HUH, UFO_OUTCOMES, beatenBy, createBags, fxMs, isLate, normSkyPrefs, SKY_FX, SKY_FX_MAX, lastMatchOf, lastPlayedAt, moonAge, rivalPeeks, shortName, shuffled, skyFacts, skyFoes, skyLines, skyMode, ufoPool, ufoScript } from '#lib/sky.js'
 import vi from '#i18n/vi.json' with { type: 'json' }
 import cfg from '#config/app.json' with { type: 'json' }
 import { ROUTE_KEYS } from '#routes'
@@ -40,26 +40,35 @@ assert.deepEqual([...shuffled(7)].sort(), [0, 1, 2, 3, 4, 5, 6], 'xáo không đ
   assert.deepEqual([...after].sort(), [0, 1, 2], 'danh sách đổi độ dài (câu theo số liệu đổi) thì xáo lượt mới cho đủ độ dài mới')
 }
 
-/* ---------- túi nhân vật qua các lần mở trang ---------- */
+/* ---------- cài đặt hiệu ứng (trang Giao diện) ---------- */
 {
-  let left = [], seen = []
-  for (let i = 0; i < SKY_CAST.length; i++) { const d = drawCast(left, true); seen.push(d.cast); left = d.left }
-  assert.deepEqual([...seen].sort(), [...SKY_CAST].sort(), 'khuya: 5 lần mở phải gặp đủ 5 nhân vật')
-  for (let n = 0; n < 50; n++) {
-    const d = drawCast(left, false)
-    assert.notEqual(d.cast, 'owl', 'chưa khuya mà ra cú mèo là sai thiết kế "chỉ sau 22h"')
-    left = d.left
+  const def = normSkyPrefs(undefined)
+  assert.ok(Object.values(def.on).every(Boolean) && def.on.ambient, 'chưa chỉnh gì: bật hết, kể cả hiệu ứng nền')
+  for (const fx of SKY_FX.filter((x) => x.min)) {
+    assert.equal(def.every[fx.key], cfg.sky.fx[fx.key], fx.key + ': mặc định lấy app.json → sky.fx')
+    assert.ok(cfg.sky.fx[fx.key] >= fx.min && cfg.sky.fx[fx.key] <= SKY_FX_MAX, fx.key + ': mặc định nằm ngoài [min, max]')
   }
-  const day = Array.from({ length: 4 }, function () { const d = drawCast(this.left, false); this.left = d.left; return d.cast }, { left: [] })
-  assert.deepEqual([...day].sort(), ['banner', 'hero', 'top1', 'ufo'], 'ban ngày: 4 lần mở gặp đủ 4 nhân vật không phải cú')
-  assert.deepEqual(drawCast(['owl', 'ufo'], false), { cast: 'ufo', left: ['owl'] }, 'chưa khuya: cú vẫn nằm trong túi chờ lần mở lúc khuya')
-  const stuck = drawCast(['owl'], false).cast
-  assert.ok(SKY_CAST.includes(stuck) && stuck !== 'owl', 'túi chỉ còn cú mà chưa khuya thì xáo túi mới, không kẹt (ra: ' + stuck + ')')
-  assert.ok(SKY_CAST.includes(drawCast('rác', true).cast), 'localStorage hỏng thì vẫn bốc được nhân vật')
+  for (const k of SKY_CAST) assert.ok(SKY_FX.some((x) => x.key === k), k + ': nhân vật nào cũng phải tắt được ở trang Giao diện')
+  const p = normSkyPrefs({ on: { hero: false, ambient: false, rác: true }, every: { hero: 5, ufo: '50', wish: 99999, banner: 'abc', cuoi: -3, owl: 12 } })
+  assert.equal(p.on.hero, false); assert.equal(p.on.ambient, false); assert.equal(p.on.ufo, true, 'khoá không có trong bản lưu cũ thì bật')
+  assert.ok(!('rác' in p.on) && !('owl' in p.every), 'khoá lạ / hiệu ứng chỉ bật-tắt không có ô số giây')
+  assert.deepEqual([p.every.hero, p.every.ufo, p.every.wish, p.every.banner, p.every.cuoi], [5, 50, SKY_FX_MAX, cfg.sky.fx.banner, cfg.sky.fx.cuoi],
+    'giữ số đang gõ dở (5), đọc chuỗi số, chặn trên 3600, sai kiểu / âm thì về mặc định')
+  assert.equal(fxMs(p, 'hero'), 10000, 'gõ 5 giây cho siêu nhân thì vẫn chạy theo tối thiểu 10 giây')
+  assert.equal(fxMs(p, 'ufo'), 50000)
+  assert.equal(fxMs(normSkyPrefs('rác'), 'eclipse'), cfg.sky.fx.eclipse * 1000, 'localStorage hỏng thì dùng mặc định')
+  // Trang Giao diện ghép key theo SKY_FX (themePage.fx.<key>.*, themePage.group.<g>) — test i18n chung không thấy.
+  for (const fx of SKY_FX) for (const k of ['themePage.fx.' + fx.key + '.label', 'themePage.fx.' + fx.key + '.note', 'themePage.group.' + fx.group, 'themePage.groupSub.' + fx.group]) {
+    assert.equal(typeof get(k), 'string', 'trang Giao diện thiếu chữ ' + k)
+  }
+  for (const [k, ms] of Object.entries(SKY_ACT_MS)) {
+    const min = SKY_FX.find((x) => x.key === k).min
+    assert.ok(min * 1000 > ms, k + ': tối thiểu ' + min + ' s ngắn hơn một lượt diễn ' + ms + ' ms — lượt mới sẽ cắt ngang lượt đang diễn')
+  }
 }
 
 /* ---------- trang nào có nền ---------- */
-for (const r of ['home', 'matches', 'leaderboard', 'badges', 'sessions', 'library', 'members', 'profile', 'settings']) {
+for (const r of ['home', 'matches', 'leaderboard', 'badges', 'sessions', 'library', 'members', 'profile', 'settings', 'theme']) {
   assert.equal(skyMode(r), 'full', r + ': trang đã chọn phải có nền + nhân vật')
 }
 assert.equal(skyMode('session'), 'bg', 'chi tiết buổi tập: chỉ nền, nhân vật bay qua bảng xếp sân là vướng')
@@ -217,13 +226,8 @@ for (const k of ['sky.boom', 'sky.ufo.huh', 'sky.ufo.hit', 'sky.ufo.slip', 'sky.
 }
 assert.equal(get('sky.cons').length, 6, 'sáu chòm sao vẽ trong SkyBackdrop phải có đủ sáu tên')
 
-/* ---------- hoạt cảnh định kỳ & cú ngủ gật ---------- */
-for (const [act, ms] of Object.entries(SKY_ACT_MS)) {
-  assert.ok(cfg.sky[act + 'FirstMs'] > 0, act + 'FirstMs phải > 0')
-  assert.ok(cfg.sky[act + 'EveryMs'] > ms, act + ': nhịp lặp ' + cfg.sky[act + 'EveryMs'] + ' ms ngắn hơn một lượt diễn ' + ms + ' ms — lượt mới sẽ cắt ngang lượt đang diễn')
-}
-const [idleMin, idleMax] = cfg.sky.owlIdleMs
-assert.ok(idleMin > 0 && idleMin <= idleMax, 'owlIdleMs phải là [min, max] với 0 < min ≤ max')
+/* ---------- hoạt cảnh định kỳ ---------- */
+for (const k of Object.keys(SKY_ACT_MS)) assert.ok(cfg.sky[k + 'FirstMs'] > 0, k + 'FirstMs phải > 0')
 assert.equal(UFO_GIVE_BACK.length, 9, 'UFO trả người: 9 câu (thêm galaxy, sweat)')
 
 console.log('sky check: OK')

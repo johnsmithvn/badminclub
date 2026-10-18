@@ -11,10 +11,11 @@ import { STAT_COLORS } from '#components/leaderboard/statColors.js'
 import GenderFilterTabs from '#components/leaderboard/GenderFilterTabs.jsx'
 import WinRatePill from '#components/leaderboard/WinRatePill.jsx'
 import StreakTag from '#components/leaderboard/StreakTag.jsx'
-import { createBags, rivalPeeks } from '#lib/sky.js'
+import { createBags, fxMs, rivalPeeks } from '#lib/sky.js'
 
-// Đối thủ thò đầu trêu: lượt đầu sau 10 s, mỗi lượt 4,8 s (khớp keyframe rivalPeek), nghỉ ngẫu nhiên 20 – 30 s.
-const PEEK_FIRST = 10000, PEEK_MS = 4800, PEEK_REST = [20000, 30000]
+// Đối thủ thò đầu trêu: lượt đầu sau 10 s, mỗi lượt 4,8 s (khớp keyframe rivalPeek); bật / tắt và "cứ N giây"
+// ở trang Giao diện (ThemeContext → skyPrefs, mặc định app.json → sky.fx.peek).
+const PEEK_FIRST = 10000, PEEK_MS = 4800
 const PEEK_OUT = ['caught', 'tease']
 
 /**
@@ -126,7 +127,7 @@ export default function SeasonRaceTab({
   onSelectSeason,
 }) {
   const { db } = useApp()
-  const { isDark, skyMotion } = useTheme()
+  const { isDark, skyMotion, skyPrefs } = useTheme()
   const [progressOpen, setProgressOpen] = useState(false)
 
   const myMember = useMemo(() => {
@@ -159,7 +160,7 @@ export default function SeasonRaceTab({
   }, [leaderboard, genderFilter])
 
   // Đối thủ thò đầu trêu (lib/sky.js → rivalPeeks): người ngay trên / ngay dưới mình, rút bằng túi xáo.
-  // Tắt theo công tắc "Hoạt ảnh nền trời" (Cài đặt → Chung) và "Giảm chuyển động" của hệ điều hành.
+  // Tắt theo trang Giao diện (hoạt ảnh chung + công tắc riêng) và "Giảm chuyển động" của hệ điều hành.
   const [osMotion] = useState(() => {
     try { return !window.matchMedia('(prefers-reduced-motion: reduce)').matches } catch { return true }
   })
@@ -170,7 +171,8 @@ export default function SeasonRaceTab({
   }, [filteredLeaderboard, myMember, isMobile])
   const peeksRef = useRef(peeks)
   useEffect(() => { peeksRef.current = peeks }, [peeks])
-  const peekOn = skyMotion && osMotion && peeks.length > 0
+  const peekOn = skyMotion && osMotion && skyPrefs.on.peek && peeks.length > 0
+  const peekEvery = fxMs(skyPrefs, 'peek')
   const [peek, setPeek] = useState(null) // { n, id, out }
   useEffect(() => {
     if (!peekOn) return
@@ -182,12 +184,12 @@ export default function SeasonRaceTab({
           const pid = ps[bags('peek', ps.length)].id
           setPeek((o) => ({ n: (o?.n || 0) + 1, id: pid, out: null }))
         }
-        go(PEEK_MS + PEEK_REST[0] + Math.random() * (PEEK_REST[1] - PEEK_REST[0]))
+        go(peekEvery)
       }, ms)
     }
-    go(PEEK_FIRST)
+    go(Math.min(PEEK_FIRST, peekEvery))
     return () => clearTimeout(id)
-  }, [peekOn, bags])
+  }, [peekOn, peekEvery, bags])
   const peekLine = peekOn && peek ? peeks.find((p) => p.id === peek.id)?.line : null
   const catchPeek = () => setPeek((o) => o && { ...o, out: PEEK_OUT[bags('peekOut', PEEK_OUT.length)] })
   const peekFor = (row) => (peekLine && peek.id === row.id

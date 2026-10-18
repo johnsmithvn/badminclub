@@ -15,7 +15,6 @@ import { myMember } from '#lib/money.js'
 import { t } from '#i18n'
 import { useAuth } from '#contexts/AuthContext.jsx'
 import { useApp } from '#contexts/AppContext.jsx'
-import { useTheme } from '#contexts/ThemeContext.jsx'
 import { supabase } from '#supabase'
 import {
   isPushSupported,
@@ -43,10 +42,6 @@ export default function GeneralTab({
 
   const { session } = useAuth()
   const { db, a } = useApp()
-  const { skyMotion, setSkyMotion } = useTheme()
-  const [osReduced] = useState(() => {
-    try { return window.matchMedia('(prefers-reduced-motion: reduce)').matches } catch { return false }
-  })
   const [pushState, setPushState] = useState({
     supported: false,
     subscribed: false,
@@ -400,23 +395,16 @@ export default function GeneralTab({
         </FormRow>
       </SettingsCard>
 
-      {/* Hiển thị — theo thiết bị, áp dụng ngay (không qua nút Lưu của CLB), ai cũng chỉnh được */}
+      {/* Hiển thị — nền trời và hiệu ứng chỉnh ở trang Giao diện (theo thiết bị, ai cũng chỉnh được) */}
       <SettingsCard
         title={t('settings.skyTitle')}
         subtitle={t('settings.skySub')}
         icon="sparkles"
       >
-        <FormRow
-          isToggle
-          label={t('settings.skyMotion')}
-          note={osReduced ? t('settings.skyMotionOs') : t('settings.skyMotionNote')}
-          last
-        >
-          <ToggleSwitch
-            checked={skyMotion && !osReduced}
-            disabled={osReduced}
-            onChange={setSkyMotion}
-          />
+        <FormRow label={t('settings.skyLink')} note={t('settings.skyLinkNote')} last>
+          <Button variant="secondary" size="sm" icon="sparkles" onClick={() => a.go('theme')}>
+            {t('settings.skyLinkBtn')}
+          </Button>
         </FormRow>
       </SettingsCard>
 

@@ -433,6 +433,7 @@
     "badges": "Danh hiệu",
     "profile": "Hồ sơ của tôi",
     "settings": "Cài đặt",
+    "theme": "Giao diện",
     "schema": "Sơ đồ dữ liệu",
     "more": "Thêm",
     "section": {
@@ -520,6 +521,10 @@
     "settings": {
       "title": "Cài đặt",
       "desc": "Sân, giá giao lưu, loại cầu, nhóm"
+    },
+    "theme": {
+      "title": "Giao diện",
+      "desc": "Sáng / tối, hiệu ứng nền trời và nhân vật"
     },
     "schema": {
       "title": "Sơ đồ dữ liệu",
@@ -2378,9 +2383,9 @@
     "pushTestNote": "Chỉ hiện người đã có tài khoản. Không biết trước ai đã bật thông báo — cứ gửi rồi đọc kết quả. Mẹo: bấm TRÊN MÁY TÍNH rồi xem điện thoại, đó là cách duy nhất thử được lúc app đã tắt hẳn.",
     "skyTitle": "Hiển thị",
     "skySub": "Áp dụng riêng cho thiết bị này",
-    "skyMotion": "Hoạt ảnh nền trời",
-    "skyMotionNote": "Tắt để trời đứng yên: vẫn giữ trăng, sao, mây nhưng không còn nhân vật bay, sao băng, hoạt cảnh. Nhẹ máy, đỡ tốn pin.",
-    "skyMotionOs": "Thiết bị đang bật Giảm chuyển động nên nền trời luôn đứng yên.",
+    "skyLink": "Nền trời và hiệu ứng",
+    "skyLinkNote": "Sáng / tối, bật tắt từng nhân vật, chỉnh tần suất xuất hiện.",
+    "skyLinkBtn": "Mở Giao diện",
     "pushTestBody": "🔔 Thông báo thử. Thấy dòng này là đường đi đã thông.",
     "pushUnsupported": "Thiết bị hoặc trình duyệt này chưa hỗ trợ Web Push. Trên iPhone/iPad, vui lòng mở bằng Safari và chọn Chia sẻ → Thêm vào MH chính (PWA).",
     "clubTitle": "Thông tin CLB",
@@ -6004,6 +6009,46 @@
       "notFound": "Bài không còn hoặc đã bị ẩn",
       "notMember": "Tài khoản chưa ghép với thành viên nào của CLB — nhờ chủ CLB ghép rồi mới đăng / lưu được",
       "pinOwnerOnly": "Chỉ chủ CLB được ghim bài"
+    }
+  },
+  "themePage": {
+    "modeTitle": "Chế độ",
+    "modeSub": "Sáng là hoàng hôn trên biển mây, Tối là bầu trời sao",
+    "light": "Sáng",
+    "dark": "Tối",
+    "motionTitle": "Hoạt ảnh nền trời",
+    "motionSub": "Áp dụng ngay, riêng cho thiết bị này",
+    "motion": "Bật hoạt ảnh",
+    "motionNote": "Tắt thì trời đứng yên, không nhân vật hay hoạt cảnh nào. Nhẹ máy, đỡ tốn pin.",
+    "motionOs": "Thiết bị đang bật Giảm chuyển động nên nền trời luôn đứng yên.",
+    "ambient": "Hiệu ứng nền",
+    "ambientNote": "Đêm: tinh vân, ngân hà, cá voi sao, sao băng nhỏ, sao chổi, đom đóm bay, chòm sao. Ngày: mây trôi, máy bay, đàn chim, biển mây cuộn, hạt sáng. Tắt thì đêm chỉ còn trăng, sao và mưa sao băng.",
+    "group": {
+      "chars": "Nhân vật ghé thăm",
+      "night": "Hoạt cảnh đêm",
+      "other": "Khác"
+    },
+    "groupSub": {
+      "chars": "Bật cái nào cái đó ghé, mỗi loại một nhịp. Ô số: cứ bao nhiêu giây một lượt.",
+      "night": "Chỉ ở chế độ Tối. Ô số: cứ bao nhiêu giây một lượt.",
+      "other": "Ô số: xem mô tả từng dòng."
+    },
+    "sec": "giây",
+    "min": "tối thiểu {{n}} giây",
+    "minUsed": "dưới {{n}} giây thì vẫn chạy {{n}} giây",
+    "reset": "Về mặc định",
+    "fx": {
+      "owl": { "label": "Cú mèo", "note": "Đậu trên trăng, chỉ từ 22h đến 4h sáng" },
+      "banner": { "label": "Máy bay kéo băng rôn", "note": "Bay ngang đầu trang, kéo một câu" },
+      "top1": { "label": "Đom đóm xếp hình", "note": "Chỉ ban đêm: chữ, trái tim, mặt cười" },
+      "hero": { "label": "Siêu nhân", "note": "Bay ngang đầu trang, bấm để đổi câu" },
+      "ufo": { "label": "UFO bắt cóc", "note": "Cảnh dài 13 – 16 giây" },
+      "wish": { "label": "Sao ước", "note": "Chỉ ban đêm, bấm vào để ước" },
+      "cuoi": { "label": "Chú Cuội đánh cầu", "note": "Đứng dậy vung vợt trên mặt trăng" },
+      "fireShuttle": { "label": "Quả cầu lông lửa", "note": "Sao băng bay chéo trên nội dung" },
+      "eclipse": { "label": "Nguyệt thực trăng máu", "note": "Trăng chuyển đỏ đồng rồi sáng lại" },
+      "owlDoze": { "label": "Cú ngủ gật", "note": "Để màn hình yên bao nhiêu giây thì cú gục đầu ngủ" },
+      "peek": { "label": "Đối thủ thò đầu ở BXH", "note": "Tab BXH mùa, người ngay trên / dưới bạn; cứ bao nhiêu giây một lượt" }
     }
   },
   "sky": {

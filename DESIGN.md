@@ -186,7 +186,7 @@ Bản mobile áp dụng cho màn hình ≤768px với **ngưỡng duy nhất: `u
   - Giữ đúng nhóm chức năng (trừ mục bị ẩn ở trên):
     - **Tiền:** Công nợ (khi không ở slot) · Sổ quỹ (`/so-quy`).
     - **Người và lịch:** Thành viên (`/thanh-vien`) · Chia sân (`/chia-san`, nhảy thẳng buổi khả dụng) · Lịch tháng (`/lich-thang`) · Lịch cố định (`/lich-co-dinh`) · Hồ sơ của tôi (`/ca-nhan`).
-    - **Hệ thống:** Cài đặt (`/cai-dat`) · Sơ đồ dữ liệu (`/so-do-du-lieu`).
+    - **Hệ thống:** Cài đặt (`/cai-dat`) · Giao diện (`/giao-dien` — sáng / tối, hiệu ứng nền trời) · Sơ đồ dữ liệu (`/so-do-du-lieu`).
   - Switcher CLB dán ở cuối sheet (thẻ viền dashed 56px).
 
 ### 8.2 Density "Driver App" (bắt buộc)
