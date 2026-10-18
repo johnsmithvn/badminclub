@@ -39,14 +39,20 @@ export function BadgeFilterButton({
   onSelectMember,
   sheet = false,
   style,
+  label,
 }) {
   const [open, setOpen] = useState(false)
   if (!allSeasons.length && allMembers.length < 2) return null
   return (
     <>
-      <button type="button" aria-label={t('badges.filterTitle')} title={t('badges.filterTitle')} onClick={() => setOpen(true)} style={style}>
-        <Icon name="filter" size={15} />
-      </button>
+      {/* `label` (desktop, header trong suốt): nút ghost có chữ — thường là tên mùa đang xem. Không có → nút icon. */}
+      {label ? (
+        <Button size="sm" variant="ghost" icon="filter" title={t('badges.filterTitle')} onClick={() => setOpen(true)}>{label}</Button>
+      ) : (
+        <button type="button" aria-label={t('badges.filterTitle')} title={t('badges.filterTitle')} onClick={() => setOpen(true)} style={style}>
+          <Icon name="filter" size={15} />
+        </button>
+      )}
       {open && (
         <Dialog title={t('badges.filterTitle')} onClose={() => setOpen(false)} sheet={sheet} width={420}>
           <div style={{ display: 'grid', gap: 14, padding: '14px 20px 20px' }}>

@@ -75,10 +75,12 @@ export default function NotificationBell({ size = 'sm', style = {} }) {
           justifyContent: 'center',
           width: size === 'sm' ? 32 : 36,
           height: size === 'sm' ? 32 : 36,
-          borderRadius: 8,
-          border: 'none',
-          backgroundColor: 'transparent',
-          color: 'var(--gray-300, #d1d5db)',
+          // Viền tròn + nền kính để chuông không chìm khi nằm thẳng trên nền trời (header trong suốt);
+          // màu theo chế độ — trước tô cứng xám nhạt nên trên nền sáng gần như không thấy.
+          borderRadius: 999,
+          border: '1px solid var(--border-subtle)',
+          backgroundColor: 'var(--surface-card)',
+          color: 'var(--text-secondary)',
           cursor: 'pointer',
           transition: 'background-color 0.2s, color 0.2s',
           ...style,

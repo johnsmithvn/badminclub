@@ -236,9 +236,8 @@
 /* Sao băng quả cầu lông lửa (3,6 s): lao chéo xuống trái, --dx / --dy = quãng bay. */
 @keyframes skyFireShuttle { 0% { transform: translate(0, 0); opacity: 0; } 6% { opacity: 1; } 86% { opacity: 1; } 100% { transform: translate(var(--dx), var(--dy)); opacity: 0; } }
 @keyframes skyBubble { 0% { opacity: 0; transform: translateY(4px); } 4% { opacity: 1; transform: translateY(0); } 34% { opacity: 1; transform: translateY(0); } 40% { opacity: 0; transform: translateY(-3px); } 100% { opacity: 0; transform: translateY(-3px); } }
-/* Băng rôn: MỘT lượt bay 16,64 s; nghỉ giữa hai lượt do SkyBackdrop hẹn giờ ngẫu nhiên (app.json → sky.bannerRestMs). */
+/* Băng rôn: MỘT lượt bay — thời lượng theo bố cục (SkyBackdrop → ly.bnMs: desktop 26 s, mobile 16,64 s); chữ đứng yên (bỏ nghiêng phấp phới — nhìn rung, khó đọc). */
 @keyframes skyBannerOnce { 0% { transform: translate3d(0, 0, 0); opacity: 0; } 3.85% { opacity: 1; } 96.15% { transform: translate3d(var(--fd, 1960px), 8px, 0); opacity: 1; } 100% { transform: translate3d(var(--fd, 1960px), 8px, 0); opacity: 0; } }
-@keyframes skyFlagWave { 0% { transform: skewY(-2deg); } 100% { transform: skewY(2deg); } }
 /* Hiệu ứng nền đêm — tên lửa phóng (SkyBackdrop → NightRocket): chu kỳ 64 s, phóng trong ~14% đầu (≈ 9 s,
    nhanh dần) rồi nghỉ; khói tản ở chỗ phóng trong ~9% đầu. Đích bay --rx / --ry, khói tản theo --dx. */
 @keyframes skyRocket { 0% { transform: translate3d(0, 0, 0); opacity: 0; animation-timing-function: cubic-bezier(.55, 0, 1, .45); } 0.6% { opacity: 1; } 13% { opacity: 1; } 14% { transform: translate3d(var(--rx), var(--ry), 0); opacity: 0; } 100% { transform: translate3d(var(--rx), var(--ry), 0); opacity: 0; } }

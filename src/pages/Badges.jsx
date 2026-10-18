@@ -3,7 +3,7 @@ import { createPortal } from 'react-dom'
 import { t } from '#i18n'
 import { useApp } from '#contexts/AppContext.jsx'
 import { useNavigate, useLocation } from 'react-router-dom'
-import { Avatar, Icon } from '#ds'
+import { Avatar } from '#ds'
 import BadgeHex from '#components/badges/BadgeHex.jsx'
 import BadgeCard from '#components/badges/BadgeCard.jsx'
 import BadgeShelf from '#components/badges/BadgeShelf.jsx'
@@ -37,6 +37,7 @@ import badgesConfig from '#config/badges.js'
 import { useBadgeTone } from '#components/badges/badgeTone.js'
 import { useTheme } from '#contexts/ThemeContext.jsx'
 import NotificationBell from '#components/notification/NotificationBell.jsx'
+import { HeaderAction } from '#ui'
 
 /**
  * Trang Master: Danh hiệu & Treo thưởng.
@@ -706,6 +707,26 @@ export default function Badges() {
   // GIAO DIỆN DESKTOP (2A)
   // ══════════════════════════════════════════════════════════════════
   return (
+    <>
+    {/* Header trong suốt như BXH, nằm NGOÀI khung: nút lọc (chữ = tên mùa đang xem) mở hộp thoại chọn mùa + người
+        xem, đổi giao diện, chuông — header chung của app ẩn ở route này. */}
+    <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'flex-end', gap: 6, flexWrap: 'wrap', padding: '4px 2px' }}>
+      <BadgeFilterButton
+        label={currentSeason.name || t('badges.seasonHeader')}
+        allSeasons={allSeasons}
+        seasonValue={currentSeason?.id || currentSeason?.code || ''}
+        onSelectSeason={(sId) => setSelectedSeasonId(sId)}
+        allMembers={db?.members || []}
+        activeMemberId={activeMember.id}
+        currentMemberId={currentMember.id}
+        onSelectMember={(val) => {
+          setViewingMemberId(val === currentMember.id ? null : val)
+          setActiveTab('collection')
+        }}
+      />
+      <HeaderAction icon={isDark ? 'sun' : 'moon'} label={isDark ? t('common.themeLight') : t('common.themeDark')} onClick={toggleTheme} />
+      <NotificationBell />
+    </div>
     <div
       style={ts({
         display: 'flex',
@@ -731,76 +752,6 @@ export default function Badges() {
           pointerEvents: 'none',
         })}
       />
-
-      {/* ═══ Header Bar (Thiết kế A1) ═══ */}
-      <div
-        style={ts({
-          display: 'flex',
-          alignItems: 'center',
-          justifyContent: 'space-between',
-          flexWrap: 'wrap',
-          gap: 16,
-          padding: '14px 4px',
-          borderBottom: '1px solid #2A1145',
-          position: 'relative',
-          zIndex: 1,
-        })}
-      >
-        <div style={ts({ display: 'flex', flexDirection: 'column', gap: 4 })}>
-          <div
-            style={ts({
-              font: '700 26px/1 Oswald, sans-serif',
-              letterSpacing: '.03em',
-              textTransform: 'uppercase',
-              color: '#FFFFFF',
-            })}
-          >
-            {t('badges.title')}
-          </div>
-          <div style={ts({ font: "400 12px/1.4 'IBM Plex Mono', monospace", color: '#9C8ABE' })}>
-            {currentSeason.name || t('badges.seasonHeader')}
-          </div>
-        </div>
-
-        {/* Chọn mùa + người xem: một nút lọc mở hộp thoại hai ô chọn; cạnh đó đổi giao diện + chuông (header chung
-            của app ẩn ở route này). */}
-        <div style={ts({ display: 'flex', alignItems: 'center', gap: 8 })}>
-        <BadgeFilterButton
-          allSeasons={allSeasons}
-          seasonValue={currentSeason?.id || currentSeason?.code || ''}
-          onSelectSeason={(sId) => setSelectedSeasonId(sId)}
-          allMembers={db?.members || []}
-          activeMemberId={activeMember.id}
-          currentMemberId={currentMember.id}
-          onSelectMember={(val) => {
-            setViewingMemberId(val === currentMember.id ? null : val)
-            setActiveTab('collection')
-          }}
-          style={ts({
-            width: 34,
-            height: 34,
-            padding: 0,
-            display: 'grid',
-            placeItems: 'center',
-            background: '#190C2D',
-            border: '1px solid #3B1B66',
-            borderRadius: 6,
-            color: '#2EE9FF',
-            cursor: 'pointer',
-          })}
-        />
-        <button
-          type="button"
-          aria-label={isDark ? t('common.themeLight') : t('common.themeDark')}
-          title={isDark ? t('common.themeLight') : t('common.themeDark')}
-          onClick={toggleTheme}
-          style={ts({ width: 34, height: 34, padding: 0, display: 'grid', placeItems: 'center', background: '#190C2D', border: '1px solid #3B1B66', borderRadius: 6, color: '#C9BFDC', cursor: 'pointer' })}
-        >
-          <Icon name={isDark ? 'sun' : 'moon'} size={15} />
-        </button>
-        <NotificationBell style={isDark ? undefined : { color: 'var(--text-secondary)' }} />
-        </div>
-      </div>
 
       {/* ═══ Hàng Tabs & Tóm tắt số lượng (Thiết kế A1) ═══ */}
       <div
@@ -1836,5 +1787,6 @@ export default function Badges() {
       {/* ═══ MODAL SỬA CHÂM NGÔN / CHỮ KÝ ═══ */}
       {renderSignatureModal()}
     </div>
+    </>
   )
 }

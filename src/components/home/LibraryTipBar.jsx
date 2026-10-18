@@ -68,7 +68,7 @@ const S = {
     gap: 9,
     padding: '0 10px 0 14px',
     borderRadius: 'var(--radius-card, 12px)',
-    background: 'var(--status-delayed-bg)',
+    background: 'color-mix(in srgb, var(--status-delayed-bg) 55%, transparent)',
     border: '1px solid var(--status-delayed-bg)',
     cursor: 'pointer',
     textAlign: 'left',

@@ -27,6 +27,7 @@ import AttachVideoModal, { MatchVideoInlineExpander } from '#components/challeng
 import MatchScoreLines from '#components/challenge/MatchScoreLines.jsx'
 import { VideoPlayerModal } from '#components/challenge/VideoPlayerModal.jsx'
 import ArenaChallengeCard from '#components/challenge/ArenaChallengeCard.jsx'
+import { useArenaTone } from '#components/challenge/arenaTone.js'
 
 /**
  * Lấy tên gọi ngắn gọn của thành viên (ưu tiên tên chính, kèm chữ lót nếu trùng)
@@ -55,6 +56,7 @@ function matchDayOf(m, sessionDateById) {
 }
 
 export default function Matches() {
+  const ts = useArenaTone()
   const { db, a } = useApp()
   const { isDark, toggleTheme } = useTheme()
   const navigate = useNavigate()
@@ -941,52 +943,50 @@ export default function Matches() {
         }
 
         return (
-          // Khung "đấu trường": chế độ Tối trong suốt (thẻ nổi thẳng trên trời đêm như BXH); chế độ Sáng giữ tấm
-          // nền tối — chữ trong đấu trường tô trắng cứng, đặt lên trời hoàng hôn là chìm.
+          // Khung "đấu trường" trong suốt: thẻ nổi thẳng trên nền trời như BXH. Bản sáng đổi màu chữ / thẻ qua useArenaTone.
           <div
-            style={{
-              ...(isDark
-                ? { background: 'transparent', padding: 0 }
-                : { background: '#080D18', border: '1px solid #182236', padding: isMobile ? '18px 14px' : '28px 32px' }),
+            style={ts({
+              background: 'transparent',
+              padding: 0,
               borderRadius: isMobile ? 16 : 22,
               display: 'flex',
               flexDirection: 'column',
               gap: 22,
               width: '100%',
               minWidth: 0,
-            }}
+            })}
           >
             {/* ARENA HEADER: SUBTITLE, HERO TITLE, SUBTABS, SEARCH & TẠO KÈO */}
             <div
-              style={{
+              style={ts({
                 display: 'flex',
                 alignItems: isMobile ? 'stretch' : 'flex-end',
                 justifyContent: 'space-between',
                 gap: 16,
                 flexWrap: 'wrap',
-              }}
+              })}
             >
               {/* Tiêu đề Đấu trường */}
-              <div style={{ display: 'flex', flexDirection: 'column', gap: 4 }}>
+              <div style={ts({ display: 'flex', flexDirection: 'column', gap: 4 })}>
                 <span
-                  style={{
+                  style={ts({
                     font: '700 12px/1 "IBM Plex Sans", sans-serif',
                     letterSpacing: '0.16em',
                     textTransform: 'uppercase',
                     color: '#2EC4B6',
-                  }}
+                  })}
                 >
                   {arenaSubtitleText}
                 </span>
                 <span
-                  style={{
+                  style={ts({
                     font: isMobile
                       ? '800 22px/1.1 "Barlow Condensed", system-ui, sans-serif'
                       : '800 32px/1.1 "Barlow Condensed", system-ui, sans-serif',
                     textTransform: 'uppercase',
                     letterSpacing: '0.01em',
                     color: '#F4F7FB',
-                  }}
+                  })}
                 >
                   {t('challenge.arenaHeroTitle')}
                 </span>
@@ -994,17 +994,17 @@ export default function Matches() {
 
               {/* Bộ lọc Subtabs & Search */}
               <div
-                style={{
+                style={ts({
                   display: 'flex',
                   alignItems: 'center',
                   gap: 10,
                   flexWrap: 'wrap',
                   width: isMobile ? '100%' : 'auto',
-                }}
+                })}
               >
                 {/* Pill Subtabs */}
                 <div
-                  style={{
+                  style={ts({
                     display: 'flex',
                     gap: 3,
                     background: '#0F1728',
@@ -1013,7 +1013,7 @@ export default function Matches() {
                     padding: 4,
                     overflowX: 'auto',
                     maxWidth: '100%',
-                  }}
+                  })}
                 >
                   {subTabs.map((st) => {
                     const active = challengeSubTab === st.id
@@ -1022,7 +1022,7 @@ export default function Matches() {
                         key={st.id}
                         type="button"
                         onClick={() => setChallengeSubTab(st.id)}
-                        style={{
+                        style={ts({
                           padding: isMobile ? '6px 10px' : '8px 12px',
                           borderRadius: 9,
                           background: active ? '#1B2842' : 'transparent',
@@ -1036,18 +1036,18 @@ export default function Matches() {
                           gap: 6,
                           whiteSpace: 'nowrap',
                           transition: 'background 0.15s ease, color 0.15s ease',
-                        }}
+                        })}
                       >
                         <span>{st.label}</span>
                         <span
-                          style={{
+                          style={ts({
                             fontSize: 11,
                             fontFamily: '"IBM Plex Mono", monospace',
                             color: st.color || (active ? '#F4F7FB' : '#8494AA'),
                             background: active ? 'rgba(255,255,255,0.08)' : 'transparent',
                             padding: '1px 5px',
                             borderRadius: 999,
-                          }}
+                          })}
                         >
                           {st.count}
                         </span>
@@ -1058,25 +1058,25 @@ export default function Matches() {
 
                 {/* Input Tìm kiếm */}
                 <div
-                  style={{
+                  style={ts({
                     position: 'relative',
                     display: 'flex',
                     alignItems: 'center',
                     minWidth: isMobile ? '100%' : 220,
                     flex: isMobile ? '1 1 100%' : '0 0 auto',
-                  }}
+                  })}
                 >
                   <Icon
                     name="search"
                     size={14}
-                    style={{ position: 'absolute', left: 10, color: '#8494AA', pointerEvents: 'none' }}
+                    style={ts({ position: 'absolute', left: 10, color: '#8494AA', pointerEvents: 'none' })}
                   />
                   <input
                     type="text"
                     placeholder={t('challenge.searchPlaceholder')}
                     value={challengeSearch}
                     onChange={(e) => setChallengeSearch(e.target.value)}
-                    style={{
+                    style={ts({
                       width: '100%',
                       height: 36,
                       borderRadius: 10,
@@ -1086,13 +1086,13 @@ export default function Matches() {
                       padding: '0 28px 0 32px',
                       fontSize: 12.5,
                       outline: 'none',
-                    }}
+                    })}
                   />
                   {challengeSearch && (
                     <button
                       type="button"
                       onClick={() => setChallengeSearch('')}
-                      style={{
+                      style={ts({
                         position: 'absolute',
                         right: 8,
                         background: 'none',
@@ -1102,7 +1102,7 @@ export default function Matches() {
                         padding: 0,
                         display: 'flex',
                         alignItems: 'center',
-                      }}
+                      })}
                     >
                       <Icon name="x" size={13} />
                     </button>
@@ -1115,7 +1115,7 @@ export default function Matches() {
                 làm nổi bật; hiện banner là treo mã ID thô trên một danh sách không có nó. */}
             {highlightedChallengeId && allChallenges.some((c) => c.id === highlightedChallengeId) && (
               <div
-                style={{
+                style={ts({
                   display: 'flex',
                   alignItems: 'center',
                   justifyContent: 'space-between',
@@ -1125,11 +1125,11 @@ export default function Matches() {
                   border: '1px solid rgba(0, 245, 212, 0.35)',
                   gap: 8,
                   flexWrap: 'wrap',
-                }}
+                })}
               >
-                <div style={{ display: 'flex', alignItems: 'center', gap: 8, fontSize: 13, color: '#F4F7FB' }}>
-                  <span style={{ fontSize: 16 }}>🎯</span>
-                  <span style={{ fontWeight: 600 }}>
+                <div style={ts({ display: 'flex', alignItems: 'center', gap: 8, fontSize: 13, color: '#F4F7FB' })}>
+                  <span style={ts({ fontSize: 16 })}>🎯</span>
+                  <span style={ts({ fontWeight: 600 })}>
                     {t('challenge.focusedNotice', {
                       code: (allChallenges.find((c) => c.id === highlightedChallengeId)?.code) || highlightedChallengeId,
                     })}
@@ -1143,7 +1143,7 @@ export default function Matches() {
                     next.delete('challengeId')
                     setSearchParams(next, { replace: true })
                   }}
-                  style={{
+                  style={ts({
                     background: 'none',
                     border: 'none',
                     color: '#00F5D4',
@@ -1151,7 +1151,7 @@ export default function Matches() {
                     cursor: 'pointer',
                     fontWeight: 600,
                     textDecoration: 'underline',
-                  }}
+                  })}
                 >
                   {t('challenge.viewAll')}
                 </button>
@@ -1160,10 +1160,10 @@ export default function Matches() {
 
             {/* DANH SÁCH THẺ KÈO: KÈO TÂM ĐIỂM + LƯỚI KÈO */}
             {challengeSubTab === 'my' ? (
-              <div style={{ display: 'grid', gap: 20, width: '100%' }}>
+              <div style={ts({ display: 'grid', gap: 20, width: '100%' })}>
                 {/* SECTION 1: ĐANG DIỄN RA */}
                 {myActiveChallenges.length > 0 ? (
-                  <div style={{ display: 'flex', flexDirection: 'column', gap: 16 }}>
+                  <div style={ts({ display: 'flex', flexDirection: 'column', gap: 16 })}>
                     {/* KÈO TÂM ĐIỂM PHÓNG TO (KÈO ĐẦU TIÊN) */}
                     <ArenaChallengeCard
                       challenge={myActiveChallenges[0]}
@@ -1187,7 +1187,7 @@ export default function Matches() {
                   </div>
                 ) : (
                   <div
-                    style={{
+                    style={ts({
                       background: '#0D1526',
                       border: '1px dashed #1E2A40',
                       borderRadius: 16,
@@ -1197,20 +1197,20 @@ export default function Matches() {
                       alignItems: 'center',
                       gap: 8,
                       textAlign: 'center',
-                    }}
+                    })}
                   >
-                    <Icon name="circle-check" size={28} style={{ color: '#2EC4B6' }} />
-                    <span style={{ fontSize: 14, color: '#8494AA' }}>{t('matchesPage.emptyChallenges')}</span>
+                    <Icon name="circle-check" size={28} style={ts({ color: '#2EC4B6' })} />
+                    <span style={ts({ fontSize: 14, color: '#8494AA' })}>{t('matchesPage.emptyChallenges')}</span>
                   </div>
                 )}
 
                 {/* SECTION 2: ĐÃ KẾT THÚC (COLLAPSIBLE) */}
                 {myEndedChallenges.length > 0 && (
-                  <div style={{ display: 'flex', flexDirection: 'column', gap: 12, marginTop: 4 }}>
+                  <div style={ts({ display: 'flex', flexDirection: 'column', gap: 12, marginTop: 4 })}>
                     <button
                       type="button"
                       onClick={() => setMyEndedCollapsed(!myEndedCollapsed)}
-                      style={{
+                      style={ts({
                         display: 'flex',
                         alignItems: 'center',
                         gap: 8,
@@ -1220,25 +1220,25 @@ export default function Matches() {
                         textAlign: 'left',
                         padding: 0,
                         color: '#8494AA',
-                      }}
+                      })}
                     >
                       <Icon
                         name={myEndedCollapsed ? 'chevron-right' : 'chevron-down'}
                         size={16}
-                        style={{ color: '#8494AA' }}
+                        style={ts({ color: '#8494AA' })}
                       />
-                      <span style={{ fontWeight: 600, fontSize: 14, color: '#E9EFF7' }}>
+                      <span style={ts({ fontWeight: 600, fontSize: 14, color: '#E9EFF7' })}>
                         {t('challenge.sectionEnded')}
                       </span>
                       <span
-                        style={{
+                        style={ts({
                           fontSize: 12,
                           fontFamily: '"IBM Plex Mono", monospace',
                           color: '#8494AA',
                           background: '#1B2842',
                           padding: '2px 8px',
                           borderRadius: 999,
-                        }}
+                        })}
                       >
                         {myEndedChallenges.length}
                       </span>
@@ -1261,7 +1261,7 @@ export default function Matches() {
 
                 {myChallenges.length === 0 && (
                   <div
-                    style={{
+                    style={ts({
                       background: '#0D1526',
                       border: '1px dashed #1E2A40',
                       borderRadius: 16,
@@ -1271,13 +1271,13 @@ export default function Matches() {
                       alignItems: 'center',
                       gap: 12,
                       textAlign: 'center',
-                    }}
+                    })}
                   >
-                    <Icon name="history" size={36} style={{ color: '#5B6A82' }} />
-                    <div style={{ fontWeight: 600, fontSize: 16, color: '#F4F7FB' }}>
+                    <Icon name="history" size={36} style={ts({ color: '#5B6A82' })} />
+                    <div style={ts({ fontWeight: 600, fontSize: 16, color: '#F4F7FB' })}>
                       {t('matchesPage.emptyChallenges')}
                     </div>
-                    <div style={{ fontSize: 13, color: '#8494AA' }}>
+                    <div style={ts({ fontSize: 13, color: '#8494AA' })}>
                       {t('matchesPage.createChallengePrompt')}
                     </div>
                     <button
@@ -1287,7 +1287,7 @@ export default function Matches() {
                         setInitialTeamB([])
                         setChallengeModalOpen(true)
                       }}
-                      style={{
+                      style={ts({
                         marginTop: 4,
                         font: '700 13px/1 "IBM Plex Sans", sans-serif',
                         color: '#1A1204',
@@ -1299,7 +1299,7 @@ export default function Matches() {
                         display: 'inline-flex',
                         alignItems: 'center',
                         gap: 6,
-                      }}
+                      })}
                     >
                       <Icon name="plus" size={14} />
                       <span>{t('matchesPage.createBtn')}</span>
@@ -1310,7 +1310,7 @@ export default function Matches() {
             ) : (
               /* CÁC TAB KHÁC: PENDING, ACCEPTED, PLAYED */
               displayedChallenges.length > 0 ? (
-                <div style={{ display: 'flex', flexDirection: 'column', gap: 16 }}>
+                <div style={ts({ display: 'flex', flexDirection: 'column', gap: 16 })}>
                   {/* KÈO TÂM ĐIỂM (KÈO ĐẦU TIÊN) */}
                   <ArenaChallengeCard
                     challenge={displayedChallenges[0]}
@@ -1334,7 +1334,7 @@ export default function Matches() {
                 </div>
               ) : (
                 <div
-                  style={{
+                  style={ts({
                     background: '#0D1526',
                     border: '1px dashed #1E2A40',
                     borderRadius: 16,
@@ -1344,13 +1344,13 @@ export default function Matches() {
                     alignItems: 'center',
                     gap: 12,
                     textAlign: 'center',
-                  }}
+                  })}
                 >
-                  <Icon name="history" size={36} style={{ color: '#5B6A82' }} />
-                  <div style={{ fontWeight: 600, fontSize: 16, color: '#F4F7FB' }}>
+                  <Icon name="history" size={36} style={ts({ color: '#5B6A82' })} />
+                  <div style={ts({ fontWeight: 600, fontSize: 16, color: '#F4F7FB' })}>
                     {t('matchesPage.emptyChallenges')}
                   </div>
-                  <div style={{ fontSize: 13, color: '#8494AA' }}>
+                  <div style={ts({ fontSize: 13, color: '#8494AA' })}>
                     {t('matchesPage.createChallengePrompt')}
                   </div>
                   <button
@@ -1360,7 +1360,7 @@ export default function Matches() {
                       setInitialTeamB([])
                       setChallengeModalOpen(true)
                     }}
-                    style={{
+                    style={ts({
                       marginTop: 4,
                       font: '700 13px/1 "IBM Plex Sans", sans-serif',
                       color: '#1A1204',
@@ -1372,7 +1372,7 @@ export default function Matches() {
                       display: 'inline-flex',
                       alignItems: 'center',
                       gap: 6,
-                    }}
+                    })}
                   >
                     <Icon name="plus" size={14} />
                     <span>{t('matchesPage.createBtn')}</span>

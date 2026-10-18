@@ -119,6 +119,10 @@ qua `components/badges/badgeTone.js`:
 - Giữ tối ở cả hai chế độ: icon huy hiệu (`BadgeHex`), popup chi tiết / mở khoá (`BadgeDetailModal`,
   `BadgeUnlockModal`) và các popup trong `Badges.jsx` (sắp kệ, sửa châm ngôn).
 - `TierBackdrop compact` (thẻ hồ sơ, poster) bản sáng: bỏ bụi sao trắng, cực quang không hoà `screen`.
+- **Cùng cơ chế cho màn khác:** phần đổi màu dùng chung ở `utils/tone.js` (`createTone({ surf, text, accentBg, … })`);
+  mỗi màn có bảng màu riêng. Hiện có: Danh hiệu (`badgeTone.js`) và khu đấu trường kèo — tab Sàn kèo ở Trận đấu &
+  Kèo + `ArenaChallengeCard` (`components/challenge/arenaTone.js`, `useArenaTone()`; khung bọc ngoài trong suốt ở cả
+  hai chế độ, thẻ / khối cao dùng trắng mờ viết thẳng chứ không `var(--surface-card)` — luật kính + giới hạn GPU, §2.2).
 
 ## 3. Typography
 

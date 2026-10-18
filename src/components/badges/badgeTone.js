@@ -10,6 +10,7 @@
  * nền màu nhấn (nút, tag gradient) giữ nguyên màu chữ — chữ trắng / tối trên nút đã đúng sẵn.
  */
 import { useTheme } from '#contexts/ThemeContext.jsx'
+import { createTone } from '#utils/tone.js'
 
 // Khung trang cao bằng cả trang: KHÔNG dùng var(--surface-card) — luật kính (effects.css) sẽ gắn
 // backdrop-filter, phần tử cao vậy vượt giới hạn texture GPU (mất nội dung / nhấp nháy). Trắng mờ viết thẳng.
@@ -58,35 +59,9 @@ const TEXT = {
 
 /** Nền có màu nhấn (nút / tag gradient): giữ nguyên màu chữ trên nó. */
 const ACCENT_BG = /#(FF2E7E|FF3D77|FF7A18|FF9A3D|FFE24B|F6C945|6D14FF|8B2BFF|C04BFF|2EE9FF|0B63FF|00776B|2EE9C0|B77400|F6A03C|FF6BE0|FFB03A|5FDBD3|3FC8FF|7A4DFF|8E4CF5)\b/i
-const COLOR_RE = /#[0-9A-Fa-f]{6}\b|rgba\(\s*\d+\s*,\s*\d+\s*,\s*\d+\s*,\s*[\d.]+\s*\)/g
-const TEXT_KEYS = new Set(['color', 'fill', 'stroke', 'caretColor'])
-// Lớp phủ tối trên nền tối → lớp phủ trắng trên nền sáng.
-const DARK_VEIL = new Set(['6,4,16', '23,10,39', '7,3,15'])
 
-function swap(v, text) {
-  return v.replace(COLOR_RE, (m) => {
-    if (m[0] === '#') return (text ? TEXT : SURF)[m.toUpperCase()] ?? m
-    const [r, g, b, a] = m.slice(5, -1).split(',').map((x) => x.trim())
-    const rgb = `${r},${g},${b}`
-    // Vệt / lớp mờ trắng trên nền tối → vệt tím đậm nhẹ trên nền sáng (đậm hơn chút cho thấy được)
-    if (rgb === '255,255,255') return text ? `rgba(30,20,60,${Math.min(0.75, +a + 0.15)})` : `rgba(60,40,110,${Math.min(0.5, +a * 1.5).toFixed(3)})`
-    if (DARK_VEIL.has(rgb)) return `rgba(255,255,255,${a})`
-    if (rgb === '0,0,0') return `rgba(30,20,60,${Math.min(0.18, +a).toFixed(2)})`
-    return m
-  })
-}
-
-/** Đổi một style object sang bản sáng. */
-export function toneStyle(st) {
-  if (!st || typeof st !== 'object') return st
-  const keepText = ACCENT_BG.test(String(st.background ?? '') + String(st.backgroundImage ?? ''))
-  const out = {}
-  for (const k in st) {
-    const v = st[k]
-    out[k] = typeof v !== 'string' ? v : TEXT_KEYS.has(k) ? (keepText ? v : swap(v, true)) : swap(v, false)
-  }
-  return out
-}
+/** Đổi một style object sang bản sáng. Lớp phủ tối của màn (6,4,16 · 23,10,39 · 7,3,15) → lớp phủ trắng. */
+export const toneStyle = createTone({ surf: SURF, text: TEXT, accentBg: ACCENT_BG, darkVeils: ['6,4,16', '23,10,39', '7,3,15'] })
 
 const same = (st) => st
 

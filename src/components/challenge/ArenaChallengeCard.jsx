@@ -14,6 +14,7 @@ import {
 import { sessionMembers, sGuests, isPresent, playerName, playerOf } from '#lib/money.js'
 import { sessionPlayers } from '#lib/assign.js'
 import ArenaPlayerTag from './ArenaPlayerTag.jsx'
+import { useArenaTone } from '#components/challenge/arenaTone.js'
 
 /**
  * Lấy chữ cái viết tắt của người chơi (2 chữ cái hoa nếu có họ tên)
@@ -40,6 +41,7 @@ function getAvatarColor(name = '') {
  * Component hiển thị Avatar người chơi theo phong cách Đấu trường 1a
  */
 function ArenaAvatar({ memberId, member, team, size = 44 }) {
+  const ts = useArenaTone()
   const name = member?.name || memberId || ''
   const avatarUrl = member?.avatarUrl || member?.avatar || null
   const initials = getInitials(name)
@@ -51,7 +53,7 @@ function ArenaAvatar({ memberId, member, team, size = 44 }) {
   return (
     <div
       title={name}
-      style={{
+      style={ts({
         width: size,
         height: size,
         borderRadius: '50%',
@@ -67,13 +69,13 @@ function ArenaAvatar({ memberId, member, team, size = 44 }) {
         flexShrink: 0,
         position: 'relative',
         zIndex: 1,
-      }}
+      })}
     >
       {avatarUrl ? (
         <img
           src={avatarUrl}
           alt={name}
-          style={{ width: '100%', height: '100%', objectFit: 'cover' }}
+          style={ts({ width: '100%', height: '100%', objectFit: 'cover' })}
         />
       ) : (
         <span>{initials}</span>
@@ -151,11 +153,12 @@ function getChallengeSetsList(c, matches = []) {
  * Menu 3 chấm các thao tác mở rộng của card
  */
 function ArenaCardMenu({ items }) {
+  const ts = useArenaTone()
   const [open, setOpen] = useState(false)
   if (!items || items.length === 0) return null
 
   return (
-    <div style={{ position: 'relative', marginLeft: 'auto' }}>
+    <div style={ts({ position: 'relative', marginLeft: 'auto' })}>
       <button
         type="button"
         aria-label={t('common.more')}
@@ -164,7 +167,7 @@ function ArenaCardMenu({ items }) {
           e.stopPropagation()
           setOpen((o) => !o)
         }}
-        style={{
+        style={ts({
           background: 'none',
           border: '1px solid rgba(255,255,255,0.12)',
           borderRadius: 8,
@@ -174,7 +177,7 @@ function ArenaCardMenu({ items }) {
           display: 'flex',
           alignItems: 'center',
           justifyContent: 'center',
-        }}
+        })}
       >
         <Icon name="ellipsis" size={14} />
       </button>
@@ -185,10 +188,10 @@ function ArenaCardMenu({ items }) {
               e.stopPropagation()
               setOpen(false)
             }}
-            style={{ position: 'fixed', inset: 0, zIndex: 40 }}
+            style={ts({ position: 'fixed', inset: 0, zIndex: 40 })}
           />
           <div
-            style={{
+            style={ts({
               position: 'absolute',
               bottom: 'calc(100% + 6px)',
               right: 0,
@@ -201,7 +204,7 @@ function ArenaCardMenu({ items }) {
               minWidth: 160,
               display: 'grid',
               gap: 2,
-            }}
+            })}
           >
             {items.map((it) => (
               <button
@@ -212,7 +215,7 @@ function ArenaCardMenu({ items }) {
                   setOpen(false)
                   it.onClick()
                 }}
-                style={{
+                style={ts({
                   display: 'flex',
                   alignItems: 'center',
                   gap: 8,
@@ -226,7 +229,7 @@ function ArenaCardMenu({ items }) {
                   fontWeight: 500,
                   cursor: 'pointer',
                   textAlign: 'left',
-                }}
+                })}
               >
                 <Icon name={it.icon} size={14} />
                 <span>{it.label}</span>
@@ -257,6 +260,7 @@ export default function ArenaChallengeCard({
   onViewMatch,
   onRevenge,
 }) {
+  const ts = useArenaTone()
   const navigate = useNavigate()
 
   const teamA = c.teamA || []
@@ -363,7 +367,7 @@ export default function ArenaChallengeCard({
     <div
       id={`challenge-card-${c.id}`}
       onClick={() => onViewChallenge?.(c)}
-      style={{
+      style={ts({
         position: 'relative',
         borderRadius: isFeatured ? 20 : 16,
         background: '#0D1526',
@@ -382,11 +386,11 @@ export default function ArenaChallengeCard({
             : '0 4px 16px rgba(0, 0, 0, 0.2)',
         cursor: 'pointer',
         transition: 'transform 0.15s ease, border-color 0.15s ease, box-shadow 0.15s ease',
-      }}
+      })}
     >
       {/* Glow Layer 2 phe theo phong cách Đấu trường 1a */}
       <div
-        style={{
+        style={ts({
           position: 'absolute',
           inset: 0,
           borderRadius: isFeatured ? 19 : 15,
@@ -394,24 +398,24 @@ export default function ArenaChallengeCard({
             ? 'linear-gradient(90deg, rgba(46,196,182,0.18), rgba(46,196,182,0) 42%, rgba(255,122,89,0) 58%, rgba(255,122,89,0.18))'
             : 'linear-gradient(90deg, rgba(46,196,182,0.11), rgba(46,196,182,0) 40%, rgba(255,122,89,0) 60%, rgba(255,122,89,0.11))',
           pointerEvents: 'none',
-        }}
+        })}
       />
 
       <div
-        style={{
+        style={ts({
           position: 'relative',
           padding: isFeatured ? (isMobile ? '16px 12px' : '26px 30px') : (isMobile ? '14px 12px' : '18px 20px'),
           display: 'flex',
           flexDirection: 'column',
           gap: isFeatured ? (isMobile ? 14 : 20) : (isMobile ? 12 : 16),
           minWidth: 0,
-        }}
+        })}
       >
         {/* HÀNG 1: BADGES, MÃ KÈO & TRẠNG THÁI */}
-        <div style={{ display: 'flex', alignItems: 'center', gap: 8, flexWrap: 'wrap' }}>
+        <div style={ts({ display: 'flex', alignItems: 'center', gap: 8, flexWrap: 'wrap' })}>
           {isFeatured && (
             <span
-              style={{
+              style={ts({
                 font: '800 13px/1 "Barlow Condensed", system-ui, sans-serif',
                 letterSpacing: '0.14em',
                 textTransform: 'uppercase',
@@ -419,7 +423,7 @@ export default function ArenaChallengeCard({
                 background: '#F5C451',
                 padding: '6px 10px',
                 borderRadius: 6,
-              }}
+              })}
             >
               {t('challenge.featuredBadgeTitle')}
             </span>
@@ -427,13 +431,13 @@ export default function ArenaChallengeCard({
 
           {sessionObj && (
             <span
-              style={{
+              style={ts({
                 fontSize: 11.5,
                 color: '#A9B6C9',
                 background: 'rgba(255,255,255,0.06)',
                 padding: '3px 8px',
                 borderRadius: 6,
-              }}
+              })}
             >
               {t('matchesPage.sessionLinked', { date: dd(sessionObj.date) })}
             </span>
@@ -442,7 +446,7 @@ export default function ArenaChallengeCard({
           {matchTags.map((tag) => (
             <span
               key={tag.id}
-              style={{
+              style={ts({
                 fontSize: 11,
                 fontWeight: 600,
                 color: tag.color,
@@ -450,7 +454,7 @@ export default function ArenaChallengeCard({
                 background: tag.bg,
                 padding: '2px 8px',
                 borderRadius: 999,
-              }}
+              })}
             >
               {t(tag.labelKey)}
             </span>
@@ -458,7 +462,7 @@ export default function ArenaChallengeCard({
 
           {isBoSeries && (
             <span
-              style={{
+              style={ts({
                 fontSize: 11,
                 fontWeight: 600,
                 color: '#D8B4FE',
@@ -467,17 +471,17 @@ export default function ArenaChallengeCard({
                 padding: '2px 8px',
                 borderRadius: 999,
                 fontFamily: '"IBM Plex Mono", monospace',
-              }}
+              })}
             >
               Bo{c.bestOf}
             </span>
           )}
 
-          <span style={{ flex: 1 }} />
+          <span style={ts({ flex: 1 })} />
 
           {/* Badge trạng thái */}
           <span
-            style={{
+            style={ts({
               fontSize: 12,
               fontWeight: 600,
               padding: '4px 10px',
@@ -504,7 +508,7 @@ export default function ArenaChallengeCard({
                     ? '#FF9C9C'
                     : '#F0B75C',
               whiteSpace: 'nowrap',
-            }}
+            })}
           >
             {statusBadgeText}
           </span>
@@ -512,7 +516,7 @@ export default function ArenaChallengeCard({
 
         {/* HÀNG 2: ĐỐI ĐẦU ĐỐI XỨNG 3 CỘT (PHE A | VS | PHE B) */}
         <div
-          style={{
+          style={ts({
             display: 'grid',
             // Cột giữa: tối thiểu như cũ nhưng nới theo tỷ số — cố định 46px làm "19 - 21" gãy 2 dòng trên điện thoại
             gridTemplateColumns: isMobile
@@ -521,14 +525,14 @@ export default function ArenaChallengeCard({
             alignItems: 'center',
             gap: isFeatured ? (isMobile ? 4 : 16) : (isMobile ? 4 : 10),
             minWidth: 0,
-          }}
+          })}
         >
           {/* CỘT PHE A */}
-          <div style={{ display: 'flex', flexDirection: 'column', alignItems: 'flex-start', gap: isFeatured ? 10 : 6, minWidth: 0 }}>
+          <div style={ts({ display: 'flex', flexDirection: 'column', alignItems: 'flex-start', gap: isFeatured ? 10 : 6, minWidth: 0 })}>
             {/* Avatars Phe A chồng nhau */}
-            <div style={{ display: 'flex' }}>
+            <div style={ts({ display: 'flex' })}>
               {teamA.map((id, idx) => (
-                <div key={id} style={{ marginRight: idx < teamA.length - 1 ? avatarOverlap : 0 }}>
+                <div key={id} style={ts({ marginRight: idx < teamA.length - 1 ? avatarOverlap : 0 })}>
                   <ArenaAvatar
                     memberId={id}
                     member={getMemberData(id)}
@@ -541,7 +545,7 @@ export default function ArenaChallengeCard({
             </div>
 
             {/* Tên đấu thủ Phe A */}
-            <div style={{ display: 'flex', flexDirection: 'column', gap: isFeatured ? 5 : 4, minWidth: 0, width: '100%', alignItems: 'flex-start', overflow: 'hidden' }}>
+            <div style={ts({ display: 'flex', flexDirection: 'column', gap: isFeatured ? 5 : 4, minWidth: 0, width: '100%', alignItems: 'flex-start', overflow: 'hidden' })}>
               {teamA.map((id) => {
                 const isAcc = (c.acceptedPlayers || []).includes(id)
                 return (
@@ -560,18 +564,18 @@ export default function ArenaChallengeCard({
             </div>
 
             {/* Rating & Badge Thắng Phe A */}
-            <div style={{ display: 'flex', alignItems: 'center', gap: 6, flexWrap: 'wrap' }}>
+            <div style={ts({ display: 'flex', alignItems: 'center', gap: 6, flexWrap: 'wrap' })}>
               <span
-                style={{
+                style={ts({
                   font: '600 12.5px/1 "IBM Plex Mono", monospace',
                   color: '#8FE3DA',
-                }}
+                })}
               >
                 {ratA > 0 ? t('challenge.avgPoint', { score: ratA.toLocaleString('vi-VN') }) : '—'}
               </span>
               {isPlayed && winnerTeam === 'A' && (
                 <span
-                  style={{
+                  style={ts({
                     font: '800 11px/1 "Barlow Condensed", system-ui, sans-serif',
                     letterSpacing: '0.12em',
                     textTransform: 'uppercase',
@@ -579,7 +583,7 @@ export default function ArenaChallengeCard({
                     background: '#2EC4B6',
                     padding: '2px 7px',
                     borderRadius: 5,
-                  }}
+                  })}
                 >
                   {t('challenge.wonBadgeShort')}
                 </span>
@@ -588,36 +592,36 @@ export default function ArenaChallengeCard({
           </div>
 
           {/* CỘT GIỮA: VS & TỈ SỐ / KHOẢNG CÁCH (4E CHO KÈO ĐÃ ĐẤU) */}
-          <div style={{ display: 'flex', flexDirection: 'column', alignItems: 'center', justifyContent: 'center', gap: 3, textAlign: 'center', minWidth: 0, overflow: 'hidden' }}>
+          <div style={ts({ display: 'flex', flexDirection: 'column', alignItems: 'center', justifyContent: 'center', gap: 3, textAlign: 'center', minWidth: 0, overflow: 'hidden' })}>
             {isPlayed ? (
               <span
-                style={{
+                style={ts({
                   font: isFeatured
                     ? (isMobile ? '800 30px/1 "Barlow Condensed", system-ui, sans-serif' : '800 46px/1 "Barlow Condensed", system-ui, sans-serif')
                     : (isMobile ? '800 26px/1 "Barlow Condensed", system-ui, sans-serif' : '800 30px/1 "Barlow Condensed", system-ui, sans-serif'),
                   color: '#F4F7FB',
                   letterSpacing: '0.02em',
                   whiteSpace: 'nowrap',
-                }}
+                })}
               >
                 {setScore}
               </span>
             ) : (
               <>
                 <span
-                  style={{
+                  style={ts({
                     font: isFeatured
                       ? (isMobile ? 'italic 800 36px/0.95 "Barlow Condensed", system-ui, sans-serif' : 'italic 800 80px/0.9 "Barlow Condensed", system-ui, sans-serif')
                       : (isMobile ? 'italic 800 24px/1 "Barlow Condensed", system-ui, sans-serif' : 'italic 800 28px/1 "Barlow Condensed", system-ui, sans-serif'),
                     color: isFeatured ? '#F4F7FB' : '#5B6A82',
                     letterSpacing: '-0.02em',
                     textShadow: isFeatured ? '0 0 35px rgba(245,196,81,0.35)' : 'none',
-                  }}
+                  })}
                 >
                   VS
                 </span>
                 {hasPlayedSets && (
-                  <span style={{ font: '700 15px/1 "Barlow Condensed", monospace', color: '#D8B4FE' }}>
+                  <span style={ts({ font: '700 15px/1 "Barlow Condensed", monospace', color: '#D8B4FE' })}>
                     {seriesProg.seriesScoreText}
                   </span>
                 )}
@@ -626,11 +630,11 @@ export default function ArenaChallengeCard({
           </div>
 
           {/* CỘT PHE B */}
-          <div style={{ display: 'flex', flexDirection: 'column', alignItems: 'flex-end', gap: isFeatured ? 10 : 6, minWidth: 0, textAlign: 'right' }}>
+          <div style={ts({ display: 'flex', flexDirection: 'column', alignItems: 'flex-end', gap: isFeatured ? 10 : 6, minWidth: 0, textAlign: 'right' })}>
             {/* Avatars Phe B chồng nhau ngược */}
-            <div style={{ display: 'flex', flexDirection: 'row-reverse' }}>
+            <div style={ts({ display: 'flex', flexDirection: 'row-reverse' })}>
               {teamB.map((id, idx) => (
-                <div key={id} style={{ marginLeft: idx < teamB.length - 1 ? avatarOverlap : 0 }}>
+                <div key={id} style={ts({ marginLeft: idx < teamB.length - 1 ? avatarOverlap : 0 })}>
                   <ArenaAvatar
                     memberId={id}
                     member={getMemberData(id)}
@@ -643,7 +647,7 @@ export default function ArenaChallengeCard({
             </div>
 
             {/* Tên đấu thủ Phe B */}
-            <div style={{ display: 'flex', flexDirection: 'column', gap: isFeatured ? 5 : 4, minWidth: 0, width: '100%', alignItems: 'flex-end', overflow: 'hidden' }}>
+            <div style={ts({ display: 'flex', flexDirection: 'column', gap: isFeatured ? 5 : 4, minWidth: 0, width: '100%', alignItems: 'flex-end', overflow: 'hidden' })}>
               {teamB.length > 0 ? (
                 teamB.map((id) => {
                   const isAcc = (c.acceptedPlayers || []).includes(id)
@@ -661,25 +665,25 @@ export default function ArenaChallengeCard({
                   )
                 })
               ) : (
-                <span style={{ fontSize: 13, color: '#8494AA', fontStyle: 'italic' }}>
+                <span style={ts({ fontSize: 13, color: '#8494AA', fontStyle: 'italic' })}>
                   {t('challenge.teamEmptyHint')}
                 </span>
               )}
             </div>
 
             {/* Rating & Badge Thắng Phe B */}
-            <div style={{ display: 'flex', flexDirection: 'row-reverse', alignItems: 'center', gap: 6, flexWrap: 'wrap' }}>
+            <div style={ts({ display: 'flex', flexDirection: 'row-reverse', alignItems: 'center', gap: 6, flexWrap: 'wrap' })}>
               <span
-                style={{
+                style={ts({
                   font: '600 12.5px/1 "IBM Plex Mono", monospace',
                   color: '#FFB39F',
-                }}
+                })}
               >
                 {ratB > 0 ? t('challenge.avgPoint', { score: ratB.toLocaleString('vi-VN') }) : '—'}
               </span>
               {isPlayed && winnerTeam === 'B' && (
                 <span
-                  style={{
+                  style={ts({
                     font: '800 11px/1 "Barlow Condensed", system-ui, sans-serif',
                     letterSpacing: '0.12em',
                     textTransform: 'uppercase',
@@ -687,7 +691,7 @@ export default function ArenaChallengeCard({
                     background: '#FF7A59',
                     padding: '2px 7px',
                     borderRadius: 5,
-                  }}
+                  })}
                 >
                   {t('challenge.wonBadgeShort')}
                 </span>
@@ -699,11 +703,11 @@ export default function ArenaChallengeCard({
         {/* HÀNG 3: DIỄN BIẾN SÉC ĐẤU (4E) CHO KÈO ĐÃ ĐẤU, HOẶC THANH KHẢ NĂNG THẮNG CHO KÈO CHƯA ĐẤU */}
         {isPlayed ? (
           setsList.length > 1 && (
-            <div style={{ display: 'flex', justifyContent: 'center', gap: 8, flexWrap: 'wrap' }}>
+            <div style={ts({ display: 'flex', justifyContent: 'center', gap: 8, flexWrap: 'wrap' })}>
               {setsList.map((s, idx) => (
                 <span
                   key={idx}
-                  style={{
+                  style={ts({
                     display: 'flex',
                     alignItems: 'center',
                     gap: 6,
@@ -712,44 +716,44 @@ export default function ArenaChallengeCard({
                     background: 'rgba(255,255,255,0.04)',
                     border: '1px solid #243353',
                     font: isFeatured ? '700 20px/1 "Barlow Condensed", monospace' : '700 17px/1 "Barlow Condensed", monospace',
-                  }}
+                  })}
                 >
-                  <span style={{ color: s.a > s.b ? '#2EC4B6' : '#6F7E95' }}>{s.a}</span>
-                  <span style={{ color: '#4A5A74' }}>-</span>
-                  <span style={{ color: s.b > s.a ? '#FF7A59' : '#6F7E95' }}>{s.b}</span>
+                  <span style={ts({ color: s.a > s.b ? '#2EC4B6' : '#6F7E95' })}>{s.a}</span>
+                  <span style={ts({ color: '#4A5A74' })}>-</span>
+                  <span style={ts({ color: s.b > s.a ? '#FF7A59' : '#6F7E95' })}>{s.b}</span>
                 </span>
               ))}
             </div>
           )
         ) : ratB > 0 ? (
-          <div style={{ display: 'flex', flexDirection: 'column', gap: isFeatured ? 8 : 6 }}>
-            <div style={{ display: 'flex', alignItems: 'baseline', justifyContent: 'space-between' }}>
+          <div style={ts({ display: 'flex', flexDirection: 'column', gap: isFeatured ? 8 : 6 })}>
+            <div style={ts({ display: 'flex', alignItems: 'baseline', justifyContent: 'space-between' })}>
               <span
-                style={{
+                style={ts({
                   font: isFeatured ? '800 36px/1 "Barlow Condensed", system-ui, sans-serif' : '800 22px/1 "Barlow Condensed", system-ui, sans-serif',
                   color: '#2EC4B6',
-                }}
+                })}
               >
                 {pctA}%
               </span>
 
               <span
-                style={{
+                style={ts({
                   fontSize: isFeatured ? 11.5 : 11,
                   letterSpacing: '0.14em',
                   textTransform: 'uppercase',
                   color: isFeatured ? '#8494AA' : '#6F7E95',
                   fontWeight: 600,
-                }}
+                })}
               >
                 {t('challenge.winChance')}
               </span>
 
               <span
-                style={{
+                style={ts({
                   font: isFeatured ? '800 36px/1 "Barlow Condensed", system-ui, sans-serif' : '800 22px/1 "Barlow Condensed", system-ui, sans-serif',
                   color: '#FF7A59',
-                }}
+                })}
               >
                 {pctB}%
               </span>
@@ -757,32 +761,32 @@ export default function ArenaChallengeCard({
 
             {/* Progress bar đôi */}
             <div
-              style={{
+              style={ts({
                 display: 'flex',
                 height: isFeatured ? 10 : 6,
                 borderRadius: 999,
                 overflow: 'hidden',
                 gap: 3,
                 background: '#182236',
-              }}
+              })}
             >
               <div
-                style={{
+                style={ts({
                   width: `${pctA}%`,
                   background: isFeatured
                     ? 'linear-gradient(90deg, #1E8F85, #2EC4B6)'
                     : '#2EC4B6',
                   borderRadius: '999px 0 0 999px',
-                }}
+                })}
               />
               <div
-                style={{
+                style={ts({
                   flex: 1,
                   background: isFeatured
                     ? 'linear-gradient(90deg, #FF7A59, #C9533A)'
                     : '#FF7A59',
                   borderRadius: '0 999px 999px 0',
-                }}
+                })}
               />
             </div>
           </div>
@@ -791,7 +795,7 @@ export default function ArenaChallengeCard({
         {/* CẢNH BÁO BÁO VẮNG TRONG BUỔI */}
         {hasAbsentInSession && (
           <div
-            style={{
+            style={ts({
               display: 'flex',
               alignItems: 'center',
               justifyContent: 'space-between',
@@ -804,10 +808,10 @@ export default function ArenaChallengeCard({
               fontSize: 12,
               lineHeight: 1.4,
               flexWrap: 'wrap',
-            }}
+            })}
           >
-            <div style={{ display: 'flex', alignItems: 'center', gap: 6, flex: 1, minWidth: 180 }}>
-              <Icon name="triangle-alert" size={15} style={{ color: '#EF4444', flexShrink: 0 }} />
+            <div style={ts({ display: 'flex', alignItems: 'center', gap: 6, flex: 1, minWidth: 180 })}>
+              <Icon name="triangle-alert" size={15} style={ts({ color: '#EF4444', flexShrink: 0 })} />
               <span>
                 {t('challenge.absentInSessionAlert', { names: absentInSessionNames.join(', '), date: dd(sessionObj.date) })}
               </span>
@@ -819,7 +823,7 @@ export default function ArenaChallengeCard({
                   e.stopPropagation()
                   onSelectSession?.(c)
                 }}
-                style={{
+                style={ts({
                   background: '#1B2842',
                   border: '1px solid #FF9C9C',
                   color: '#FF9C9C',
@@ -829,7 +833,7 @@ export default function ArenaChallengeCard({
                   cursor: 'pointer',
                   fontWeight: 600,
                   marginLeft: 'auto',
-                }}
+                })}
               >
                 {t('challenge.changeSession')}
               </button>
@@ -840,7 +844,7 @@ export default function ArenaChallengeCard({
         {/* Cảnh báo lệch trình */}
         {gap > IMBALANCE_THRESHOLD && ratA > 0 && ratB > 0 && (
           <div
-            style={{
+            style={ts({
               padding: '6px 10px',
               borderRadius: 8,
               background: 'rgba(240, 183, 92, 0.1)',
@@ -850,9 +854,9 @@ export default function ArenaChallengeCard({
               display: 'flex',
               alignItems: 'center',
               gap: 6,
-            }}
+            })}
           >
-            <Icon name="triangle-alert" size={14} style={{ color: '#F0B75C', flexShrink: 0 }} />
+            <Icon name="triangle-alert" size={14} style={ts({ color: '#F0B75C', flexShrink: 0 })} />
             <span>{t('challenge.gapWarningNotBlocked', { gap: gap.toLocaleString('vi-VN') })}</span>
           </div>
         )}
@@ -860,7 +864,7 @@ export default function ArenaChallengeCard({
         {/* KHỐI CƯỢC PHONG CÁCH 3D (KHÁN ĐÀI · THẤY RÕ AI CƯỢC AI) - CHỈ HIỆN KHI ĐÃ CÓ CƯỢC */}
         {predStats.totalCount > 0 && (
           <div
-            style={{
+            style={ts({
               position: 'relative',
               margin: isFeatured
                 ? (isMobile ? '6px -16px 0' : '8px -30px 0')
@@ -873,13 +877,13 @@ export default function ArenaChallengeCard({
               background: '#0A1120',
               borderTop: '1px solid #1E2A40',
               borderBottom: '1px solid #1E2A40',
-            }}
+            })}
           >
             {/* PHE XANH (BÊN TRÁI) */}
-            <div style={{ display: 'flex', alignItems: 'center', gap: isMobile ? 6 : 8, minWidth: 0 }}>
+            <div style={ts({ display: 'flex', alignItems: 'center', gap: isMobile ? 6 : 8, minWidth: 0 })}>
               {predStats.countA > 0 ? (
                 <>
-                  <div style={{ display: 'flex', flexShrink: 0 }}>
+                  <div style={ts({ display: 'flex', flexShrink: 0 })}>
                     {predStats.predictorsA.slice(0, 3).map((p, idx) => {
                       const name = memberNameOf(p.memberId) || ''
                       const mem = getMemberData(p.memberId)
@@ -888,7 +892,7 @@ export default function ArenaChallengeCard({
                         <div
                           key={p.id || p.memberId || idx}
                           title={name}
-                          style={{
+                          style={ts({
                             width: avSize,
                             height: avSize,
                             borderRadius: '50%',
@@ -900,10 +904,10 @@ export default function ArenaChallengeCard({
                             color: '#fff',
                             font: '800 10.5px/1 "Barlow Condensed", sans-serif',
                             overflow: 'hidden',
-                          }}
+                          })}
                         >
                           {mem?.avatarUrl ? (
-                            <img src={mem.avatarUrl} alt={name} style={{ width: '100%', height: '100%', objectFit: 'cover' }} />
+                            <img src={mem.avatarUrl} alt={name} style={ts({ width: '100%', height: '100%', objectFit: 'cover' })} />
                           ) : (
                             <span>{getInitials(name)}</span>
                           )}
@@ -911,19 +915,19 @@ export default function ArenaChallengeCard({
                       )
                     })}
                   </div>
-                  <div style={{ display: 'flex', flexDirection: 'column', minWidth: 0, paddingLeft: 4 }}>
-                    <span style={{ fontSize: isMobile ? 11.5 : 13, color: '#8FE3DA', fontWeight: 600, whiteSpace: 'nowrap' }}>
+                  <div style={ts({ display: 'flex', flexDirection: 'column', minWidth: 0, paddingLeft: 4 })}>
+                    <span style={ts({ fontSize: isMobile ? 11.5 : 13, color: '#8FE3DA', fontWeight: 600, whiteSpace: 'nowrap' })}>
                       {t(isMobile ? 'challenge.betBelieversShortA' : 'challenge.betBelieversA', { count: predStats.countA })}
                     </span>
                     <span
-                      style={{
+                      style={ts({
                         font: '500 10.5px/1.3 "IBM Plex Mono", monospace',
                         color: '#8494AA',
                         whiteSpace: 'nowrap',
                         overflow: 'hidden',
                         textOverflow: 'ellipsis',
                         maxWidth: isMobile ? 85 : (isFeatured ? 260 : 180),
-                      }}
+                      })}
                       title={predStats.predictorsA.map((p) => shortNameOf(p.memberId)).join(', ')}
                     >
                       {predStats.predictorsA.map((p) => shortNameOf(p.memberId)).join(', ')}
@@ -931,9 +935,9 @@ export default function ArenaChallengeCard({
                   </div>
                 </>
               ) : (
-                <div style={{ display: 'flex', alignItems: 'center', gap: 6, minWidth: 0 }}>
+                <div style={ts({ display: 'flex', alignItems: 'center', gap: 6, minWidth: 0 })}>
                   <span
-                    style={{
+                    style={ts({
                       width: isMobile ? 24 : 28,
                       height: isMobile ? 24 : 28,
                       borderRadius: '50%',
@@ -944,11 +948,11 @@ export default function ArenaChallengeCard({
                       color: '#8FE3DA',
                       flexShrink: 0,
                       fontSize: 13,
-                    }}
+                    })}
                   >
                     +
                   </span>
-                  <span style={{ fontSize: isMobile ? 11.5 : 13, color: '#8FE3DA', fontWeight: 600, whiteSpace: 'nowrap' }}>
+                  <span style={ts({ fontSize: isMobile ? 11.5 : 13, color: '#8FE3DA', fontWeight: 600, whiteSpace: 'nowrap' })}>
                     {t('challenge.betCheerA')}
                   </span>
                 </div>
@@ -956,24 +960,24 @@ export default function ArenaChallengeCard({
             </div>
 
             {/* TỔNG HŨ CƯỢC Ở GIỮA */}
-            <div style={{ display: 'flex', flexDirection: 'column', alignItems: 'center', gap: 2, textAlign: 'center', padding: '0 4px', flexShrink: 0, minWidth: isMobile ? 60 : 75 }}>
+            <div style={ts({ display: 'flex', flexDirection: 'column', alignItems: 'center', gap: 2, textAlign: 'center', padding: '0 4px', flexShrink: 0, minWidth: isMobile ? 60 : 75 })}>
               <span
-                style={{
+                style={ts({
                   font: isMobile ? '800 18px/1 "Barlow Condensed", system-ui, sans-serif' : '800 22px/1 "Barlow Condensed", system-ui, sans-serif',
                   color: '#F5C451',
                   letterSpacing: '0.02em',
-                }}
+                })}
               >
                 {t('challenge.betPotPoints', { points: predStats.totalPoints })}
               </span>
               <span
-                style={{
+                style={ts({
                   font: '600 9.5px/1 "IBM Plex Sans", sans-serif',
                   letterSpacing: '0.08em',
                   textTransform: 'uppercase',
                   color: '#8494AA',
                   whiteSpace: 'nowrap',
-                }}
+                })}
               >
                 {isPlayed
                   ? t('challenge.potDistributed')
@@ -984,10 +988,10 @@ export default function ArenaChallengeCard({
             </div>
 
             {/* PHE CAM (BÊN PHẢI - ROW REVERSE) */}
-            <div style={{ display: 'flex', flexDirection: 'row-reverse', alignItems: 'center', gap: isMobile ? 6 : 8, minWidth: 0, textAlign: 'right' }}>
+            <div style={ts({ display: 'flex', flexDirection: 'row-reverse', alignItems: 'center', gap: isMobile ? 6 : 8, minWidth: 0, textAlign: 'right' })}>
               {predStats.countB > 0 ? (
                 <>
-                  <div style={{ display: 'flex', flexDirection: 'row-reverse', flexShrink: 0 }}>
+                  <div style={ts({ display: 'flex', flexDirection: 'row-reverse', flexShrink: 0 })}>
                     {predStats.predictorsB.slice(0, 3).map((p, idx) => {
                       const name = memberNameOf(p.memberId) || ''
                       const mem = getMemberData(p.memberId)
@@ -996,7 +1000,7 @@ export default function ArenaChallengeCard({
                         <div
                           key={p.id || p.memberId || idx}
                           title={name}
-                          style={{
+                          style={ts({
                             width: avSize,
                             height: avSize,
                             borderRadius: '50%',
@@ -1008,10 +1012,10 @@ export default function ArenaChallengeCard({
                             color: '#fff',
                             font: '800 10.5px/1 "Barlow Condensed", sans-serif',
                             overflow: 'hidden',
-                          }}
+                          })}
                         >
                           {mem?.avatarUrl ? (
-                            <img src={mem.avatarUrl} alt={name} style={{ width: '100%', height: '100%', objectFit: 'cover' }} />
+                            <img src={mem.avatarUrl} alt={name} style={ts({ width: '100%', height: '100%', objectFit: 'cover' })} />
                           ) : (
                             <span>{getInitials(name)}</span>
                           )}
@@ -1019,19 +1023,19 @@ export default function ArenaChallengeCard({
                       )
                     })}
                   </div>
-                  <div style={{ display: 'flex', flexDirection: 'column', alignItems: 'flex-end', minWidth: 0, paddingRight: 4 }}>
-                    <span style={{ fontSize: isMobile ? 11.5 : 13, color: '#FFB39F', fontWeight: 600, whiteSpace: 'nowrap' }}>
+                  <div style={ts({ display: 'flex', flexDirection: 'column', alignItems: 'flex-end', minWidth: 0, paddingRight: 4 })}>
+                    <span style={ts({ fontSize: isMobile ? 11.5 : 13, color: '#FFB39F', fontWeight: 600, whiteSpace: 'nowrap' })}>
                       {t(isMobile ? 'challenge.betBelieversShortB' : 'challenge.betBelieversB', { count: predStats.countB })}
                     </span>
                     <span
-                      style={{
+                      style={ts({
                         font: '500 10.5px/1.3 "IBM Plex Mono", monospace',
                         color: '#8494AA',
                         whiteSpace: 'nowrap',
                         overflow: 'hidden',
                         textOverflow: 'ellipsis',
                         maxWidth: isMobile ? 85 : (isFeatured ? 260 : 180),
-                      }}
+                      })}
                       title={predStats.predictorsB.map((p) => shortNameOf(p.memberId)).join(', ')}
                     >
                       {predStats.predictorsB.map((p) => shortNameOf(p.memberId)).join(', ')}
@@ -1039,9 +1043,9 @@ export default function ArenaChallengeCard({
                   </div>
                 </>
               ) : (
-                <div style={{ display: 'flex', flexDirection: 'row-reverse', alignItems: 'center', gap: 6, minWidth: 0 }}>
+                <div style={ts({ display: 'flex', flexDirection: 'row-reverse', alignItems: 'center', gap: 6, minWidth: 0 })}>
                   <span
-                    style={{
+                    style={ts({
                       width: isMobile ? 24 : 28,
                       height: isMobile ? 24 : 28,
                       borderRadius: '50%',
@@ -1052,11 +1056,11 @@ export default function ArenaChallengeCard({
                       color: '#FFB39F',
                       flexShrink: 0,
                       fontSize: 13,
-                    }}
+                    })}
                   >
                     +
                   </span>
-                  <span style={{ fontSize: isMobile ? 11.5 : 13, color: '#FFB39F', fontWeight: 600, whiteSpace: 'nowrap' }}>
+                  <span style={ts({ fontSize: isMobile ? 11.5 : 13, color: '#FFB39F', fontWeight: 600, whiteSpace: 'nowrap' })}>
                     {t('challenge.betCheerB')}
                   </span>
                 </div>
@@ -1068,7 +1072,7 @@ export default function ArenaChallengeCard({
         {/* KÈO CƯỢC RIÊNG (NẾU CÓ) - TÁCH KHỎI HÀNG BUTTON ĐỂ KHÔNG BỊ VỠ LAYOUT */}
         {c.stakeText && (
           <div
-            style={{
+            style={ts({
               display: 'inline-flex',
               alignItems: 'center',
               gap: 6,
@@ -1082,10 +1086,10 @@ export default function ArenaChallengeCard({
               width: 'fit-content',
               maxWidth: '100%',
               marginTop: 2,
-            }}
+            })}
           >
-            <Icon name="award" size={13} style={{ color: '#F5C451', flexShrink: 0 }} />
-            <span style={{ overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>
+            <Icon name="award" size={13} style={ts({ color: '#F5C451', flexShrink: 0 })} />
+            <span style={ts({ overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' })}>
               {t('challenge.stakeLabelPrefix', { stake: c.stakeText })}
             </span>
           </div>
@@ -1093,7 +1097,7 @@ export default function ArenaChallengeCard({
 
         {/* HÀNG FOOTER: CÁC NÚT THAO TÁC THẲNG HÀNG */}
         <div
-          style={{
+          style={ts({
             display: 'flex',
             gap: 8,
             alignItems: 'center',
@@ -1101,12 +1105,12 @@ export default function ArenaChallengeCard({
             flexWrap: 'wrap',
             marginTop: 4,
             width: '100%',
-          }}
+          })}
         >
           {/* Badge Chờ đối thủ nếu tôi đã nhận */}
           {isPending && !isExpired && hasAccepted && !prog.isFullyAccepted && (
             <span
-              style={{
+              style={ts({
                 fontSize: isMobile ? 11 : 11.5,
                 color: '#5FD9A2',
                 display: 'inline-flex',
@@ -1119,14 +1123,14 @@ export default function ArenaChallengeCard({
                 overflow: 'hidden',
                 textOverflow: 'ellipsis',
                 whiteSpace: 'nowrap',
-              }}
+              })}
             >
-              <Icon name="check" size={12} style={{ flexShrink: 0 }} />
+              <Icon name="check" size={12} style={ts({ flexShrink: 0 })} />
               <span>{t(isMobile ? 'challenge.youAcceptedWaitingShort' : 'challenge.youAcceptedWaiting')}</span>
             </span>
           )}
 
-          <span style={{ flex: 1 }} />
+          <span style={ts({ flex: 1 })} />
 
           {/* Nút Hủy kèo */}
           {(isPending || isAccepted) && !isPlayed && (isParticipant || isAdmin) && (
@@ -1142,7 +1146,7 @@ export default function ArenaChallengeCard({
                   onConfirm: () => a.cancelChallenge(c.id),
                 })
               }}
-              style={{
+              style={ts({
                 fontWeight: 600,
                 fontSize: isFeatured ? 13 : 12,
                 color: '#FF9C9C',
@@ -1153,7 +1157,7 @@ export default function ArenaChallengeCard({
                 cursor: 'pointer',
                 whiteSpace: 'nowrap',
                 flexShrink: 0,
-              }}
+              })}
             >
               {t('challenge.btnCancelChallenge')}
             </button>
@@ -1167,7 +1171,7 @@ export default function ArenaChallengeCard({
                 e.stopPropagation()
                 a.respondChallenge(c.id, true)
               }}
-              style={{
+              style={ts({
                 fontWeight: 700,
                 fontSize: isFeatured ? 13 : 12,
                 color: '#04201D',
@@ -1181,7 +1185,7 @@ export default function ArenaChallengeCard({
                 gap: 4,
                 whiteSpace: 'nowrap',
                 flexShrink: 0,
-              }}
+              })}
             >
               <Icon name="check" size={14} />
               <span>{isAdmin && !isParticipant ? t('challenge.btnAdminApprove') : t('challenge.btnAccept')}</span>
@@ -1196,7 +1200,7 @@ export default function ArenaChallengeCard({
                 e.stopPropagation()
                 a.respondChallenge(c.id, false)
               }}
-              style={{
+              style={ts({
                 fontWeight: 600,
                 fontSize: isFeatured ? 13 : 12,
                 color: '#FF9C9C',
@@ -1210,7 +1214,7 @@ export default function ArenaChallengeCard({
                 gap: 4,
                 whiteSpace: 'nowrap',
                 flexShrink: 0,
-              }}
+              })}
             >
               <Icon name="circle-x" size={14} />
               <span>{t('challenge.btnDecline')}</span>
@@ -1225,7 +1229,7 @@ export default function ArenaChallengeCard({
                 e.stopPropagation()
                 a.acceptOpenChallenge({ challengeId: c.id })
               }}
-              style={{
+              style={ts({
                 fontWeight: 700,
                 fontSize: isFeatured ? 13 : 12,
                 color: '#04201D',
@@ -1239,7 +1243,7 @@ export default function ArenaChallengeCard({
                 gap: 4,
                 whiteSpace: 'nowrap',
                 flexShrink: 0,
-              }}
+              })}
             >
               <Icon name="check" size={14} />
               <span>{t('matchesPage.acceptOpenChallenge')}</span>
@@ -1254,7 +1258,7 @@ export default function ArenaChallengeCard({
                 e.stopPropagation()
                 navigate(`/buoi-tap/${sessionObj.id}`)
               }}
-              style={{
+              style={ts({
                 fontWeight: 700,
                 fontSize: 12.5,
                 color: '#E9EFF7',
@@ -1268,7 +1272,7 @@ export default function ArenaChallengeCard({
                 gap: 4,
                 whiteSpace: 'nowrap',
                 flexShrink: 0,
-              }}
+              })}
               title={t('matchesPage.viewInSession')}
             >
               <span>GO</span>
@@ -1284,7 +1288,7 @@ export default function ArenaChallengeCard({
                 e.stopPropagation()
                 onSelectSession?.(c)
               }}
-              style={{
+              style={ts({
                 fontWeight: 700,
                 fontSize: isFeatured ? 13 : 12,
                 color: '#04201D',
@@ -1298,7 +1302,7 @@ export default function ArenaChallengeCard({
                 gap: 4,
                 whiteSpace: 'nowrap',
                 flexShrink: 0,
-              }}
+              })}
             >
               <Icon name="plus" size={14} />
               <span>{t('challenge.chooseSession')}</span>
@@ -1313,7 +1317,7 @@ export default function ArenaChallengeCard({
                 e.stopPropagation()
                 onRevenge?.(c)
               }}
-              style={{
+              style={ts({
                 fontWeight: 700,
                 fontSize: isFeatured ? 13 : 12,
                 color: '#1A1204',
@@ -1327,7 +1331,7 @@ export default function ArenaChallengeCard({
                 gap: 5,
                 whiteSpace: 'nowrap',
                 flexShrink: 0,
-              }}
+              })}
             >
               <Icon name="swords" size={14} />
               <span>{t('challenge.btnRevenge')}</span>
@@ -1343,7 +1347,7 @@ export default function ArenaChallengeCard({
                 const m = (db.matches || []).find((x) => x.id === c.matchId)
                 if (m) onViewMatch?.(m)
               }}
-              style={{
+              style={ts({
                 fontWeight: 600,
                 fontSize: isFeatured ? 13 : 12,
                 color: '#E9EFF7',
@@ -1357,7 +1361,7 @@ export default function ArenaChallengeCard({
                 gap: 4,
                 whiteSpace: 'nowrap',
                 flexShrink: 0,
-              }}
+              })}
             >
               <Icon name="eye" size={13} />
               <span>{t('challenge.details')}</span>

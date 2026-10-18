@@ -1,6 +1,6 @@
 import { useMemo, useState } from 'react'
-import { Avatar, IconButton, Tabs } from '#ds'
-import { TabTrack } from '#ui'
+import { Avatar, Tabs } from '#ds'
+import { TabTrack, HeaderAction } from '#ui'
 import { useApp } from '#contexts/AppContext.jsx'
 import { useAuth } from '#contexts/AuthContext.jsx'
 import { useTheme } from '#contexts/ThemeContext.jsx'
@@ -227,13 +227,7 @@ export default function MyStats() {
             ) : null}
           </div>
           <div style={S.mobileHeaderActions}>
-            <IconButton
-              icon={isDark ? 'sun' : 'moon'}
-              size="sm"
-              variant="ghost"
-              label={isDark ? t('common.themeLight') : t('common.themeDark')}
-              onClick={toggleTheme}
-            />
+            <HeaderAction iconOnly icon={isDark ? 'sun' : 'moon'} label={isDark ? t('common.themeLight') : t('common.themeDark')} onClick={toggleTheme} />
             <NotificationBell />
             <Avatar
               name={memberName}
@@ -361,13 +355,7 @@ export default function MyStats() {
           ) : null}
         </div>
         <div style={S.headerActions}>
-          <IconButton
-            icon={isDark ? 'sun' : 'moon'}
-            size="sm"
-            variant="ghost"
-            label={isDark ? t('common.themeLight') : t('common.themeDark')}
-            onClick={toggleTheme}
-          />
+          <HeaderAction iconOnly icon={isDark ? 'sun' : 'moon'} label={isDark ? t('common.themeLight') : t('common.themeDark')} onClick={toggleTheme} />
           <NotificationBell />
           <Avatar
             name={memberName}
@@ -576,8 +564,7 @@ const S = {
     alignItems: 'center',
     justifyContent: 'space-between',
     gap: 16,
-    padding: '6px 0 14px 0',
-    borderBottom: '1px solid var(--border-subtle)',
+    padding: '6px 0 6px 0',
   },
   headerActions: {
     display: 'flex',

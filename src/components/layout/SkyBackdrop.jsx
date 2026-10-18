@@ -51,8 +51,7 @@ const esc = (s) => String(s).replace(/[&<>"']/g, (c) => '&#' + c.charCodeAt(0) +
 /** Cỡ px hiển thị cố định trong lớp nhân vật: `fk` = 1 / độ phóng khung (xem `fk` trong SkyBackdrop). */
 const sk = (n, fk = 1) => `${(n * fk).toFixed(1)}px`
 const tl = (line) => (line ? t(line[0], line[1]?.name ? { ...line[1], name: shortName(line[1].name) } : line[1]) : '')
-/** Thời lượng một lượt bay — khớp keyframe skyBannerOnce (16,64 s) và spawnWish (6,8 s). */
-const BANNER_FLY_MS = 16640
+/** Thời lượng một lượt bay sao ước — khớp spawnWish (6,8 s). Băng rôn: `ly.bnMs` theo bố cục (xem LD / mobileLayout). */
 const WISH_FLY_MS = 6800
 
 /* ============================ BỐ CỤC ============================ */
@@ -60,7 +59,7 @@ const WISH_FLY_MS = 6800
 // Desktop: toạ độ trên khung 1440 (gồm cả sidebar 248). Mobile: khung 390 của thiết kế, `mobileLayout`
 // dời theo bề rộng thật để mặt trăng luôn ở giữa màn.
 const LD = {
-  W, mx: 960, my: 22, md: 72, ox: 930, oy: 62, os: 20, br: 516, bt: 56, bw: 210, tail: 'r', bnT: 3, bnD: 1960,
+  W, mx: 960, my: 22, md: 72, ox: 930, oy: 62, os: 20, br: 516, bt: 56, bw: 210, tail: 'r', bnT: 3, bnD: 1960, bnMs: 26000,
   tX: 770, tY: 30, tG: 7,
   wish: { x: 720, xr: 560, y: 16, yr: 34, dx: 380, dxr: 220, dy: 70, dyr: 60 },
   sc: { uy: 4, xa: 1120, xb: 860, yG: 62, yUp: 22, us: 1, ps: 1.1, hy: 4, hs: 0.9, vE: 160, vD: 45, vH: 170, bw: 240, rk: [320, 96], fall: 150 },
@@ -69,7 +68,7 @@ function mobileLayout(w) {
   const d = w / 2 - 195
   return {
     m: 1, W: w, mx: 174 + d, my: 1, md: 42, ox: 222 + d, oy: 14, os: 16, br: 14 + d, bt: 46, bw: 196, tail: 't', tailR: 141,
-    bnT: 44, bnD: w + 510, tX: 250 + d, tY: 46, tG: 4.5,
+    bnT: 44, bnD: w + 510, bnMs: 16640, tX: 250 + d, tY: 46, tG: 4.5,
     wish: { x: 250 + d, xr: 110, y: 52, yr: 16, dx: 170, dxr: 90, dy: 30, dyr: 30 },
     sc: { uy: 2, xa: 290 + d, xb: 180 + d, yG: 50, yUp: 16, us: 0.7, ps: 0.85, hy: 46, hs: 0.7, vE: 60, vD: 20, vH: 65, bw: 180, rk: [150, 70], fall: 110 },
   }
@@ -234,8 +233,8 @@ export default function SkyBackdrop({ mode, isMobile, scrollRef }) {
       if (k === 'banner') {
         const i = bags('banner', data.current.lines.banner.length)
         setBan((b) => ({ lap: b.lap + 1, i, on: true }))
-        later(() => setBan((b) => ({ ...b, on: false })), BANNER_FLY_MS)
-        return BANNER_FLY_MS
+        later(() => setBan((b) => ({ ...b, on: false })), ly.bnMs)
+        return ly.bnMs
       }
       if (k === 'top1') {
         setForm((f) => ({ n: f.n + 1, on: true }))
@@ -998,9 +997,9 @@ function Banner({ ly, fk, dark, line, onNext }) {
     : { bg: 'rgba(255,247,240,.95)', bd: '#E7B7B0', fg: '#5A2E3E', pl: '#5A4A6E', rope: 'rgba(90,74,110,.6)' }
   // Chỉ dựng khi có chuyển động: cha không cho bay lúc giảm chuyển động / ở trang chỉ nền.
   return (
-    <div style={{ position: 'absolute', left: -440, top: ly.bnT, '--fd': ly.bnD + 'px', opacity: 0, animation: 'skyBannerOnce ' + BANNER_FLY_MS + 'ms linear both' }}>
+    <div style={{ position: 'absolute', left: -440, top: ly.bnT, '--fd': ly.bnD + 'px', opacity: 0, animation: 'skyBannerOnce ' + ly.bnMs + 'ms linear both' }}>
       <div onClick={onNext} style={{ display: 'flex', alignItems: 'center', pointerEvents: 'auto', cursor: 'pointer' }}>
-        <span style={{ borderRadius: 3, background: c.bg, border: '1px solid ' + c.bd, color: c.fg, padding: `${sk(3, fk)} ${sk(12, fk)}`, font: `600 ${sk(11, fk)}/1.3 var(--font-sans)`, whiteSpace: 'nowrap', maxWidth: sk(ly.m ? 260 : 440, fk), overflow: 'hidden', textOverflow: 'ellipsis', transformOrigin: '100% 50%', animation: 'skyFlagWave 1.4s ease-in-out infinite alternate' }} title={line}>{line}</span>
+        <span style={{ borderRadius: 3, background: c.bg, border: '1px solid ' + c.bd, color: c.fg, padding: `${sk(3, fk)} ${sk(12, fk)}`, font: `600 ${sk(11, fk)}/1.3 var(--font-sans)`, whiteSpace: 'nowrap', maxWidth: sk(ly.m ? 260 : 440, fk), overflow: 'hidden', textOverflow: 'ellipsis' }} title={line}>{line}</span>
         <span style={{ width: 22, height: 1, background: c.rope }} />
         <svg width="32" height="14" viewBox="0 0 26 12" style={{ overflow: 'visible' }}>
           <path d={PLANE_D} fill={c.pl} />

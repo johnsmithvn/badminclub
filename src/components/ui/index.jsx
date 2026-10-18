@@ -647,11 +647,15 @@ export { ModalOverlay } from './ModalOverlay.jsx'
  * @param {React.ReactNode} [actions] - cụm nút bên phải
  * @param {boolean} [isMobile]
  */
-/** Nút trên header trong suốt (PageHeader không tiêu đề, BXH, Buổi tập…): điện thoại chỉ icon, desktop icon + chữ. */
-export function HeaderAction({ icon, label, onClick, isMobile = false }) {
-  return isMobile
-    ? <IconButton icon={icon} size="sm" variant="ghost" label={label} onClick={onClick} />
-    : <Button size="sm" variant="ghost" icon={icon} onClick={onClick}>{label}</Button>
+/**
+ * Nút trên header trong suốt (PageHeader không tiêu đề, BXH, Buổi tập, Trang chủ…): điện thoại (hoặc `iconOnly`) chỉ
+ * icon, desktop icon + chữ. Viền tròn + nền kính để nút không chìm vào nền trời.
+ */
+const HEADER_CHIP = { border: '1px solid var(--border-subtle)', background: 'var(--surface-card)', borderRadius: 999 }
+export function HeaderAction({ icon, label, onClick, isMobile = false, iconOnly = false }) {
+  return isMobile || iconOnly
+    ? <IconButton icon={icon} size="sm" variant="ghost" label={label} onClick={onClick} style={HEADER_CHIP} />
+    : <Button size="sm" variant="ghost" icon={icon} onClick={onClick} style={HEADER_CHIP}>{label}</Button>
 }
 
 export function PageHeader({ title, subtitle, actions, isMobile = false }) {
