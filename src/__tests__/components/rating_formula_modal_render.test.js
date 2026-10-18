@@ -9,7 +9,7 @@ const desk = html(RatingFormulaModal, { onClose: () => {}, totalMatches: 118, is
 const mob = html(RatingFormulaModal, { onClose: () => {}, totalMatches: 118, isMobile: true })
 
 test('mobile: sheet dính đáy, rộng hết màn, bo 2 góc trên', () => {
-  assert.match(mob, /^<div style="[^"]*align-items:flex-end;justify-content:center;padding:0"/)
+  assert.match(mob, /^<div role="dialog" aria-modal="true" style="[^"]*align-items:flex-end;justify-content:center;padding:0"/)
   assert.match(mob, /width:100%;max-width:100%[^"]*border-radius:18px 18px 0 0/)
 })
 

@@ -1,11 +1,13 @@
 import BadgeHex from './BadgeHex.jsx'
 import { NOTCH_CLIP, NOTCH_S_CLIP } from '#lib/badges.js'
 import { t } from '#i18n'
+import { useBadgeTone } from '#components/badges/badgeTone.js'
 
 /**
  * Thẻ danh hiệu trong lưới bộ sưu tập (Màn A1).
  */
 export default function BadgeCard({ badge, isHighlighted = false, onClick }) {
+  const ts = useBadgeTone()
   const meta = badge.tierMeta || {}
   const isHidden = badge.tier === 'hidden' && !badge.unlocked
 
@@ -45,10 +47,13 @@ export default function BadgeCard({ badge, isHighlighted = false, onClick }) {
           onClick && onClick(badge)
         }
       }}
-      style={{
+      style={ts({
         position: 'relative',
         padding: 1,
         clipPath: NOTCH_CLIP,
+        // Trang có 60+ thẻ: thẻ ngoài màn hình khỏi vẽ / chạy hiệu ứng (khung đã cắt bằng clip-path nên không đổi hình).
+        contentVisibility: 'auto',
+        containIntrinsicSize: 'auto 180px',
         background: isHighlighted
           ? 'linear-gradient(135deg, #FFE24B, #FF2E7E 50%, #2EE9FF)'
           : (meta.edge || 'rgba(255,255,255,.1)'),
@@ -60,7 +65,7 @@ export default function BadgeCard({ badge, isHighlighted = false, onClick }) {
           : 'none',
         transform: isHighlighted ? 'scale(1.03) translateY(-4px)' : undefined,
         zIndex: isHighlighted ? 10 : 1,
-      }}
+      })}
       onMouseEnter={(e) => {
         e.currentTarget.style.transform = 'translateY(-3px)'
         e.currentTarget.style.opacity = '1'
@@ -71,7 +76,7 @@ export default function BadgeCard({ badge, isHighlighted = false, onClick }) {
       }}
     >
       <div
-        style={{
+        style={ts({
           position: 'relative',
           clipPath: NOTCH_CLIP,
           background: meta.panel || '#0A0514',
@@ -81,13 +86,13 @@ export default function BadgeCard({ badge, isHighlighted = false, onClick }) {
           alignItems: 'center',
           gap: 9,
           height: '100%',
-        }}
+        })}
       >
         {/* Tag phân loại loại danh hiệu: Tiến Hóa vs Độc Bậc */}
         {badge.tier !== 'fun' && (
-          <div style={{ position: 'absolute', top: 8, right: 9, zIndex: 2 }}>
+          <div style={ts({ position: 'absolute', top: 8, right: 9, zIndex: 2 })}>
             <span
-              style={{
+              style={ts({
                 display: 'inline-flex',
                 alignItems: 'center',
                 gap: 2,
@@ -98,7 +103,7 @@ export default function BadgeCard({ badge, isHighlighted = false, onClick }) {
                 background: isFamily ? 'rgba(109,20,255,0.25)' : 'rgba(255,226,75,0.12)',
                 border: isFamily ? '1px solid rgba(139,43,255,0.5)' : '1px solid rgba(255,226,75,0.35)',
                 color: isFamily ? '#D9A8FF' : '#FFE24B',
-              }}
+              })}
             >
               {isFamily ? `🧬 ${t('badges.tagFamily')}` : `🏆 ${t('badges.tagSolo')}`}
             </span>
@@ -106,7 +111,7 @@ export default function BadgeCard({ badge, isHighlighted = false, onClick }) {
         )}
 
         {/* 1. Huy hiệu lục giác */}
-        <div style={{ position: 'relative', display: 'flex', flexDirection: 'column', alignItems: 'center' }}>
+        <div style={ts({ position: 'relative', display: 'flex', flexDirection: 'column', alignItems: 'center' })}>
           <BadgeHex
             tier={badge.tier}
             glyph={badge.glyph}
@@ -118,24 +123,24 @@ export default function BadgeCard({ badge, isHighlighted = false, onClick }) {
 
         {/* 2. Tên danh hiệu */}
         <span
-          style={{
+          style={ts({
             font: "700 13.5px/1.25 'Be Vietnam Pro', sans-serif",
             textAlign: 'center',
             color: isHidden ? '#9C8ABE' : '#FFFFFF',
-          }}
+          })}
         >
           {isHidden ? '???' : displayName}
           {badge.seasonCode && (
-            <span style={{ display: 'block', fontSize: 10, fontWeight: 500, color: '#2EE9FF', marginTop: 2 }}>
+            <span style={ts({ display: 'block', fontSize: 10, fontWeight: 500, color: '#2EE9FF', marginTop: 2 })}>
               · {badge.seasonCode} ·
             </span>
           )}
         </span>
 
         {/* 3. Chip phân bậc + Chỉ báo cấp độ chuỗi */}
-        <div style={{ display: 'flex', alignItems: 'center', gap: 6, flexWrap: 'wrap', justifyContent: 'center' }}>
+        <div style={ts({ display: 'flex', alignItems: 'center', gap: 6, flexWrap: 'wrap', justifyContent: 'center' })}>
           <span
-            style={{
+            style={ts({
               display: 'inline-flex',
               alignItems: 'center',
               font: '600 9.5px/1 Oswald, sans-serif',
@@ -145,7 +150,7 @@ export default function BadgeCard({ badge, isHighlighted = false, onClick }) {
               background: meta.chipBg || 'rgba(255,255,255,.08)',
               color: meta.ink || '#FFFFFF',
               borderTop: `1px solid ${meta.bd || 'transparent'}`,
-            }}
+            })}
           >
             {isFamily
               ? `${t('badges.tierLevel', { current: badge.unlockedTiersCount || 1, total: badge.totalTiers })} · ${meta.name}`
@@ -154,18 +159,18 @@ export default function BadgeCard({ badge, isHighlighted = false, onClick }) {
 
           {/* Dấu chấm tiến trình các mốc trong họ */}
           {isFamily && (
-            <div style={{ display: 'flex', gap: 4, alignItems: 'center' }}>
+            <div style={ts({ display: 'flex', gap: 4, alignItems: 'center' })}>
               {badge.tiers.map((tr, idx) => (
                 <span
                   key={tr.id || idx}
                   title={tr.name}
-                  style={{
+                  style={ts({
                     width: 5,
                     height: 5,
                     borderRadius: 999,
                     background: tr.unlocked ? (meta.ink || '#5FEBD0') : 'rgba(255,255,255,.16)',
                     boxShadow: tr.unlocked ? `0 0 6px ${meta.ink || '#5FEBD0'}` : 'none',
-                  }}
+                  })}
                 />
               ))}
             </div>
@@ -174,7 +179,7 @@ export default function BadgeCard({ badge, isHighlighted = false, onClick }) {
 
         {/* 4. Điều kiện mở khóa / Gợi ý mốc tiếp theo */}
         <span
-          style={{
+          style={ts({
             font: "400 11px/1.4 'Be Vietnam Pro', sans-serif",
             textAlign: 'center',
             color: '#9C8ABE',
@@ -182,96 +187,96 @@ export default function BadgeCard({ badge, isHighlighted = false, onClick }) {
             WebkitLineClamp: 2,
             WebkitBoxOrient: 'vertical',
             overflow: 'hidden',
-          }}
+          })}
         >
           {displayCond}
         </span>
 
-        <div style={{ flex: '1 1 auto' }} />
+        <div style={ts({ flex: '1 1 auto' })} />
 
         {/* 5. Tiến độ / Trạng thái đã mở */}
         {isFamily ? (
           badge.isAllUnlocked ? (
             <span
-              style={{
+              style={ts({
                 font: "600 11px/1 'IBM Plex Mono', monospace",
                 color: '#5FEBD0',
                 paddingTop: 4,
-              }}
+              })}
             >
               ✓ {t('badges.maxTierAchieved', { total: badge.totalTiers })}
             </span>
           ) : hasProgress ? (
-            <div style={{ width: '100%', display: 'flex', flexDirection: 'column', gap: 5, alignItems: 'center' }}>
-              <span style={{ font: "600 10.5px/1 'IBM Plex Mono', monospace", color: meta.ink || '#FFFFFF' }}>
+            <div style={ts({ width: '100%', display: 'flex', flexDirection: 'column', gap: 5, alignItems: 'center' })}>
+              <span style={ts({ font: "600 10.5px/1 'IBM Plex Mono', monospace", color: meta.ink || '#FFFFFF' })}>
                 {targetForProgress.progressStr}
               </span>
               <div
-                style={{
+                style={ts({
                   width: '100%',
                   height: 5,
                   clipPath: NOTCH_S_CLIP,
                   background: 'rgba(255,255,255,.08)',
-                }}
+                })}
               >
                 <div
-                  style={{
+                  style={ts({
                     height: '100%',
                     width: `${targetForProgress.pct}%`,
                     background: meta.edge || 'linear-gradient(90deg, #0B63FF, #2EE9FF)',
-                  }}
+                  })}
                 />
               </div>
             </div>
           ) : badge.unlocked ? (
             <span
-              style={{
+              style={ts({
                 font: "600 11px/1 'IBM Plex Mono', monospace",
                 color: '#5FEBD0',
                 paddingTop: 4,
-              }}
+              })}
             >
               ✓ {t('badges.openedStatus')} ({badge.unlockedTiersCount}/{badge.totalTiers})
             </span>
           ) : (
-            <span style={{ font: "400 10.5px/1 'IBM Plex Mono', monospace", color: '#6B5C8C' }}>
+            <span style={ts({ font: "400 10.5px/1 'IBM Plex Mono', monospace", color: '#6B5C8C' })}>
               {t('badges.lockedStatus')}
             </span>
           )
         ) : badge.unlocked ? (
           <span
-            style={{
+            style={ts({
               font: "600 11px/1 'IBM Plex Mono', monospace",
               color: '#5FEBD0',
               paddingTop: 4,
-            }}
+            })}
           >
             {t('badges.openedStatus')}
           </span>
         ) : hasProgress ? (
-          <div style={{ width: '100%', display: 'flex', flexDirection: 'column', gap: 5, alignItems: 'center' }}>
-            <span style={{ font: "600 10.5px/1 'IBM Plex Mono', monospace", color: meta.ink || '#FFFFFF' }}>
+          <div style={ts({ width: '100%', display: 'flex', flexDirection: 'column', gap: 5, alignItems: 'center' })}>
+            <span style={ts({ font: "600 10.5px/1 'IBM Plex Mono', monospace", color: meta.ink || '#FFFFFF' })}>
               {badge.progressStr}
             </span>
             <div
-              style={{
+              style={ts({
                 width: '100%',
                 height: 5,
                 clipPath: NOTCH_S_CLIP,
                 background: 'rgba(255,255,255,.08)',
-              }}
+              })}
             >
               <div
-                style={{
+                style={ts({
                   height: '100%',
                   width: `${badge.pct}%`,
                   background: meta.edge || 'linear-gradient(90deg, #0B63FF, #2EE9FF)',
-                }}
+                })}
               />
             </div>
           </div>
         ) : (
-          <span style={{ font: "400 10.5px/1 'IBM Plex Mono', monospace", color: '#6B5C8C' }}>
+          <span style={ts({ font: "400 10.5px/1 'IBM Plex Mono', monospace", color: '#6B5C8C' })}>
             {isHidden ? '???' : t('badges.lockedStatus')}
           </span>
         )}

@@ -159,18 +159,23 @@ export default function BadgeHex({
             />
           )}
         </div>
+        {/* Vệt sáng quét: trượt bằng transform (không vẽ lại) — animate background-position bắt trình duyệt
+            vẽ lại cả drop-shadow của khung mỗi khung hình, nhiều huy hiệu cùng lúc là giật và nhấp nháy. */}
         {motion.sheen && (
-          <div
-            style={{
-              position: 'absolute',
-              inset: pad,
-              clipPath: HEX_CLIP,
-              background: 'linear-gradient(115deg,transparent 40%,rgba(255,255,255,.45) 50%,transparent 60%)',
-              backgroundSize: '250% 100%',
-              animation: 'bhSheen 3.6s ease-in-out infinite',
-              pointerEvents: 'none',
-            }}
-          />
+          <div style={{ position: 'absolute', inset: pad, clipPath: HEX_CLIP, overflow: 'hidden', pointerEvents: 'none' }}>
+            <div
+              style={{
+                position: 'absolute',
+                top: 0,
+                bottom: 0,
+                left: 0,
+                width: '250%',
+                background: 'linear-gradient(115deg,transparent 40%,rgba(255,255,255,.45) 50%,transparent 60%)',
+                willChange: 'transform',
+                animation: 'bhSheen 3.6s ease-in-out infinite',
+              }}
+            />
+          </div>
         )}
       </div>
 

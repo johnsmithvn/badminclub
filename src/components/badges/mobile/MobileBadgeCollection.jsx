@@ -9,6 +9,7 @@ import { TIER_FX, levelTier } from '../tierFx.js'
 import { HEX_CLIP, sortBadgesByRarity } from '#lib/badges.js'
 import { t } from '#i18n'
 import { shortName } from '#lib/money.js'
+import { useBadgeTone } from '#components/badges/badgeTone.js'
 
 const GOLD = '#F6C945'
 
@@ -67,41 +68,42 @@ export function MobileBadgeTopBar({
   currentMemberId,
   onSelectMember,
 }) {
+  const ts = useBadgeTone()
   const { isDark, toggleTheme } = useTheme()
   return (
-    <div style={TOP_BAR}>
+    <div style={ts(TOP_BAR)}>
       {allSeasons.length > 0 && (
-        <div style={SELECT_WRAP}>
+        <div style={ts(SELECT_WRAP)}>
           <select
             aria-label={t('season.filterSeason')}
             value={seasonValue}
             onChange={(e) => onSelectSeason && onSelectSeason(e.target.value)}
-            style={{ ...SELECT, font: '600 13px/34px var(--font-sans)', color: '#5FDBD3' }}
+            style={ts({ ...SELECT, font: '600 13px/34px var(--font-sans)', color: '#5FDBD3' })}
           >
             {allSeasons.map((s) => (
-              <option key={s.id || s.code} value={s.id || s.code} style={OPTION}>
+              <option key={s.id || s.code} value={s.id || s.code} style={ts(OPTION)}>
                 {s.code || s.name} {s.active ? `(${t('season.activeCurrent')})` : ''}
               </option>
             ))}
           </select>
-          <Icon name="chevron-down" size={14} style={SELECT_CHEVRON} />
+          <Icon name="chevron-down" size={14} style={ts(SELECT_CHEVRON)} />
         </div>
       )}
       {allMembers.length > 1 && (
-        <div style={SELECT_WRAP}>
+        <div style={ts(SELECT_WRAP)}>
           <select
             aria-label={t('badges.selectMember')}
             value={activeMemberId}
             onChange={(e) => onSelectMember && onSelectMember(e.target.value)}
-            style={{ ...SELECT, font: '500 13px/34px var(--font-sans)', color: '#E9EFF7' }}
+            style={ts({ ...SELECT, font: '500 13px/34px var(--font-sans)', color: '#E9EFF7' })}
           >
             {allMembers.map((m) => (
-              <option key={m.id} value={m.id} style={OPTION}>
+              <option key={m.id} value={m.id} style={ts(OPTION)}>
                 {shortName(m.name)} {m.id === currentMemberId ? `(${t('badges.collectorProfile.rankMe')})` : ''}
               </option>
             ))}
           </select>
-          <Icon name="chevron-down" size={14} style={SELECT_CHEVRON} />
+          <Icon name="chevron-down" size={14} style={ts(SELECT_CHEVRON)} />
         </div>
       )}
       <button
@@ -109,11 +111,12 @@ export function MobileBadgeTopBar({
         aria-label={isDark ? t('common.themeLight') : t('common.themeDark')}
         title={isDark ? t('common.themeLight') : t('common.themeDark')}
         onClick={toggleTheme}
-        style={TOP_ICON_BTN}
+        style={ts(TOP_ICON_BTN)}
       >
         <Icon name={isDark ? 'sun' : 'moon'} size={15} />
       </button>
-      <NotificationBell />
+      {/* Chuông vốn màu cho nền tối; bản sáng đổi sang chữ phụ cho đủ tương phản */}
+      <NotificationBell style={isDark ? undefined : { color: 'var(--text-secondary)' }} />
     </div>
   )
 }
@@ -172,6 +175,7 @@ export default function MobileBadgeCollection({
   heroBounty = null,
   onChallengeBounty,
 }) {
+  const ts = useBadgeTone()
   // Nhóm đang được chọn để hiển thị lưới 3 cột (mặc định là nhóm đầu tiên)
   const [selectedGroupIdx, setSelectedGroupIdx] = useState(0)
 
@@ -260,7 +264,7 @@ export default function MobileBadgeCollection({
       <div
         key={b.id}
         onClick={() => onSelectBadge && onSelectBadge(b)}
-        style={{
+        style={ts({
           minWidth: 0,
           padding: '14px 4px 10px',
           borderRadius: 12,
@@ -273,11 +277,11 @@ export default function MobileBadgeCollection({
           alignItems: 'center',
           gap: 9,
           cursor: 'pointer',
-        }}
+        })}
       >
         <BadgeHex tier={tierKey} glyph={currentBadge.glyph} size={57} dim={!isUnlocked} />
         <span
-          style={{
+          style={ts({
             maxWidth: '100%',
             padding: '0 2px',
             font: '500 12px/1.2 var(--font-sans)',
@@ -287,34 +291,34 @@ export default function MobileBadgeCollection({
             display: '-webkit-box',
             WebkitLineClamp: 2,
             WebkitBoxOrient: 'vertical',
-          }}
+          })}
         >
           {bName}
         </span>
 
         {familyTiers.length > 1 && (
-          <div style={{ display: 'flex', gap: 3 }}>
+          <div style={ts({ display: 'flex', gap: 3 })}>
             {familyTiers.map((tr, i) => (
               <span
                 key={tr.id || i}
-                style={{
+                style={ts({
                   width: 12,
                   height: 3,
                   borderRadius: 2,
                   background: i <= shownIdx ? (TIER_FX[tr.tier] || TIER_FX.rare).acc : 'rgba(255,255,255,.12)',
-                }}
+                })}
               />
             ))}
           </div>
         )}
 
         {!isUnlocked && pct > 0 && (
-          <div style={{ width: '100%', padding: '0 8px', display: 'flex', flexDirection: 'column', alignItems: 'center', gap: 4 }}>
-            <span style={{ font: '600 10px/1 var(--font-mono)', color: bFx.acc }}>
+          <div style={ts({ width: '100%', padding: '0 8px', display: 'flex', flexDirection: 'column', alignItems: 'center', gap: 4 })}>
+            <span style={ts({ font: '600 10px/1 var(--font-mono)', color: bFx.acc })}>
               {currentBadge.progressStr || `${pct}%`}
             </span>
-            <div style={{ width: '100%', height: 3, borderRadius: 999, background: 'rgba(255,255,255,.08)', overflow: 'hidden' }}>
-              <div style={{ width: `${pct}%`, height: '100%', background: `linear-gradient(90deg,${bFx.mid},${bFx.acc})` }} />
+            <div style={ts({ width: '100%', height: 3, borderRadius: 999, background: 'rgba(255,255,255,.08)', overflow: 'hidden' })}>
+              <div style={ts({ width: `${pct}%`, height: '100%', background: `linear-gradient(90deg,${bFx.mid},${bFx.acc})` })} />
             </div>
           </div>
         )}
@@ -324,7 +328,7 @@ export default function MobileBadgeCollection({
 
   return (
     <div
-      style={{
+      style={ts({
         width: '100%',
         maxWidth: 480,
         margin: '0 auto',
@@ -337,19 +341,19 @@ export default function MobileBadgeCollection({
         background: 'radial-gradient(rgba(255,255,255,.055) 1px,transparent 1px) 0 0/14px 14px, #09060F',
         minHeight: '844px',
         color: '#FFFFFF',
-      }}
+      })}
     >
       {/* ═══ ĐẦU THẺ: 2 tab — tiêu đề, chọn mùa / người xem đã lên MobileBadgeTopBar ═══ */}
       <div
-        style={{
+        style={ts({
           position: 'relative',
           flex: '0 0 auto',
           padding: 12,
           background: 'linear-gradient(180deg,#1A0C3A,#0D0820)',
-        }}
+        })}
       >
         {/* Sub-tabs: BỘ SƯU TẬP | XẾP HẠNG */}
-        <div style={{ display: 'grid', gridTemplateColumns: 'repeat(2, minmax(0, 1fr))', gap: 6 }}>
+        <div style={ts({ display: 'grid', gridTemplateColumns: 'repeat(2, minmax(0, 1fr))', gap: 6 })}>
           {[
             { id: 'collection', label: t('badges.tabCollection') },
             { id: 'leaderboard', label: t('badges.tabLeaderboardShort') },
@@ -360,7 +364,7 @@ export default function MobileBadgeCollection({
                 key={tab.id}
                 type="button"
                 onClick={() => onTabChange && onTabChange(tab.id)}
-                style={{
+                style={ts({
                   minWidth: 0,
                   padding: '11px 4px',
                   border: 'none',
@@ -375,7 +379,7 @@ export default function MobileBadgeCollection({
                   color: isActive ? '#1A0510' : '#8E83A8',
                   clipPath: isActive ? TAB_CLIP : undefined,
                   transition: 'background 140ms cubic-bezier(.2,.8,.2,1), color 140ms cubic-bezier(.2,.8,.2,1)',
-                }}
+                })}
               >
                 {tab.label}
               </button>
@@ -386,7 +390,7 @@ export default function MobileBadgeCollection({
 
       {/* ═══ THÂN CUỘN ═══ */}
       <div
-        style={{
+        style={ts({
           position: 'relative',
           flex: 1,
           minHeight: 0,
@@ -395,12 +399,12 @@ export default function MobileBadgeCollection({
           display: 'flex',
           flexDirection: 'column',
           gap: 20,
-        }}
+        })}
       >
         {/* Banner báo đang xem người khác */}
         {!isViewingSelf && (
           <div
-            style={{
+            style={ts({
               flex: '0 0 auto',
               padding: '10px 12px',
               borderRadius: 12,
@@ -410,24 +414,24 @@ export default function MobileBadgeCollection({
               alignItems: 'center',
               justifyContent: 'space-between',
               gap: 8,
-            }}
+            })}
           >
             <span
-              style={{
+              style={ts({
                 minWidth: 0,
                 overflow: 'hidden',
                 textOverflow: 'ellipsis',
                 whiteSpace: 'nowrap',
                 font: '600 13px/1.2 var(--font-sans)',
                 color: '#FFFFFF',
-              }}
+              })}
             >
               👁 <span title={activeMember?.name}>{shortName(activeMember?.name)}</span>
             </span>
             <button
               type="button"
               onClick={() => onSelectMember && onSelectMember(currentMember?.id)}
-              style={{
+              style={ts({
                 flex: '0 0 auto',
                 border: 'none',
                 borderRadius: 8,
@@ -436,7 +440,7 @@ export default function MobileBadgeCollection({
                 padding: '8px 10px',
                 font: '600 12px/1 var(--font-sans)',
                 cursor: 'pointer',
-              }}
+              })}
             >
               {t('badges.backToMyCollection')}
             </button>
@@ -446,38 +450,38 @@ export default function MobileBadgeCollection({
         {/* Banner truy nã — chỉ hiện khi CLB đang có người bị treo thưởng (điện thoại không vẽ
             thẻ trống như desktop cho đỡ chiếm chỗ) */}
         {heroBounty && (
-          <div style={{ flex: '0 0 auto' }}>
+          <div style={ts({ flex: '0 0 auto' })}>
             <BountyHeroPoster bounty={heroBounty} onChallenge={onChallengeBounty} />
           </div>
         )}
 
         {/* ═══ KHỐI 1: THẺ HỒ SƠ — hiệu ứng theo cấp ở nửa trên ═══ */}
         <div
-          style={{
+          style={ts({
             position: 'relative',
             flex: '0 0 auto',
             borderRadius: 16,
             overflow: 'hidden',
             border: `1px solid ${levelRgba(0.55)}`,
             background: '#080615',
-          }}
+          })}
         >
           <TierBackdrop tier={levelTierKey} compact />
 
           {/* Avatar · tên · cấp · kệ · đã mở */}
-          <div style={{ position: 'relative', padding: '16px 16px 0', display: 'flex', alignItems: 'center', gap: 14 }}>
+          <div style={ts({ position: 'relative', padding: '16px 16px 0', display: 'flex', alignItems: 'center', gap: 14 })}>
             <div
-              style={{
+              style={ts({
                 position: 'relative',
                 width: 62,
                 height: 68,
                 flex: '0 0 auto',
                 filter: `drop-shadow(0 0 16px ${levelRgba(0.5)})`,
-              }}
+              })}
             >
-              <div style={{ position: 'absolute', inset: 0, clipPath: HEX_CLIP, background: levelRing }} />
+              <div style={ts({ position: 'absolute', inset: 0, clipPath: HEX_CLIP, background: levelRing })} />
               <div
-                style={{
+                style={ts({
                   position: 'absolute',
                   inset: 2.5,
                   clipPath: HEX_CLIP,
@@ -487,13 +491,13 @@ export default function MobileBadgeCollection({
                   font: "700 24px/1 'Oswald', sans-serif",
                   color: '#FFFFFF',
                   overflow: 'hidden',
-                }}
+                })}
               >
                 {activeMember?.avatar ? (
                   <img
                     src={activeMember.avatar}
                     alt={activeMember.name}
-                    style={{ width: '100%', height: '100%', objectFit: 'cover' }}
+                    style={ts({ width: '100%', height: '100%', objectFit: 'cover' })}
                   />
                 ) : (
                   memberInitial
@@ -501,10 +505,10 @@ export default function MobileBadgeCollection({
               </div>
             </div>
 
-            <div style={{ flex: 1, minWidth: 0, display: 'flex', flexDirection: 'column', gap: 6 }}>
-              <div style={{ display: 'flex', alignItems: 'center', gap: 8, minWidth: 0 }}>
+            <div style={ts({ flex: 1, minWidth: 0, display: 'flex', flexDirection: 'column', gap: 6 })}>
+              <div style={ts({ display: 'flex', alignItems: 'center', gap: 8, minWidth: 0 })}>
                 <span
-                  style={{
+                  style={ts({
                     minWidth: 0,
                     overflow: 'hidden',
                     textOverflow: 'ellipsis',
@@ -513,12 +517,12 @@ export default function MobileBadgeCollection({
                     letterSpacing: '.04em',
                     textTransform: 'uppercase',
                     color: '#FFFFFF',
-                  }}
+                  })}
                 >
                   {activeMember?.name || ''} {isViewingSelf ? `· ${t('badges.collectorProfile.rankMe')}` : ''}
                 </span>
                 <span
-                  style={{
+                  style={ts({
                     flex: '0 0 auto',
                     font: "700 11px/1 'Oswald', sans-serif",
                     letterSpacing: '.14em',
@@ -526,19 +530,19 @@ export default function MobileBadgeCollection({
                     borderRadius: 4,
                     background: levelRing,
                     color: '#04101A',
-                  }}
+                  })}
                 >
                   {t('badges.collectorProfile.level', { level })}
                 </span>
               </div>
-              <span style={{ font: '400 12px/1 var(--font-mono)', color: '#9A90AD' }}>{shelfBadges.length} / 3</span>
+              <span style={ts({ font: '400 12px/1 var(--font-mono)', color: '#9A90AD' })}>{shelfBadges.length} / 3</span>
             </div>
 
-            <div style={{ flex: '0 0 auto', display: 'flex', flexDirection: 'column', alignItems: 'flex-end', gap: 5 }}>
-              <span style={{ font: "700 26px/1 'Oswald', sans-serif", color: '#FFFFFF' }}>
+            <div style={ts({ flex: '0 0 auto', display: 'flex', flexDirection: 'column', alignItems: 'flex-end', gap: 5 })}>
+              <span style={ts({ font: "700 26px/1 'Oswald', sans-serif", color: '#FFFFFF' })}>
                 {unlockedCount} / {totalCount}
               </span>
-              <span style={{ font: "600 10px/1 'Oswald', sans-serif", letterSpacing: '.14em', color: '#8E83A8' }}>
+              <span style={ts({ font: "600 10px/1 'Oswald', sans-serif", letterSpacing: '.14em', color: '#8E83A8' })}>
                 {t('badges.openedStatus').toUpperCase()}
               </span>
             </div>
@@ -546,7 +550,7 @@ export default function MobileBadgeCollection({
 
           {/* Nửa dưới trên nền tối: châm ngôn · tiến độ cấp · 3 chỉ số */}
           <div
-            style={{
+            style={ts({
               position: 'relative',
               marginTop: 6,
               padding: '12px 16px 16px',
@@ -554,61 +558,61 @@ export default function MobileBadgeCollection({
               flexDirection: 'column',
               gap: 12,
               background: 'linear-gradient(180deg,transparent,rgba(6,4,16,.92) 30%)',
-            }}
+            })}
           >
             {isViewingSelf ? (
               <button
                 type="button"
                 onClick={() => onEditSignature && onEditSignature()}
                 title={t('badges.signatureModal.title')}
-                style={{ ...signaturePill, cursor: 'pointer', color: activeMember?.signature ? GOLD : '#A899C5' }}
+                style={ts({ ...signaturePill, cursor: 'pointer', color: activeMember?.signature ? GOLD : '#A899C5' })}
               >
-                <span style={{ minWidth: 0, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>
+                <span style={ts({ minWidth: 0, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' })}>
                   “{activeMember?.signature || t('badges.collectorProfile.notSelected')}”
                 </span>
-                <span style={{ fontStyle: 'normal', color: GOLD }}>✎</span>
+                <span style={ts({ fontStyle: 'normal', color: GOLD })}>✎</span>
               </button>
             ) : activeMember?.signature ? (
-              <span style={{ ...signaturePill, color: GOLD }}>
-                <span style={{ minWidth: 0, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>
+              <span style={ts({ ...signaturePill, color: GOLD })}>
+                <span style={ts({ minWidth: 0, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' })}>
                   “{activeMember.signature}”
                 </span>
               </span>
             ) : null}
 
-            <div style={{ display: 'flex', alignItems: 'baseline', gap: 8 }}>
+            <div style={ts({ display: 'flex', alignItems: 'baseline', gap: 8 })}>
               <span
-                style={{
+                style={ts({
                   flex: 1,
                   minWidth: 0,
                   font: "700 11px/1.2 'Oswald', sans-serif",
                   letterSpacing: '.16em',
                   color: levelFx.acc,
-                }}
+                })}
               >
                 {t('badges.collectorProfile.nextLevelTitle', { nextLevel })}
               </span>
-              <span style={{ flex: '0 0 auto', font: '500 12px/1 var(--font-mono)', color: '#C9BFDC' }}>
+              <span style={ts({ flex: '0 0 auto', font: '500 12px/1 var(--font-mono)', color: '#C9BFDC' })}>
                 {currentXp.toLocaleString('vi-VN')} / {nextLevelXp.toLocaleString('vi-VN')} XP
               </span>
             </div>
-            <div style={{ height: 8, borderRadius: 999, background: 'rgba(255,255,255,.1)', overflow: 'hidden' }}>
+            <div style={ts({ height: 8, borderRadius: 999, background: 'rgba(255,255,255,.1)', overflow: 'hidden' })}>
               <div
-                style={{
+                style={ts({
                   width: `${levelPct}%`,
                   height: '100%',
                   borderRadius: 999,
                   background: `linear-gradient(90deg,${levelFx.mid},${levelFx.acc})`,
                   transition: 'width 320ms cubic-bezier(.2,.8,.2,1)',
-                }}
+                })}
               />
             </div>
 
-            <div style={{ display: 'grid', gridTemplateColumns: 'repeat(3, minmax(0, 1fr))', gap: 8 }}>
+            <div style={ts({ display: 'grid', gridTemplateColumns: 'repeat(3, minmax(0, 1fr))', gap: 8 })}>
               {stats.map((s) => (
                 <div
                   key={s.key}
-                  style={{
+                  style={ts({
                     minWidth: 0,
                     padding: '10px 12px',
                     borderRadius: 8,
@@ -617,10 +621,10 @@ export default function MobileBadgeCollection({
                     display: 'flex',
                     flexDirection: 'column',
                     gap: 6,
-                  }}
+                  })}
                 >
-                  <span style={{ font: "700 10px/1.2 'Oswald', sans-serif", letterSpacing: '.14em', color: s.ink }}>{s.label}</span>
-                  <span style={{ font: "700 22px/1 'Oswald', sans-serif", color: '#FFFFFF' }}>{s.value}</span>
+                  <span style={ts({ font: "700 10px/1.2 'Oswald', sans-serif", letterSpacing: '.14em', color: s.ink })}>{s.label}</span>
+                  <span style={ts({ font: "700 22px/1 'Oswald', sans-serif", color: '#FFFFFF' })}>{s.value}</span>
                 </div>
               ))}
             </div>
@@ -628,17 +632,17 @@ export default function MobileBadgeCollection({
         </div>
 
         {/* ═══ KHỐI 2: KỆ DANH HIỆU (3 ô) ═══ */}
-        <div style={{ flex: '0 0 auto', display: 'flex', flexDirection: 'column', gap: 10 }}>
-          <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
-            <span style={{ width: 3, height: 16, flex: '0 0 auto', background: 'linear-gradient(180deg,#FF3D77,#8E4CF5)' }} />
-            <span style={SECTION_TITLE}>{t('badges.myShelfTitle')}</span>
-            <span style={COUNT_MONO}>{shelfBadges.length} / 3</span>
+        <div style={ts({ flex: '0 0 auto', display: 'flex', flexDirection: 'column', gap: 10 })}>
+          <div style={ts({ display: 'flex', alignItems: 'center', gap: 8 })}>
+            <span style={ts({ width: 3, height: 16, flex: '0 0 auto', background: 'linear-gradient(180deg,#FF3D77,#8E4CF5)' })} />
+            <span style={ts(SECTION_TITLE)}>{t('badges.myShelfTitle')}</span>
+            <span style={ts(COUNT_MONO)}>{shelfBadges.length} / 3</span>
             {/* Chỉ trên hồ sơ của chính mình (modal gắn/gỡ kệ của người đăng nhập) */}
             {isViewingSelf && (
               <button
                 type="button"
                 onClick={onReorderShelf}
-                style={{
+                style={ts({
                   marginLeft: 'auto',
                   flex: '0 0 auto',
                   font: "700 11px/1 'Oswald', sans-serif",
@@ -649,14 +653,14 @@ export default function MobileBadgeCollection({
                   background: 'rgba(120,70,220,.3)',
                   color: '#C8A8F0',
                   cursor: 'pointer',
-                }}
+                })}
               >
                 {t('badges.reorderShelf')}
               </button>
             )}
           </div>
 
-          <div style={{ display: 'grid', gridTemplateColumns: 'repeat(3, minmax(0, 1fr))', gap: 8 }}>
+          <div style={ts({ display: 'grid', gridTemplateColumns: 'repeat(3, minmax(0, 1fr))', gap: 8 })}>
             {[0, 1, 2].map((slotIdx) => {
               const b = shelfBadges[slotIdx]
               const hasBadge = !!b && !!b.id
@@ -674,7 +678,7 @@ export default function MobileBadgeCollection({
                       onReorderShelf()
                     }
                   }}
-                  style={{
+                  style={ts({
                     minWidth: 0,
                     padding: '12px 6px 10px',
                     borderRadius: 12,
@@ -685,13 +689,13 @@ export default function MobileBadgeCollection({
                     alignItems: 'center',
                     gap: 8,
                     cursor: 'pointer',
-                  }}
+                  })}
                 >
                   {hasBadge ? (
                     <BadgeHex tier={b.tier} glyph={b.glyph} size={54} />
                   ) : (
                     <span
-                      style={{
+                      style={ts({
                         width: 50,
                         height: 54,
                         clipPath: HEX_CLIP,
@@ -700,13 +704,13 @@ export default function MobileBadgeCollection({
                         placeItems: 'center',
                         font: '500 18px/1 var(--font-display)',
                         color: '#5A4E78',
-                      }}
+                      })}
                     >
                       +
                     </span>
                   )}
                   <span
-                    style={{
+                    style={ts({
                       maxWidth: '100%',
                       font: `${hasBadge ? 600 : 500} 12px/1.2 var(--font-sans)`,
                       color: hasBadge ? '#FFFFFF' : '#6B6188',
@@ -715,7 +719,7 @@ export default function MobileBadgeCollection({
                       display: '-webkit-box',
                       WebkitLineClamp: 2,
                       WebkitBoxOrient: 'vertical',
-                    }}
+                    })}
                   >
                     {bName}
                   </span>
@@ -727,7 +731,7 @@ export default function MobileBadgeCollection({
 
         {/* ═══ KHỐI 2.5: KHO HUY HIỆU ĐÃ MỞ ═══ */}
         <div
-          style={{
+          style={ts({
             flex: '0 0 auto',
             display: 'flex',
             flexDirection: 'column',
@@ -736,28 +740,28 @@ export default function MobileBadgeCollection({
             borderRadius: 14,
             background: 'linear-gradient(150deg,rgba(246,201,69,.07),rgba(255,255,255,.015))',
             border: '1px solid rgba(246,201,69,.3)',
-          }}
+          })}
         >
-          <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
-            <span style={{ ...SECTION_TITLE, flex: 1, minWidth: 0, color: GOLD }}>{t('badges.unlockedVaultTitle')}</span>
-            <span style={{ ...COUNT_MONO, color: '#C9BFDC' }}>
+          <div style={ts({ display: 'flex', alignItems: 'center', gap: 8 })}>
+            <span style={ts({ ...SECTION_TITLE, flex: 1, minWidth: 0, color: GOLD })}>{t('badges.unlockedVaultTitle')}</span>
+            <span style={ts({ ...COUNT_MONO, color: '#C9BFDC' })}>
               {unlockedShowcaseBadges.length} · {collectionScore} pts
             </span>
           </div>
 
           {unlockedShowcaseBadges.length === 0 ? (
-            <span style={{ font: 'italic 400 12px/1.4 var(--font-sans)', color: '#8E83A8' }}>
+            <span style={ts({ font: 'italic 400 12px/1.4 var(--font-sans)', color: '#8E83A8' })}>
               {t('badges.unlockedVaultEmpty')}
             </span>
           ) : (
-            <div style={{ display: 'flex', alignItems: 'stretch', gap: 8, overflowX: 'auto', paddingBottom: 2 }}>
+            <div style={ts({ display: 'flex', alignItems: 'stretch', gap: 8, overflowX: 'auto', paddingBottom: 2 })}>
               {unlockedShowcaseBadges.map((badge) => {
                 const bFx = TIER_FX[badge.tier] || TIER_FX.rare
                 return (
                   <div
                     key={badge.id}
                     onClick={() => onSelectBadge && onSelectBadge(badge)}
-                    style={{
+                    style={ts({
                       flex: '0 0 auto',
                       width: 96,
                       padding: '12px 6px 10px',
@@ -769,11 +773,11 @@ export default function MobileBadgeCollection({
                       alignItems: 'center',
                       gap: 8,
                       cursor: 'pointer',
-                    }}
+                    })}
                   >
                     <BadgeHex tier={badge.tier} glyph={badge.glyph} size={48} />
                     <span
-                      style={{
+                      style={ts({
                         width: '100%',
                         font: '600 11px/1.2 var(--font-sans)',
                         color: '#FFFFFF',
@@ -781,7 +785,7 @@ export default function MobileBadgeCollection({
                         whiteSpace: 'nowrap',
                         overflow: 'hidden',
                         textOverflow: 'ellipsis',
-                      }}
+                      })}
                     >
                       {t(`badges.items.${badge.id}.name`, { defaultValue: badge.name || '' })}
                     </span>
@@ -793,8 +797,8 @@ export default function MobileBadgeCollection({
         </div>
 
         {/* ═══ KHỐI 3: BỘ LỌC LOẠI + NHÓM ĐANG CHỌN ═══ */}
-        <div style={{ flex: '0 0 auto', display: 'flex', flexDirection: 'column', gap: 14 }}>
-          <div style={{ display: 'grid', gridTemplateColumns: 'repeat(3, minmax(0, 1fr))', gap: 6 }}>
+        <div style={ts({ flex: '0 0 auto', display: 'flex', flexDirection: 'column', gap: 14 })}>
+          <div style={ts({ display: 'grid', gridTemplateColumns: 'repeat(3, minmax(0, 1fr))', gap: 6 })}>
             {[
               { id: 'all', label: t('badges.filterKindAll') },
               { id: 'family', label: t('badges.filterKindFamily') },
@@ -806,7 +810,7 @@ export default function MobileBadgeCollection({
                   key={k.id}
                   type="button"
                   onClick={() => setFilterKind(k.id)}
-                  style={{
+                  style={ts({
                     minWidth: 0,
                     padding: '11px 4px',
                     border: 'none',
@@ -820,7 +824,7 @@ export default function MobileBadgeCollection({
                     color: isActive ? '#050A1A' : '#8E83A8',
                     clipPath: isActive ? TAB_CLIP : undefined,
                     transition: 'background 140ms cubic-bezier(.2,.8,.2,1), color 140ms cubic-bezier(.2,.8,.2,1)',
-                  }}
+                  })}
                 >
                   {k.label}
                 </button>
@@ -830,11 +834,11 @@ export default function MobileBadgeCollection({
 
           {activeGroup && (
             <>
-              <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
-                <span style={{ ...SECTION_TITLE, minWidth: 0 }}>
+              <div style={ts({ display: 'flex', alignItems: 'center', gap: 8 })}>
+                <span style={ts({ ...SECTION_TITLE, minWidth: 0 })}>
                   {t(`badges.groups.${activeGroup.key || activeGroup.id}`, { defaultValue: activeGroup.title || activeGroup.name || '' })}
                 </span>
-                <span style={{ ...COUNT_CHIP, background: 'rgba(120,70,220,.3)', color: '#C8A8F0' }}>
+                <span style={ts({ ...COUNT_CHIP, background: 'rgba(120,70,220,.3)', color: '#C8A8F0' })}>
                   {activeGroup.badges?.filter((b) => b.unlocked || b.highestUnlocked).length || 0} / {activeGroup.badges?.length || 0}
                 </span>
               </div>
@@ -853,14 +857,14 @@ export default function MobileBadgeCollection({
                 if (filtered.length === 0) {
                   return (
                     <div
-                      style={{
+                      style={ts({
                         padding: 12,
                         borderRadius: 10,
                         background: 'rgba(255,255,255,.025)',
                         border: '1px dashed #2E2447',
                         font: 'italic 400 12px/1.4 var(--font-sans)',
                         color: '#8E83A8',
-                      }}
+                      })}
                     >
                       {t('badges.noBadgesMatch')}
                     </div>
@@ -868,36 +872,36 @@ export default function MobileBadgeCollection({
                 }
 
                 return (
-                  <div style={{ display: 'flex', flexDirection: 'column', gap: 14 }}>
+                  <div style={ts({ display: 'flex', flexDirection: 'column', gap: 14 })}>
                     {famBadges.length > 0 && (
-                      <div style={{ display: 'flex', flexDirection: 'column', gap: 10 }}>
+                      <div style={ts({ display: 'flex', flexDirection: 'column', gap: 10 })}>
                         {filterKind === 'all' && (
-                          <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
-                            <span style={{ minWidth: 0, font: '600 12px/1.2 var(--font-sans)', letterSpacing: '.06em', color: '#8E83A8' }}>
+                          <div style={ts({ display: 'flex', alignItems: 'center', gap: 8 })}>
+                            <span style={ts({ minWidth: 0, font: '600 12px/1.2 var(--font-sans)', letterSpacing: '.06em', color: '#8E83A8' })}>
                               {t('badges.sectionFamilyTitle')}
                             </span>
-                            <span style={{ ...COUNT_CHIP, padding: '3px 7px', background: 'rgba(255,255,255,.07)', color: '#C9BFDC' }}>
+                            <span style={ts({ ...COUNT_CHIP, padding: '3px 7px', background: 'rgba(255,255,255,.07)', color: '#C9BFDC' })}>
                               {famBadges.length}
                             </span>
                           </div>
                         )}
-                        <div style={{ display: 'grid', gridTemplateColumns: 'repeat(3, minmax(0, 1fr))', gap: 8 }}>
+                        <div style={ts({ display: 'grid', gridTemplateColumns: 'repeat(3, minmax(0, 1fr))', gap: 8 })}>
                           {famBadges.map(renderBadgeItem)}
                         </div>
                       </div>
                     )}
 
                     {solBadges.length > 0 && (
-                      <div style={{ display: 'flex', flexDirection: 'column', gap: 10 }}>
+                      <div style={ts({ display: 'flex', flexDirection: 'column', gap: 10 })}>
                         {filterKind === 'all' && famBadges.length > 0 && (
-                          <div style={{ display: 'flex', alignItems: 'center', gap: 8, marginTop: 6 }}>
-                            <span style={{ ...SECTION_TITLE, minWidth: 0 }}>{t('badges.sectionSoloTitle')}</span>
-                            <span style={{ ...COUNT_CHIP, background: 'rgba(255,122,61,.2)', color: '#FFB38A' }}>
+                          <div style={ts({ display: 'flex', alignItems: 'center', gap: 8, marginTop: 6 })}>
+                            <span style={ts({ ...SECTION_TITLE, minWidth: 0 })}>{t('badges.sectionSoloTitle')}</span>
+                            <span style={ts({ ...COUNT_CHIP, background: 'rgba(255,122,61,.2)', color: '#FFB38A' })}>
                               {solBadges.length}
                             </span>
                           </div>
                         )}
-                        <div style={{ display: 'grid', gridTemplateColumns: 'repeat(3, minmax(0, 1fr))', gap: 8 }}>
+                        <div style={ts({ display: 'grid', gridTemplateColumns: 'repeat(3, minmax(0, 1fr))', gap: 8 })}>
                           {solBadges.map(renderBadgeItem)}
                         </div>
                       </div>
@@ -910,7 +914,7 @@ export default function MobileBadgeCollection({
         </div>
 
         {/* ═══ KHỐI 4: CÁC NHÓM DANH HIỆU KHÁC ═══ */}
-        <div style={{ flex: '0 0 auto', display: 'flex', flexDirection: 'column', gap: 8 }}>
+        <div style={ts({ flex: '0 0 auto', display: 'flex', flexDirection: 'column', gap: 8 })}>
           {groups.map((g, idx) => {
             if (idx === selectedGroupIdx) return null
             const openedInGroup = (g.badges || []).filter((b) => b.unlocked || b.highestUnlocked).length
@@ -920,7 +924,7 @@ export default function MobileBadgeCollection({
               <div
                 key={g.id || idx}
                 onClick={() => setSelectedGroupIdx(idx)}
-                style={{
+                style={ts({
                   display: 'flex',
                   alignItems: 'center',
                   gap: 10,
@@ -929,24 +933,24 @@ export default function MobileBadgeCollection({
                   background: 'linear-gradient(150deg,rgba(255,255,255,.045),rgba(255,255,255,.015))',
                   border: '1px solid #221A3A',
                   cursor: 'pointer',
-                }}
+                })}
               >
                 <span
-                  style={{
+                  style={ts({
                     flex: 1,
                     minWidth: 0,
                     font: "700 13px/1.2 'Oswald', sans-serif",
                     letterSpacing: '.12em',
                     textTransform: 'uppercase',
                     color: '#FFFFFF',
-                  }}
+                  })}
                 >
                   {t(`badges.groups.${g.key || g.id}`, { defaultValue: g.title || g.name || '' })}
                 </span>
-                <span style={{ ...COUNT_CHIP, background: 'rgba(120,70,220,.3)', color: '#C8A8F0' }}>
+                <span style={ts({ ...COUNT_CHIP, background: 'rgba(120,70,220,.3)', color: '#C8A8F0' })}>
                   {openedInGroup} / {totalInGroup}
                 </span>
-                <span style={{ font: '400 14px/1 var(--font-mono)', color: '#8E83A8' }}>›</span>
+                <span style={ts({ font: '400 14px/1 var(--font-mono)', color: '#8E83A8' })}>›</span>
               </div>
             )
           })}

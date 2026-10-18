@@ -1,3 +1,4 @@
+import { useTheme } from '#contexts/ThemeContext.jsx'
 import { TIER_FX } from './tierFx.js'
 
 // Vị trí (left %) và bề rộng (px) bốn dải cực quang, theo đúng bản thiết kế.
@@ -28,9 +29,13 @@ const SHOOTING_STARS = [
  * - Mặc định: thẻ huy hiệu lớn trong BadgeDetailModal — thêm sao băng, chùm sáng chiếu giữa.
  * - `compact`: thẻ hồ sơ ở màn Bộ sưu tập — ít bụi hơn, chùm sáng lệch trái chiếu xuống
  *   avatar, cực quang thấp hơn để chữ và chỉ số nửa dưới nằm trên nền tối.
+ * - Bản sáng (chỉ `compact` — popup luôn tối): bỏ bụi sao trắng, cực quang không hoà kiểu screen
+ *   (trên nền trắng sẽ biến mất) và nhạt đi.
  */
 export default function TierBackdrop({ tier, compact = false }) {
   const fx = TIER_FX[tier] || TIER_FX.rare
+  const { isDark } = useTheme()
+  const light = compact && !isDark
   const rgba = (a) => `rgba(${fx.rgb},${a})`
   const dust = compact ? DUST_CARD : DUST_HERO
   const beam = compact
@@ -39,7 +44,7 @@ export default function TierBackdrop({ tier, compact = false }) {
 
   return (
     <div data-badge-fx style={{ position: 'absolute', inset: 0, overflow: 'hidden', pointerEvents: 'none' }}>
-      {dust.map((s, i) => (
+      {!light && dust.map((s, i) => (
         <span
           key={i}
           style={{
@@ -122,7 +127,8 @@ export default function TierBackdrop({ tier, compact = false }) {
                   background: `linear-gradient(180deg,transparent,rgba(${c1},.5) 30%,rgba(${c2},.45) 62%,transparent)`,
                   filter: `blur(${compact ? 20 : 22}px)`,
                   transformOrigin: 'top',
-                  mixBlendMode: 'screen',
+                  mixBlendMode: light ? 'normal' : 'screen',
+                  opacity: light ? 0.5 : undefined,
                   animation: `bdSway ${9 + i * 1.5}s ease-in-out ${-i * 2}s infinite`,
                 }}
               />

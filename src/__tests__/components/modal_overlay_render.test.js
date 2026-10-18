@@ -8,9 +8,10 @@ import { createElement } from 'react'
 const { ModalOverlay } = await load('#ui')
 const child = createElement('p', null, 'nội dung')
 
+// role + aria-modal: trình đọc màn hình biết đây là hộp thoại, và nền trời (effects.css) tạm dừng khi popup mở.
 test('phủ kín màn, mờ nền, căn giữa, cách mép 16px', () => {
   const m = html(ModalOverlay, { onClose: () => {}, children: child })
-  assert.match(m, /^<div style="position:fixed;inset:0;z-index:9999;background:rgba\(0,0,0,\.65\);backdrop-filter:blur\(4px\);display:flex;align-items:center;justify-content:center;padding:16px"><p>nội dung<\/p><\/div>$/)
+  assert.match(m, /^<div role="dialog" aria-modal="true" style="position:fixed;inset:0;z-index:9999;background:rgba\(0,0,0,\.65\);backdrop-filter:blur\(4px\);display:flex;align-items:center;justify-content:center;padding:16px"><p>nội dung<\/p><\/div>$/)
 })
 
 test('mobile: dính đáy, không cách mép', () => {

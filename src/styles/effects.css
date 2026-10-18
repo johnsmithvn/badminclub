@@ -48,9 +48,10 @@
 
 /* Hiệu ứng icon huy hiệu (BadgeHex): vệt sáng quét, quầng thở, sao lấp lánh.
    Viền xoay và hạt bay dùng lại badgeSpin. */
+/* Vệt rộng 250% ô, trượt từ -96% tới 36% bề rộng của nó — đúng quãng của background-position 160% → -60% cũ. */
 @keyframes bhSheen {
-  0% { background-position: 160% 0; }
-  55%, 100% { background-position: -60% 0; }
+  0% { transform: translateX(-96%); }
+  55%, 100% { transform: translateX(36%); }
 }
 
 @keyframes bhPulse {
@@ -350,9 +351,11 @@
     backdrop-filter: none;
   }
 }
-/* Có dialog / lớp phủ mờ toàn màn đang mở: dừng hoạt hình trời. Lớp mờ đó phải làm mờ lại cả màn
-   mỗi khung hình nếu trời phía sau còn chạy — gõ form trong dialog trên máy yếu sẽ giật. */
-[data-sky]:has([aria-modal="true"], [style*="position: fixed"][style*="backdrop-filter"]) [data-sky-fx] * {
+/* Có dialog đang mở (DS Dialog, ModalOverlay — đều gắn aria-modal): dừng hoạt hình trời. Lớp mờ toàn màn
+   phải làm mờ lại cả màn mỗi khung hình nếu trời phía sau còn chạy — gõ form trong dialog trên máy yếu sẽ
+   giật. Chỉ dò [aria-modal]: dò chuỗi trong style bằng :has ở gốc trang thì MỖI lần một style đổi (cuộn,
+   re-render) trình duyệt phải quét lại cả cây DOM — trang lớn như Danh hiệu giật hẳn. */
+[data-sky]:has([aria-modal="true"]) [data-sky-fx] * {
   animation-play-state: paused;
 }
 @media (prefers-reduced-motion: reduce) {
