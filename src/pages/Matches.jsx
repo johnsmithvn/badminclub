@@ -853,6 +853,9 @@ export default function Matches() {
                 sáng/tối — và cũng không còn chuông, đúng cái màn hay nhận thông báo kèo nhất */}
             <NotificationBell />
             <HeaderAction isMobile={isMobile} icon={isDark ? 'sun' : 'moon'} label={isDark ? t('common.themeLight') : t('common.themeDark')} onClick={toggleTheme} />
+            {/* Xuất / nhập trận: chỉ desktop (thao tác file, hiếm dùng trên điện thoại) */}
+            {!isMobile && <HeaderAction icon="download" label={t('matchIo.exportBtn')} onClick={() => a.openDialog('exportMatches', {})} />}
+            {!isMobile && <HeaderAction icon="upload" label={t('matchIo.importBtn')} onClick={() => a.openDialog('importMatches', {})} />}
             <Button
               size="sm"
               icon="plus"

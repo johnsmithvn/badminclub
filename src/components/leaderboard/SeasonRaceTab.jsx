@@ -11,6 +11,7 @@ import { STAT_COLORS } from '#components/leaderboard/statColors.js'
 import GenderFilterTabs from '#components/leaderboard/GenderFilterTabs.jsx'
 import WinRatePill from '#components/leaderboard/WinRatePill.jsx'
 import StreakTag from '#components/leaderboard/StreakTag.jsx'
+import { useArenaTone } from '#components/challenge/arenaTone.js'
 
 function MiniShelf({ shelf = [], size = 18 }) {
   const ids = cleanShelf(shelf)
@@ -87,6 +88,7 @@ export default function SeasonRaceTab({
   genderFilter = 'all',
   onGenderFilterChange,
 }) {
+  const ts = useArenaTone()
   const { db } = useApp()
   const { isDark } = useTheme()
 
@@ -147,42 +149,45 @@ export default function SeasonRaceTab({
     >
       {/* Mọi lưới bọc tên đều phải minmax(0, 1fr): cột 'auto'/'1fr' nở theo độ rộng tối thiểu
           của tên dài (nowrap) và đẩy cả thẻ ra ngoài màn hình, ellipsis không kịp cắt. */}
+      {/* Hàng trên phủ cả 2 cột: thông báo mùa đã đóng + lọc Nam / Nữ — để cột phải bắt đầu thẳng hàng với bục */}
+      <div style={{ gridColumn: '1 / -1', display: 'grid', gridTemplateColumns: 'minmax(0, 1fr)', gap: 12, minWidth: 0 }}>
+      {/* Thông báo mùa đã đóng */}
+      {isArchived && (
+        <div
+          style={{
+            background: isDark ? 'rgba(240,210,106,.12)' : 'rgba(245,158,11,.10)',
+            border: '1px solid #F0D26A',
+            borderRadius: 8,
+            padding: '10px 14px',
+            font: "500 12.5px/1.4 'IBM Plex Sans', sans-serif",
+            color: isDark ? '#F0D26A' : '#B45309',
+            display: 'flex',
+            alignItems: 'center',
+            gap: 8,
+          }}
+        >
+          <span style={{ fontSize: 16 }}>📁</span>
+          <span>{t('season.archivedSeasonNotice')}</span>
+        </div>
+      )}
+
+      {/* Bộ lọc giới tính Nam / Nữ */}
+      <GenderFilterTabs
+        value={genderFilter}
+        onChange={onGenderFilterChange}
+        counts={{ all: totalCount, nam: maleCount, nu: femaleCount }}
+      />
+
+      </div>
+
       {/* CỘT TRÁI (BẢNG ĐUA TOP) */}
       <div style={{ display: 'grid', gridTemplateColumns: 'minmax(0, 1fr)', gap: 12 }}>
-        {/* Thông báo mùa đã đóng */}
-        {isArchived && (
-          <div
-            style={{
-              background: isDark ? 'rgba(240,210,106,.12)' : 'rgba(245,158,11,.10)',
-              border: '1px solid #F0D26A',
-              borderRadius: 8,
-              padding: '10px 14px',
-              font: "500 12.5px/1.4 'IBM Plex Sans', sans-serif",
-              color: isDark ? '#F0D26A' : '#B45309',
-              display: 'flex',
-              alignItems: 'center',
-              gap: 8,
-            }}
-          >
-            <span style={{ fontSize: 16 }}>📁</span>
-            <span>{t('season.archivedSeasonNotice')}</span>
-          </div>
-        )}
-
-        {/* Bộ lọc giới tính Nam / Nữ */}
-        <GenderFilterTabs
-          isDark={isDark}
-          value={genderFilter}
-          onChange={onGenderFilterChange}
-          counts={{ all: totalCount, nam: maleCount, nu: femaleCount }}
-        />
-
         {/* 2. Podium Top 3 */}
         {filteredLeaderboard.length >= 3 && (
           isMobile ? (
             /* Bục Tốp 3 14a · M10v2 Mobile Hào nhoáng */
             <div
-              style={{
+              style={ts({
                 position: 'relative',
                 borderRadius: 12,
                 overflow: 'hidden',
@@ -193,30 +198,30 @@ export default function SeasonRaceTab({
                 gridTemplateColumns: 'minmax(0, 1fr)',
                 gap: 10,
                 boxShadow: '0 8px 32px rgba(0, 0, 0, 0.45)',
-              }}
+              })}
             >
               <div
-                style={{
+                style={ts({
                   position: 'absolute',
                   inset: 0,
                   background: 'radial-gradient(66% 70% at 50% 0%, rgba(240,183,92,.20), transparent 74%)',
                   pointerEvents: 'none',
-                }}
+                })}
               />
-              <div style={{ position: 'relative', display: 'flex', alignItems: 'center', gap: 8 }}>
-                <span style={{ font: "700 15px/1.2 'Barlow', sans-serif", color: '#FFFFFF' }}>
+              <div style={ts({ position: 'relative', display: 'flex', alignItems: 'center', gap: 8 })}>
+                <span style={ts({ font: "700 15px/1.2 'Barlow', sans-serif", color: '#FFFFFF' })}>
                   {t('season.podiumTitle14a', { seasonNumber: season?.number || 3 })}
                 </span>
-                <div style={{ flex: 1 }} />
+                <div style={ts({ flex: 1 })} />
                 <span
-                  style={{
+                  style={ts({
                     font: "600 10.5px/1 'IBM Plex Mono', monospace",
                     padding: '5px 8px',
                     borderRadius: 999,
                     background: 'rgba(240,183,92,.14)',
                     border: '1px solid #8A6F16',
                     color: '#F0D26A',
-                  }}
+                  })}
                 >
                   {t('season.sessionsRemainingChip', { n: remainingSessions, count: remainingSessions })}
                 </span>
@@ -226,7 +231,7 @@ export default function SeasonRaceTab({
               <div
                 onClick={() => top1 && onOpenLedger && onOpenLedger(top1.id)}
                 title={`${t('season.viewLedgerBtn')}: ${top1?.name || ''}`}
-                style={{
+                style={ts({
                   position: 'relative',
                   display: 'flex',
                   alignItems: 'center',
@@ -236,11 +241,11 @@ export default function SeasonRaceTab({
                   background: 'linear-gradient(180deg, rgba(240,183,92,.24), rgba(20,29,46,.94) 70%)',
                   border: '1px solid #C9A227',
                   cursor: 'pointer',
-                }}
+                })}
               >
-                <div style={{ position: 'relative', width: 54, height: 54, flex: '0 0 auto', marginTop: 6 }}>
+                <div style={ts({ position: 'relative', width: 54, height: 54, flex: '0 0 auto', marginTop: 6 })}>
                   <div
-                    style={{
+                    style={ts({
                       position: 'absolute',
                       left: '50%',
                       top: -15,
@@ -250,31 +255,31 @@ export default function SeasonRaceTab({
                       background: 'linear-gradient(180deg, #FFF3C4, #F0D26A 52%, #C9A227)',
                       clipPath: 'polygon(0% 100%, 0% 22%, 22% 58%, 50% 0%, 78% 58%, 100% 22%, 100% 100%)',
                       filter: 'drop-shadow(0 2px 6px rgba(201,162,39,.5))',
-                    }}
+                    })}
                   />
                   <div
-                    style={{
+                    style={ts({
                       position: 'absolute',
                       inset: -7,
                       borderRadius: 999,
                       background: 'radial-gradient(circle, rgba(240,183,92,.36), transparent 70%)',
                       animation: 'medalGlow 4.4s ease-in-out infinite',
-                    }}
+                    })}
                   />
                   <div
-                    style={{
+                    style={ts({
                       position: 'absolute',
                       inset: 0,
                       borderRadius: 999,
                       background: 'conic-gradient(from 210deg, #7A5620, #F0B75C, #FFF3C4, #F0D26A, #7A5620)',
                       boxShadow: '0 0 0 1px rgba(247,227,161,.55)',
-                    }}
+                    })}
                   />
-                  <div style={{ position: 'absolute', inset: 3, borderRadius: 999, overflow: 'hidden', display: 'grid', placeItems: 'center' }}>
+                  <div style={ts({ position: 'absolute', inset: 3, borderRadius: 999, overflow: 'hidden', display: 'grid', placeItems: 'center' })}>
                     <Avatar name={top1?.name} src={top1?.avatarUrl || top1?.avatar} size={48} />
                   </div>
                   <div
-                    style={{
+                    style={ts({
                       position: 'absolute',
                       right: -4,
                       bottom: -4,
@@ -287,25 +292,25 @@ export default function SeasonRaceTab({
                       placeItems: 'center',
                       font: "700 10px/1 'Barlow', sans-serif",
                       color: '#2A1F00',
-                    }}
+                    })}
                   >
                     1
                   </div>
                 </div>
-                <div style={{ flex: 1, minWidth: 0, display: 'grid', gap: 5 }}>
-                  <div style={{ minWidth: 0, display: 'flex', alignItems: 'center', gap: 8, flexWrap: 'wrap' }}>
-                    <span style={{ font: "700 16px/1.15 'Barlow', sans-serif", color: '#FFFFFF', minWidth: 0, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>
+                <div style={ts({ flex: 1, minWidth: 0, display: 'grid', gap: 5 })}>
+                  <div style={ts({ minWidth: 0, display: 'flex', alignItems: 'center', gap: 8, flexWrap: 'wrap' })}>
+                    <span style={ts({ font: "700 16px/1.15 'Barlow', sans-serif", color: '#FFFFFF', minWidth: 0, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' })}>
                       <span title={top1?.name}>{top1?.name}</span>
                     </span>
                     <StreakTag streak={top1?.streak} onDark />
-                    <div style={{ flex: 1 }} />
-                    <span style={{ font: "600 26px/1 'IBM Plex Mono', monospace", color: '#F7E3A1' }}>
+                    <div style={ts({ flex: 1 })} />
+                    <span style={ts({ font: "600 26px/1 'IBM Plex Mono', monospace", color: '#F7E3A1' })}>
                       {top1?.totalSeasonPoints?.toLocaleString()}
                     </span>
                   </div>
-                  <div style={{ display: 'flex', gap: 5, alignItems: 'center' }}>
+                  <div style={ts({ display: 'flex', gap: 5, alignItems: 'center' })}>
                     <MiniShelf shelf={shelfById.get(top1?.id)} size={19} />
-                    <div style={{ flex: 1 }} />
+                    <div style={ts({ flex: 1 })} />
                     <TrendSpark logs={top1?.matchLogs} width={48} height={16} showDelta />
                   </div>
                   <MobileStats row={top1} fields={['sessions', 'matches', 'record', 'winRate']} size={11.5} />
@@ -313,12 +318,12 @@ export default function SeasonRaceTab({
               </div>
 
               {/* Top 2 & Top 3 Cards in 2 columns */}
-              <div style={{ position: 'relative', display: 'grid', gridTemplateColumns: 'repeat(2, minmax(0, 1fr))', gap: 9 }}>
+              <div style={ts({ position: 'relative', display: 'grid', gridTemplateColumns: 'repeat(2, minmax(0, 1fr))', gap: 9 })}>
                 {/* Top 2 */}
                 <div
                   onClick={() => top2 && onOpenLedger && onOpenLedger(top2.id)}
                   title={`${t('season.viewLedgerBtn')}: ${top2?.name || ''}`}
-                  style={{
+                  style={ts({
                     minWidth: 0,
                     display: 'flex',
                     alignItems: 'center',
@@ -328,23 +333,23 @@ export default function SeasonRaceTab({
                     background: 'linear-gradient(150deg, rgba(199,210,228,.13), rgba(20,29,46,.92) 66%)',
                     border: '1px solid #6F7F96',
                     cursor: 'pointer',
-                  }}
+                  })}
                 >
-                  <div style={{ position: 'relative', width: 40, height: 40, flex: '0 0 auto' }}>
+                  <div style={ts({ position: 'relative', width: 40, height: 40, flex: '0 0 auto' })}>
                     <div
-                      style={{
+                      style={ts({
                         position: 'absolute',
                         inset: 0,
                         borderRadius: 999,
                         background: 'conic-gradient(from 210deg, #5B6B81, #C7D2E4, #FFFFFF, #8FA3BE, #5B6B81)',
                         boxShadow: '0 0 0 1px rgba(199,210,228,.45)',
-                      }}
+                      })}
                     />
-                    <div style={{ position: 'absolute', inset: 2.5, borderRadius: 999, overflow: 'hidden', display: 'grid', placeItems: 'center' }}>
+                    <div style={ts({ position: 'absolute', inset: 2.5, borderRadius: 999, overflow: 'hidden', display: 'grid', placeItems: 'center' })}>
                       <Avatar name={top2?.name} src={top2?.avatarUrl || top2?.avatar} size={35} />
                     </div>
                     <div
-                      style={{
+                      style={ts({
                         position: 'absolute',
                         right: -3,
                         bottom: -3,
@@ -357,24 +362,24 @@ export default function SeasonRaceTab({
                         placeItems: 'center',
                         font: "700 9px/1 'Barlow', sans-serif",
                         color: '#1B2435',
-                      }}
+                      })}
                     >
                       2
                     </div>
                   </div>
-                  <div style={{ minWidth: 0, display: 'grid', gap: 4 }}>
-                    <div style={{ minWidth: 0, display: 'flex', alignItems: 'center', gap: 6, flexWrap: 'wrap' }}>
-                      <span style={{ font: "600 13px/1.2 'IBM Plex Sans', sans-serif", color: '#FFFFFF', minWidth: 0, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>
+                  <div style={ts({ minWidth: 0, display: 'grid', gap: 4 })}>
+                    <div style={ts({ minWidth: 0, display: 'flex', alignItems: 'center', gap: 6, flexWrap: 'wrap' })}>
+                      <span style={ts({ font: "600 13px/1.2 'IBM Plex Sans', sans-serif", color: '#FFFFFF', minWidth: 0, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' })}>
                         <span title={top2?.name}>{top2?.name}</span>
                       </span>
                       <StreakTag streak={top2?.streak} onDark compact />
                     </div>
-                    <div style={{ font: "600 19px/1 'IBM Plex Mono', monospace", color: '#DCE6F5' }}>
+                    <div style={ts({ font: "600 19px/1 'IBM Plex Mono', monospace", color: '#DCE6F5' })}>
                       {top2?.totalSeasonPoints?.toLocaleString()}
                     </div>
                     <MiniShelf shelf={shelfById.get(top2?.id)} size={16} />
                     <MobileStats row={top2} fields={['matches', 'winRate']} />
-                    <div style={{ font: "400 10.5px/1 'IBM Plex Mono', monospace", color: '#8494AA' }}>
+                    <div style={ts({ font: "400 10.5px/1 'IBM Plex Mono', monospace", color: '#8494AA' })}>
                       {t('season.behindTop1', { diff: ((top1?.totalSeasonPoints || 0) - (top2?.totalSeasonPoints || 0)).toLocaleString() })}
                     </div>
                   </div>
@@ -384,7 +389,7 @@ export default function SeasonRaceTab({
                 <div
                   onClick={() => top3 && onOpenLedger && onOpenLedger(top3.id)}
                   title={`${t('season.viewLedgerBtn')}: ${top3?.name || ''}`}
-                  style={{
+                  style={ts({
                     minWidth: 0,
                     display: 'flex',
                     alignItems: 'center',
@@ -394,23 +399,23 @@ export default function SeasonRaceTab({
                     background: 'linear-gradient(150deg, rgba(200,128,74,.15), rgba(20,29,46,.92) 66%)',
                     border: '1px solid #8A4E24',
                     cursor: 'pointer',
-                  }}
+                  })}
                 >
-                  <div style={{ position: 'relative', width: 40, height: 40, flex: '0 0 auto' }}>
+                  <div style={ts({ position: 'relative', width: 40, height: 40, flex: '0 0 auto' })}>
                     <div
-                      style={{
+                      style={ts({
                         position: 'absolute',
                         inset: 0,
                         borderRadius: 999,
                         background: 'conic-gradient(from 210deg, #6B3512, #C8804A, #F0C096, #B0562A, #6B3512)',
                         boxShadow: '0 0 0 1px rgba(240,192,150,.4)',
-                      }}
+                      })}
                     />
-                    <div style={{ position: 'absolute', inset: 2.5, borderRadius: 999, overflow: 'hidden', display: 'grid', placeItems: 'center' }}>
+                    <div style={ts({ position: 'absolute', inset: 2.5, borderRadius: 999, overflow: 'hidden', display: 'grid', placeItems: 'center' })}>
                       <Avatar name={top3?.name} src={top3?.avatarUrl || top3?.avatar} size={35} />
                     </div>
                     <div
-                      style={{
+                      style={ts({
                         position: 'absolute',
                         right: -3,
                         bottom: -3,
@@ -423,24 +428,24 @@ export default function SeasonRaceTab({
                         placeItems: 'center',
                         font: "700 9px/1 'Barlow', sans-serif",
                         color: '#2A1405',
-                      }}
+                      })}
                     >
                       3
                     </div>
                   </div>
-                  <div style={{ minWidth: 0, display: 'grid', gap: 4 }}>
-                    <div style={{ minWidth: 0, display: 'flex', alignItems: 'center', gap: 6, flexWrap: 'wrap' }}>
-                      <span style={{ font: "600 13px/1.2 'IBM Plex Sans', sans-serif", color: '#FFFFFF', minWidth: 0, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>
+                  <div style={ts({ minWidth: 0, display: 'grid', gap: 4 })}>
+                    <div style={ts({ minWidth: 0, display: 'flex', alignItems: 'center', gap: 6, flexWrap: 'wrap' })}>
+                      <span style={ts({ font: "600 13px/1.2 'IBM Plex Sans', sans-serif", color: '#FFFFFF', minWidth: 0, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' })}>
                         <span title={top3?.name}>{top3?.name}</span>
                       </span>
                       <StreakTag streak={top3?.streak} onDark compact />
                     </div>
-                    <div style={{ font: "600 19px/1 'IBM Plex Mono', monospace", color: '#F0C096' }}>
+                    <div style={ts({ font: "600 19px/1 'IBM Plex Mono', monospace", color: '#F0C096' })}>
                       {top3?.totalSeasonPoints?.toLocaleString()}
                     </div>
                     <MiniShelf shelf={shelfById.get(top3?.id)} size={16} />
                     <MobileStats row={top3} fields={['matches', 'winRate']} />
-                    <div style={{ font: "400 10.5px/1 'IBM Plex Mono', monospace", color: '#F0D26A' }}>
+                    <div style={ts({ font: "400 10.5px/1 'IBM Plex Mono', monospace", color: '#F0D26A' })}>
                       {top3EloRank ? t('season.eloRankClub', { rank: top3EloRank }) : t('season.behindTop1', { diff: ((top1?.totalSeasonPoints || 0) - (top3?.totalSeasonPoints || 0)).toLocaleString() })}
                     </div>
                   </div>
@@ -450,7 +455,7 @@ export default function SeasonRaceTab({
           ) : (
             /* Bục Tốp 3 14a · Desktop Hào nhoáng */
             <div
-              style={{
+              style={ts({
                 position: 'relative',
                 borderRadius: 12,
                 overflow: 'hidden',
@@ -460,52 +465,52 @@ export default function SeasonRaceTab({
                 display: 'grid',
                 gap: 11,
                 boxShadow: '0 8px 32px rgba(0, 0, 0, 0.45)',
-              }}
+              })}
             >
               <div
-                style={{
+                style={ts({
                   position: 'absolute',
                   inset: 0,
                   background: 'radial-gradient(58% 78% at 50% 0%, rgba(240,183,92,.22), transparent 72%)',
                   pointerEvents: 'none',
-                }}
+                })}
               />
-              <div style={{ position: 'relative', display: 'flex', alignItems: 'baseline', gap: 10, flexWrap: 'wrap' }}>
-                <span style={{ font: "700 17px/1.2 'Barlow', sans-serif", letterSpacing: '-0.01em', color: '#FFFFFF' }}>
+              <div style={ts({ position: 'relative', display: 'flex', alignItems: 'baseline', gap: 10, flexWrap: 'wrap' })}>
+                <span style={ts({ font: "700 17px/1.2 'Barlow', sans-serif", letterSpacing: '-0.01em', color: '#FFFFFF' })}>
                   {t('season.podiumTitle14a', { seasonNumber: season?.number || 3 })}
                 </span>
-                <span style={{ font: "400 12px/1.2 'IBM Plex Mono', monospace", color: '#C6B683' }}>
+                <span style={ts({ font: "400 12px/1.2 'IBM Plex Mono', monospace", color: '#C6B683' })}>
                   {t('season.podiumSubtitle14a', { sessions: totalSessionsExpected })}
                 </span>
-                <div style={{ flex: 1 }} />
+                <div style={ts({ flex: 1 })} />
                 <span
-                  style={{
+                  style={ts({
                     font: "600 11px/1 'IBM Plex Mono', monospace",
                     padding: '5px 9px',
                     borderRadius: 999,
                     background: 'rgba(240,183,92,.14)',
                     border: '1px solid #8A6F16',
                     color: '#F0D26A',
-                  }}
+                  })}
                 >
                   {t('season.podiumRemainingChip14a', { remaining: remainingSessions, maxPts: maxPossiblePts })}
                 </span>
               </div>
 
               <div
-                style={{
+                style={ts({
                   position: 'relative',
                   display: 'grid',
                   gridTemplateColumns: 'repeat(3, minmax(0, 1fr))',
                   gap: 11,
                   alignItems: 'end',
-                }}
+                })}
               >
                 {/* #2 Á Quân */}
                 <div
                   onClick={() => top2 && onOpenLedger && onOpenLedger(top2.id)}
                   title={`${t('season.viewLedgerBtn')}: ${top2?.name || ''}`}
-                  style={{
+                  style={ts({
                     borderRadius: 11,
                     padding: '13px 12px',
                     display: 'grid',
@@ -516,23 +521,23 @@ export default function SeasonRaceTab({
                     border: '1px solid #6F7F96',
                     cursor: 'pointer',
                     transition: 'transform 0.15s ease',
-                  }}
+                  })}
                 >
-                  <div style={{ position: 'relative', width: 50, height: 50 }}>
+                  <div style={ts({ position: 'relative', width: 50, height: 50 })}>
                     <div
-                      style={{
+                      style={ts({
                         position: 'absolute',
                         inset: 0,
                         borderRadius: 999,
                         background: 'conic-gradient(from 210deg, #5B6B81, #C7D2E4, #FFFFFF, #8FA3BE, #5B6B81)',
                         boxShadow: '0 0 0 1px rgba(199,210,228,.5), 0 8px 18px rgba(143,163,190,.22)',
-                      }}
+                      })}
                     />
-                    <div style={{ position: 'absolute', inset: 3, borderRadius: 999, overflow: 'hidden', display: 'grid', placeItems: 'center' }}>
+                    <div style={ts({ position: 'absolute', inset: 3, borderRadius: 999, overflow: 'hidden', display: 'grid', placeItems: 'center' })}>
                       <Avatar name={top2?.name} src={top2?.avatarUrl || top2?.avatar} size={44} />
                     </div>
                     <div
-                      style={{
+                      style={ts({
                         position: 'absolute',
                         right: -4,
                         bottom: -4,
@@ -545,19 +550,19 @@ export default function SeasonRaceTab({
                         placeItems: 'center',
                         font: "700 10px/1 'Barlow', sans-serif",
                         color: '#1B2435',
-                      }}
+                      })}
                     >
                       2
                     </div>
                   </div>
-                  <div style={{ font: "600 14px/1.2 'IBM Plex Sans', sans-serif", color: '#FFFFFF', minWidth: 0, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>
+                  <div style={ts({ font: "600 14px/1.2 'IBM Plex Sans', sans-serif", color: '#FFFFFF', minWidth: 0, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' })}>
                     <span title={top2?.name}>{top2?.name}</span>
                   </div>
-                  <div style={{ font: "600 24px/1 'IBM Plex Mono', monospace", color: '#DCE6F5' }}>
+                  <div style={ts({ font: "600 24px/1 'IBM Plex Mono', monospace", color: '#DCE6F5' })}>
                     {top2?.totalSeasonPoints?.toLocaleString()}
                   </div>
                   <MiniShelf shelf={shelfById.get(top2?.id)} />
-                  <div style={{ font: "400 11px/1.3 'IBM Plex Sans', sans-serif", color: '#8494AA' }}>
+                  <div style={ts({ font: "400 11px/1.3 'IBM Plex Sans', sans-serif", color: '#8494AA' })}>
                     {top2?.matchesCount} {t('units.match')} · {top2?.winsCount}W–{top2?.lossesCount}L · {top2?.winRate}%
                   </div>
                 </div>
@@ -566,7 +571,7 @@ export default function SeasonRaceTab({
                 <div
                   onClick={() => top1 && onOpenLedger && onOpenLedger(top1.id)}
                   title={`${t('season.viewLedgerBtn')}: ${top1?.name || ''}`}
-                  style={{
+                  style={ts({
                     borderRadius: 12,
                     padding: '16px 14px',
                     display: 'grid',
@@ -578,12 +583,12 @@ export default function SeasonRaceTab({
                     boxShadow: '0 0 24px rgba(212,168,54,.25)',
                     cursor: 'pointer',
                     transition: 'transform 0.15s ease',
-                  }}
+                  })}
                 >
-                  <div style={{ position: 'relative', width: 56, height: 56 }}>
+                  <div style={ts({ position: 'relative', width: 56, height: 56 })}>
                     {/* Vương miện Top 1 */}
                     <div
-                      style={{
+                      style={ts({
                         position: 'absolute',
                         left: '50%',
                         top: -14,
@@ -593,22 +598,22 @@ export default function SeasonRaceTab({
                         background: 'linear-gradient(180deg, #FFF3C4, #F0D26A 52%, #C9A227)',
                         clipPath: 'polygon(0% 100%, 0% 22%, 22% 58%, 50% 0%, 78% 58%, 100% 22%, 100% 100%)',
                         filter: 'drop-shadow(0 2px 6px rgba(201,162,39,.5))',
-                      }}
+                      })}
                     />
                     <div
-                      style={{
+                      style={ts({
                         position: 'absolute',
                         inset: 0,
                         borderRadius: 999,
                         background: 'conic-gradient(from 210deg, #7A5620, #F0B75C, #FFF3C4, #F0D26A, #7A5620)',
                         boxShadow: '0 0 0 1px rgba(247,227,161,.55), 0 10px 22px rgba(201,162,39,.32)',
-                      }}
+                      })}
                     />
-                    <div style={{ position: 'absolute', inset: 3, borderRadius: 999, overflow: 'hidden', display: 'grid', placeItems: 'center' }}>
+                    <div style={ts({ position: 'absolute', inset: 3, borderRadius: 999, overflow: 'hidden', display: 'grid', placeItems: 'center' })}>
                       <Avatar name={top1?.name} src={top1?.avatarUrl || top1?.avatar} size={50} />
                     </div>
                     <div
-                      style={{
+                      style={ts({
                         position: 'absolute',
                         right: -4,
                         bottom: -4,
@@ -621,22 +626,22 @@ export default function SeasonRaceTab({
                         placeItems: 'center',
                         font: "700 11px/1 'Barlow', sans-serif",
                         color: '#2A1F00',
-                      }}
+                      })}
                     >
                       1
                     </div>
                   </div>
-                  <div style={{ font: "700 16px/1.2 'IBM Plex Sans', sans-serif", color: '#FFFFFF', minWidth: 0, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>
+                  <div style={ts({ font: "700 16px/1.2 'IBM Plex Sans', sans-serif", color: '#FFFFFF', minWidth: 0, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' })}>
                     <span title={top1?.name}>{top1?.name}</span>
                   </div>
-                  <div style={{ font: "700 32px/1 'IBM Plex Mono', monospace", color: '#F7E3A1' }}>
+                  <div style={ts({ font: "700 32px/1 'IBM Plex Mono', monospace", color: '#F7E3A1' })}>
                     {top1?.totalSeasonPoints?.toLocaleString()}
                   </div>
-                  <div style={{ display: 'flex', alignItems: 'center', gap: 6, flexWrap: 'wrap', justifyContent: 'center' }}>
+                  <div style={ts({ display: 'flex', alignItems: 'center', gap: 6, flexWrap: 'wrap', justifyContent: 'center' })}>
                     <MiniShelf shelf={shelfById.get(top1?.id)} />
                     <StreakTag streak={top1?.streak} onDark />
                   </div>
-                  <div style={{ font: "400 12px/1.3 'IBM Plex Sans', sans-serif", color: '#C6B683' }}>
+                  <div style={ts({ font: "400 12px/1.3 'IBM Plex Sans', sans-serif", color: '#C6B683' })}>
                     {top1?.matchesCount} {t('units.match')} · {top1?.winsCount}W–{top1?.lossesCount}L · {top1?.winRate}% · {top1?.upsetsCount} upset
                   </div>
                 </div>
@@ -645,7 +650,7 @@ export default function SeasonRaceTab({
                 <div
                   onClick={() => top3 && onOpenLedger && onOpenLedger(top3.id)}
                   title={`${t('season.viewLedgerBtn')}: ${top3?.name || ''}`}
-                  style={{
+                  style={ts({
                     borderRadius: 11,
                     padding: '13px 12px',
                     display: 'grid',
@@ -656,23 +661,23 @@ export default function SeasonRaceTab({
                     border: '1px solid #A66A38',
                     cursor: 'pointer',
                     transition: 'transform 0.15s ease',
-                  }}
+                  })}
                 >
-                  <div style={{ position: 'relative', width: 48, height: 48 }}>
+                  <div style={ts({ position: 'relative', width: 48, height: 48 })}>
                     <div
-                      style={{
+                      style={ts({
                         position: 'absolute',
                         inset: 0,
                         borderRadius: 999,
                         background: 'conic-gradient(from 210deg, #5C2C10, #C77C48, #F5C09A, #C77C48, #5C2C10)',
                         boxShadow: '0 0 0 1px rgba(232,180,140,.45), 0 8px 18px rgba(166,106,56,.2)',
-                      }}
+                      })}
                     />
-                    <div style={{ position: 'absolute', inset: 3, borderRadius: 999, overflow: 'hidden', display: 'grid', placeItems: 'center' }}>
+                    <div style={ts({ position: 'absolute', inset: 3, borderRadius: 999, overflow: 'hidden', display: 'grid', placeItems: 'center' })}>
                       <Avatar name={top3?.name} src={top3?.avatarUrl || top3?.avatar} size={42} />
                     </div>
                     <div
-                      style={{
+                      style={ts({
                         position: 'absolute',
                         right: -4,
                         bottom: -4,
@@ -685,19 +690,19 @@ export default function SeasonRaceTab({
                         placeItems: 'center',
                         font: "700 10px/1 'Barlow', sans-serif",
                         color: '#2A1608',
-                      }}
+                      })}
                     >
                       3
                     </div>
                   </div>
-                  <div style={{ font: "600 14px/1.2 'IBM Plex Sans', sans-serif", color: '#FFFFFF', minWidth: 0, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>
+                  <div style={ts({ font: "600 14px/1.2 'IBM Plex Sans', sans-serif", color: '#FFFFFF', minWidth: 0, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' })}>
                     <span title={top3?.name}>{top3?.name}</span>
                   </div>
-                  <div style={{ font: "600 22px/1 'IBM Plex Mono', monospace", color: '#E8C8AE' }}>
+                  <div style={ts({ font: "600 22px/1 'IBM Plex Mono', monospace", color: '#E8C8AE' })}>
                     {top3?.totalSeasonPoints?.toLocaleString()}
                   </div>
                   <MiniShelf shelf={shelfById.get(top3?.id)} />
-                  <div style={{ font: "400 11px/1.3 'IBM Plex Sans', sans-serif", color: '#8494AA' }}>
+                  <div style={ts({ font: "400 11px/1.3 'IBM Plex Sans', sans-serif", color: '#8494AA' })}>
                     {top3?.matchesCount} {t('units.match')} · {top3?.winsCount}W–{top3?.lossesCount}L · {top3?.winRate}%
                   </div>
                 </div>
@@ -1125,6 +1130,7 @@ export default function SeasonRaceTab({
             borderRadius: 10,
             padding: '13px 15px',
             display: 'grid',
+            gridTemplateColumns: 'minmax(0, 1fr)',
             gap: 9,
             boxShadow: 'var(--shadow-xs)',
           }}
@@ -1132,7 +1138,8 @@ export default function SeasonRaceTab({
           <div style={{ font: "600 14px/1.2 'IBM Plex Sans', sans-serif", color: 'var(--text-primary)' }}>
             {t('season.awardsUpcomingTitle')}
           </div>
-          <div style={{ display: 'grid', gap: 8 }}>
+          {/* minmax(0, 1fr): tên dài (nowrap) không được nở cột đẩy ô tràn ra ngoài thẻ — DESIGN.md §8.4 */}
+          <div style={{ display: 'grid', gridTemplateColumns: 'minmax(0, 1fr)', gap: 8 }}>
             {/* 1. Vua cày điểm */}
             <div
               style={{

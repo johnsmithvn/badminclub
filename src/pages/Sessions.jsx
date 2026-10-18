@@ -295,6 +295,8 @@ function SessionsTools({ db, a, canEdit, isMobile }) {
   )
 }
 
+const MONTH_ARROW = { display: 'grid', placeItems: 'center', width: 26, height: 26, padding: 0, flexShrink: 0, borderRadius: 999, border: '1px solid var(--border-subtle)', background: 'transparent', color: 'var(--text-secondary)', cursor: 'pointer' }
+
 export default function Sessions() {
   const { db, ui, a } = useApp()
   const { isDark, toggleTheme } = useTheme()
@@ -358,31 +360,24 @@ export default function Sessions() {
 
       {isMobile ? (
         <div style={{ display: 'flex', flexDirection: 'column', gap: 10 }}>
-          {/* Tóm tắt một dòng (tháng đang xem · số buổi · tiền sân · thu khách) — bấm để mở / gọn các thẻ chi tiết */}
-          <button
-            type="button"
-            onClick={() => setMoneyOpen((v) => !v)}
-            aria-expanded={moneyOpen}
-            style={{
-              display: 'flex',
-              alignItems: 'center',
-              gap: 10,
-              width: '100%',
-              padding: '10px 13px',
-              borderRadius: 12,
-              background: 'var(--surface-card, #18233A)',
-              border: '1px solid var(--border-subtle, #33456A)',
-              color: 'inherit',
-              cursor: 'pointer',
-              textAlign: 'left',
-            }}
-          >
+          {/* Tóm tắt một dòng: ‹ tháng › đổi tháng ngay tại chỗ; phần còn lại (số buổi · tiền sân · thu khách) bấm để mở /
+              gọn các thẻ chi tiết. Hai nút tách riêng — không lồng nút trong nút. */}
+          <div style={{ display: 'flex', alignItems: 'center', gap: 8, width: '100%', boxSizing: 'border-box', padding: '8px 10px', borderRadius: 12, background: 'var(--surface-card, #18233A)', border: '1px solid var(--border-subtle, #33456A)' }}>
+            <button type="button" aria-label={t('common.prevMonth')} onClick={() => a.shiftMonth(-1)} style={MONTH_ARROW}><Icon name="chevron-left" size={15} /></button>
             <span style={{ font: '600 13px/1.2 var(--font-mono)', color: 'var(--text-primary)', flexShrink: 0 }}>{monthTxt(db.month)}</span>
-            <span style={{ flex: 1, minWidth: 0, font: '500 12px/1.3 var(--font-mono)', color: 'var(--text-secondary)', whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis' }}>
-              {t('session.summaryLine', { n: sess.length, court: fmtK(courtSpent), guest: fmtK(guestTotal) })}
-            </span>
-            <Icon name={moneyOpen ? 'chevron-up' : 'chevron-down'} size={16} style={{ color: 'var(--text-muted)', flexShrink: 0 }} />
-          </button>
+            <button type="button" aria-label={t('common.nextMonth')} onClick={() => a.shiftMonth(1)} style={MONTH_ARROW}><Icon name="chevron-right" size={15} /></button>
+            <button
+              type="button"
+              onClick={() => setMoneyOpen((v) => !v)}
+              aria-expanded={moneyOpen}
+              style={{ flex: 1, minWidth: 0, display: 'flex', alignItems: 'center', gap: 8, padding: '4px 2px', background: 'transparent', border: 0, color: 'inherit', cursor: 'pointer', textAlign: 'left' }}
+            >
+              <span style={{ flex: 1, minWidth: 0, font: '500 12px/1.3 var(--font-mono)', color: 'var(--text-secondary)', whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis' }}>
+                {t('session.summaryLine', { n: sess.length, court: fmtK(courtSpent), guest: fmtK(guestTotal) })}
+              </span>
+              <Icon name={moneyOpen ? 'chevron-up' : 'chevron-down'} size={16} style={{ color: 'var(--text-muted)', flexShrink: 0 }} />
+            </button>
+          </div>
 
           {moneyOpen && (
           <>

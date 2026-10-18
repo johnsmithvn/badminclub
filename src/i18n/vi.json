@@ -2854,7 +2854,7 @@
     "planner": "Kế hoạch",
     "courts": "Sân",
     "matches": "Trận",
-    "hintAttend": "Khối điểm danh và tiền giữ nguyên như bản đang chạy.",
+    "hintAttend": "Điểm danh thành viên, khách giao lưu và tiền sân của buổi.",
     "hintPlanner": "Lập trước các vòng đấu, cân đối tải trận và theo dõi sức khoẻ buổi chơi.",
     "hintCourts": "Ghi kết quả trận nhanh (đơn & đôi), tự động tính Elo.",
     "hintMatches": "Mọi trận đổ về một bảng, kèo chỉ là nguồn thứ hai."

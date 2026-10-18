@@ -1946,16 +1946,15 @@ function GuestForm({ s, isMobile }) {
 }
 
 const S = {
+  // Desktop: header trong suốt như BXH / Buổi tập (không thẻ nền) — nút back, tiêu đề buổi, nút hành động nằm thẳng
+  // trên nền trời.
   sessionHeaderBar: {
     display: 'flex',
     alignItems: 'center',
     justifyContent: 'space-between',
     gap: 12,
-    minHeight: 60,
-    padding: '12px 16px',
-    background: 'var(--surface-card)',
-    border: '1px solid var(--border-subtle)',
-    borderRadius: 'var(--radius-lg)',
+    minHeight: 52,
+    padding: '4px 2px',
   },
   sessionHeaderBarMobile: {
     display: 'flex',

@@ -18,7 +18,7 @@ test('nút đang chọn được tô màu của nhóm: Tất cả theo tab · Na
   assert.equal(bg('nam', 'Tất cả'), 'transparent', 'nút không chọn: nền trong suốt')
 })
 
-test('chế độ tối: nút Tất cả dùng navy, không dùng màu của tab', () => {
+test('chế độ tối: nút Tất cả vẫn cùng màu tab (xanh ngọc) — đồng bộ với thanh tab', () => {
   const tag = buttonTag(html(GenderFilterTabs, { ...base, value: 'all', isDark: true }), 'Tất cả')
-  assert.match(tag, /background:var\(--navy-700\)/)
+  assert.match(tag, /background:#00B2A9/)
 })

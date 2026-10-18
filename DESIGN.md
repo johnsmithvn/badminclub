@@ -120,7 +120,8 @@ qua `components/badges/badgeTone.js`:
   `BadgeUnlockModal`) và các popup trong `Badges.jsx` (sắp kệ, sửa châm ngôn).
 - `TierBackdrop compact` (thẻ hồ sơ, poster) bản sáng: bỏ bụi sao trắng, cực quang không hoà `screen`.
 - **Cùng cơ chế cho màn khác:** phần đổi màu dùng chung ở `utils/tone.js` (`createTone({ surf, text, accentBg, … })`);
-  mỗi màn có bảng màu riêng. Hiện có: Danh hiệu (`badgeTone.js`) và khu đấu trường kèo — tab Sàn kèo ở Trận đấu &
+  mỗi màn có bảng màu riêng. Hiện có: Danh hiệu (`badgeTone.js`) và các khối navy tối dùng chung `arenaTone.js` — khung
+  Bục mùa / Top 3 Elo ở BXH (`SeasonRaceTab`, `CareerEloTab`) và khu đấu trường kèo — tab Sàn kèo ở Trận đấu &
   Kèo + `ArenaChallengeCard` (`components/challenge/arenaTone.js`, `useArenaTone()`; khung bọc ngoài trong suốt ở cả
   hai chế độ, thẻ / khối cao dùng trắng mờ viết thẳng chứ không `var(--surface-card)` — luật kính + giới hạn GPU, §2.2).
 

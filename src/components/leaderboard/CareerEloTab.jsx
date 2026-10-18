@@ -11,6 +11,7 @@ import { STAT_COLORS } from '#components/leaderboard/statColors.js'
 import GenderFilterTabs from '#components/leaderboard/GenderFilterTabs.jsx'
 import WinRatePill from '#components/leaderboard/WinRatePill.jsx'
 import StreakTag from '#components/leaderboard/StreakTag.jsx'
+import { useArenaTone } from '#components/challenge/arenaTone.js'
 
 function SingleBadgeSlot({ badge, size = 18 }) {
   if (badge) {
@@ -58,6 +59,7 @@ export default function CareerEloTab({
   genderFilter = 'all',
   onGenderFilterChange,
 }) {
+  const ts = useArenaTone()
   const { isDark } = useTheme()
 
   // Chỉ fallback về db khi prop KHÔNG được truyền. Danh sách rỗng là kết quả hợp lệ
@@ -245,6 +247,13 @@ export default function CareerEloTab({
         gap: 16,
       }}
     >
+      {/* Bộ lọc giới tính Nam / Nữ — hàng riêng trên cả 2 cột, để cột phải thẳng hàng với bục / bảng */}
+      <GenderFilterTabs
+        value={genderFilter}
+        onChange={onGenderFilterChange}
+        counts={{ all: totalCount, nam: maleCount, nu: femaleCount }}
+      />
+
       {/* NỘI DUNG CHÍNH: 2 CỘT */}
       {/* Mọi lưới bọc tên đều phải minmax(0, 1fr): cột 'auto'/'1fr' nở theo độ rộng tối thiểu
           của tên dài (nowrap) và đẩy cả thẻ ra ngoài màn hình, ellipsis không kịp cắt. */}
@@ -258,20 +267,12 @@ export default function CareerEloTab({
       >
         {/* CỘT TRÁI: BẢNG XẾP HẠNG ELO TOÀN DIỆN */}
         <div style={{ display: 'grid', gridTemplateColumns: 'minmax(0, 1fr)', gap: 14 }}>
-          {/* Bộ lọc giới tính Nam / Nữ */}
-          <GenderFilterTabs
-            isDark={isDark}
-            value={genderFilter}
-            onChange={onGenderFilterChange}
-            counts={{ all: totalCount, nam: maleCount, nu: femaleCount }}
-          />
-
           {/* TỐP ĐẲNG CẤP 14a · Hào nhoáng */}
           {displayList.length >= 3 && (
             isMobile ? (
               /* Mobile Bục Tốp Đẳng Cấp Dạng Dọc (M11v2) */
               <div
-                style={{
+                style={ts({
                   position: 'relative',
                   borderRadius: 12,
                   overflow: 'hidden',
@@ -282,21 +283,21 @@ export default function CareerEloTab({
                   gridTemplateColumns: 'minmax(0, 1fr)',
                   gap: 9,
                   boxShadow: '0 8px 32px rgba(0, 0, 0, 0.45)',
-                }}
+                })}
               >
                 <div
-                  style={{
+                  style={ts({
                     position: 'absolute',
                     inset: 0,
                     background: 'radial-gradient(66% 70% at 30% 0%, rgba(122,163,220,.16), transparent 72%)',
                     pointerEvents: 'none',
-                  }}
+                  })}
                 />
-                <div style={{ position: 'relative', display: 'flex', alignItems: 'baseline', gap: 8 }}>
-                  <span style={{ font: "700 15px/1.2 'Barlow', sans-serif", color: '#FFFFFF' }}>
+                <div style={ts({ position: 'relative', display: 'flex', alignItems: 'baseline', gap: 8 })}>
+                  <span style={ts({ font: "700 15px/1.2 'Barlow', sans-serif", color: '#FFFFFF' })}>
                     {t('season.topEloTitle14a')}
                   </span>
-                  <span style={{ font: "400 11px/1.2 'IBM Plex Mono', monospace", color: '#8494AA' }}>
+                  <span style={ts({ font: "400 11px/1.2 'IBM Plex Mono', monospace", color: '#8494AA' })}>
                     {t('season.topEloSubtitle14a')}
                   </span>
                 </div>
@@ -305,7 +306,7 @@ export default function CareerEloTab({
                 {displayList[0] && (
                   <div
                     onClick={() => onSelectMember && onSelectMember(displayList[0])}
-                    style={{
+                    style={ts({
                       position: 'relative',
                       display: 'flex',
                       alignItems: 'center',
@@ -315,11 +316,11 @@ export default function CareerEloTab({
                       background: 'linear-gradient(150deg, rgba(240,183,92,.22), rgba(20,29,46,.94) 68%)',
                       border: '1px solid #C9A227',
                       cursor: onSelectMember ? 'pointer' : 'default',
-                    }}
+                    })}
                   >
-                    <div style={{ position: 'relative', width: 50, height: 50, flex: '0 0 auto', marginTop: 5 }}>
+                    <div style={ts({ position: 'relative', width: 50, height: 50, flex: '0 0 auto', marginTop: 5 })}>
                       <div
-                        style={{
+                        style={ts({
                           position: 'absolute',
                           left: '50%',
                           top: -14,
@@ -329,31 +330,31 @@ export default function CareerEloTab({
                           background: 'linear-gradient(180deg, #FFF3C4, #F0D26A 52%, #C9A227)',
                           clipPath: 'polygon(0% 100%, 0% 22%, 22% 58%, 50% 0%, 78% 58%, 100% 22%, 100% 100%)',
                           filter: 'drop-shadow(0 2px 6px rgba(201,162,39,.5))',
-                        }}
+                        })}
                       />
                       <div
-                        style={{
+                        style={ts({
                           position: 'absolute',
                           inset: -6,
                           borderRadius: 999,
                           background: 'radial-gradient(circle, rgba(240,183,92,.32), transparent 70%)',
                           animation: 'medalGlow 4.6s ease-in-out infinite',
-                        }}
+                        })}
                       />
                       <div
-                        style={{
+                        style={ts({
                           position: 'absolute',
                           inset: 0,
                           borderRadius: 999,
                           background: 'conic-gradient(from 210deg, #7A5620, #F0B75C, #FFF3C4, #F0D26A, #7A5620)',
                           boxShadow: '0 0 0 1px rgba(247,227,161,.55)',
-                        }}
+                        })}
                       />
-                      <div style={{ position: 'absolute', inset: 3, borderRadius: 999, overflow: 'hidden', display: 'grid', placeItems: 'center' }}>
+                      <div style={ts({ position: 'absolute', inset: 3, borderRadius: 999, overflow: 'hidden', display: 'grid', placeItems: 'center' })}>
                         <Avatar name={displayList[0].name} src={displayList[0].avatarUrl} size={44} />
                       </div>
                       <div
-                        style={{
+                        style={ts({
                           position: 'absolute',
                           right: -4,
                           bottom: -4,
@@ -366,25 +367,25 @@ export default function CareerEloTab({
                           placeItems: 'center',
                           font: "700 10px/1 'Barlow', sans-serif",
                           color: '#2A1F00',
-                        }}
+                        })}
                       >
                         1
                       </div>
                     </div>
-                    <div style={{ flex: '1 1 0%', minWidth: 0, display: 'grid', gap: 5 }}>
-                      <div style={{ minWidth: 0, display: 'flex', alignItems: 'center', gap: 7, flexWrap: 'wrap' }}>
+                    <div style={ts({ flex: '1 1 0%', minWidth: 0, display: 'grid', gap: 5 })}>
+                      <div style={ts({ minWidth: 0, display: 'flex', alignItems: 'center', gap: 7, flexWrap: 'wrap' })}>
                         <SingleBadgeSlot badge={displayList[0].highestBadge} size={19} />
-                        <span style={{ font: "700 15.5px/1.15 'Barlow', sans-serif", color: '#FFFFFF', minWidth: 0, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>
+                        <span style={ts({ font: "700 15.5px/1.15 'Barlow', sans-serif", color: '#FFFFFF', minWidth: 0, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' })}>
                           <span title={displayList[0].name}>{displayList[0].name}</span>
                         </span>
                         {myMember?.id === displayList[0].id && (
-                          <span style={{ font: "600 9.5px/1 'IBM Plex Mono', monospace", padding: '2px 6px', borderRadius: 999, background: 'rgba(29,80,160,.24)', border: '1px solid #1D50A0', color: '#B6CDEC' }}>
+                          <span style={ts({ font: "600 9.5px/1 'IBM Plex Mono', monospace", padding: '2px 6px', borderRadius: 999, background: 'rgba(29,80,160,.24)', border: '1px solid #1D50A0', color: '#B6CDEC' })}>
                             {t('season.youTag')}
                           </span>
                         )}
                         <StreakTag streak={displayList[0].streak} onDark />
-                        <div style={{ flex: '1 1 0%' }} />
-                        <span style={{ font: "600 24px/1 'IBM Plex Mono', monospace", color: '#F7E3A1' }}>
+                        <div style={ts({ flex: '1 1 0%' })} />
+                        <span style={ts({ font: "600 24px/1 'IBM Plex Mono', monospace", color: '#F7E3A1' })}>
                           {displayList[0].rating}
                         </span>
                       </div>
@@ -397,7 +398,7 @@ export default function CareerEloTab({
                 {displayList[1] && (
                   <div
                     onClick={() => onSelectMember && onSelectMember(displayList[1])}
-                    style={{ minWidth: 0,
+                    style={ts({ minWidth: 0,
                       position: 'relative',
                       display: 'flex',
                       alignItems: 'center',
@@ -407,23 +408,23 @@ export default function CareerEloTab({
                       background: 'linear-gradient(150deg, rgba(199,210,228,.12), rgba(20,29,46,.92) 66%)',
                       border: '1px solid #6F7F96',
                       cursor: onSelectMember ? 'pointer' : 'default',
-                    }}
+                    })}
                   >
-                    <div style={{ position: 'relative', width: 42, height: 42, flex: '0 0 auto' }}>
+                    <div style={ts({ position: 'relative', width: 42, height: 42, flex: '0 0 auto' })}>
                       <div
-                        style={{
+                        style={ts({
                           position: 'absolute',
                           inset: 0,
                           borderRadius: 999,
                           background: 'conic-gradient(from 210deg, #5B6B81, #C7D2E4, #FFFFFF, #8FA3BE, #5B6B81)',
                           boxShadow: '0 0 0 1px rgba(199,210,228,.45)',
-                        }}
+                        })}
                       />
-                      <div style={{ position: 'absolute', inset: 2.5, borderRadius: 999, overflow: 'hidden', display: 'grid', placeItems: 'center' }}>
+                      <div style={ts({ position: 'absolute', inset: 2.5, borderRadius: 999, overflow: 'hidden', display: 'grid', placeItems: 'center' })}>
                         <Avatar name={displayList[1].name} src={displayList[1].avatarUrl} size={37} />
                       </div>
                       <div
-                        style={{
+                        style={ts({
                           position: 'absolute',
                           right: -3,
                           bottom: -3,
@@ -436,25 +437,25 @@ export default function CareerEloTab({
                           placeItems: 'center',
                           font: "700 9px/1 'Barlow', sans-serif",
                           color: '#1B2435',
-                        }}
+                        })}
                       >
                         2
                       </div>
                     </div>
-                    <div style={{ flex: '1 1 0%', minWidth: 0, display: 'grid', gap: 4 }}>
-                      <div style={{ minWidth: 0, display: 'flex', alignItems: 'center', gap: 7, flexWrap: 'wrap' }}>
+                    <div style={ts({ flex: '1 1 0%', minWidth: 0, display: 'grid', gap: 4 })}>
+                      <div style={ts({ minWidth: 0, display: 'flex', alignItems: 'center', gap: 7, flexWrap: 'wrap' })}>
                         <SingleBadgeSlot badge={displayList[1].highestBadge} size={18} />
-                        <span style={{ font: "600 14px/1.2 'IBM Plex Sans', sans-serif", color: '#FFFFFF', minWidth: 0, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>
+                        <span style={ts({ font: "600 14px/1.2 'IBM Plex Sans', sans-serif", color: '#FFFFFF', minWidth: 0, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' })}>
                           <span title={displayList[1].name}>{displayList[1].name}</span>
                         </span>
                         {myMember?.id === displayList[1].id && (
-                          <span style={{ font: "600 9.5px/1 'IBM Plex Mono', monospace", padding: '2px 6px', borderRadius: 999, background: 'rgba(29,80,160,.24)', border: '1px solid #1D50A0', color: '#B6CDEC' }}>
+                          <span style={ts({ font: "600 9.5px/1 'IBM Plex Mono', monospace", padding: '2px 6px', borderRadius: 999, background: 'rgba(29,80,160,.24)', border: '1px solid #1D50A0', color: '#B6CDEC' })}>
                             {t('season.youTag')}
                           </span>
                         )}
                         <StreakTag streak={displayList[1].streak} onDark />
-                        <div style={{ flex: '1 1 0%' }} />
-                        <span style={{ font: "600 20px/1 'IBM Plex Mono', monospace", color: '#DCE6F5' }}>
+                        <div style={ts({ flex: '1 1 0%' })} />
+                        <span style={ts({ font: "600 20px/1 'IBM Plex Mono', monospace", color: '#DCE6F5' })}>
                           {displayList[1].rating}
                         </span>
                       </div>
@@ -467,7 +468,7 @@ export default function CareerEloTab({
                 {displayList[2] && (
                   <div
                     onClick={() => onSelectMember && onSelectMember(displayList[2])}
-                    style={{ minWidth: 0,
+                    style={ts({ minWidth: 0,
                       position: 'relative',
                       display: 'flex',
                       alignItems: 'center',
@@ -477,23 +478,23 @@ export default function CareerEloTab({
                       background: 'linear-gradient(150deg, rgba(200,128,74,.14), rgba(20,29,46,.92) 66%)',
                       border: '1px solid #8A4E24',
                       cursor: onSelectMember ? 'pointer' : 'default',
-                    }}
+                    })}
                   >
-                    <div style={{ position: 'relative', width: 42, height: 42, flex: '0 0 auto' }}>
+                    <div style={ts({ position: 'relative', width: 42, height: 42, flex: '0 0 auto' })}>
                       <div
-                        style={{
+                        style={ts({
                           position: 'absolute',
                           inset: 0,
                           borderRadius: 999,
                           background: 'conic-gradient(from 210deg, #6B3512, #C8804A, #F0C096, #B0562A, #6B3512)',
                           boxShadow: '0 0 0 1px rgba(240,192,150,.4)',
-                        }}
+                        })}
                       />
-                      <div style={{ position: 'absolute', inset: 2.5, borderRadius: 999, overflow: 'hidden', display: 'grid', placeItems: 'center' }}>
+                      <div style={ts({ position: 'absolute', inset: 2.5, borderRadius: 999, overflow: 'hidden', display: 'grid', placeItems: 'center' })}>
                         <Avatar name={displayList[2].name} src={displayList[2].avatarUrl} size={37} />
                       </div>
                       <div
-                        style={{
+                        style={ts({
                           position: 'absolute',
                           right: -3,
                           bottom: -3,
@@ -506,25 +507,25 @@ export default function CareerEloTab({
                           placeItems: 'center',
                           font: "700 9px/1 'Barlow', sans-serif",
                           color: '#2A1405',
-                        }}
+                        })}
                       >
                         3
                       </div>
                     </div>
-                    <div style={{ flex: '1 1 0%', minWidth: 0, display: 'grid', gap: 4 }}>
-                      <div style={{ minWidth: 0, display: 'flex', alignItems: 'center', gap: 7, flexWrap: 'wrap' }}>
+                    <div style={ts({ flex: '1 1 0%', minWidth: 0, display: 'grid', gap: 4 })}>
+                      <div style={ts({ minWidth: 0, display: 'flex', alignItems: 'center', gap: 7, flexWrap: 'wrap' })}>
                         <SingleBadgeSlot badge={displayList[2].highestBadge} size={18} />
-                        <span style={{ font: "600 14px/1.2 'IBM Plex Sans', sans-serif", color: '#FFFFFF', minWidth: 0, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>
+                        <span style={ts({ font: "600 14px/1.2 'IBM Plex Sans', sans-serif", color: '#FFFFFF', minWidth: 0, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' })}>
                           <span title={displayList[2].name}>{displayList[2].name}</span>
                         </span>
                         {myMember?.id === displayList[2].id && (
-                          <span style={{ font: "600 9.5px/1 'IBM Plex Mono', monospace", padding: '2px 6px', borderRadius: 999, background: 'rgba(29,80,160,.24)', border: '1px solid #1D50A0', color: '#B6CDEC' }}>
+                          <span style={ts({ font: "600 9.5px/1 'IBM Plex Mono', monospace", padding: '2px 6px', borderRadius: 999, background: 'rgba(29,80,160,.24)', border: '1px solid #1D50A0', color: '#B6CDEC' })}>
                             {t('season.youTag')}
                           </span>
                         )}
                         <StreakTag streak={displayList[2].streak} onDark />
-                        <div style={{ flex: '1 1 0%' }} />
-                        <span style={{ font: "600 20px/1 'IBM Plex Mono', monospace", color: '#F0C096' }}>
+                        <div style={ts({ flex: '1 1 0%' })} />
+                        <span style={ts({ font: "600 20px/1 'IBM Plex Mono', monospace", color: '#F0C096' })}>
                           {displayList[2].rating}
                         </span>
                       </div>
@@ -536,7 +537,7 @@ export default function CareerEloTab({
             ) : (
               /* Desktop Bục Tốp Đẳng Cấp 3 Cột */
               <div
-                style={{
+                style={ts({
                   position: 'relative',
                   borderRadius: 12,
                   overflow: 'hidden',
@@ -546,38 +547,38 @@ export default function CareerEloTab({
                   display: 'grid',
                   gap: 12,
                   boxShadow: '0 8px 32px rgba(0, 0, 0, 0.45)',
-                }}
+                })}
               >
                 <div
-                  style={{
+                  style={ts({
                     position: 'absolute',
                     inset: 0,
                     background: 'radial-gradient(60% 80% at 22% 0%, rgba(122,163,220,.18), transparent 70%)',
                     pointerEvents: 'none',
-                  }}
+                  })}
                 />
-                <div style={{ position: 'relative', display: 'flex', alignItems: 'baseline', gap: 10, flexWrap: 'wrap' }}>
-                  <span style={{ font: "700 16px/1.2 'Barlow', sans-serif", color: '#FFFFFF' }}>
+                <div style={ts({ position: 'relative', display: 'flex', alignItems: 'baseline', gap: 10, flexWrap: 'wrap' })}>
+                  <span style={ts({ font: "700 16px/1.2 'Barlow', sans-serif", color: '#FFFFFF' })}>
                     {t('season.topEloTitle14a')}
                   </span>
-                  <span style={{ font: "400 12px/1.2 'IBM Plex Mono', monospace", color: '#8494AA' }}>
+                  <span style={ts({ font: "400 12px/1.2 'IBM Plex Mono', monospace", color: '#8494AA' })}>
                     {t('season.topEloSubtitle14a')}
                   </span>
                 </div>
 
                 <div
-                  style={{
+                  style={ts({
                     position: 'relative',
                     display: 'grid',
                     gridTemplateColumns: 'repeat(3, minmax(0, 1fr))',
                     gap: 12,
-                  }}
+                  })}
                 >
                   {/* Top 1 Desktop */}
                   {displayList[0] && (
                     <div
                       onClick={() => onSelectMember && onSelectMember(displayList[0])}
-                      style={{
+                      style={ts({
                         display: 'flex',
                         alignItems: 'center',
                         gap: 13,
@@ -587,11 +588,11 @@ export default function CareerEloTab({
                         border: '1px solid #C9A227',
                         cursor: onSelectMember ? 'pointer' : 'default',
                         transition: 'transform 0.15s ease',
-                      }}
+                      })}
                     >
-                      <div style={{ position: 'relative', width: 48, height: 48, flex: '0 0 auto' }}>
+                      <div style={ts({ position: 'relative', width: 48, height: 48, flex: '0 0 auto' })}>
                         <div
-                          style={{
+                          style={ts({
                             position: 'absolute',
                             left: '50%',
                             top: -14,
@@ -601,31 +602,31 @@ export default function CareerEloTab({
                             background: 'linear-gradient(180deg, #FFF3C4, #F0D26A 52%, #C9A227)',
                             clipPath: 'polygon(0% 100%, 0% 22%, 22% 58%, 50% 0%, 78% 58%, 100% 22%, 100% 100%)',
                             filter: 'drop-shadow(0 2px 6px rgba(201,162,39,.5))',
-                          }}
+                          })}
                         />
                         <div
-                          style={{
+                          style={ts({
                             position: 'absolute',
                             inset: -7,
                             borderRadius: 999,
                             background: 'radial-gradient(circle, rgba(240,183,92,.34), transparent 70%)',
                             animation: 'medalGlow 4.6s ease-in-out infinite',
-                          }}
+                          })}
                         />
                         <div
-                          style={{
+                          style={ts({
                             position: 'absolute',
                             inset: 0,
                             borderRadius: 999,
                             background: 'conic-gradient(from 210deg, #7A5620, #F0B75C, #FFF3C4, #F0D26A, #7A5620)',
                             boxShadow: '0 0 0 1px rgba(247,227,161,.55)',
-                          }}
+                          })}
                         />
-                        <div style={{ position: 'absolute', inset: 3, borderRadius: 999, overflow: 'hidden', display: 'grid', placeItems: 'center' }}>
+                        <div style={ts({ position: 'absolute', inset: 3, borderRadius: 999, overflow: 'hidden', display: 'grid', placeItems: 'center' })}>
                           <Avatar name={displayList[0].name} src={displayList[0].avatarUrl} size={42} />
                         </div>
                         <div
-                          style={{
+                          style={ts({
                             position: 'absolute',
                             right: -4,
                             bottom: -4,
@@ -638,19 +639,19 @@ export default function CareerEloTab({
                             placeItems: 'center',
                             font: "700 10px/1 'Barlow', sans-serif",
                             color: '#2A1F00',
-                          }}
+                          })}
                         >
                           1
                         </div>
                       </div>
-                      <div style={{ minWidth: 0, display: 'grid', gap: 4 }}>
-                        <div style={{ font: "600 15px/1.2 'IBM Plex Sans', sans-serif", color: '#FFFFFF', minWidth: 0, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>
+                      <div style={ts({ minWidth: 0, display: 'grid', gap: 4 })}>
+                        <div style={ts({ font: "600 15px/1.2 'IBM Plex Sans', sans-serif", color: '#FFFFFF', minWidth: 0, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' })}>
                           <span title={displayList[0].name}>{displayList[0].name}</span>
                         </div>
-                        <div style={{ font: "600 26px/1 'IBM Plex Mono', monospace", color: '#F7E3A1' }}>
+                        <div style={ts({ font: "600 26px/1 'IBM Plex Mono', monospace", color: '#F7E3A1' })}>
                           {displayList[0].rating}
                         </div>
-                        <div style={{ font: "400 11.5px/1.2 'IBM Plex Mono', monospace", color: '#C6B683' }}>
+                        <div style={ts({ font: "400 11.5px/1.2 'IBM Plex Mono', monospace", color: '#C6B683' })}>
                           {t('season.statsDetail14a', {
                             matches: displayList[0].totalGames,
                             conf: displayList[0].confLabel,
@@ -665,7 +666,7 @@ export default function CareerEloTab({
                   {displayList[1] && (
                     <div
                       onClick={() => onSelectMember && onSelectMember(displayList[1])}
-                      style={{ minWidth: 0,
+                      style={ts({ minWidth: 0,
                         display: 'flex',
                         alignItems: 'center',
                         gap: 13,
@@ -675,23 +676,23 @@ export default function CareerEloTab({
                         border: '1px solid #6F7F96',
                         cursor: onSelectMember ? 'pointer' : 'default',
                         transition: 'transform 0.15s ease',
-                      }}
+                      })}
                     >
-                      <div style={{ position: 'relative', width: 44, height: 44, flex: '0 0 auto' }}>
+                      <div style={ts({ position: 'relative', width: 44, height: 44, flex: '0 0 auto' })}>
                         <div
-                          style={{
+                          style={ts({
                             position: 'absolute',
                             inset: 0,
                             borderRadius: 999,
                             background: 'conic-gradient(from 210deg, #5B6B81, #C7D2E4, #FFFFFF, #8FA3BE, #5B6B81)',
                             boxShadow: '0 0 0 1px rgba(199,210,228,.45)',
-                          }}
+                          })}
                         />
-                        <div style={{ position: 'absolute', inset: 3, borderRadius: 999, overflow: 'hidden', display: 'grid', placeItems: 'center' }}>
+                        <div style={ts({ position: 'absolute', inset: 3, borderRadius: 999, overflow: 'hidden', display: 'grid', placeItems: 'center' })}>
                           <Avatar name={displayList[1].name} src={displayList[1].avatarUrl} size={38} />
                         </div>
                         <div
-                          style={{
+                          style={ts({
                             position: 'absolute',
                             right: -4,
                             bottom: -4,
@@ -704,19 +705,19 @@ export default function CareerEloTab({
                             placeItems: 'center',
                             font: "700 10px/1 'Barlow', sans-serif",
                             color: '#1B2435',
-                          }}
+                          })}
                         >
                           2
                         </div>
                       </div>
-                      <div style={{ minWidth: 0, display: 'grid', gap: 4 }}>
-                        <div style={{ font: "600 15px/1.2 'IBM Plex Sans', sans-serif", color: '#FFFFFF', minWidth: 0, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>
+                      <div style={ts({ minWidth: 0, display: 'grid', gap: 4 })}>
+                        <div style={ts({ font: "600 15px/1.2 'IBM Plex Sans', sans-serif", color: '#FFFFFF', minWidth: 0, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' })}>
                           <span title={displayList[1].name}>{displayList[1].name}</span>
                         </div>
-                        <div style={{ font: "600 24px/1 'IBM Plex Mono', monospace", color: '#DCE6F5' }}>
+                        <div style={ts({ font: "600 24px/1 'IBM Plex Mono', monospace", color: '#DCE6F5' })}>
                           {displayList[1].rating}
                         </div>
-                        <div style={{ font: "400 11.5px/1.2 'IBM Plex Mono', monospace", color: '#8FA3BE' }}>
+                        <div style={ts({ font: "400 11.5px/1.2 'IBM Plex Mono', monospace", color: '#8FA3BE' })}>
                           {t('season.statsDetail14a', {
                             matches: displayList[1].totalGames,
                             conf: displayList[1].confLabel,
@@ -731,7 +732,7 @@ export default function CareerEloTab({
                   {displayList[2] && (
                     <div
                       onClick={() => onSelectMember && onSelectMember(displayList[2])}
-                      style={{ minWidth: 0,
+                      style={ts({ minWidth: 0,
                         display: 'flex',
                         alignItems: 'center',
                         gap: 13,
@@ -741,23 +742,23 @@ export default function CareerEloTab({
                         border: '1px solid #A66A38',
                         cursor: onSelectMember ? 'pointer' : 'default',
                         transition: 'transform 0.15s ease',
-                      }}
+                      })}
                     >
-                      <div style={{ position: 'relative', width: 44, height: 44, flex: '0 0 auto' }}>
+                      <div style={ts({ position: 'relative', width: 44, height: 44, flex: '0 0 auto' })}>
                         <div
-                          style={{
+                          style={ts({
                             position: 'absolute',
                             inset: 0,
                             borderRadius: 999,
                             background: 'conic-gradient(from 210deg, #5C2C10, #C77C48, #F5C09A, #C77C48, #5C2C10)',
                             boxShadow: '0 0 0 1px rgba(232,180,140,.4)',
-                          }}
+                          })}
                         />
-                        <div style={{ position: 'absolute', inset: 3, borderRadius: 999, overflow: 'hidden', display: 'grid', placeItems: 'center' }}>
+                        <div style={ts({ position: 'absolute', inset: 3, borderRadius: 999, overflow: 'hidden', display: 'grid', placeItems: 'center' })}>
                           <Avatar name={displayList[2].name} src={displayList[2].avatarUrl} size={38} />
                         </div>
                         <div
-                          style={{
+                          style={ts({
                             position: 'absolute',
                             right: -4,
                             bottom: -4,
@@ -770,19 +771,19 @@ export default function CareerEloTab({
                             placeItems: 'center',
                             font: "700 10px/1 'Barlow', sans-serif",
                             color: '#2A1608',
-                          }}
+                          })}
                         >
                           3
                         </div>
                       </div>
-                      <div style={{ minWidth: 0, display: 'grid', gap: 4 }}>
-                        <div style={{ font: "600 15px/1.2 'IBM Plex Sans', sans-serif", color: '#FFFFFF', minWidth: 0, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>
+                      <div style={ts({ minWidth: 0, display: 'grid', gap: 4 })}>
+                        <div style={ts({ font: "600 15px/1.2 'IBM Plex Sans', sans-serif", color: '#FFFFFF', minWidth: 0, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' })}>
                           <span title={displayList[2].name}>{displayList[2].name}</span>
                         </div>
-                        <div style={{ font: "600 24px/1 'IBM Plex Mono', monospace", color: '#F5E0D0' }}>
+                        <div style={ts({ font: "600 24px/1 'IBM Plex Mono', monospace", color: '#F5E0D0' })}>
                           {displayList[2].rating}
                         </div>
-                        <div style={{ font: "400 11.5px/1.2 'IBM Plex Mono', monospace", color: '#A8B7CB' }}>
+                        <div style={ts({ font: "400 11.5px/1.2 'IBM Plex Mono', monospace", color: '#A8B7CB' })}>
                           {t('season.statsDetail14a', {
                             matches: displayList[2].totalGames,
                             conf: displayList[2].confLabel,
