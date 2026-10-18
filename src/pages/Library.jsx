@@ -60,9 +60,12 @@ export default function Library() {
     <>
       <PageHeader
         isMobile={isMobile}
-        title={t('pages.library.title')}
-        subtitle={data ? t('library.sub', { n: posts.length, k: shelves.length }) : t('pages.library.desc')}
-        actions={me && <Button icon="plus" onClick={() => setComposing(true)}>{t('library.post')}</Button>}
+        actions={me && (
+          <Button icon="plus" aria-label={t('library.post')} title={t('library.post')} onClick={() => setComposing(true)}
+            style={isMobile ? { padding: 0, aspectRatio: '1' } : undefined}>
+            {isMobile ? null : t('library.post')}
+          </Button>
+        )}
       />
       {err && <Alert tone="danger">{err}</Alert>}
       {!data && <Skeleton height={220} />}

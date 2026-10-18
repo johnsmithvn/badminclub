@@ -242,13 +242,6 @@
 @keyframes skyNavBlink { 0%, 60%, 100% { opacity: .15; } 70%, 80% { opacity: 1; } }
 @keyframes skyOwlBlink { 0%, 90%, 100% { transform: scaleY(0); } 94% { transform: scaleY(1); } }
 @keyframes skyOwlTilt { 0%, 100% { transform: rotate(0deg); } 25% { transform: rotate(-14deg); } 60% { transform: rotate(10deg); } }
-/* BXH mùa — đối thủ thò đầu trêu (SeasonRaceTab → RivalPeek). Một lượt 4,8 s, khớp PEEK_MS: trượt vào từ
-   mép phải, nghiêng đầu nháy hai nhịp, nấp lại. Bấm → giật nảy rồi thụt hẳn ra ngoài mép. */
-@keyframes rivalPeek { 0% { transform: translateX(115%) rotate(24deg); } 9% { transform: translateX(30%) rotate(-16deg); } 14% { transform: translateX(36%) rotate(-6deg); } 30% { transform: translateX(34%) rotate(-12deg); } 34% { transform: translateX(34%) rotate(-3deg); } 38% { transform: translateX(34%) rotate(-12deg); } 84% { transform: translateX(34%) rotate(-9deg); } 100% { transform: translateX(115%) rotate(20deg); } }
-@keyframes rivalPeekBubble { 0%, 12% { opacity: 0; } 18%, 80% { opacity: 1; } 88%, 100% { opacity: 0; } }
-@keyframes rivalPeekDuck { 0% { transform: translateX(34%) rotate(-9deg); } 30% { transform: translateX(26%) translateY(-5px) rotate(12deg); } 100% { transform: translateX(130%) rotate(30deg); } }
-@keyframes rivalPeekSay { 0% { opacity: 0; } 12%, 75% { opacity: 1; } 100% { opacity: 0; } }
-@keyframes rivalPeekTease { 0% { transform: translateY(4px) scale(.4); opacity: 0; } 25% { transform: translateY(-14px) scale(1.25); opacity: 1; } 70% { transform: translateY(-20px) scale(1); opacity: 1; } 100% { transform: translateY(-26px) scale(1); opacity: 0; } }
 /* Cú ngủ gật: gục dần (có một cái giật đầu), rồi thở đều trong tư thế gục; mí sụp có chớp chớp. */
 @keyframes skyOwlDoze { 0% { transform: rotate(0deg) translateY(0) scaleY(1); } 30% { transform: rotate(5deg) translateY(1px) scaleY(.98); } 42% { transform: rotate(1deg) translateY(0) scaleY(1); } 70% { transform: rotate(10deg) translateY(1.5px) scaleY(.96); } 100% { transform: rotate(14deg) translateY(2px) scaleY(.94); } }
 @keyframes skyOwlBreathe { 0%, 100% { transform: rotate(14deg) translateY(2px) scaleY(.94); } 50% { transform: rotate(11deg) translateY(1.4px) scaleY(.97); } }

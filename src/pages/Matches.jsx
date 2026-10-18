@@ -844,8 +844,6 @@ export default function Matches() {
   return (
     <div style={{ ...S.page, gap: isMobile ? 10 : 16 }}>
       <PageHeader
-        title={t('pages.matches.title')}
-        subtitle={t('pages.matches.desc')}
         isMobile={isMobile}
         actions={
           <>
@@ -859,23 +857,11 @@ export default function Matches() {
               label={isDark ? t('common.themeLight') : t('common.themeDark')}
               onClick={toggleTheme}
             />
-            <IconButton
-              icon="download"
-              size="sm"
-              variant="ghost"
-              label={t('matchIo.exportBtn')}
-              onClick={() => a.openDialog('exportMatches', {})}
-            />
-            <IconButton
-              icon="upload"
-              size="sm"
-              variant="ghost"
-              label={t('matchIo.importBtn')}
-              onClick={() => a.openDialog('importMatches', {})}
-            />
             <Button
               size="sm"
               icon="plus"
+              aria-label={t('matchesPage.createBtn')}
+              title={t('matchesPage.createBtn')}
               onClick={() => {
                 setInitialTeamA(myId ? [myId] : [])
                 setInitialTeamB([])
@@ -887,9 +873,10 @@ export default function Matches() {
                 border: 'none',
                 fontWeight: 700,
                 boxShadow: '0 2px 8px rgba(245,196,81,0.25)',
+                ...(isMobile ? { padding: 0, aspectRatio: '1' } : null),
               }}
             >
-              {isMobile ? t('challenge.challenge') : t('matchesPage.createBtn')}
+              {isMobile ? null : t('matchesPage.createBtn')}
             </Button>
           </>
         }

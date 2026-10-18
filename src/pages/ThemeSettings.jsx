@@ -7,7 +7,7 @@ import { Button, Tabs } from '#ds'
 import { t } from '#i18n'
 import { useTheme } from '#contexts/ThemeContext.jsx'
 import { SettingsCard, Stepper, ToggleSwitch } from '#components/settings/SettingsComponents.jsx'
-import { SKY_FX, SKY_FX_MAX, normSkyPrefs } from '#lib/sky.js'
+import { SKY_FX, SKY_FX_MAX } from '#lib/sky.js'
 
 const GROUPS = [['chars', 'users'], ['night', 'moon'], ['other', 'sparkles']]
 
@@ -38,7 +38,7 @@ export default function ThemeSettings() {
   }
   const reset = () => {
     setDraft({})
-    setSkyPrefs(normSkyPrefs(null))
+    setSkyPrefs(null)
     setSkyMotion(true)
   }
 

@@ -12,7 +12,7 @@ import BadgeDetailModal from '#components/badges/BadgeDetailModal.jsx'
 import BadgeUnlockModal from '#components/badges/BadgeUnlockModal.jsx'
 import CollectorLeaderboardTab from '#components/badges/CollectorLeaderboardTab.jsx'
 import { useMobile } from '#hooks/useMobile.js'
-import MobileBadgeCollection, { MobileBadgeTopBar } from '#components/badges/mobile/MobileBadgeCollection.jsx'
+import MobileBadgeCollection, { BadgeFilterButton, MobileBadgeTopBar } from '#components/badges/mobile/MobileBadgeCollection.jsx'
 import TierBackdrop from '#components/badges/TierBackdrop.jsx'
 import { TIER_FX, levelTier } from '#components/badges/tierFx.js'
 import {
@@ -759,70 +759,31 @@ export default function Badges() {
           </div>
         </div>
 
-        <div style={ts({ display: 'flex', alignItems: 'center', gap: 10, flexWrap: 'wrap' })}>
-          {/* Dropdown chọn Mùa giải */}
-          {allSeasons.length > 0 && (
-            <div style={ts({ display: 'flex', alignItems: 'center', gap: 6 })}>
-              <span style={ts({ font: "400 11.5px/1 'Be Vietnam Pro', sans-serif", color: '#9C8ABE' })}>
-                {t('season.filterSeason')}
-              </span>
-              <select
-                value={currentSeason?.id || currentSeason?.code || ''}
-                onChange={(e) => setSelectedSeasonId(e.target.value)}
-                style={ts({
-                  background: '#190C2D',
-                  border: '1px solid #3B1B66',
-                  borderRadius: 6,
-                  color: '#2EE9FF',
-                  padding: '5px 10px',
-                  fontSize: 12,
-                  fontFamily: "'Be Vietnam Pro', sans-serif",
-                  fontWeight: 600,
-                  outline: 'none',
-                  cursor: 'pointer',
-                })}
-              >
-                {allSeasons.map((s) => (
-                  <option key={s.id || s.code} value={s.id || s.code} style={ts({ background: '#1D0D35', color: '#FFFFFF' })}>
-                    {s.code || s.name} {s.active ? `(${t('season.activeCurrent')})` : ''}
-                  </option>
-                ))}
-              </select>
-            </div>
-          )}
-
-          {/* Dropdown xem nhanh bộ sưu tập thành viên khác */}
-          <div style={ts({ display: 'flex', alignItems: 'center', gap: 6 })}>
-            <span style={ts({ font: "400 11.5px/1 'Be Vietnam Pro', sans-serif", color: '#9C8ABE' })}>
-              {t('badges.selectMember')}
-            </span>
-            <select
-              value={activeMember.id}
-              onChange={(e) => {
-                const val = e.target.value
-                setViewingMemberId(val === currentMember.id ? null : val)
-                setActiveTab('collection')
-              }}
-              style={ts({
-                background: '#190C2D',
-                border: '1px solid #3B1B66',
-                borderRadius: 6,
-                color: '#FFFFFF',
-                padding: '5px 10px',
-                fontSize: 12,
-                fontFamily: "'Be Vietnam Pro', sans-serif",
-                outline: 'none',
-                cursor: 'pointer',
-              })}
-            >
-              {(db?.members || []).map((m) => (
-                <option key={m.id} value={m.id} style={ts({ background: '#1D0D35', color: '#FFFFFF' })}>
-                  {m.name} {m.id === currentMember.id ? `(${t('badges.collectorProfile.rankMe')})` : ''}
-                </option>
-              ))}
-            </select>
-          </div>
-        </div>
+        {/* Chọn mùa + người xem: một nút lọc mở hộp thoại hai ô chọn */}
+        <BadgeFilterButton
+          allSeasons={allSeasons}
+          seasonValue={currentSeason?.id || currentSeason?.code || ''}
+          onSelectSeason={(sId) => setSelectedSeasonId(sId)}
+          allMembers={db?.members || []}
+          activeMemberId={activeMember.id}
+          currentMemberId={currentMember.id}
+          onSelectMember={(val) => {
+            setViewingMemberId(val === currentMember.id ? null : val)
+            setActiveTab('collection')
+          }}
+          style={ts({
+            width: 34,
+            height: 34,
+            padding: 0,
+            display: 'grid',
+            placeItems: 'center',
+            background: '#190C2D',
+            border: '1px solid #3B1B66',
+            borderRadius: 6,
+            color: '#2EE9FF',
+            cursor: 'pointer',
+          })}
+        />
       </div>
 
       {/* ═══ Hàng Tabs & Tóm tắt số lượng (Thiết kế A1) ═══ */}

@@ -102,29 +102,31 @@ export const SKY_FX = [
   { key: 'fireShuttle', group: 'night', min: 5 },
   { key: 'eclipse', group: 'night', min: 35 },
   { key: 'owlDoze', group: 'other', min: 5 },
-  { key: 'peek', group: 'other', min: 6 },
 ]
 export const SKY_FX_MAX = 3600
 
 /**
  * Phiên bản cài đặt Giao diện. Tăng số này = mọi thiết bị bỏ công tắc đã lưu, về mặc định lần tới mở app
- * (số giây giữ nguyên). 2 (2026-10-18): đổi mặc định sang TẮT hết hiệu ứng.
+ * (số giây giữ nguyên). 2 (2026-10-18): tắt hết. 3 (2026-10-18): mặc định theo máy — PC bật hết, điện thoại
+ * chỉ `app.json → sky.mobileOn`.
  */
-export const SKY_PREFS_V = 2
+export const SKY_PREFS_V = 3
 
 /**
  * Cài đặt đã lưu (cũ / hỏng / thiếu khoá) → `{ v, on: { ambient, <key>… }, every: { <key>: giây } }`.
- * Mặc định TẮT hết: chỉ còn theme gốc (đêm: trăng, sao, mưa sao băng · ngày: hoàng hôn), ai muốn thì bật ở
- * trang Giao diện. Bản lưu khác `SKY_PREFS_V` → bỏ công tắc. Số giây là số nguyên 1 – 3600 (chưa ép `min`
- * để người dùng gõ dở vẫn giữ được — fxMs mới ép), sai kiểu thì về mặc định.
+ * Mặc định theo máy (`mobile` = điện thoại, ThemeContext dò lúc mở app): PC bật hết; điện thoại chỉ bật
+ * `app.json → sky.mobileOn` (máy yếu, màn nhỏ) — còn lại tắt, kể cả hiệu ứng nền. Bản lưu khác
+ * `SKY_PREFS_V` → bỏ công tắc, về mặc định. Số giây là số nguyên 1 – 3600 (chưa ép `min` để người dùng gõ
+ * dở vẫn giữ được — fxMs mới ép), sai kiểu thì về mặc định.
  */
-export function normSkyPrefs(raw) {
+export function normSkyPrefs(raw, mobile = false) {
   const r = raw && typeof raw === 'object' ? raw : {}
   const ons = r.v === SKY_PREFS_V ? r.on : null
-  const on = { ambient: ons?.ambient === true }
+  const pick = (k) => (typeof ons?.[k] === 'boolean' ? ons[k] : !mobile || C.mobileOn.includes(k))
+  const on = { ambient: pick('ambient') }
   const every = {}
   for (const fx of SKY_FX) {
-    on[fx.key] = ons?.[fx.key] === true
+    on[fx.key] = pick(fx.key)
     if (!fx.min) continue
     const n = Math.round(Number(r.every?.[fx.key]))
     every[fx.key] = n >= 1 ? Math.min(SKY_FX_MAX, n) : C.fx[fx.key]
@@ -185,22 +187,7 @@ export function skyFoes({ meId, female, top = [], arch = null, beatBy = null }) 
   return { dare: beatBy?.name || arch?.name || '', foes: girls.length ? girls : pick(false) }
 }
 
-/**
- * BXH mùa — đối thủ thò đầu trêu (SeasonRaceTab): người NGAY TRÊN `meId` giục đuổi, người NGAY DƯỚI doạ
- * lật kèo. `rows` = danh sách đang hiện, theo hạng; `shown(id)` = dòng đó có được vẽ không (mobile: top 3
- * nằm ở bục, không có dòng để thò). Trả về [{ id, line: [key i18n, tham số] }], rỗng nếu không có ai.
- */
-export function rivalPeeks(rows, meId, shown = () => true) {
-  const i = (rows || []).findIndex((r) => r.id === meId)
-  if (i < 0) return []
-  const me = rows[i], up = rows[i - 1], down = rows[i + 1]
-  return [
-    up && shown(up.id) && { id: up.id, line: ['season.peek.up', { n: Math.max(1, (up.totalSeasonPoints || 0) - (me.totalSeasonPoints || 0)) }] },
-    down && shown(down.id) && { id: down.id, line: ['season.peek.down'] },
-  ].filter(Boolean)
-}
-
-/** Câu theo số liệu — dùng chung cho cú mèo, băng rôn, siêu nhân. */
+/** Câu theo số liệu — chỉ ở băng rôn (skyLines). */
 function dataLines(st) {
   const out = []
   const away = st.off >= C.awayDays

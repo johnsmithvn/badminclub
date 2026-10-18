@@ -1,4 +1,4 @@
-import { useEffect, useMemo, useRef, useState } from 'react'
+import { useMemo } from 'react'
 import { Avatar, Icon } from '#ds'
 import { t } from '#i18n'
 import { useTheme } from '#contexts/ThemeContext.jsx'
@@ -11,42 +11,6 @@ import { STAT_COLORS } from '#components/leaderboard/statColors.js'
 import GenderFilterTabs from '#components/leaderboard/GenderFilterTabs.jsx'
 import WinRatePill from '#components/leaderboard/WinRatePill.jsx'
 import StreakTag from '#components/leaderboard/StreakTag.jsx'
-import { createBags, fxMs, rivalPeeks } from '#lib/sky.js'
-
-// Đối thủ thò đầu trêu: lượt đầu sau 10 s, mỗi lượt 4,8 s (khớp keyframe rivalPeek); bật / tắt và "cứ N giây"
-// ở trang Giao diện (ThemeContext → skyPrefs, mặc định app.json → sky.fx.peek).
-const PEEK_FIRST = 10000, PEEK_MS = 4800
-const PEEK_OUT = ['caught', 'tease']
-
-/**
- * Đầu mini của người kề mình thò ra ở mép phải dòng BXH, nghiêng đầu nháy kèm bóng thoại. Bấm → giật mình
- * thụt vào trốn, kèm "Ủa bị phát hiện rồi!" hoặc mặt cười trêu (`out`). Dòng cha phải `position: relative`.
- */
-function RivalPeek({ row, line, out, isMobile, onCatch }) {
-  const sz = isMobile ? 26 : 28
-  const say = {
-    position: 'absolute', right: sz + 12, top: '50%', transform: 'translateY(-50%)', zIndex: 2, pointerEvents: 'none',
-    width: 'max-content', maxWidth: isMobile ? 170 : 260, padding: isMobile ? '5px 9px' : '6px 10px', borderRadius: 9,
-    background: 'var(--surface-overlay)', border: '1px solid var(--border-subtle)', boxShadow: 'var(--shadow-sm)',
-    color: 'var(--text-primary)', font: `600 ${isMobile ? 11.5 : 13}px/1.35 'IBM Plex Sans', sans-serif`, textWrap: 'pretty',
-  }
-  return (
-    <span aria-hidden="true">
-      {/* Khung cắt ở mép phải: đầu trượt vào từ ngoài mép như đang nấp sau dòng */}
-      <span style={{ position: 'absolute', top: 0, bottom: 0, right: 0, width: sz + 8, overflow: 'hidden', zIndex: 2, pointerEvents: 'none' }}>
-        <span
-          onClick={(e) => { e.stopPropagation(); if (!out) onCatch() }}
-          style={{ position: 'absolute', right: 0, top: '50%', marginTop: -sz / 2, display: 'flex', pointerEvents: out ? 'none' : 'auto', cursor: 'pointer', transformOrigin: '50% 100%', animation: out ? 'rivalPeekDuck .45s ease-in both' : `rivalPeek ${PEEK_MS}ms ease-in-out both` }}
-        >
-          <Avatar name={row.name} src={row.avatarUrl || row.avatar} size={sz} />
-        </span>
-      </span>
-      {out === 'tease'
-        ? <span style={{ position: 'absolute', right: 6, top: '50%', marginTop: -11, zIndex: 2, pointerEvents: 'none', fontSize: 20, lineHeight: 1, animation: 'rivalPeekTease 1.2s ease-out both' }}>😜</span>
-        : <span style={{ ...say, animation: out ? 'rivalPeekSay 1.8s ease-out both' : `rivalPeekBubble ${PEEK_MS}ms ease-in-out both` }}>{out ? t('season.peek.caught') : t(line[0], line[1])}</span>}
-    </span>
-  )
-}
 
 function MiniShelf({ shelf = [], size = 18 }) {
   const ids = cleanShelf(shelf)
@@ -124,8 +88,7 @@ export default function SeasonRaceTab({
   onGenderFilterChange,
 }) {
   const { db } = useApp()
-  const { isDark, skyMotion, skyPrefs } = useTheme()
-  const [progressOpen, setProgressOpen] = useState(false)
+  const { isDark } = useTheme()
 
   const myMember = useMemo(() => {
     if (!db || !db.currentUserId) return null
@@ -156,43 +119,6 @@ export default function SeasonRaceTab({
       .map((r, idx) => ({ ...r, rank: idx + 1, originalRank: r.rank }))
   }, [leaderboard, genderFilter])
 
-  // Đối thủ thò đầu trêu (lib/sky.js → rivalPeeks): người ngay trên / ngay dưới mình, rút bằng túi xáo.
-  // Tắt theo trang Giao diện (hoạt ảnh chung + công tắc riêng) và "Giảm chuyển động" của hệ điều hành.
-  const [osMotion] = useState(() => {
-    try { return !window.matchMedia('(prefers-reduced-motion: reduce)').matches } catch { return true }
-  })
-  const [bags] = useState(() => createBags())
-  const peeks = useMemo(() => {
-    const onPodium = isMobile && filteredLeaderboard.length >= 3 // mobile: top 3 nằm ở bục, không có dòng để thò
-    return rivalPeeks(filteredLeaderboard, myMember?.id, (pid) => !onPodium || filteredLeaderboard.findIndex((r) => r.id === pid) >= 3)
-  }, [filteredLeaderboard, myMember, isMobile])
-  const peeksRef = useRef(peeks)
-  useEffect(() => { peeksRef.current = peeks }, [peeks])
-  const peekOn = skyMotion && osMotion && skyPrefs.on.peek && peeks.length > 0
-  const peekEvery = fxMs(skyPrefs, 'peek')
-  const [peek, setPeek] = useState(null) // { n, id, out }
-  useEffect(() => {
-    if (!peekOn) return
-    let id
-    const go = (ms) => {
-      id = setTimeout(() => {
-        const ps = peeksRef.current
-        if (!document.hidden && ps.length) {
-          const pid = ps[bags('peek', ps.length)].id
-          setPeek((o) => ({ n: (o?.n || 0) + 1, id: pid, out: null }))
-        }
-        go(peekEvery)
-      }, ms)
-    }
-    go(Math.min(PEEK_FIRST, peekEvery))
-    return () => clearTimeout(id)
-  }, [peekOn, peekEvery, bags])
-  const peekLine = peekOn && peek ? peeks.find((p) => p.id === peek.id)?.line : null
-  const catchPeek = () => setPeek((o) => o && { ...o, out: PEEK_OUT[bags('peekOut', PEEK_OUT.length)] })
-  const peekFor = (row) => (peekLine && peek.id === row.id
-    ? <RivalPeek key={peek.n + (peek.out || '')} row={row} line={peekLine} out={peek.out} isMobile={isMobile} onCatch={catchPeek} />
-    : null)
-
   const top1 = filteredLeaderboard[0] || null
   const top2 = filteredLeaderboard[1] || null
   const top3 = filteredLeaderboard[2] || null
@@ -206,7 +132,6 @@ export default function SeasonRaceTab({
 
   const totalSessionsExpected = season?.totalSessionsExpected || 14
   const playedSessions = topStats.playedSessionsCount ?? 0
-  const progressPct = totalSessionsExpected > 0 ? Math.min(100, Math.round((playedSessions / totalSessionsExpected) * 100)) : 0
   const remainingSessions = Math.max(0, totalSessionsExpected - playedSessions)
   const maxPossiblePts = remainingSessions * 3 * 22
 
@@ -222,104 +147,8 @@ export default function SeasonRaceTab({
     >
       {/* Mọi lưới bọc tên đều phải minmax(0, 1fr): cột 'auto'/'1fr' nở theo độ rộng tối thiểu
           của tên dài (nowrap) và đẩy cả thẻ ra ngoài màn hình, ellipsis không kịp cắt. */}
-      {/* CỘT TRÁI (BẢNG ĐUA TOP & TIẾN TRÌNH) */}
+      {/* CỘT TRÁI (BẢNG ĐUA TOP) */}
       <div style={{ display: 'grid', gridTemplateColumns: 'minmax(0, 1fr)', gap: 12 }}>
-        {/* Tiến trình mùa: thu gọn mặc định, bấm để mở. Chọn mùa đang xem ở nút Cài đặt mùa (header trang). */}
-        <div
-          style={{
-            background: 'var(--surface-card)',
-            border: '1px solid var(--border-subtle)',
-            borderRadius: 10,
-            boxShadow: 'var(--shadow-xs)',
-            minWidth: 0,
-            maxWidth: '100%',
-            overflow: 'hidden',
-          }}
-        >
-          <button
-            type="button"
-            onClick={() => setProgressOpen((v) => !v)}
-            aria-expanded={progressOpen}
-            style={{
-              width: '100%',
-              padding: '11px 15px',
-              background: 'transparent',
-              border: 'none',
-              cursor: 'pointer',
-              textAlign: 'left',
-              color: 'inherit',
-              display: 'flex',
-              alignItems: 'center',
-              gap: 10,
-              flexWrap: 'wrap',
-            }}
-          >
-            <span style={{ font: "600 14px/1.2 'IBM Plex Sans', sans-serif", color: 'var(--text-primary)' }}>
-              {t('season.progressTitle')}
-            </span>
-            <span style={{ font: "400 12px/1.2 'IBM Plex Mono', monospace", color: 'var(--text-secondary)' }}>
-              {isArchived
-                ? `${playedSessions} ${t('units.session')}`
-                : t('season.sessionProgress', { n: playedSessions, total: totalSessionsExpected, pct: progressPct })}
-            </span>
-            <div style={{ flex: '1 1 0%' }} />
-            <span
-              style={{
-                font: "600 11px/1 'IBM Plex Mono', monospace",
-                padding: '5px 8px',
-                borderRadius: 999,
-                background: isArchived
-                  ? (isDark ? 'rgba(255,255,255,.08)' : 'rgba(0,0,0,.06)')
-                  : (isDark ? 'rgba(0,178,169,.14)' : 'rgba(0,178,169,.10)'),
-                border: isArchived ? '1px solid var(--border-default)' : '1px solid var(--teal-500)',
-                color: isArchived ? 'var(--text-muted)' : (isDark ? '#5FDBD3' : 'var(--teal-700)'),
-              }}
-            >
-              {isArchived ? t('season.archivedSeasonBadge') : t('season.running')}
-            </span>
-            <Icon name={progressOpen ? 'chevron-up' : 'chevron-down'} size={16} />
-          </button>
-
-          {progressOpen && (
-            <div style={{ padding: '0 15px 13px', display: 'grid', gap: 10 }}>
-              <div
-                style={{
-                  height: 10,
-                  borderRadius: 999,
-                  background: 'var(--surface-inset)',
-                  border: '1px solid var(--border-subtle)',
-                  overflow: 'hidden',
-                  display: 'flex',
-                }}
-              >
-                <div
-                  style={{
-                    width: `${isArchived ? 100 : progressPct}%`,
-                    background: isArchived ? 'var(--text-muted)' : 'linear-gradient(90deg, #00786F, #00B2A9)',
-                  }}
-                />
-              </div>
-
-              <div
-                style={{
-                  display: 'flex',
-                  justifyContent: 'space-between',
-                  font: "500 11px/1.2 'IBM Plex Mono', monospace",
-                  color: 'var(--text-secondary)',
-                }}
-              >
-                <span>{season?.startDate?.slice(5) || '01/07'}</span>
-                <span>
-                  {isArchived
-                    ? (season?.closedAt ? t('season.closedAtDate', { date: season.closedAt.slice(0, 10) }) : t('season.archivedSeasonBadge'))
-                    : t('season.remainingSessionDesc', { n: remainingSessions, pts: maxPossiblePts })}
-                </span>
-                <span>{season?.endDate?.slice(5) || '30/09'}</span>
-              </div>
-            </div>
-          )}
-        </div>
-
         {/* Thông báo mùa đã đóng */}
         {isArchived && (
           <div
@@ -917,7 +746,6 @@ export default function SeasonRaceTab({
                     title={`${t('season.viewLedgerBtn')}: ${row.name}`}
                     style={{
                       minWidth: 0,
-                      position: 'relative',
                       display: 'flex',
                       alignItems: 'center',
                       gap: 9,
@@ -984,7 +812,6 @@ export default function SeasonRaceTab({
                       </span>
                       <TrendSpark logs={row.matchLogs} />
                     </div>
-                    {peekFor(row)}
                   </div>
                 )
               })}
@@ -1183,7 +1010,6 @@ export default function SeasonRaceTab({
                       />
                     </svg>
                   </span>
-                  {peekFor(row)}
                 </div>
               )
             })}

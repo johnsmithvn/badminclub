@@ -1,5 +1,5 @@
 import { useState, useMemo } from 'react'
-import { Icon } from '#ds'
+import { Button, Dialog, Icon } from '#ds'
 import { useTheme } from '#contexts/ThemeContext.jsx'
 import NotificationBell from '#components/notification/NotificationBell.jsx'
 import BadgeHex from '../BadgeHex.jsx'
@@ -24,42 +24,12 @@ const SECTION_TITLE = {
 }
 const COUNT_MONO = { flex: '0 0 auto', font: '400 12px/1 var(--font-mono)', color: '#8E83A8' }
 const COUNT_CHIP = { flex: '0 0 auto', font: '600 11px/1 var(--font-mono)', padding: '4px 8px', borderRadius: 4 }
-// Ô chọn tự vẽ: bỏ mũi tên gốc của trình duyệt (Android đặt lệch, cao thấp khác nút bên cạnh),
-// thay bằng chevron đặt tuyệt đối; cao cố định 36px cho thẳng hàng với nút sáng/tối và chuông.
-const SELECT_WRAP = { position: 'relative', flex: '1 1 0', minWidth: 0, display: 'flex' }
-const SELECT = {
-  width: '100%',
-  minWidth: 0,
-  height: 36,
-  boxSizing: 'border-box',
-  padding: '0 28px 0 12px',
-  borderRadius: 10,
-  border: '1px solid #2B3A8A',
-  background: '#0B0820',
-  outline: 'none',
-  cursor: 'pointer',
-  appearance: 'none',
-  WebkitAppearance: 'none',
-  whiteSpace: 'nowrap',
-  overflow: 'hidden',
-  textOverflow: 'ellipsis',
-}
-const SELECT_CHEVRON = {
-  position: 'absolute',
-  right: 9,
-  top: '50%',
-  transform: 'translateY(-50%)',
-  color: '#8E83A8',
-  pointerEvents: 'none',
-}
-const OPTION = { background: '#0B0820', color: '#FFFFFF' }
-
 /**
- * Thanh trên cùng màn Danh hiệu (điện thoại) — thay header chung của app (AppHeader ẩn ở route này
- * trên điện thoại): chọn mùa (chỗ của bộ chọn tháng), chọn người xem, đổi sáng/tối, chuông.
- * Nền tối cố định như cả màn Danh hiệu, không theo theme — chuông vẽ chữ sáng, đặt trên nền sáng là mất.
+ * Nút lọc (icon) thay hai ô chọn mùa / người xem trên header Danh hiệu — bấm → hộp thoại có hai ô chọn, đổi là
+ * áp dụng ngay. Dùng chung cho điện thoại (MobileBadgeTopBar, hộp thoại dạng sheet) và desktop (Badges.jsx).
+ * Hộp thoại theo màu chung của app (như các popup khác của màn này).
  */
-export function MobileBadgeTopBar({
+export function BadgeFilterButton({
   allSeasons = [],
   seasonValue = '',
   onSelectSeason,
@@ -67,45 +37,77 @@ export function MobileBadgeTopBar({
   activeMemberId = '',
   currentMemberId,
   onSelectMember,
+  sheet = false,
+  style,
 }) {
+  const [open, setOpen] = useState(false)
+  if (!allSeasons.length && allMembers.length < 2) return null
+  return (
+    <>
+      <button type="button" aria-label={t('badges.filterTitle')} title={t('badges.filterTitle')} onClick={() => setOpen(true)} style={style}>
+        <Icon name="filter" size={15} />
+      </button>
+      {open && (
+        <Dialog title={t('badges.filterTitle')} onClose={() => setOpen(false)} sheet={sheet} width={420}>
+          <div style={{ display: 'grid', gap: 14, padding: '14px 20px 20px' }}>
+            {allSeasons.length > 0 && (
+              <label style={FILTER_LABEL}>
+                {t('season.filterSeason')}
+                <select value={seasonValue} onChange={(e) => onSelectSeason && onSelectSeason(e.target.value)} style={FILTER_SELECT}>
+                  {allSeasons.map((s) => (
+                    <option key={s.id || s.code} value={s.id || s.code}>
+                      {s.code || s.name} {s.active ? `(${t('season.activeCurrent')})` : ''}
+                    </option>
+                  ))}
+                </select>
+              </label>
+            )}
+            {allMembers.length > 1 && (
+              <label style={FILTER_LABEL}>
+                {t('badges.selectMember')}
+                <select value={activeMemberId} onChange={(e) => onSelectMember && onSelectMember(e.target.value)} style={FILTER_SELECT}>
+                  {allMembers.map((m) => (
+                    <option key={m.id} value={m.id}>
+                      {shortName(m.name)} {m.id === currentMemberId ? `(${t('badges.collectorProfile.rankMe')})` : ''}
+                    </option>
+                  ))}
+                </select>
+              </label>
+            )}
+            <Button variant="secondary" onClick={() => setOpen(false)}>{t('common.close')}</Button>
+          </div>
+        </Dialog>
+      )}
+    </>
+  )
+}
+
+const FILTER_LABEL = { display: 'grid', gap: 6, font: '600 12.5px/1.2 var(--font-sans)', color: 'var(--text-secondary)' }
+const FILTER_SELECT = {
+  width: '100%',
+  maxWidth: '100%',
+  boxSizing: 'border-box',
+  background: 'var(--surface-inset)',
+  border: '1px solid var(--border-default)',
+  borderRadius: 8,
+  padding: '9px 12px',
+  font: '600 13px var(--font-sans)',
+  color: 'var(--text-primary)',
+  cursor: 'pointer',
+  outline: 'none',
+}
+
+/**
+ * Thanh trên cùng màn Danh hiệu (điện thoại) — thay header chung của app (AppHeader ẩn ở route này trên
+ * điện thoại). Trong suốt như header Trang chủ / BXH, chỉ nút icon canh phải: lọc (mùa + người xem), đổi
+ * sáng/tối, chuông.
+ */
+export function MobileBadgeTopBar(props) {
   const ts = useBadgeTone()
   const { isDark, toggleTheme } = useTheme()
   return (
-    <div style={ts(TOP_BAR)}>
-      {allSeasons.length > 0 && (
-        <div style={ts(SELECT_WRAP)}>
-          <select
-            aria-label={t('season.filterSeason')}
-            value={seasonValue}
-            onChange={(e) => onSelectSeason && onSelectSeason(e.target.value)}
-            style={ts({ ...SELECT, font: '600 13px/34px var(--font-sans)', color: '#5FDBD3' })}
-          >
-            {allSeasons.map((s) => (
-              <option key={s.id || s.code} value={s.id || s.code} style={ts(OPTION)}>
-                {s.code || s.name} {s.active ? `(${t('season.activeCurrent')})` : ''}
-              </option>
-            ))}
-          </select>
-          <Icon name="chevron-down" size={14} style={ts(SELECT_CHEVRON)} />
-        </div>
-      )}
-      {allMembers.length > 1 && (
-        <div style={ts(SELECT_WRAP)}>
-          <select
-            aria-label={t('badges.selectMember')}
-            value={activeMemberId}
-            onChange={(e) => onSelectMember && onSelectMember(e.target.value)}
-            style={ts({ ...SELECT, font: '500 13px/34px var(--font-sans)', color: '#E9EFF7' })}
-          >
-            {allMembers.map((m) => (
-              <option key={m.id} value={m.id} style={ts(OPTION)}>
-                {shortName(m.name)} {m.id === currentMemberId ? `(${t('badges.collectorProfile.rankMe')})` : ''}
-              </option>
-            ))}
-          </select>
-          <Icon name="chevron-down" size={14} style={ts(SELECT_CHEVRON)} />
-        </div>
-      )}
+    <div style={TOP_BAR}>
+      <BadgeFilterButton {...props} sheet style={ts(TOP_ICON_BTN)} />
       <button
         type="button"
         aria-label={isDark ? t('common.themeLight') : t('common.themeDark')}
@@ -126,13 +128,11 @@ const TOP_BAR = {
   maxWidth: 480,
   boxSizing: 'border-box',
   margin: '0 auto 10px',
-  padding: 8,
+  padding: '4px 2px',
   display: 'flex',
   alignItems: 'center',
+  justifyContent: 'flex-end',
   gap: 6,
-  borderRadius: 16,
-  border: '1px solid #2A1F4A',
-  background: 'linear-gradient(180deg,#1A0C3A,#0D0820)',
 }
 const TOP_ICON_BTN = {
   width: 36,

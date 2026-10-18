@@ -1,6 +1,6 @@
 # HOME_SKY.md — Nền bầu trời
 
-**Version:** v1.12.0 · **Updated:** 2026-10-18 · cuộn xuống thì sân khấu tạm dừng · v1.11.0: UFO: "mặt đất" là mép trên thanh điều hướng mobile, người đáp xong chạy ngang khỏi màn · v1.10.0: mặc định TẮT hết hiệu ứng (migrate mọi thiết bị qua `SKY_PREFS_V`) · v1.9.0: sân khấu chung: băng rôn, đom đóm, siêu nhân, UFO thay phiên, nghỉ tính từ lúc diễn xong · câu số liệu chỉ ở băng rôn · băng rôn bay xong là gỡ · v1.8.0: nhân vật chỉ ở Trang chủ + BXH, trang chính khác bản nhẹ (`liteRoutes`) · sửa băng rôn nhân đôi (key trùng với lượt đom đóm) · siêu nhân mobile bay nhanh ngang desktop · v1.7.0: trang Giao diện (bật / tắt từng hiệu ứng, "cứ N giây"), nhân vật chạy cùng lúc, theme gốc · xếp hình đom đóm 40 s / lượt · bỏ cực quang · BXH: đối thủ thò đầu trêu (§4.8) · bỏ tooltip / nhãn phụ, bỏ cảnh "người đuổi theo", réo tên đối thủ (gạ kèo, điều ước), câu mới, tên dài cắt gọn, chữ giữ cỡ cố định, công tắc tắt hoạt ảnh
+**Version:** v1.14.0 · **Updated:** 2026-10-18 · bỏ hiệu ứng đối thủ thò đầu ở BXH (nặng máy) · v1.13.0: mặc định theo máy: PC bật hết, điện thoại chỉ sao ước + UFO + siêu nhân (`SKY_PREFS_V` 3) · v1.12.0: cuộn xuống thì sân khấu tạm dừng · v1.11.0: UFO: "mặt đất" là mép trên thanh điều hướng mobile, người đáp xong chạy ngang khỏi màn · v1.10.0: mặc định TẮT hết hiệu ứng (migrate mọi thiết bị qua `SKY_PREFS_V`) · v1.9.0: sân khấu chung: băng rôn, đom đóm, siêu nhân, UFO thay phiên, nghỉ tính từ lúc diễn xong · câu số liệu chỉ ở băng rôn · băng rôn bay xong là gỡ · v1.8.0: nhân vật chỉ ở Trang chủ + BXH, trang chính khác bản nhẹ (`liteRoutes`) · sửa băng rôn nhân đôi (key trùng với lượt đom đóm) · siêu nhân mobile bay nhanh ngang desktop · v1.7.0: trang Giao diện (bật / tắt từng hiệu ứng, "cứ N giây"), nhân vật chạy cùng lúc, theme gốc · xếp hình đom đóm 40 s / lượt · bỏ cực quang · BXH: đối thủ thò đầu trêu (§4.8) · bỏ tooltip / nhãn phụ, bỏ cảnh "người đuổi theo", réo tên đối thủ (gạ kèo, điều ước), câu mới, tên dài cắt gọn, chữ giữ cỡ cố định, công tắc tắt hoạt ảnh
 
 Toàn bộ **tình huống** và **câu thoại** của nền bầu trời động (thiết kế gốc dựng cho trang chủ cá
 nhân, nay dùng chung nhiều trang), cho **cả hai chế độ** Tối (bầu trời sao) và Sáng (hoàng hôn trên
@@ -18,7 +18,6 @@ biển mây), trên **cả desktop lẫn mobile**. Thiết kế gốc: `Home · 
 | `src/contexts/ThemeContext.jsx` | `skyMotion` (hoạt ảnh chung) + `skyPrefs` (bật / tắt + "cứ N giây" từng hiệu ứng) theo thiết bị — localStorage `badminclub.skyMotion`, `badminclub.skyPrefs` |
 | `src/pages/ThemeSettings.jsx` | Trang **Giao diện** (route `theme`, `/giao-dien`): sáng / tối, hoạt ảnh, hiệu ứng nền, từng nhân vật (§1.1) |
 | `src/components/settings/tabs/GeneralTab.jsx` | Thẻ "Hiển thị" ở Cài đặt → Chung: nút dẫn sang trang Giao diện |
-| `src/components/leaderboard/SeasonRaceTab.jsx` | BXH mùa: đối thủ thò đầu trêu (`RivalPeek`, §4.8) |
 | `src/__tests__/lib/sky.test.js` | Khoá danh sách trang, luật chọn câu và đủ key i18n |
 
 ---
@@ -65,7 +64,7 @@ Danh sách ở `app.json → sky`:
   ước, nhãn tên được bù lại (`fk` = 1 / phóng, tính sẵn thành px trong JS) nên luôn đúng một cỡ.
   Mobile: bóng thoại 11,5px, băng rôn 11px, thẻ điều ước 12px, bóng thoại UFO 11px, nhãn tên 9px.
   **Desktop to hơn một nấc (×1.15):** bóng thoại ~13px, băng rôn ~12,5px, thẻ điều ước ~14px, bóng
-  thoại UFO ~12,5px, nhãn tên ~10px. Bóng thoại đối thủ thò đầu ở BXH: mobile 11,5px, desktop 13px.
+  thoại UFO ~12,5px, nhãn tên ~10px.
 - **Đổi sáng / tối** (nút mặt trời / mặt trăng ở header trang chủ hoặc góc dưới sidebar): trời đổi
   ngay; vẫn là các nhân vật đang bật. Cảnh đang diễn trên sân khấu (băng rôn, đom đóm, siêu nhân, UFO) và sao ước đang bay được dọn; sân khấu bắt đầu lại từ lượt đầu (siêu nhân sau 3 s …), sao ước sau 3 s. Hoạt cảnh đêm (§2.1) đang diễn thì tắt; quay lại Tối thì đếm lại từ đầu (chú Cuội sau 60 s …).
 
@@ -81,23 +80,26 @@ không qua nút Lưu của CLB. Trang này cũng có nền trời phía sau nên
 | Hoạt ảnh nền trời | "Bật hoạt ảnh" (tắt = trời đứng yên, không gì chạy) · **Hiệu ứng nền** (một công tắc cho cả nhóm, xem dưới) |
 | Nhân vật ghé thăm | Cú mèo (chỉ bật / tắt) · Máy bay băng rôn · Đom đóm xếp hình · Siêu nhân · UFO · Sao ước |
 | Hoạt cảnh đêm | Chú Cuội đánh cầu · Quả cầu lông lửa · Nguyệt thực trăng máu |
-| Khác | Cú ngủ gật (số giây màn hình yên) · Đối thủ thò đầu ở BXH (§4.8) |
+| Khác | Cú ngủ gật (số giây màn hình yên) |
 
 - Mỗi dòng có công tắc riêng; dòng có nhịp thêm ô số giây (gõ số hoặc bấm −/+ 5).
   - **Băng rôn, đom đóm, siêu nhân, UFO** (sân khấu chung): N = số giây **nghỉ sau khi diễn xong**. Tới lượt
     mà sân đang có cảnh khác thì đợi cảnh đó xong + `app.json → sky.stageGapMs` (4 s); nhiều cảnh cùng chờ
     thì cảnh tới hạn sớm nhất lên trước (`lib/sky.js → stageNext`). Với mặc định, bốn cảnh nối nhau thành một
     vòng ~1,5 phút, mỗi cảnh cách nhau ≥ 4 s.
-  - **Hoạt cảnh đêm, sao ước, đối thủ thò đầu**: "cứ N giây", tính từ lúc lượt trước **bắt đầu**; chạy riêng,
+  - **Hoạt cảnh đêm, sao ước**: "cứ N giây", tính từ lúc lượt trước **bắt đầu**; chạy riêng,
     không xếp hàng với sân khấu.
   - Mỗi hiệu ứng có **tối thiểu**: gõ thấp hơn vẫn lưu nhưng chạy theo tối thiểu, dòng mô tả báo rõ.
 - Lượt đầu sau khi mở trang: `app.json → sky.*FirstMs`, hoặc sau N nếu N nhỏ hơn (sân khấu: rồi còn xếp hàng).
-- **Mặc định tắt hết** (kể cả Hiệu ứng nền và Đối thủ thò đầu ở BXH): chỉ còn theme gốc — đêm: trăng, sao,
-  mưa sao băng; ngày: hoàng hôn. Ai muốn thì bật ở trang này. "Bật hoạt ảnh" vẫn mặc định bật (mưa sao băng chạy).
-- **Migrate:** bản lưu có số phiên bản `v` (`lib/sky.js → SKY_PREFS_V`). Bản lưu khác số đó (gồm mọi bản lưu
-  trước 2026-10-18) → công tắc về tắt hết lần tới mở app, số giây giữ nguyên. Lưu theo thiết bị nên không có
+- **Mặc định theo máy** (dò lúc mở app lần đầu, cùng mốc mobile 768px; lưu rồi là cố định):
+  - **PC / máy tính bảng**: bật hết, kể cả Hiệu ứng nền.
+  - **Điện thoại**: chỉ bật `app.json → sky.mobileOn` = Sao ước, UFO, Siêu nhân; còn lại tắt (kể cả Hiệu ứng
+    nền) cho nhẹ máy — theme gốc đêm: trăng, sao, mưa sao băng; ngày: hoàng hôn.
+  - "Bật hoạt ảnh" mặc định bật ở cả hai.
+- **Migrate:** bản lưu có số phiên bản `v` (`lib/sky.js → SKY_PREFS_V`, hiện là 3). Bản lưu khác số đó → công
+  tắc về mặc định của máy lần tới mở app, số giây giữ nguyên. Lưu theo thiết bị nên không có
   migration DB; muốn ép mọi người về mặc định lần nữa thì tăng `SKY_PREFS_V`.
-- "Về mặc định": tắt hết, số giây về `app.json → sky.fx`.
+- "Về mặc định": về mặc định của máy (PC bật hết · điện thoại 3 mục), số giây về `app.json → sky.fx`.
 
 | Hiệu ứng | Mặc định N giây | Tối thiểu | Lượt đầu |
 | --- | --- | --- | --- |
@@ -110,7 +112,6 @@ không qua nút Lưu của CLB. Trang này cũng có nền trời phía sau nên
 | Quả cầu lông lửa | 90 | 5 | 90 s |
 | Nguyệt thực trăng máu | 120 | 35 | 120 s |
 | Cú ngủ gật (giây màn hình yên) | 25 | 5 | — |
-| Đối thủ thò đầu ở BXH | 30 | 6 | 10 s |
 
 **Theme gốc và nhóm "Hiệu ứng nền":**
 
@@ -321,26 +322,6 @@ hai nhịp riêng nên có lúc cùng bay.)
 - Bấm trúng → bung 18 hạt sáng + sao bốn cánh, hiện thẻ (không tiêu đề, chữ 12px, rộng tối đa 280px)
   4.4 s với một điều ước rút từ túi xáo (§6.6) — bấm đủ hết các điều ước mới lặp. Điều ước réo tên
   đối thủ rút thêm **tên** từ túi xáo riêng (§5.2), nên hai lần ra cùng câu có thể là hai người khác nhau.
-
-### 4.8 Bảng xếp hạng — đối thủ thò đầu trêu (Rival Peek-a-boo)
-
-Riêng tab **BXH mùa** (`SeasonRaceTab`), không thuộc lớp trời, có cả ở chế độ Sáng lẫn Tối.
-
-- Lượt đầu sau **10 s** khi mở tab; mỗi lượt **4,8 s**; **cứ 30 s** (mặc định) một lượt. Tab trình
-  duyệt ẩn thì bỏ lượt.
-- Ở **mép phải dòng** của người **ngay trên** hoặc **ngay dưới** bạn (theo danh sách đang lọc Nam / Nữ /
-  Tất cả), đầu mini (avatar 28px, mobile 26px) trượt vào từ ngoài mép như đang nấp, nghiêng đầu nháy hai
-  nhịp, kèm bóng thoại bên trái, rồi nấp lại. Trên / dưới rút bằng túi xáo (`lib/sky.js → rivalPeeks`).
-  - Người ngay trên: "Cố lên bạn ơi, còn {n} điểm nữa là dí kịp tui rồi ~" (`season.peek.up`; n = điểm mùa
-    còn thiếu, bằng điểm thì 1).
-  - Người ngay dưới: "Bác giữ hạng cho kỹ đấy, tối nay em lật kèo!" (`season.peek.down`).
-- **Bấm cái đầu** → giật nảy rồi thụt hẳn ra ngoài mép, kèm (túi 2) bóng "Ủa bị phát hiện rồi!"
-  (`season.peek.caught`) hoặc mặt cười 😜 bay lên. Bấm đầu không mở sổ điểm của dòng.
-- Không hiện khi: chưa ghép thành viên / không có mặt trên BXH đang lọc; không có người kề; trên mobile
-  người kề nằm ở bục top 3 (không có dòng để thò); tắt "Hoạt ảnh nền trời" hoặc hệ điều hành bật "Giảm
-  chuyển động".
-- Nhịp ở hằng `PEEK_FIRST` / `PEEK_MS` / `PEEK_REST` đầu `SeasonRaceTab.jsx`; keyframe `rivalPeek*` ở
-  `effects.css`.
 
 ---
 
@@ -897,7 +878,7 @@ Checklist:
   đứng yên ngay; F5 vẫn giữ. Tắt "Hiệu ứng nền" → đêm mất tinh vân, ngân hà, cá voi, sao chổi, đom đóm,
   chòm sao, chỉ còn trăng, sao, mưa sao băng (và nhân vật đang bật). Tắt từng nhân vật → biến mất ngay.
 - [ ] Đổi "cứ N giây" (vd. siêu nhân 10 s) → lượt sau theo nhịp mới; gõ thấp hơn tối thiểu thì dòng mô tả
-  báo "vẫn chạy N giây". Xoá ô để gõ lại không nhảy số. "Về mặc định" → tắt hết, số về mặc định.
+  báo "vẫn chạy N giây". Xoá ô để gõ lại không nhảy số. "Về mặc định" → về mặc định của máy, số về mặc định.
 - [ ] Cài đặt → Chung → Hiển thị: nút "Mở Giao diện" dẫn đúng trang. Thành viên thường cũng vào được.
 - [ ] Màn desktop lớn (2K / 4K hoặc cửa sổ cao): chữ bóng thoại, băng rôn, thẻ điều ước không to lên
   theo màn.
@@ -919,7 +900,7 @@ Checklist:
 | `moon` | `full` | `full` trăng rằm · `lunar` theo lịch âm thật · `crescent` lưỡi liềm |
 | `stageGapMs` | 4000 | Sân khấu chung: khoảng trống tối thiểu giữa hai cảnh (§1.1) |
 | `*FirstMs` | sao ước 3000 · băng rôn 6000 · siêu nhân 3000 · UFO 8000 · xếp hình 12000 · Cuội 60000 · cầu lửa 90000 · nguyệt thực 120000 | Lượt đầu sau khi mở trang (N ở trang Giao diện nhỏ hơn thì lấy N) |
-| `fx` | owlDoze 25 · banner 38 · top1 40 · hero 43 · ufo 44 · wish 27 · cuoi 60 · fireShuttle 90 · eclipse 120 · peek 30 | Mặc định "cứ N giây" của trang Giao diện (§1.1); tối thiểu nằm ở `lib/sky.js → SKY_FX` |
+| `fx` | owlDoze 25 · banner 38 · top1 40 · hero 43 · ufo 44 · wish 27 · cuoi 60 · fireShuttle 90 · eclipse 120 | Mặc định "cứ N giây" của trang Giao diện (§1.1); tối thiểu nằm ở `lib/sky.js → SKY_FX` |
 
 Nhịp nằm ở keyframe `effects.css` (đổi phải sửa CSS): một lượt xếp hình 24 s (`skyFormTop`), đàn chim bay ~17,5 s rồi nghỉ 44 s (`skyBirds`, chu kỳ 62,24 s), một lượt băng rôn 16,64 s (`skyBannerOnce`, khớp `BANNER_FLY_MS`).
 Thời lượng một lượt ở `lib/sky.js → SKY_ACT_MS` (Cuội 7 s · cầu lửa 3,6 s · nguyệt thực 32 s · xếp hình 24 s); test chặn tối thiểu trong `SKY_FX` ngắn hơn thời lượng (hai lượt chồng nhau).

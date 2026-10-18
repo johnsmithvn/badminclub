@@ -1,7 +1,7 @@
 // node src/__tests__/lib/sky.test.js
 // Nền bầu trời trang chủ: chọn nhân vật + câu thoại theo số liệu (lib/sky.js, docs/HOME_SKY.md).
 import assert from 'node:assert/strict'
-import { OWL_WAKE, SKY_ACT_MS, SKY_CAST, UFO_GIVE_BACK, UFO_HUH, UFO_OUTCOMES, beatenBy, createBags, fxMs, isLate, normSkyPrefs, SKY_FX, SKY_FX_MAX, lastMatchOf, lastPlayedAt, moonAge, rivalPeeks, SKY_PREFS_V, shortName, shuffled, skyFacts, skyFoes, skyLines, skyMode, stageNext, ufoPool, ufoScript } from '#lib/sky.js'
+import { OWL_WAKE, SKY_ACT_MS, SKY_CAST, UFO_GIVE_BACK, UFO_HUH, UFO_OUTCOMES, beatenBy, createBags, fxMs, isLate, normSkyPrefs, SKY_FX, SKY_FX_MAX, lastMatchOf, lastPlayedAt, moonAge, SKY_PREFS_V, shortName, shuffled, skyFacts, skyFoes, skyLines, skyMode, stageNext, ufoPool, ufoScript } from '#lib/sky.js'
 import vi from '#i18n/vi.json' with { type: 'json' }
 import cfg from '#config/app.json' with { type: 'json' }
 import { ROUTE_KEYS } from '#routes'
@@ -43,19 +43,23 @@ assert.deepEqual([...shuffled(7)].sort(), [0, 1, 2, 3, 4, 5, 6], 'xáo không đ
 /* ---------- cài đặt hiệu ứng (trang Giao diện) ---------- */
 {
   const def = normSkyPrefs(undefined)
-  assert.ok(Object.values(def.on).every((x) => x === false), 'chưa chỉnh gì: tắt hết, kể cả hiệu ứng nền — chỉ còn theme gốc')
+  assert.ok(Object.values(def.on).every((x) => x === true), 'PC chưa chỉnh gì: bật hết, kể cả hiệu ứng nền')
+  const phone = normSkyPrefs(undefined, true)
+  assert.deepEqual(Object.keys(phone.on).filter((k) => phone.on[k]).sort(), [...cfg.sky.mobileOn].sort(), 'điện thoại chưa chỉnh gì: chỉ bật sky.mobileOn')
+  assert.deepEqual(cfg.sky.mobileOn.filter((k) => !SKY_FX.some((x) => x.key === k)), [], 'app.json → sky.mobileOn gõ sai tên hiệu ứng')
   for (const fx of SKY_FX.filter((x) => x.min)) {
     assert.equal(def.every[fx.key], cfg.sky.fx[fx.key], fx.key + ': mặc định lấy app.json → sky.fx')
     assert.ok(cfg.sky.fx[fx.key] >= fx.min && cfg.sky.fx[fx.key] <= SKY_FX_MAX, fx.key + ': mặc định nằm ngoài [min, max]')
   }
   for (const k of SKY_CAST) assert.ok(SKY_FX.some((x) => x.key === k), k + ': nhân vật nào cũng phải tắt được ở trang Giao diện')
   const p = normSkyPrefs({ v: SKY_PREFS_V, on: { hero: true, ambient: true, banner: false, rác: true }, every: { hero: 5, ufo: '50', wish: 99999, banner: 'abc', cuoi: -3, owl: 12 } })
-  assert.equal(p.on.hero, true); assert.equal(p.on.ambient, true); assert.equal(p.on.banner, false); assert.equal(p.on.ufo, false, 'khoá không có trong bản lưu thì tắt')
+  assert.equal(p.on.hero, true); assert.equal(p.on.ambient, true); assert.equal(p.on.banner, false); assert.equal(p.on.ufo, true, 'khoá không có trong bản lưu thì theo mặc định của máy')
   assert.equal(normSkyPrefs(p).v, SKY_PREFS_V, 'lưu rồi đọc lại phải giữ được công tắc')
-  // Bản lưu trước khi đổi mặc định (không có v / v cũ): công tắc về tắt hết, số giây giữ nguyên.
-  const old = normSkyPrefs({ on: { hero: true, owl: true, ambient: true }, every: { hero: 20 } })
-  assert.ok(Object.values(old.on).every((x) => x === false), 'migrate: bản lưu cũ bật gì cũng về tắt hết')
-  assert.equal(old.every.hero, 20, 'migrate: giữ số giây người dùng đã chỉnh')
+  // Bản lưu trước khi đổi mặc định (không có v / v cũ): công tắc về mặc định của máy, số giây giữ nguyên.
+  const saved = { v: SKY_PREFS_V - 1, on: { hero: false, owl: false, ambient: false, wish: false }, every: { hero: 20 } }
+  assert.ok(Object.values(normSkyPrefs(saved).on).every(Boolean), 'migrate PC: bản lưu cũ tắt gì cũng về bật hết')
+  assert.deepEqual(normSkyPrefs(saved, true).on, phone.on, 'migrate điện thoại: về đúng mặc định điện thoại')
+  assert.equal(normSkyPrefs(saved).every.hero, 20, 'migrate: giữ số giây người dùng đã chỉnh')
   assert.ok(!('rác' in p.on) && !('owl' in p.every), 'khoá lạ / hiệu ứng chỉ bật-tắt không có ô số giây')
   assert.deepEqual([p.every.hero, p.every.ufo, p.every.wish, p.every.banner, p.every.cuoi], [5, 50, SKY_FX_MAX, cfg.sky.fx.banner, cfg.sky.fx.cuoi],
     'giữ số đang gõ dở (5), đọc chuỗi số, chặn trên 3600, sai kiểu / âm thì về mặc định')
@@ -185,18 +189,6 @@ assert.equal(lastPlayedAt(MS, 'me'), 200, 'trận gần nhất của MÌNH, khô
 assert.equal(lastPlayedAt(MS, 'nobody'), 0)
 assert.equal(lastPlayedAt(undefined, 'me'), 0)
 assert.equal(lastMatchOf(MS, 'me').at, 200)
-
-/* ---------- BXH: đối thủ thò đầu trêu ---------- */
-{
-  const R = [{ id: 'a', totalSeasonPoints: 300 }, { id: 'b', totalSeasonPoints: 275 }, { id: 'me', totalSeasonPoints: 250 }, { id: 'c', totalSeasonPoints: 240 }]
-  assert.deepEqual(rivalPeeks(R, 'me'), [{ id: 'b', line: ['season.peek.up', { n: 25 }] }, { id: 'c', line: ['season.peek.down'] }],
-    'người ngay trên giục đuổi (kèm số điểm thiếu), người ngay dưới doạ lật kèo')
-  assert.deepEqual(rivalPeeks(R, 'a').map((p) => p.id), ['b'], 'hạng 1: chỉ người dưới thò ra')
-  assert.deepEqual(rivalPeeks(R, 'c').map((p) => p.id), ['me'], 'hạng chót: chỉ người trên')
-  assert.deepEqual(rivalPeeks(R, 'me', (id) => id !== 'b').map((p) => p.id), ['c'], 'dòng không được vẽ (bục mobile) thì không thò')
-  assert.deepEqual(rivalPeeks(R, 'nobody'), [], 'không có mặt trên BXH: không ai thò')
-  assert.deepEqual(rivalPeeks([{ id: 'x', totalSeasonPoints: 9 }, { id: 'me', totalSeasonPoints: 9 }], 'me')[0].line[1], { n: 1 }, 'bằng điểm thì nói "còn 1 điểm", không "còn 0"')
-}
 
 /* ---------- tên dài ---------- */
 assert.equal(shortName('Canh lá đắng :)))'), 'Canh lá đắng :)))', 'tên ≤ 20 ký tự giữ nguyên')

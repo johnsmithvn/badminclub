@@ -200,109 +200,21 @@ export default function Leaderboard() {
     )
   }, [selectedMemberId, activeMembers, db?.members, db?.guests])
 
-  const headerSubText = activeTab === 'season'
-    ? t('season.headerSub')
-    : activeTab === 'elo'
-      ? t('season.eloHeaderSub')
-      : activeTab === 'h2h'
-        ? t('leaderboard.tabH2H')
-        : t('leaderboard.sub')
-
-  // Desktop: thẻ header đủ nút. Mobile: header trong suốt như Trang chủ, chỉ 3 nút (giao diện · tính lại Elo
-  // — admin · cài đặt mùa). Nút Cài đặt mùa ai cũng thấy: trong đó có ô chọn mùa đang xem.
-  const btnStyle = {
-    font: "600 12px/1 'IBM Plex Sans', sans-serif",
-    padding: '8px 14px',
-    borderRadius: 6,
-    background: 'var(--surface-raised)',
-    border: '1px solid var(--border-default)',
-    color: 'var(--text-primary)',
-    cursor: 'pointer',
-    display: 'flex',
-    alignItems: 'center',
-    justifyContent: 'center',
-    gap: 6,
-    transition: 'all 0.15s ease',
-    flexShrink: 0,
-  }
-  const headerActionButtons = (
-    <>
-      <button
-        type="button"
-        onClick={toggleTheme}
-        title={isDark ? t('common.themeLight') : t('common.themeDark')}
-        aria-label={isDark ? t('common.themeLight') : t('common.themeDark')}
-        style={{ ...btnStyle, padding: '8px 12px', color: 'var(--text-secondary)' }}
-      >
-        <Icon name={isDark ? 'sun' : 'moon'} size={15} />
-        <span>{isDark ? t('common.themeLight') : t('common.themeDark')}</span>
-      </button>
-
-      <NotificationBell />
-
-      {/* Tab 'h2h' là màn so kè tương tác (chọn cặp A vs cặp B), 'gamblers' chưa có nhánh xuất.
-          handleExportCsv rơi vào nhánh else -> xuất nhầm bảng Elo, nên ẩn nút ở hai tab này. */}
-      {activeTab !== 'h2h' && activeTab !== 'gamblers' && (
-        <button type="button" onClick={handleExportCsv} title={t('common.exportCsv')} aria-label={t('common.exportCsv')} style={btnStyle}>
-          <Icon name="download" size={14} />
-          <span>{t('common.exportCsv')}</span>
-        </button>
-      )}
-
-      {isAdmin && (
-        <button type="button" onClick={() => setRecalcConfirmOpen(true)} title={t('leaderboard.recalcHint')} aria-label={t('leaderboard.btnRecalc')} style={btnStyle}>
-          <Icon name="rotate-ccw" size={14} />
-          <span>{t('leaderboard.btnRecalc')}</span>
-        </button>
-      )}
-      <button type="button" onClick={() => setSeasonSettingsOpen(true)} title={t('season.settingsBtn')} aria-label={t('season.settingsBtn')} style={btnStyle}>
-        <Icon name="settings" size={14} />
-        <span>{t('season.settingsBtn')}</span>
-      </button>
-    </>
-  )
+  // Header trong suốt như Trang chủ, không chữ — chỉ nút icon: giao diện · (desktop: chuông, xuất CSV) · tính lại
+  // Elo (admin) · cài đặt mùa. Nút Cài đặt mùa ai cũng thấy: trong đó có ô chọn mùa đang xem.
+  // Tab 'h2h' là màn so kè tương tác, 'gamblers' chưa có nhánh xuất: handleExportCsv sẽ xuất nhầm bảng Elo → ẩn nút.
+  const canExport = !isMobile && activeTab !== 'h2h' && activeTab !== 'gamblers'
 
   return (
     <div style={{ display: 'grid', gridTemplateColumns: 'minmax(0, 1fr)', gap: 16 }}>
       {/* ---------------- Header trang Bảng xếp hạng (Duy nhất) ---------------- */}
-      {isMobile ? (
-        <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', gap: 12, padding: '4px 2px' }}>
-          <h1 style={{ margin: 0, font: '700 20px/1.2 var(--font-display)', color: 'var(--text-primary)', whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis' }}>
-            {t('leaderboard.title')}
-          </h1>
-          <div style={{ display: 'flex', alignItems: 'center', gap: 6, flexShrink: 0 }}>
-            <IconButton icon={isDark ? 'sun' : 'moon'} size="sm" variant="ghost" label={isDark ? t('common.themeLight') : t('common.themeDark')} onClick={toggleTheme} />
-            {isAdmin && <IconButton icon="rotate-ccw" size="sm" variant="ghost" label={t('leaderboard.btnRecalc')} onClick={() => setRecalcConfirmOpen(true)} />}
-            <IconButton icon="settings" size="sm" variant="ghost" label={t('season.settingsBtn')} onClick={() => setSeasonSettingsOpen(true)} />
-          </div>
-        </div>
-      ) : (
-        <div
-          style={{
-            padding: '14px 20px',
-            background: 'var(--surface-card)',
-            border: '1px solid var(--border-subtle)',
-            borderRadius: 10,
-            display: 'flex',
-            alignItems: 'center',
-            justifyContent: 'space-between',
-            gap: 14,
-            boxShadow: 'var(--shadow-xs)',
-          }}
-        >
-          <div style={{ display: 'flex', flexDirection: 'column', gap: 3, minWidth: 0, flex: '1 1 240px' }}>
-            <h1 style={{ font: "700 20px/1.25 Barlow, sans-serif", color: 'var(--text-primary)', margin: 0 }}>
-              {t('leaderboard.title')}
-            </h1>
-            <div style={{ font: "400 13px/1.4 'IBM Plex Sans', sans-serif", color: 'var(--text-muted)' }}>
-              {headerSubText}
-            </div>
-          </div>
-          <div style={{ display: 'flex', gap: 8, alignItems: 'center', flexWrap: 'wrap' }}>
-            {headerActionButtons}
-          </div>
-        </div>
-      )}
+      <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'flex-end', gap: 6, padding: '4px 2px' }}>
+        <IconButton icon={isDark ? 'sun' : 'moon'} size="sm" variant="ghost" label={isDark ? t('common.themeLight') : t('common.themeDark')} onClick={toggleTheme} />
+        {!isMobile && <NotificationBell />}
+        {canExport && <IconButton icon="download" size="sm" variant="ghost" label={t('common.exportCsv')} onClick={handleExportCsv} />}
+        {isAdmin && <IconButton icon="rotate-ccw" size="sm" variant="ghost" label={t('leaderboard.btnRecalc')} onClick={() => setRecalcConfirmOpen(true)} />}
+        <IconButton icon="settings" size="sm" variant="ghost" label={t('season.settingsBtn')} onClick={() => setSeasonSettingsOpen(true)} />
+      </div>
 
       <TabBar
         isMobile={isMobile}

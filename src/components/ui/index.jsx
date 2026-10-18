@@ -640,12 +640,21 @@ export { ModalOverlay } from './ModalOverlay.jsx'
  * Mobile xếp hai tầng (DESIGN.md §8.1): tầng 1 tên trang + hành động, tầng 2 câu mô tả xuống dưới
  * cho khỏi bóp chữ. Desktop cho cụm phải `flex-wrap` chứ không `flex:0 0 auto` (§5).
  *
- * @param {string} title - tên trang
+ * Không truyền `title` → header trong suốt như Trang chủ / BXH: không chữ, chỉ cụm nút canh phải.
+ *
+ * @param {string} [title] - tên trang
  * @param {string} [subtitle] - câu mô tả một dòng
  * @param {React.ReactNode} [actions] - cụm nút bên phải
  * @param {boolean} [isMobile]
  */
 export function PageHeader({ title, subtitle, actions, isMobile = false }) {
+  if (!title) {
+    return (
+      <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'flex-end', gap: 6, flexWrap: 'wrap', padding: '4px 2px' }}>
+        {actions}
+      </div>
+    )
+  }
   return (
     <div
       style={{

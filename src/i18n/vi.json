@@ -63,11 +63,7 @@
     "hour": "giờ"
   },
   "season": {
-    "headerSub": "Mùa 3 · 2026 — Thu Rực Lửa · 01/07 → 30/09 · còn 23 ngày",
-    "eloHeaderSub": "Elo career · tích lũy từ 02/2024 · không reset theo mùa",
     "settingsBtn": "Cài đặt mùa",
-    "progressTitle": "Tiến trình mùa",
-    "sessionProgress": "buổi {{n}} / {{total}} · {{pct}}% thời gian đã qua",
     "runningBadge": "đang chạy",
     "podiumTitle14a": "Bục mùa {{seasonNumber}}",
     "podiumSubtitle14a": "chốt sau buổi {{sessions}} · huy chương trao tại buổi tổng kết",
@@ -76,11 +72,6 @@
     "shelfThreeSlotFooterNote14a": "Kệ hiện tối đa 3 ô huy hiệu, chính chủ sắp thứ tự ở Danh hiệu. Chạm một ô để xem tên danh hiệu.",
     "eloSingleBadgeFooterNote14a": "Ở bảng Elo mỗi dòng chỉ hiện một ô huy hiệu bậc cao nhất, để mắt đọc trình độ trước.",
     "youTag": "bạn",
-    "peek": {
-      "up": "Cố lên bạn ơi, còn {{n}} điểm nữa là dí kịp tui rồi ~",
-      "down": "Bác giữ hạng cho kỹ đấy, tối nay em lật kèo!",
-      "caught": "Ủa bị phát hiện rồi!"
-    },
     "behindTop1": "kém #1 · {{diff}}",
     "eloRankClub": "Elo #{{rank}}",
     "wholeTable": "Toàn bảng",
@@ -216,7 +207,6 @@
     "selectorTitle": "Chọn mùa giải",
     "activeSeasonBadge": "Đang diễn ra",
     "archivedSeasonBadge": "Đã kết thúc",
-    "closedAtDate": "Đã chốt: {{date}}",
     "podiumTop1": "Quán quân (Top 1)",
     "podiumTop2": "Á quân (Top 2)",
     "podiumTop3": "Quý quân (Top 3)",
@@ -248,10 +238,8 @@
     "recentSessionTitle": "Chi tiết các hành động buổi gần nhất",
     "ledgerFooterNote": "Mọi điểm số đều được tính tự động từ kết quả buổi tập và lịch sử đối đầu. Không can thiệp thủ công.",
     "viewCareerElo": "Xem Elo Career của VĐV này",
-    "running": "đang chạy",
     "remainingSessions": "{{n}} buổi còn lại",
     "maxPoints": "tối đa +{{pts}} pts",
-    "remainingSessionDesc": "{{n}} buổi còn lại — tối đa +{{pts}} pts",
     "sessionProgressDesc": "buổi {{n}} / {{total}} · {{pct}}% thời gian đã qua",
     "allTableTitle": "Toàn bảng · {{n}} thành viên",
     "pointSourceSub": "Đi đều chiếm hơn một phần ba điểm mùa. Người mới có thể đua top mà không cần thắng nhiều.",
@@ -316,8 +304,8 @@
     "rerunBtn": "Dò lại",
     "applyPlanBtn": "Xếp {{plan}} vào sân",
     "headerAssignMeta": "{{players}} người chờ · {{courts}} sân · máy đã dò {{candidates}} phương án trong {{ms}}ms",
-    "raceTab": "Top Mùa Giải",
-    "careerEloTab": "Elo Cá Nhân",
+    "raceTab": "Mùa Giải",
+    "careerEloTab": "Elo",
     "noMatchesInSeason": "Chưa có trận đấu nào trong mùa này.",
     "medianLabel": "trung vị",
     "sessionN": "buổi {{n}}",
@@ -4616,6 +4604,7 @@
     "viewingOther": "Đang xem bộ sưu tập của {{name}}",
     "backToMyCollection": "← Quay về của tôi",
     "selectMember": "Xem người khác:",
+    "filterTitle": "Chọn mùa & người xem",
     "shelfModalTitle": "Sắp xếp kệ danh hiệu",
     "shelfModalDesc": "Chọn tối đa 3 danh hiệu bạn đã mở để vinh danh trên kệ",
     "equipBtn": "Gắn lên kệ",
@@ -6038,22 +6027,58 @@
     "minUsed": "dưới {{n}} giây thì vẫn chạy {{n}} giây",
     "reset": "Về mặc định",
     "fx": {
-      "owl": { "label": "Cú mèo", "note": "Đậu trên trăng, chỉ từ 22h đến 4h sáng" },
-      "banner": { "label": "Máy bay kéo băng rôn", "note": "Bay ngang đầu trang, kéo một câu" },
-      "top1": { "label": "Đom đóm xếp hình", "note": "Chỉ ban đêm: chữ, trái tim, mặt cười" },
-      "hero": { "label": "Siêu nhân", "note": "Bay ngang đầu trang, bấm để đổi câu" },
-      "ufo": { "label": "UFO bắt cóc", "note": "Cảnh dài 13 – 16 giây" },
-      "wish": { "label": "Sao ước", "note": "Chỉ ban đêm, bấm vào để ước" },
-      "cuoi": { "label": "Chú Cuội đánh cầu", "note": "Đứng dậy vung vợt trên mặt trăng" },
-      "fireShuttle": { "label": "Quả cầu lông lửa", "note": "Sao băng bay chéo trên nội dung" },
-      "eclipse": { "label": "Nguyệt thực trăng máu", "note": "Trăng chuyển đỏ đồng rồi sáng lại" },
-      "owlDoze": { "label": "Cú ngủ gật", "note": "Để màn hình yên bao nhiêu giây thì cú gục đầu ngủ" },
-      "peek": { "label": "Đối thủ thò đầu ở BXH", "note": "Tab BXH mùa, người ngay trên / dưới bạn; cứ bao nhiêu giây một lượt" }
+      "owl": {
+        "label": "Cú mèo",
+        "note": "Đậu trên trăng, chỉ từ 22h đến 4h sáng"
+      },
+      "banner": {
+        "label": "Máy bay kéo băng rôn",
+        "note": "Bay ngang đầu trang, kéo một câu"
+      },
+      "top1": {
+        "label": "Đom đóm xếp hình",
+        "note": "Chỉ ban đêm: chữ, trái tim, mặt cười"
+      },
+      "hero": {
+        "label": "Siêu nhân",
+        "note": "Bay ngang đầu trang, bấm để đổi câu"
+      },
+      "ufo": {
+        "label": "UFO bắt cóc",
+        "note": "Cảnh dài 13 – 16 giây"
+      },
+      "wish": {
+        "label": "Sao ước",
+        "note": "Chỉ ban đêm, bấm vào để ước"
+      },
+      "cuoi": {
+        "label": "Chú Cuội đánh cầu",
+        "note": "Đứng dậy vung vợt trên mặt trăng"
+      },
+      "fireShuttle": {
+        "label": "Quả cầu lông lửa",
+        "note": "Sao băng bay chéo trên nội dung"
+      },
+      "eclipse": {
+        "label": "Nguyệt thực trăng máu",
+        "note": "Trăng chuyển đỏ đồng rồi sáng lại"
+      },
+      "owlDoze": {
+        "label": "Cú ngủ gật",
+        "note": "Để màn hình yên bao nhiêu giây thì cú gục đầu ngủ"
+      }
     }
   },
   "sky": {
     "boom": "BÙM!",
-    "cons": ["Bắc Đẩu", "Thiên Hậu", "Lạp Hộ", "Thiên Yết", "Sư Tử", "Thiên Nga"],
+    "cons": [
+      "Bắc Đẩu",
+      "Thiên Hậu",
+      "Lạp Hộ",
+      "Thiên Yết",
+      "Sư Tử",
+      "Thiên Nga"
+    ],
     "line": {
       "missRacket": "Vợt đang nhớ bạn đấy. (｡•́︿•̀｡)",
       "daysOff": "{{n}} ngày chưa ra sân rồi. Mai đi đánh nhé?",

@@ -17,9 +17,11 @@ export const SKY_PREFS_KEY = 'badminclub.skyPrefs'
 function getInitialSkyMotion() {
   try { return localStorage.getItem(SKY_MOTION_KEY) !== 'off' } catch { return true }
 }
-const readSkyPrefs = (raw) => { try { return normSkyPrefs(JSON.parse(raw || 'null')) } catch { return normSkyPrefs(null) } }
+// Điện thoại (cùng mốc useMobile 768px) có mặc định riêng — chỉ quyết định lúc chưa có bản lưu: lưu rồi là cố định.
+const onPhone = () => { try { return window.matchMedia('(max-width: 768px)').matches } catch { return false } }
+const readSkyPrefs = (raw) => { try { return normSkyPrefs(JSON.parse(raw || 'null'), onPhone()) } catch { return normSkyPrefs(null, onPhone()) } }
 function getInitialSkyPrefs() {
-  try { return readSkyPrefs(localStorage.getItem(SKY_PREFS_KEY)) } catch { return normSkyPrefs(null) }
+  try { return readSkyPrefs(localStorage.getItem(SKY_PREFS_KEY)) } catch { return normSkyPrefs(null, onPhone()) }
 }
 
 function getInitialTheme() {
@@ -95,9 +97,9 @@ export function ThemeProvider({ children }) {
     try { localStorage.setItem(SKY_MOTION_KEY, on ? 'on' : 'off') } catch { /* private mode: chỉ áp dụng phiên này */ }
   }, [])
 
-  /** Nhận object mới hoặc hàm (cũ → mới); luôn chuẩn hoá lại trước khi lưu. */
+  /** Nhận object mới hoặc hàm (cũ → mới); luôn chuẩn hoá lại trước khi lưu. `null` = về mặc định của máy này. */
   const setSkyPrefs = useCallback((next) => {
-    setSkyPrefsState((p) => normSkyPrefs(typeof next === 'function' ? next(p) : next))
+    setSkyPrefsState((p) => normSkyPrefs(typeof next === 'function' ? next(p) : next, onPhone()))
   }, [])
 
   const value = useMemo(() => ({
