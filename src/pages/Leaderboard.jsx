@@ -1,6 +1,6 @@
 import { useState, useMemo, useEffect } from 'react'
 import { useNavigate, useSearchParams } from 'react-router-dom'
-import { Alert, Button, Dialog, Icon } from '#ds'
+import { Alert, Button, Dialog, Icon, IconButton } from '#ds'
 import { TabBar, ModalOverlay } from '#ui'
 import { useApp } from '#contexts/AppContext.jsx'
 import { useTheme } from '#contexts/ThemeContext.jsx'
@@ -208,6 +208,23 @@ export default function Leaderboard() {
         ? t('leaderboard.tabH2H')
         : t('leaderboard.sub')
 
+  // Desktop: thẻ header đủ nút. Mobile: header trong suốt như Trang chủ, chỉ 3 nút (giao diện · tính lại Elo
+  // — admin · cài đặt mùa). Nút Cài đặt mùa ai cũng thấy: trong đó có ô chọn mùa đang xem.
+  const btnStyle = {
+    font: "600 12px/1 'IBM Plex Sans', sans-serif",
+    padding: '8px 14px',
+    borderRadius: 6,
+    background: 'var(--surface-raised)',
+    border: '1px solid var(--border-default)',
+    color: 'var(--text-primary)',
+    cursor: 'pointer',
+    display: 'flex',
+    alignItems: 'center',
+    justifyContent: 'center',
+    gap: 6,
+    transition: 'all 0.15s ease',
+    flexShrink: 0,
+  }
   const headerActionButtons = (
     <>
       <button
@@ -215,26 +232,10 @@ export default function Leaderboard() {
         onClick={toggleTheme}
         title={isDark ? t('common.themeLight') : t('common.themeDark')}
         aria-label={isDark ? t('common.themeLight') : t('common.themeDark')}
-        style={{
-          font: "600 12px/1 'IBM Plex Sans', sans-serif",
-          width: isMobile ? 32 : undefined,
-          height: isMobile ? 32 : undefined,
-          padding: isMobile ? 0 : '8px 12px',
-          borderRadius: 6,
-          background: 'var(--surface-raised)',
-          border: '1px solid var(--border-default)',
-          color: 'var(--text-secondary)',
-          cursor: 'pointer',
-          display: 'flex',
-          alignItems: 'center',
-          justifyContent: 'center',
-          gap: 6,
-          transition: 'all 0.15s ease',
-          flexShrink: 0,
-        }}
+        style={{ ...btnStyle, padding: '8px 12px', color: 'var(--text-secondary)' }}
       >
         <Icon name={isDark ? 'sun' : 'moon'} size={15} />
-        {!isMobile && <span>{isDark ? t('common.themeLight') : t('common.themeDark')}</span>}
+        <span>{isDark ? t('common.themeLight') : t('common.themeDark')}</span>
       </button>
 
       <NotificationBell />
@@ -242,150 +243,66 @@ export default function Leaderboard() {
       {/* Tab 'h2h' là màn so kè tương tác (chọn cặp A vs cặp B), 'gamblers' chưa có nhánh xuất.
           handleExportCsv rơi vào nhánh else -> xuất nhầm bảng Elo, nên ẩn nút ở hai tab này. */}
       {activeTab !== 'h2h' && activeTab !== 'gamblers' && (
-        <button
-          type="button"
-          onClick={handleExportCsv}
-          title={t('common.exportCsv')}
-          aria-label={t('common.exportCsv')}
-          style={{
-            font: "600 12px/1 'IBM Plex Sans', sans-serif",
-            width: isMobile ? 32 : undefined,
-            height: isMobile ? 32 : undefined,
-            padding: isMobile ? 0 : '8px 14px',
-            borderRadius: 6,
-            background: 'var(--surface-raised)',
-            border: '1px solid var(--border-default)',
-            color: 'var(--text-primary)',
-            cursor: 'pointer',
-            display: 'flex',
-            alignItems: 'center',
-            justifyContent: 'center',
-            gap: 6,
-            transition: 'all 0.15s ease',
-            flexShrink: 0,
-          }}
-        >
+        <button type="button" onClick={handleExportCsv} title={t('common.exportCsv')} aria-label={t('common.exportCsv')} style={btnStyle}>
           <Icon name="download" size={14} />
-          {!isMobile && <span>{t('common.exportCsv')}</span>}
+          <span>{t('common.exportCsv')}</span>
         </button>
       )}
 
       {isAdmin && (
-        <>
-          <button
-            type="button"
-            onClick={() => setRecalcConfirmOpen(true)}
-            title={t('leaderboard.recalcHint')}
-            aria-label={t('leaderboard.btnRecalc')}
-            style={{
-              font: "600 12px/1 'IBM Plex Sans', sans-serif",
-              width: isMobile ? 32 : undefined,
-              height: isMobile ? 32 : undefined,
-              padding: isMobile ? 0 : '8px 14px',
-              borderRadius: 6,
-              background: 'var(--surface-raised)',
-              border: '1px solid var(--border-default)',
-              color: 'var(--text-primary)',
-              cursor: 'pointer',
-              display: 'flex',
-              alignItems: 'center',
-              justifyContent: 'center',
-              gap: 6,
-              transition: 'all 0.15s ease',
-              flexShrink: 0,
-            }}
-          >
-            <Icon name="rotate-ccw" size={14} />
-            {!isMobile && <span>{t('leaderboard.btnRecalc')}</span>}
-          </button>
-          <button
-            type="button"
-            onClick={() => setSeasonSettingsOpen(true)}
-            title={t('season.settingsBtn')}
-            aria-label={t('season.settingsBtn')}
-            style={{
-              font: "600 12px/1 'IBM Plex Sans', sans-serif",
-              width: isMobile ? 32 : undefined,
-              height: isMobile ? 32 : undefined,
-              padding: isMobile ? 0 : '8px 14px',
-              borderRadius: 6,
-              background: 'var(--surface-raised)',
-              border: '1px solid var(--border-default)',
-              color: 'var(--text-primary)',
-              cursor: 'pointer',
-              display: 'flex',
-              alignItems: 'center',
-              justifyContent: 'center',
-              gap: 6,
-              transition: 'all 0.15s ease',
-              flexShrink: 0,
-            }}
-          >
-            <Icon name="settings" size={14} />
-            {!isMobile && <span>{t('season.settingsBtn')}</span>}
-          </button>
-        </>
+        <button type="button" onClick={() => setRecalcConfirmOpen(true)} title={t('leaderboard.recalcHint')} aria-label={t('leaderboard.btnRecalc')} style={btnStyle}>
+          <Icon name="rotate-ccw" size={14} />
+          <span>{t('leaderboard.btnRecalc')}</span>
+        </button>
       )}
+      <button type="button" onClick={() => setSeasonSettingsOpen(true)} title={t('season.settingsBtn')} aria-label={t('season.settingsBtn')} style={btnStyle}>
+        <Icon name="settings" size={14} />
+        <span>{t('season.settingsBtn')}</span>
+      </button>
     </>
   )
 
   return (
     <div style={{ display: 'grid', gridTemplateColumns: 'minmax(0, 1fr)', gap: 16 }}>
       {/* ---------------- Header trang Bảng xếp hạng (Duy nhất) ---------------- */}
-      <div
-        style={{
-          padding: isMobile ? '12px 14px' : '14px 20px',
-          background: 'var(--surface-card)',
-          border: '1px solid var(--border-subtle)',
-          borderRadius: 10,
-          display: 'flex',
-          flexDirection: isMobile ? 'column' : 'row',
-          alignItems: isMobile ? 'stretch' : 'center',
-          justifyContent: 'space-between',
-          gap: isMobile ? 8 : 14,
-          boxShadow: 'var(--shadow-xs)',
-        }}
-      >
+      {isMobile ? (
+        <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', gap: 12, padding: '4px 2px' }}>
+          <h1 style={{ margin: 0, font: '700 20px/1.2 var(--font-display)', color: 'var(--text-primary)', whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis' }}>
+            {t('leaderboard.title')}
+          </h1>
+          <div style={{ display: 'flex', alignItems: 'center', gap: 6, flexShrink: 0 }}>
+            <IconButton icon={isDark ? 'sun' : 'moon'} size="sm" variant="ghost" label={isDark ? t('common.themeLight') : t('common.themeDark')} onClick={toggleTheme} />
+            {isAdmin && <IconButton icon="rotate-ccw" size="sm" variant="ghost" label={t('leaderboard.btnRecalc')} onClick={() => setRecalcConfirmOpen(true)} />}
+            <IconButton icon="settings" size="sm" variant="ghost" label={t('season.settingsBtn')} onClick={() => setSeasonSettingsOpen(true)} />
+          </div>
+        </div>
+      ) : (
         <div
           style={{
+            padding: '14px 20px',
+            background: 'var(--surface-card)',
+            border: '1px solid var(--border-subtle)',
+            borderRadius: 10,
             display: 'flex',
             alignItems: 'center',
             justifyContent: 'space-between',
-            gap: 8,
-            flexWrap: isMobile ? 'nowrap' : 'wrap',
-            minWidth: 0,
-            flex: isMobile ? undefined : '1 1 240px',
+            gap: 14,
+            boxShadow: 'var(--shadow-xs)',
           }}
         >
-          <div style={{ display: 'flex', flexDirection: 'column', gap: 3, minWidth: 0 }}>
-            <h1 style={{ font: isMobile ? "700 18px/1.2 Barlow, sans-serif" : "700 20px/1.25 Barlow, sans-serif", color: 'var(--text-primary)', margin: 0 }}>
+          <div style={{ display: 'flex', flexDirection: 'column', gap: 3, minWidth: 0, flex: '1 1 240px' }}>
+            <h1 style={{ font: "700 20px/1.25 Barlow, sans-serif", color: 'var(--text-primary)', margin: 0 }}>
               {t('leaderboard.title')}
             </h1>
-            {!isMobile && (
-              <div style={{ font: "400 13px/1.4 'IBM Plex Sans', sans-serif", color: 'var(--text-muted)' }}>
-                {headerSubText}
-              </div>
-            )}
-          </div>
-          {isMobile && (
-            <div style={{ display: 'flex', gap: 6, alignItems: 'center', flexShrink: 0 }}>
-              {headerActionButtons}
+            <div style={{ font: "400 13px/1.4 'IBM Plex Sans', sans-serif", color: 'var(--text-muted)' }}>
+              {headerSubText}
             </div>
-          )}
-        </div>
-
-        {isMobile && (
-          <div style={{ font: "400 12.5px/1.4 'IBM Plex Sans', sans-serif", color: 'var(--text-muted)' }}>
-            {headerSubText}
           </div>
-        )}
-
-        {!isMobile && (
           <div style={{ display: 'flex', gap: 8, alignItems: 'center', flexWrap: 'wrap' }}>
             {headerActionButtons}
           </div>
-        )}
-      </div>
+        </div>
+      )}
 
       <TabBar
         isMobile={isMobile}
@@ -412,9 +329,6 @@ export default function Leaderboard() {
           isMobile={isMobile}
           genderFilter={genderFilter}
           onGenderFilterChange={setGenderFilter}
-          seasons={allSeasons}
-          selectedSeasonId={resolvedSeason?.id || resolvedSeason?.code}
-          onSelectSeason={(sId) => setSelectedSeasonId(sId)}
         />
       )}
 
@@ -513,6 +427,10 @@ export default function Leaderboard() {
         <SeasonSettingsModal
           season={activeSeason}
           topPodium={seasonLeaderboardData?.leaderboard?.slice(0, 3)}
+          seasons={allSeasons}
+          selectedSeasonId={resolvedSeason?.id || resolvedSeason?.code}
+          onSelectSeason={(sId) => setSelectedSeasonId(sId)}
+          canEdit={isAdmin}
           onClose={() => setSeasonSettingsOpen(false)}
           onSaveSeason={(newSeason) => {
             a.setSeasonConfig?.(newSeason)

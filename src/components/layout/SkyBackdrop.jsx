@@ -189,8 +189,10 @@ export default function SkyBackdrop({ mode, isMobile, scrollRef }) {
   const data = useRef({ st, lines, name })
   useEffect(() => { data.current = { st, lines, name } }, [st, lines, name])
 
-  // Cuộn nội dung → nhân vật trôi lên và mờ dần, hết 80px thì ẩn (trời vẫn đứng yên).
+  // Cuộn nội dung → nhân vật trôi lên và mờ dần, hết 80px thì ẩn (trời vẫn đứng yên). `awayRef` = đang ẩn vì
+  // cuộn: sân khấu không cho cảnh mới ra (cảnh đang diễn vẫn chạy nốt), cuộn lên lại thì diễn tiếp.
   const fadeRef = useRef(null)
+  const awayRef = useRef(false)
   useEffect(() => {
     const el = fadeRef.current, main = scrollRef?.current
     if (!el || !main) return
@@ -199,6 +201,7 @@ export default function SkyBackdrop({ mode, isMobile, scrollRef }) {
       el.style.transform = y ? `translateY(${px(-y / s)})` : ''
       el.style.opacity = String(Math.max(0, 1 - y / 80))
       el.style.visibility = y > 80 ? 'hidden' : ''
+      awayRef.current = y > 80
     }
     on()
     main.addEventListener('scroll', on, { passive: true })
@@ -237,11 +240,12 @@ export default function SkyBackdrop({ mode, isMobile, scrollRef }) {
         later(() => setForm((f) => ({ ...f, on: false })), FORM_MS)
         return FORM_MS
       }
-      return (k === 'hero' ? heroFly : ufoScene)({ host, later, bags, dark: isDark, ly, H: vhRef.current, fk: fkRef.current, ...data.current })
+      return (k === 'hero' ? heroFly : ufoScene)({ host, later, bags, dark: isDark, ly, H: floorY(host, vhRef.current), fk: fkRef.current, ...data.current })
     }
     const tick = () => {
       // Tab ẩn thì animation không chạy tới onfinish — đợi tab hiện lại mới diễn, khỏi chất đống phần tử.
-      if (document.hidden || !host.isConnected) return later(tick, 1000)
+      // Đang cuộn xuống (lớp nhân vật ẩn): diễn cũng chẳng ai thấy — đợi cuộn lên, cảnh tới hạn ra ngay.
+      if (document.hidden || awayRef.current || !host.isConnected) return later(tick, 1000)
       const now = Date.now()
       const { k, at } = stageNext(due, free)
       if (at > now) return later(tick, at - now)
@@ -932,6 +936,16 @@ function pop(ctx, txt, x, y) {
   mv(e, [[x, y + 6, 0], [x, y, 1, 0, 1.2, 0.25], [x, y - 14, 0]], 1300)
   ctx.later(() => e.remove(), 1400)
 }
+/**
+ * "Mặt đất" của cảnh UFO (toạ độ lớp): mobile có thanh điều hướng dưới (z 40, đè lên lớp này) → lấy mép trên
+ * của nó, người bị hút trồi lên / đáp xuống ngay trên thanh thay vì bị che. Không có thanh → đáy màn.
+ */
+function floorY(host, H) {
+  const nav = document.querySelector('[data-footer-nav]')
+  if (!nav) return H
+  const hb = host.getBoundingClientRect(), k = host.offsetWidth / (hb.width || 1)
+  return Math.min(H, Math.round((nav.getBoundingClientRect().top - hb.top) * k))
+}
 /** Vị trí phần tử trong khung của lớp (bù phóng to). */
 function at(host, el, dx, dy) {
   const r = el.getBoundingClientRect(), hb = host.getBoundingClientRect(), k = host.offsetWidth / (hb.width || 1)
@@ -1063,6 +1077,11 @@ function ufoScene(ctx) {
   const pathU = cr([[sx, uy - 60, 0], [ux, uy, 0.26], [ux + 4, uy + 5, 0.4], [ux - 3, uy - 3, 0.56], [ux, uy + 2, 0.74], [ex + s * 40, -160, 0.88], [ex + s * 80, -220, 1]], 8)
   const fade = (x) => Math.min(1, x / 0.04, (1 - x) / 0.04), wob = 'transform-origin:50% 60%;animation:skyWobble 2.4s ease-in-out infinite'
   const pool = ufoPool(!!sc.abduct), out = pool[bags('ufo', pool.length)]
+  // Người đã đáp đất: đứng một lúc rồi chạy ngang ra mép màn gần hơn, nhún từng bước (thay vì chìm xuống đáy).
+  const runOff = (x, y, t0, t1) => {
+    const x1 = x > W / 2 ? W + 40 : -40, n = Math.max(4, Math.round((t1 - t0) * D * 6)) // ~6 bước / giây
+    return cr(Array.from({ length: n + 1 }, (_, i) => [x + ((x1 - x) * i) / n, y - (i % 2 ? 5 * k : 0), t0 + ((t1 - t0) * i) / n]), 2)
+  }
 
   if (out === 'ok') {
     flyPath(host, ufoA('', q(tl(sc.abduct))), 48, 22, pathU, D, { k, tk: 0, inner: wob, sync: [['[data-k="beam"]', show(0.34, 0.72)], ['[data-k="q"]', show(0.62, 0.78)]] })
@@ -1109,19 +1128,25 @@ function ufoScene(ctx) {
         [{ opacity: 0, transform: 'scale(.4)', offset: 0 }, { opacity: 0, transform: 'scale(.4)', offset: x }, { opacity: 1, transform: 'scale(.8)', offset: Math.min(1, x + 0.01) }, { opacity: 0, transform: 'translateY(-10px) scale(2.2)', offset: x2 }].concat(x2 < 1 ? [{ opacity: 0, transform: 'translateY(-10px) scale(2.2)', offset: 1 }] : []), D * 1000)
     }
     const CH = `<svg data-k="chute" width="30" height="24" viewBox="0 0 30 24" style="position:absolute;left:${pw / 2 - 15}px;top:-24px;overflow:visible;opacity:0"><path d="M1 10 L15 24 M8 10 L15 24 M22 10 L15 24 M29 10 L15 24" stroke="rgba(255,255,255,.9)" stroke-width=".6"/><path d="M1 10 Q15 -6 29 10 Q25 7.5 22 10 Q18.5 7.5 15 10 Q11.5 7.5 8 10 Q4.5 7.5 1 10 Z" fill="${isMe ? '#00B2A9' : '#F472B6'}" stroke="#fff" stroke-width=".8"/></svg>`
-    flyPath(host, CH + bubV('bub', cry) + bubV('ph', tl(sc.safe)) + vs, pw, ph, cr([[ux, yg, 0], [ux, yg, 0.4], [ux + 8, H * 0.7, 0.48], [ux - 4, yv, tH], [ux + 6, yv + 12 * k, tH + 0.05], [ux + 30 * k, H * 0.78, 0.8], [ux + 50 * k, H + 60, 1]], 8), D, {
+    const xg = ux + 40 * k, yl = H - 60 * k
+    flyPath(host, CH + bubV('bub', cry) + bubV('ph', tl(sc.safe)) + vs, pw, ph, [
+      ...cr([[ux, yg, 0], [ux, yg, 0.4], [ux + 8, H * 0.7, 0.48], [ux - 4, yv, tH], [ux + 6, yv + 12 * k, tH + 0.05], [ux + 30 * k, (yv + yl) / 2, 0.72], [xg, yl, 0.82]], 8),
+      ln([xg, yl], [xg, yl], 0.82, 0.88, 2),
+      ...runOff(xg, yl, 0.88, 1),
+    ], D, {
       k, tk: 0, inner: vin, opf: fade,
-      sync: [['[data-k="bub"]', show(0.44, tH - 0.02)], ['[data-k="ph"]', show(tH + 0.08, 0.86)], ['[data-k="chute"]', [{ opacity: 0, offset: 0 }, { opacity: 0, offset: tH + 0.02 }, { opacity: 1, offset: tH + 0.05 }, { opacity: 1, offset: 1 }]]],
+      sync: [['[data-k="bub"]', show(0.44, tH - 0.02)], ['[data-k="ph"]', show(tH + 0.08, 0.86)], ['[data-k="chute"]', [{ opacity: 0, offset: 0 }, { opacity: 0, offset: tH + 0.02 }, { opacity: 1, offset: tH + 0.05 }, { opacity: 1, offset: 0.83 }, { opacity: 0, offset: 0.86 }, { opacity: 0, offset: 1 }]]],
     })
   } else if (out === 'slip') {
-    // Tia chập chờn rồi tắt: người tuột rơi xuống, nảy một nhịp rồi đi khỏi màn.
+    // Tia chập chờn rồi tắt: người tuột rơi xuống, nảy một nhịp, đứng một lúc rồi chạy ngang khỏi màn.
     const yc = uy + (yg - uy) * 0.45
     const flick = [{ opacity: 0, offset: 0 }, { opacity: 0, offset: 0.34 }, { opacity: 1, offset: 0.36 }, { opacity: 1, offset: 0.48 }, { opacity: 0.15, offset: 0.49 }, { opacity: 1, offset: 0.5 }, { opacity: 0.1, offset: 0.51 }, { opacity: 0.8, offset: 0.52 }, { opacity: 0, offset: 0.53 }, { opacity: 0, offset: 1 }]
     flyPath(host, ufoA('', q(t('sky.ufo.slip'))), 48, 22, pathU, D, { k, tk: 0, inner: wob, sync: [['[data-k="beam"]', flick], ['[data-k="q"]', show(0.55, 0.72)]] })
     flyPath(host, bubV('bub', cry) + bubV('ph', tl(sc.slip[bags('slip' + who, sc.slip.length)])) + vs, pw, ph, [
       ...cr([[ux, yg, 0], [ux, yg, 0.4], [ux + 6, (yg + yc) / 2, 0.46], [ux, yc, 0.52]], 8),
       ...cr([[ux, yc, 0.52], [ux + 2, yc + (yg - yc) * 0.3, 0.555], [ux + 4, H - 60 * k, 0.6], [ux + 10 * k, H - 80 * k, 0.64], [ux + 16 * k, H - 60 * k, 0.68]], 6),
-      ln([ux + 16 * k, H - 60 * k], [ux + 16 * k, H + 60], 0.68, 1, 4),
+      ln([ux + 16 * k, H - 60 * k], [ux + 16 * k, H - 60 * k], 0.68, 0.8, 2),
+      ...runOff(ux + 16 * k, H - 60 * k, 0.8, 1),
     ], D, { k, tk: 0, inner: vin, opf: (x) => Math.min(1, x / 0.04, (1 - x) / 0.05), sync: [['[data-k="bub"]', show(0.42, 0.5)], ['[data-k="ph"]', show(0.6, 0.86)]] })
   } else {
     // UFO hút người lên tàu rồi chê, thả trả lại.
@@ -1131,8 +1156,8 @@ function ufoScene(ctx) {
       ...cr([[ux, yg, 0], [ux, yg, 0.38], [ux + 6, (yg + yt) / 2, 0.46], [ux, yt, 0.54]], 8),
       ln([ux, yt], [ux, yt], 0.54, 0.62, 2),
       ...cr([[ux, yt, 0.62], [ux - 6, (yg + yt) / 2, 0.7], [ux, H - 70 * k, 0.76]], 8),
-      ln([ux, H - 70 * k], [ux, H - 70 * k], 0.76, 0.92, 2),
-      ln([ux, H - 70 * k], [ux, H + 60], 0.92, 1, 2),
+      ln([ux, H - 70 * k], [ux, H - 70 * k], 0.76, 0.86, 2),
+      ...runOff(ux, H - 70 * k, 0.86, 1),
     ], D, {
       k, tk: 0, inner: vin,
       scf: (x) => (x < 0.5 ? 1 : x < 0.54 ? 1 - (x - 0.5) * 15 : x < 0.62 ? 0.4 : x < 0.66 ? 0.4 + (x - 0.62) * 15 : 1),

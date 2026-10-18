@@ -74,10 +74,15 @@ test('Season Race — Hiển thị đủ tên trên màn lớn và CSS ellipsis 
       code.includes("gridTemplateColumns: 'repeat(2, minmax(0, 1fr))'"),
       'Mobile 2-column podium phải dùng repeat(2, minmax(0, 1fr))'
     )
+  })
 
-    // 2.4 Kiểm tra Dropdown chọn mùa giải có bo góc đẹp và giới hạn maxWidth chống tràn
-    assert.ok(code.includes('borderRadius: 8'), 'Dropdown chọn mùa giải phải bo góc 8px đẹp chuẩn TDMS')
-    assert.ok(code.includes('maxWidth: 100%') || code.includes("maxWidth: '100%'"), 'Dropdown chọn mùa giải phải có maxWidth: 100% chống tràn màn hình')
-    assert.ok(code.includes('boxSizing: border-box') || code.includes("boxSizing: 'border-box'"), 'Dropdown phải có boxSizing border-box')
+  // 2.4 Dropdown chọn mùa giải (nay ở modal Cài đặt mùa — nút trên header BXH) bo góc đẹp, không tràn màn hình
+  await t.test('2.4 SeasonSettingsModal.jsx: Dropdown chọn mùa giải bo góc và chống tràn', async () => {
+    const code = await fs.readFile(path.resolve('src/components/session/SeasonSettingsModal.jsx'), 'utf8')
+    const sel = code.slice(code.indexOf('<select'), code.indexOf('</select>'))
+    assert.ok(sel.length > 0, 'Modal Cài đặt mùa phải có dropdown chọn mùa giải')
+    assert.ok(sel.includes('borderRadius: 8'), 'Dropdown chọn mùa giải phải bo góc 8px đẹp chuẩn TDMS')
+    assert.ok(sel.includes("maxWidth: '100%'"), 'Dropdown chọn mùa giải phải có maxWidth: 100% chống tràn màn hình')
+    assert.ok(sel.includes("boxSizing: 'border-box'"), 'Dropdown phải có boxSizing border-box')
   })
 })

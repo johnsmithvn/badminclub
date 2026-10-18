@@ -122,9 +122,6 @@ export default function SeasonRaceTab({
   isMobile = false,
   genderFilter = 'all',
   onGenderFilterChange,
-  seasons = [],
-  selectedSeasonId = null,
-  onSelectSeason,
 }) {
   const { db } = useApp()
   const { isDark, skyMotion, skyPrefs } = useTheme()
@@ -227,7 +224,7 @@ export default function SeasonRaceTab({
           của tên dài (nowrap) và đẩy cả thẻ ra ngoài màn hình, ellipsis không kịp cắt. */}
       {/* CỘT TRÁI (BẢNG ĐUA TOP & TIẾN TRÌNH) */}
       <div style={{ display: 'grid', gridTemplateColumns: 'minmax(0, 1fr)', gap: 12 }}>
-        {/* Chọn mùa + tiến trình mùa chung một thẻ; tiến trình thu gọn mặc định, bấm để mở */}
+        {/* Tiến trình mùa: thu gọn mặc định, bấm để mở. Chọn mùa đang xem ở nút Cài đặt mùa (header trang). */}
         <div
           style={{
             background: 'var(--surface-card)',
@@ -239,63 +236,6 @@ export default function SeasonRaceTab({
             overflow: 'hidden',
           }}
         >
-          {seasons && seasons.length > 0 && (
-            <div
-              style={{
-                padding: '10px 14px',
-                borderBottom: '1px solid var(--border-subtle)',
-                display: 'flex',
-                alignItems: 'center',
-                justifyContent: 'space-between',
-                gap: 10,
-                flexWrap: 'wrap',
-                minWidth: 0,
-              }}
-            >
-              <div style={{ display: 'flex', alignItems: 'center', gap: 8, minWidth: 0, flexShrink: 0 }}>
-                <span style={{ fontSize: 16 }}>🗓</span>
-                <span style={{ font: "600 13px 'IBM Plex Sans', sans-serif", color: 'var(--text-primary)', whiteSpace: 'nowrap' }}>
-                  {t('season.selectorTitle')}
-                </span>
-              </div>
-
-              <div style={{ display: 'flex', alignItems: 'center', gap: 8, minWidth: 0, flex: isMobile ? '1 1 100%' : '0 1 auto', maxWidth: '100%' }}>
-                <select
-                  value={selectedSeasonId || (season?.id || season?.code)}
-                  onChange={(e) => onSelectSeason && onSelectSeason(e.target.value)}
-                  style={{
-                    width: isMobile ? '100%' : 'auto',
-                    maxWidth: '100%',
-                    minWidth: 0,
-                    background: 'var(--surface-inset)',
-                    border: '1px solid var(--border-default)',
-                    borderRadius: 8,
-                    padding: '7px 12px',
-                    font: "600 12.5px 'IBM Plex Sans', sans-serif",
-                    color: 'var(--text-primary)',
-                    cursor: 'pointer',
-                    outline: 'none',
-                    boxSizing: 'border-box',
-                    textOverflow: 'ellipsis',
-                    overflow: 'hidden',
-                    whiteSpace: 'nowrap',
-                  }}
-                >
-                  {seasons.map((s) => {
-                    const sId = s.id || s.code
-                    const isActive = Boolean(s.active)
-                    const label = `${s.name || s.code || sId} (${s.startDate} → ${s.endDate}) ${isActive ? `— [${t('season.activeSeasonBadge')}]` : `— [${t('season.archivedSeasonBadge')}]`}`
-                    return (
-                      <option key={sId} value={sId}>
-                        {label}
-                      </option>
-                    )
-                  })}
-                </select>
-              </div>
-            </div>
-          )}
-
           <button
             type="button"
             onClick={() => setProgressOpen((v) => !v)}

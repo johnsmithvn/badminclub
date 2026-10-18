@@ -89,7 +89,7 @@ export default function MobileFooterNav({ route, isMoreOpen, onToggleMore }) {
   }
 
   return (
-    <nav style={S.nav} aria-label={t('nav.section.ops')}>
+    <nav data-footer-nav="" style={S.nav} aria-label={t('nav.section.ops')}>
       {slots.map((slot) => {
         const active = isSlotActive(slot)
         const badge = getBadge(slot)

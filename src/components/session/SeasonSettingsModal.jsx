@@ -19,6 +19,11 @@ export default function SeasonSettingsModal({
     monteCarloCandidates: 80,
   },
   topPodium = [],
+  // Chọn mùa đang xem ở BXH (mọi người): chọn xong là đóng modal. `canEdit` = admin → thêm phần cấu hình / chốt mùa.
+  seasons = [],
+  selectedSeasonId = null,
+  onSelectSeason,
+  canEdit = true,
   onClose,
   onSaveSeason,
   onEndSeasonEarly,
@@ -95,7 +100,7 @@ export default function SeasonSettingsModal({
       <div
         data-screen-label="CE4 Cai dat mua giai"
         style={{
-          width: 760,
+          width: canEdit ? 760 : 420,
           maxWidth: '100%',
           background: 'var(--surface-overlay)',
           border: '1px solid var(--border-default)',
@@ -112,11 +117,13 @@ export default function SeasonSettingsModal({
         {/* Header */}
         <div style={{ display: 'flex', alignItems: 'baseline', gap: 10, flexWrap: 'wrap' }}>
           <div style={{ font: '600 18px/1.25 Barlow, sans-serif', color: 'var(--text-primary)' }}>
-            {t('season.settingsTitle')}
+            {canEdit ? t('season.settingsTitle') : t('season.settingsBtn')}
           </div>
-          <div style={{ font: "400 12px/1.4 'IBM Plex Mono', monospace", color: 'var(--text-muted)' }}>
-            {t('season.adminOnly')}
-          </div>
+          {canEdit && (
+            <div style={{ font: "400 12px/1.4 'IBM Plex Mono', monospace", color: 'var(--text-muted)' }}>
+              {t('season.adminOnly')}
+            </div>
+          )}
           <div style={{ flex: '1 1 0%' }} />
           <button
             type="button"
@@ -134,7 +141,39 @@ export default function SeasonSettingsModal({
           </button>
         </div>
 
-        {confirmingEnd ? (
+        {!confirmingEnd && seasons.length > 0 && (
+          <label style={{ display: 'grid', gap: 6 }}>
+            <span style={{ font: "600 13px/1.2 'IBM Plex Sans', sans-serif", color: 'var(--text-primary)' }}>🗓 {t('season.selectorTitle')}</span>
+            <select
+              value={selectedSeasonId || ''}
+              onChange={(e) => {
+                onSelectSeason?.(e.target.value)
+                onClose?.()
+              }}
+              style={{
+                width: '100%',
+                maxWidth: '100%',
+                boxSizing: 'border-box',
+                background: 'var(--surface-inset)',
+                border: '1px solid var(--border-default)',
+                borderRadius: 8,
+                padding: '9px 12px',
+                font: "600 13px 'IBM Plex Sans', sans-serif",
+                color: 'var(--text-primary)',
+                cursor: 'pointer',
+                outline: 'none',
+              }}
+            >
+              {seasons.map((s) => {
+                const sId = s.id || s.code
+                const badge = s.active ? t('season.activeSeasonBadge') : t('season.archivedSeasonBadge')
+                return <option key={sId} value={sId}>{`${s.name || s.code || sId} (${s.startDate} → ${s.endDate}) — [${badge}]`}</option>
+              })}
+            </select>
+          </label>
+        )}
+
+        {!canEdit ? null : confirmingEnd ? (
           <div style={{ display: 'grid', gap: 14 }}>
             {/* Banner cảnh báo */}
             <div

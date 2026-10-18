@@ -1,6 +1,6 @@
 # HOME_SKY.md — Nền bầu trời
 
-**Version:** v1.10.0 · **Updated:** 2026-10-18 · mặc định TẮT hết hiệu ứng (migrate mọi thiết bị qua `SKY_PREFS_V`) · v1.9.0: sân khấu chung: băng rôn, đom đóm, siêu nhân, UFO thay phiên, nghỉ tính từ lúc diễn xong · câu số liệu chỉ ở băng rôn · băng rôn bay xong là gỡ · v1.8.0: nhân vật chỉ ở Trang chủ + BXH, trang chính khác bản nhẹ (`liteRoutes`) · sửa băng rôn nhân đôi (key trùng với lượt đom đóm) · siêu nhân mobile bay nhanh ngang desktop · v1.7.0: trang Giao diện (bật / tắt từng hiệu ứng, "cứ N giây"), nhân vật chạy cùng lúc, theme gốc · xếp hình đom đóm 40 s / lượt · bỏ cực quang · BXH: đối thủ thò đầu trêu (§4.8) · bỏ tooltip / nhãn phụ, bỏ cảnh "người đuổi theo", réo tên đối thủ (gạ kèo, điều ước), câu mới, tên dài cắt gọn, chữ giữ cỡ cố định, công tắc tắt hoạt ảnh
+**Version:** v1.12.0 · **Updated:** 2026-10-18 · cuộn xuống thì sân khấu tạm dừng · v1.11.0: UFO: "mặt đất" là mép trên thanh điều hướng mobile, người đáp xong chạy ngang khỏi màn · v1.10.0: mặc định TẮT hết hiệu ứng (migrate mọi thiết bị qua `SKY_PREFS_V`) · v1.9.0: sân khấu chung: băng rôn, đom đóm, siêu nhân, UFO thay phiên, nghỉ tính từ lúc diễn xong · câu số liệu chỉ ở băng rôn · băng rôn bay xong là gỡ · v1.8.0: nhân vật chỉ ở Trang chủ + BXH, trang chính khác bản nhẹ (`liteRoutes`) · sửa băng rôn nhân đôi (key trùng với lượt đom đóm) · siêu nhân mobile bay nhanh ngang desktop · v1.7.0: trang Giao diện (bật / tắt từng hiệu ứng, "cứ N giây"), nhân vật chạy cùng lúc, theme gốc · xếp hình đom đóm 40 s / lượt · bỏ cực quang · BXH: đối thủ thò đầu trêu (§4.8) · bỏ tooltip / nhãn phụ, bỏ cảnh "người đuổi theo", réo tên đối thủ (gạ kèo, điều ước), câu mới, tên dài cắt gọn, chữ giữ cỡ cố định, công tắc tắt hoạt ảnh
 
 Toàn bộ **tình huống** và **câu thoại** của nền bầu trời động (thiết kế gốc dựng cho trang chủ cá
 nhân, nay dùng chung nhiều trang), cho **cả hai chế độ** Tối (bầu trời sao) và Sáng (hoàng hôn trên
@@ -54,7 +54,10 @@ Danh sách ở `app.json → sky`:
   bên dưới đè lên. **Mobile (≤ 768px):** thẻ và ô dính không làm mờ (thẻ cao vượt giới hạn GPU của
   điện thoại → mất nội dung từ một đường cắt ngang), bù bằng thẻ đặc hơn (0.9, lõm 0.85). Thẻ trong
   dialog / popup không làm mờ ở mọi màn. Chi tiết `DESIGN.md §2.2`.
-- **Cuộn xuống:** lớp nhân vật trôi lên theo và mờ dần, quá 80px thì ẩn hẳn (trời vẫn còn).
+- **Cuộn xuống:** lớp nhân vật trôi lên theo và mờ dần, quá 80px thì ẩn hẳn (trời vẫn còn). Lúc ẩn, sân
+  khấu (băng rôn, đom đóm, siêu nhân, UFO) **tạm dừng**: không cho cảnh mới ra, cảnh đang diễn chạy nốt; cuộn
+  lên lại thì cảnh nào tới hạn ra ngay (trong ~1 s). Lý do ẩn: lớp này nằm trên nội dung và bấm được — hiện
+  khi cuộn thì nhân vật bay đè lên thẻ, chặn cú chạm.
 - **Tắt hoạt ảnh** (trang Giao diện → "Bật hoạt ảnh"): trời vẫn vẽ nhưng **đứng yên**, không nhân vật /
   hoạt cảnh nào — giống hệt khi hệ điều hành bật "Giảm chuyển động" (§8). Hệ điều hành đang bật "Giảm
   chuyển động" thì công tắc khoá ở trạng thái tắt, kèm ghi chú.
@@ -286,7 +289,9 @@ hai nhịp riêng nên có lúc cùng bay.)
 1. UFO bay vào từ **trái hoặc phải** (ngẫu nhiên) theo đường cong, lượn rồi đứng ở header — desktop
    khoảng 56 – 74% bề ngang màn, mobile 32 – 68%. Người ngoài hành tinh xanh ngồi trong khoang kính,
    đèn quanh thân nhấp nháy, thân lắc nhẹ.
-2. UFO bật tia hút xuống tận **mép dưới màn**; một người từ dưới màn bị hút lên, đung đưa trong tia.
+2. UFO bật tia hút xuống tận **mặt đất**; một người từ dưới bị hút lên, đung đưa trong tia. Mặt đất = mép
+   dưới màn; mobile là **mép trên thanh điều hướng dưới** (thanh đè lên lớp nhân vật — đo lúc cảnh bắt đầu,
+   `data-footer-nav`), nên người trồi lên / đáp xuống không bị thanh che.
    Người bị bắt rút từ túi 2 (lần lượt đổi nhau):
    - **Bạn** — áo teal;
    - **Người ngay trên bạn trên BXH mùa** — áo hồng buộc tóc. Đang hạng 1 hoặc chưa có hạng (không
@@ -301,9 +306,9 @@ hai nhịp riêng nên có lúc cùng bay.)
 | --- | --- | --- |
 | Bắt cóc | Người bị hút vào tàu (thu nhỏ dần rồi biến mất), UFO bay vút lên khỏi màn | UFO nói câu bắt cóc |
 | Siêu nhân cứu | Tia vừa tắt thì siêu nhân bay tới từ một phía bất kỳ, đỡ người rồi bế bay đi; UFO bay mất | UFO: "?!" · Siêu nhân nói câu cứu (cùng một câu cho ai cũng vậy) · người được cứu cảm ơn |
-| Bị bắn rơi | Tên lửa phóng từ đáy màn lên trúng UFO: chớp nổ **BÙM!**, UFO bốc cháy, lộn nhào rơi khỏi màn kèm vệt khói; người bung dù (dù teal nếu là bạn, hồng nếu là người kia) đáp xuống | UFO: "Á á á!" · người đáp dù nói câu thoát nạn |
-| Tia chập | Tia chập chờn rồi tắt, người tuột rơi xuống, nảy một nhịp rồi rơi khỏi màn; UFO bay mất | UFO: "Ơ… tuột rồi?!" · người rơi nói 1 câu (từ túi) |
-| Trả lại | Người bị hút lên sát tàu (thu nhỏ), một lúc sau bị thả trả xuống, đứng ngơ ngác rồi rơi khỏi màn | UFO chê 1 câu · người bị trả hỏi lại 1 câu (đều từ túi) |
+| Bị bắn rơi | Tên lửa phóng từ đáy màn lên trúng UFO: chớp nổ **BÙM!**, UFO bốc cháy, lộn nhào rơi khỏi màn kèm vệt khói; người bung dù (dù teal nếu là bạn, hồng nếu là người kia) đáp xuống đất, cụp dù, đứng một lúc rồi **chạy ngang** ra mép màn gần hơn | UFO: "Á á á!" · người đáp dù nói câu thoát nạn |
+| Tia chập | Tia chập chờn rồi tắt, người tuột rơi xuống, nảy một nhịp, đứng một lúc rồi **chạy ngang** khỏi màn; UFO bay mất | UFO: "Ơ… tuột rồi?!" · người rơi nói 1 câu (từ túi) |
+| Trả lại | Người bị hút lên sát tàu (thu nhỏ), một lúc sau bị thả trả xuống, đứng ngơ ngác rồi **chạy ngang** khỏi màn | UFO chê 1 câu · người bị trả hỏi lại 1 câu (đều từ túi) |
 
 - Chưa có hạng mùa → bỏ kết cục bắt cóc (không có câu "Mượn tay vợt hạng …"), túi còn 4 kết cục.
 - Chữ trong bóng thoại luôn 11px dù UFO được phóng to (desktop ×1.25, mobile ×0.9) và dù khung bị
