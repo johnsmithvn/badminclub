@@ -91,11 +91,16 @@ export default function SakuraEvent({ member, isMobile }) {
   const club = db.club?.name || ''
   const key = `badminclub_${today.slice(0, 4)}${cfg.date.replace('-', '')}_sakura_${target.id}`
   const female = isFemalePlayer(target)
+  // Hiện từ `date` tới hết `until` (MM-DD so chuỗi được). Thiệp chỉ tự mở MỘT lần trong cả đợt,
+  // những ngày sau chỉ còn banner.
+  const md = today.slice(5)
+  const live = md >= cfg.date && md <= (cfg.until || cfg.date)
 
   const [rm] = useState(() => {
     try { return window.matchMedia('(prefers-reduced-motion: reduce)').matches } catch { return false }
   })
-  const [phase, setPhase] = useState(() => (female && (preview || !seen(key)) ? 'open' : 'closed'))
+  const [autoOpen] = useState(() => female && (preview || (live && !seen(key))))
+  const [phase, setPhase] = useState(autoOpen ? 'open' : 'closed')
   const [rcv, setRcv] = useState(false)
   const [burstN, setBurstN] = useState(0)
   const [trollCard, setTrollCard] = useState(false)
@@ -118,6 +123,12 @@ export default function SakuraEvent({ member, isMobile }) {
     }
   }, [phase, rm])
 
+  // Ghi khoá ngay lúc thiệp tự mở, không đợi bấm đóng: tắt app giữa chừng thì hôm sau cũng chỉ còn banner.
+  useEffect(() => {
+    if (!autoOpen || preview) return
+    try { localStorage.setItem(key, '1') } catch { /* storage tắt — tệ nhất là thiệp tự mở thêm lần nữa */ }
+  }, [autoOpen, preview, key])
+
   // Màn nạp năng lượng: chạy 1,9 giây, dừng ở 100% một nhịp rồi lật ra thiệp troll.
   useEffect(() => {
     if (!chargeN) return
@@ -134,7 +145,7 @@ export default function SakuraEvent({ member, isMobile }) {
     return () => clearInterval(id)
   }, [chargeN])
 
-  if (!preview && today.slice(5) !== cfg.date) return null
+  if (!preview && !live) return null
 
   const viewed = viewId ? (db.members || []).find((m) => m.id === viewId) : null
   const remember = () => {
