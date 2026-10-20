@@ -38,6 +38,8 @@ const SK = {
 }
 const EASE = 'cubic-bezier(.2,.8,.2,1)'
 const TROLL_ICONS = ['🤨', '😏', '🙄']
+// Giá trị option "Hiệu ứng con trai" trong ô chọn — không trùng được id thành viên (uuid).
+const TROLL_PICK = '__troll'
 // Huy hiệu răng cưa 12 cánh cho sticker "+1 nữ tính".
 const SEAL = 'polygon(' + Array.from({ length: 24 }, (_, i) => {
   const a = (i / 24) * Math.PI * 2, r = i % 2 ? 41 : 50
@@ -165,18 +167,20 @@ export default function SakuraEvent({ member, isMobile }) {
     setBurstN((n) => n + 1)
     setPhase('burst')
   }
+  // Luồng troll của con trai: popup → "Vẫn xem" → nạp năng lượng → thiệp troll.
+  const openTroll = () => {
+    setTrollN((n) => n + 1)
+    setTrollOpen(true)
+  }
   const onBanner = () => {
-    if (!female) {
-      setTrollN((n) => n + 1)
-      setTrollOpen(true)
-      return
-    }
+    if (!female) return openTroll()
     setViewId(null)
     setTrollCard(false)
     setRcv(false)
     setPhase('open')
   }
   const openFor = (id) => {
+    if (id === TROLL_PICK) return openTroll()
     setViewId(id)
     setTrollCard(false)
     setRcv(false)
@@ -271,6 +275,7 @@ function Banner({ isMobile, club, rm, label, onTap, people, onPick }) {
         {people.map((p) => (
           <option key={p.id} value={p.id} style={{ color: SK.title, background: SK.paper }}>{p.name}</option>
         ))}
+        <option value={TROLL_PICK} style={{ color: SK.title, background: SK.paper }}>{t('event2010.trollPick')}</option>
       </select>
       <span aria-hidden="true" style={{ position: 'absolute', right: m ? 11 : 14, top: '50%', transform: 'translateY(-50%)', pointerEvents: 'none', color: SK.pickFg, fontSize: 10 }}>▾</span>
     </span>
