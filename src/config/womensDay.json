@@ -1,7 +1,7 @@
 {
   "_help": "Sự kiện 20/10, hiện từ date tới hết until (MM-DD), thiệp chỉ tự mở một lần trong cả đợt. Mỗi khoá trong greetings là id thành viên (bảng members). name = tên in trên thiệp (tự in đậm khi xuất hiện trong lời chúc), realName = cách gọi bằng tên thật ở câu “Luôn rạng rỡ nhé, …!” sau khi nhận, in nguyên văn, vd “bạn Mai” (bỏ trống thì dùng name), msg = lời chúc mặt trước: câu đầu thành câu dẫn chữ to, câu cuối vào khung có dây hoa, bọc **cụm** để tô nền nhấn mạnh, bọc !!cụm!! để in hồng đậm giãn chữ (chữ cài cắm cho người tinh ý). final = câu hiện ra sau khi bấm Nhận lời chúc. Thành viên nữ không có trong danh sách nhận lời chúc chung trong vi.json (event2010.*).",
   "date": "10-20",
-  "until": "10-25",
+  "until": "10-21",
   "bannerImage": "/event/sakura-banner.png",
   "greetings": {
     "7d531f89-60b6-46ba-9805-b12d5087a385": {
