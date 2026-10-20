@@ -26,7 +26,7 @@ const SK = {
   line: 'rgba(255,170,205,.32)',
   banner: 'radial-gradient(120% 150% at 100% 0%, rgba(255,143,191,.28), transparent 58%), linear-gradient(120deg,#131B30 0%,#1D1832 62%,#2A1A3B 100%)',
   thumb: 'radial-gradient(circle at 50% 40%, rgba(255,190,220,.35), rgba(42,26,59,.6) 70%)',
-  bannerBtn: 'linear-gradient(180deg,#FFB3D3,#F27AB0)', pickBg: 'rgba(255,143,191,.12)', pickLine: 'rgba(255,170,205,.5)', pickFg: '#FFD3E5',
+  bannerBtn: 'linear-gradient(180deg,#FFB3D3,#F27AB0)', pickFg: '#FFD3E5',
   // thiệp (nền giấy)
   paper: '#FFFBFC', title: '#2E0F22', body: '#4A3442', soft: '#8A5A73', deep: '#8A1F52', rose: '#C2306F',
   paperLine: 'rgba(232,85,143,.22)', chip: '#FFF1F6', chipLine: 'rgba(232,85,143,.25)', hl: '#FFE6EF',
@@ -264,12 +264,14 @@ function Banner({ isMobile, club, rm, label, onTap, people, onPick }) {
   )
   // Ô chọn tự nhiên của trình duyệt: điện thoại bật bảng chọn hệ thống, khỏi dựng dropdown riêng.
   // value luôn rỗng để chọn lại đúng người vừa xem vẫn mở được.
+  // Kiểu link phụ (không viền, không nền) để không trông như bước bắt buộc trước khi mở thiệp.
   const pick = people.length > 0 && (
-    <span style={{ position: 'relative', display: 'flex', minWidth: 0, maxWidth: m ? '100%' : 220, alignSelf: m ? 'flex-start' : 'stretch' }}>
+    <span style={{ position: 'relative', display: 'flex', minWidth: 0, maxWidth: m ? '100%' : 220, alignSelf: 'center' }}>
       <select value="" aria-label={t('event2010.viewOf')} onChange={(e) => e.target.value && onPick(e.target.value)} style={{
         appearance: 'none', WebkitAppearance: 'none', minWidth: 0, maxWidth: '100%', margin: 0, cursor: 'pointer',
-        padding: m ? '8px 28px 8px 13px' : '11px 32px 11px 16px', borderRadius: 999, border: '1px solid ' + SK.pickLine,
-        background: SK.pickBg, color: SK.pickFg, font: `600 ${m ? 12.5 : 14}px/1 var(--font-sans)`, textOverflow: 'ellipsis',
+        padding: m ? '6px 16px 6px 2px' : '4px 16px 4px 2px', border: 0, background: 'transparent', color: SK.pickFg,
+        font: `500 ${m ? 12 : 13}px/1.2 var(--font-sans)`, textOverflow: 'ellipsis',
+        textDecoration: 'underline dotted', textUnderlineOffset: 3, opacity: 0.85,
       }}>
         <option value="" disabled>{t('event2010.viewOf')}</option>
         {people.map((p) => (
@@ -277,7 +279,7 @@ function Banner({ isMobile, club, rm, label, onTap, people, onPick }) {
         ))}
         <option value={TROLL_PICK} style={{ color: SK.title, background: SK.paper }}>{t('event2010.trollPick')}</option>
       </select>
-      <span aria-hidden="true" style={{ position: 'absolute', right: m ? 11 : 14, top: '50%', transform: 'translateY(-50%)', pointerEvents: 'none', color: SK.pickFg, fontSize: 10 }}>▾</span>
+      <span aria-hidden="true" style={{ position: 'absolute', right: 2, top: '50%', transform: 'translateY(-50%)', pointerEvents: 'none', color: SK.pickFg, fontSize: 9, opacity: 0.85 }}>▾</span>
     </span>
   )
   return (
