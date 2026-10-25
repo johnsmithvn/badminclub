@@ -26,7 +26,7 @@ const SK = {
   line: 'rgba(255,170,205,.32)',
   banner: 'radial-gradient(120% 150% at 100% 0%, rgba(255,143,191,.28), transparent 58%), linear-gradient(120deg,#131B30 0%,#1D1832 62%,#2A1A3B 100%)',
   thumb: 'radial-gradient(circle at 50% 40%, rgba(255,190,220,.35), rgba(42,26,59,.6) 70%)',
-  bannerBtn: 'linear-gradient(180deg,#FFB3D3,#F27AB0)', pickBg: 'rgba(255,143,191,.12)', pickLine: 'rgba(255,170,205,.5)', pickFg: '#FFD3E5',
+  bannerBtn: 'linear-gradient(180deg,#FFB3D3,#F27AB0)', pickFg: '#FFD3E5',
   // thiệp (nền giấy)
   paper: '#FFFBFC', title: '#2E0F22', body: '#4A3442', soft: '#8A5A73', deep: '#8A1F52', rose: '#C2306F',
   paperLine: 'rgba(232,85,143,.22)', chip: '#FFF1F6', chipLine: 'rgba(232,85,143,.25)', hl: '#FFE6EF',
@@ -38,6 +38,8 @@ const SK = {
 }
 const EASE = 'cubic-bezier(.2,.8,.2,1)'
 const TROLL_ICONS = ['🤨', '😏', '🙄']
+// Giá trị option "Hiệu ứng con trai" trong ô chọn — không trùng được id thành viên (uuid).
+const TROLL_PICK = '__troll'
 // Huy hiệu răng cưa 12 cánh cho sticker "+1 nữ tính".
 const SEAL = 'polygon(' + Array.from({ length: 24 }, (_, i) => {
   const a = (i / 24) * Math.PI * 2, r = i % 2 ? 41 : 50
@@ -165,18 +167,20 @@ export default function SakuraEvent({ member, isMobile }) {
     setBurstN((n) => n + 1)
     setPhase('burst')
   }
+  // Luồng troll của con trai: popup → "Vẫn xem" → nạp năng lượng → thiệp troll.
+  const openTroll = () => {
+    setTrollN((n) => n + 1)
+    setTrollOpen(true)
+  }
   const onBanner = () => {
-    if (!female) {
-      setTrollN((n) => n + 1)
-      setTrollOpen(true)
-      return
-    }
+    if (!female) return openTroll()
     setViewId(null)
     setTrollCard(false)
     setRcv(false)
     setPhase('open')
   }
   const openFor = (id) => {
+    if (id === TROLL_PICK) return openTroll()
     setViewId(id)
     setTrollCard(false)
     setRcv(false)
@@ -260,19 +264,29 @@ function Banner({ isMobile, club, rm, label, onTap, people, onPick }) {
   )
   // Ô chọn tự nhiên của trình duyệt: điện thoại bật bảng chọn hệ thống, khỏi dựng dropdown riêng.
   // value luôn rỗng để chọn lại đúng người vừa xem vẫn mở được.
+  // Kiểu link phụ (không viền, không nền) để không trông như bước bắt buộc trước khi mở thiệp.
+  // Chữ hiển thị là span thường (để gạch dưới chắc chắn hiện — <select> trên mobile bỏ qua text-decoration),
+  // ô chọn trong suốt phủ lên trên nhận cú bấm và bật bảng chọn hệ thống.
   const pick = people.length > 0 && (
-    <span style={{ position: 'relative', display: 'flex', minWidth: 0, maxWidth: m ? '100%' : 220, alignSelf: m ? 'flex-start' : 'stretch' }}>
+    <span style={{
+      position: 'relative', display: 'inline-flex', alignItems: 'center', gap: 5, minWidth: 0, maxWidth: m ? '100%' : 220,
+      alignSelf: 'center', padding: m ? '6px 2px' : '4px 2px', color: SK.pickFg, font: `600 ${m ? 12 : 13}px/1.2 var(--font-sans)`,
+    }}>
+      <span style={{
+        minWidth: 0, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap',
+        textDecoration: 'underline', textDecorationThickness: 1, textUnderlineOffset: 3, textDecorationColor: SK.pinkSoft,
+      }}>{t('event2010.viewOf')}</span>
+      <span aria-hidden="true" style={{ fontSize: 9 }}>▾</span>
       <select value="" aria-label={t('event2010.viewOf')} onChange={(e) => e.target.value && onPick(e.target.value)} style={{
-        appearance: 'none', WebkitAppearance: 'none', minWidth: 0, maxWidth: '100%', margin: 0, cursor: 'pointer',
-        padding: m ? '8px 28px 8px 13px' : '11px 32px 11px 16px', borderRadius: 999, border: '1px solid ' + SK.pickLine,
-        background: SK.pickBg, color: SK.pickFg, font: `600 ${m ? 12.5 : 14}px/1 var(--font-sans)`, textOverflow: 'ellipsis',
+        position: 'absolute', inset: 0, width: '100%', height: '100%', opacity: 0, margin: 0, cursor: 'pointer',
+        appearance: 'none', WebkitAppearance: 'none', border: 0, fontSize: 16,
       }}>
         <option value="" disabled>{t('event2010.viewOf')}</option>
         {people.map((p) => (
           <option key={p.id} value={p.id} style={{ color: SK.title, background: SK.paper }}>{p.name}</option>
         ))}
+        <option value={TROLL_PICK} style={{ color: SK.title, background: SK.paper }}>{t('event2010.trollPick')}</option>
       </select>
-      <span aria-hidden="true" style={{ position: 'absolute', right: m ? 11 : 14, top: '50%', transform: 'translateY(-50%)', pointerEvents: 'none', color: SK.pickFg, fontSize: 10 }}>▾</span>
     </span>
   )
   return (

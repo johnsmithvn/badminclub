@@ -1,7 +1,7 @@
 {
   "_help": "Sự kiện 20/10, hiện từ date tới hết until (MM-DD), thiệp chỉ tự mở một lần trong cả đợt. Mỗi khoá trong greetings là id thành viên (bảng members). name = tên in trên thiệp (tự in đậm khi xuất hiện trong lời chúc), realName = cách gọi bằng tên thật ở câu “Luôn rạng rỡ nhé, …!” sau khi nhận, in nguyên văn, vd “bạn Mai” (bỏ trống thì dùng name), msg = lời chúc mặt trước: câu đầu thành câu dẫn chữ to, câu cuối vào khung có dây hoa, bọc **cụm** để tô nền nhấn mạnh, bọc !!cụm!! để in hồng đậm giãn chữ (chữ cài cắm cho người tinh ý). final = câu hiện ra sau khi bấm Nhận lời chúc. Thành viên nữ không có trong danh sách nhận lời chúc chung trong vi.json (event2010.*).",
   "date": "10-20",
-  "until": "10-25",
+  "until": "10-21",
   "bannerImage": "/event/sakura-banner.png",
   "greetings": {
     "7d531f89-60b6-46ba-9805-b12d5087a385": {
@@ -24,7 +24,7 @@
     "ffd44c31-2082-48a1-942d-4811af1eae85": {
       "name": "Thúy Anh",
       "msg": "Chúc Thúy Anh 20/10 thật rạng rỡ. Bạn đánh chắc tay, ra sân đều, và luôn là **đồng đội dễ chịu** mà chị em nào cũng muốn cặp cùng. Mùa này thua hơi nhiều thật, chắc tại dễ chịu quá nên **nhường điểm** cho cả đối thủ luôn. Từ giờ dễ chịu với đồng đội thôi, còn đối thủ thì cứ đập không thương tiếc!",
-      "final": "Trận hôm nay bạn thắng chắc rồi: không có đối thủ, chỉ có hoa và lời chúc! Còn quà thì… biết đâu là từ một bạn quờ… giấu tên nào đấy!"
+      "final": "Trận hôm nay bạn thắng chắc rồi: không có đối thủ, chỉ có hoa và lời chúc! Còn quà thì… biết đâu đấy!"
     },
     "36b1ed12-4a31-4375-bc3f-29d0c4825ffe": {
       "name": "Hoa",
