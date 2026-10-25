@@ -233,7 +233,7 @@ Bên cạnh **Sổ quỹ**, hệ thống có **Thi đấu & Đẳng cấp** hoà
 ### Tầng E: Hệ thống Quản Lý Mùa Giải CLB (Seasons Engine)
 
 - **Đa mùa giải linh hoạt (`clubs.seasons jsonb`)**: Cho phép CLB tạo nhiều mùa giải nối tiếp nhau (hoặc các giải ngắn hạn), xác định mùa active, thời gian bắt đầu/kết thúc, số trận tiêu chuẩn.
-- **Lưu trữ bục vinh quang (Podium Snapshot)**: Khi đóng mùa giải, hệ thống chụp lại Top 1, Top 2, Top 3 cùng bảng xếp hạng chung cuộc lưu vào `podiumSnapshot`.
+- **Chốt bảng mùa (0073)**: Khi đóng mùa giải, bảng xếp hạng chung cuộc được ghi vào `season_standings` cùng giao dịch với việc đóng mùa (RPC `season_freeze`); mùa đã chốt đọc bảng này, không tính lại từ trận. Top 3 lưu gọn trong `podiumSnapshot`.
 - **Reset Điểm Mùa an toàn**: Chuyển mùa chỉ reset Điểm Mùa (Season Points) về điểm khởi tạo, hoàn toàn bảo toàn lịch sử trận đấu và điểm Elo Career.
 
 ### Tầng F: Phân Hệ Giải Đấu Toàn Diện (Tournament System — 16 bảng `tournament_*`)

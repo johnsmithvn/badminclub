@@ -1306,3 +1306,10 @@ export const libPostRow = (p) => ({
   videos: p.videos || [],
   ...('sessionId' in p ? { session_id: uu(p.sessionId) } : {}),
 })
+
+/* =========================================================================
+   BẢNG CHỐT MÙA (0073) — KHÔNG vào TABLES / diff(): chỉ đọc theo mùa, ghi qua RPC season_freeze.
+   ========================================================================= */
+
+/** Một dòng `season_standings` → dòng bảng xếp hạng. Hạng / điểm lấy từ cột — chính số SQL tra theo. */
+export const toStanding = (r) => ({ ...(r.data || {}), rank: r.rank, totalSeasonPoints: r.points })

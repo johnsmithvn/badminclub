@@ -322,6 +322,14 @@ export const SCHEMA_GROUPS = [
         ],
       },
       {
+        name: 'season_standings',
+        fields: [
+          f('id', 'uuid', 'PK'), f('club_id', 'uuid', 'FK'), f('season_id', 'text · uniq (club, season, member)'),
+          f('member_id', 'uuid'), f('rank', 'int'), f('points', 'int'), f('data', 'jsonb'),
+          f('frozen_at', 'timestamptz'), f('frozen_by', 'uuid null'),
+        ],
+      },
+      {
         name: 'match_edits',
         fields: [
           f('id', 'uuid', 'PK'), f('club_id', 'uuid', 'FK'), f('match_id', 'uuid', 'FK'),

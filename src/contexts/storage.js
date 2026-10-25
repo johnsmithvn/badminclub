@@ -10,7 +10,7 @@
 // thì người ghi sau thắng. Chấp nhận được vì đơn vị ghi là từng dòng, không phải cả CLB.
 
 import { supabase, unwrap } from '#supabase'
-import { SLICE_TABLES, clubRow, diff, mergeSessionSlice, toDb, toLibPost, toRows, toTour, toTourMatch, toTourMatchEdit, videosRow } from '#contexts/dbmap.js'
+import { SLICE_TABLES, clubRow, diff, mergeSessionSlice, toDb, toLibPost, toRows, toStanding, toTour, toTourMatch, toTourMatchEdit, videosRow } from '#contexts/dbmap.js'
 import { monthOf, todayISO } from '#utils/dates.js'
 import { t } from '#i18n'
 import cfg from '#config/app.json' with { type: 'json' }
@@ -716,3 +716,20 @@ export async function libraryRpc(name, args) {
 
 
 
+
+/* ================= BẢNG CHỐT MÙA I/O (0073) ================= */
+// Không nằm trong `db` gốc: chỉ nạp khi mở một mùa đã chốt, ghi qua RPC season_freeze.
+
+/** Bảng chốt của một mùa, theo hạng. */
+export async function loadSeasonStandings(clubId, seasonId) {
+  if (!supabase) throw new Error('Chưa cấu hình Supabase')
+  const res = await supabase.from('season_standings').select('rank, points, data')
+    .eq('club_id', clubId).eq('season_id', seasonId).order('rank', { ascending: true })
+  return (unwrap(res) || []).map(toStanding)
+}
+
+/** Chốt bảng một mùa VÀ ghi `clubs.seasons` trong cùng một giao dịch. Trả số dòng đã chốt. */
+export async function freezeSeason(clubId, seasonId, rows, seasons) {
+  if (!supabase) throw new Error('Chưa cấu hình Supabase')
+  return unwrap(await supabase.rpc('season_freeze', { p_club: clubId, p_season_id: seasonId, p_rows: rows, p_seasons: seasons }))
+}

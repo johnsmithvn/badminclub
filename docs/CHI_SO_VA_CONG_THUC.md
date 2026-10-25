@@ -24,7 +24,7 @@
 | Phiếu dự đoán kèo | ✅ CÓ | `challenge_predictions` | Đã quyết toán là bất biến |
 | Kệ danh hiệu (3 cái khoe) | ✅ CÓ | `club_members.badge_shelf` | Không ảnh hưởng |
 | Châm ngôn cá nhân | ✅ CÓ | `club_members.signature` | Người dùng tự sửa |
-| Mùa giải & Đóng băng BXH | ✅ CÓ | `clubs.seasons jsonb` (`podiumSnapshot`) | Lưu lịch sử khi hết mùa |
+| Mùa giải & Đóng băng BXH | ✅ CÓ | `clubs.seasons jsonb` + `season_standings` (0073) | Chốt một lần khi hết mùa, không tính lại |
 | Đăng ký Web Push PWA | ✅ CÓ | `push_subscriptions` | Thiết bị tự đăng ký |
 | **Kết quả trận Giải đấu** | ✅ **CÓ** | `tournament_matches.sets/winner` | 🔒 **Cách ly hoàn toàn khỏi Elo/SP CLB** |
 | Thứ hạng bảng Giải đấu | ✅ CÓ | `tournament_group_teams.final_rank` | BTC chốt hoặc bốc thăm |
@@ -444,12 +444,17 @@ Hệ thống hỗ trợ nhiều mùa giải song song hoặc nối tiếp nhau:
   Chỉ các trận nằm trong khung thời gian từ `startDate` đến `endDate` (hoặc thuộc các buổi
   `sessions` trong mùa) mới được tính vào BXH Điểm Mùa.
 - **Phiếu dự đoán cược** — tính theo thời điểm quyết toán (`settledAt`) nằm trong khung mùa.
-- **Đóng băng kết quả mùa giải (`podiumSnapshot`)**:
-  Khi mùa giải kết thúc (Admin bấm "Chốt mùa / Đóng mùa"), danh sách Top 1, 2, 3 và toàn bộ bảng
-  xếp hạng hoàn chỉnh tại thời điểm đó được đóng băng thành một snapshot JSON lưu vào
-  `clubs.seasons[i].podiumSnapshot`.
-  **Mục đích sống còn:** Bảo lưu lịch sử vinh danh bất biến. Sau này nếu admin có sửa trận cũ hoặc
-  bấm "Đồng bộ lại Elo", snapshot mùa cũ vẫn đứng yên nguyên vẹn 100%, không bị xáo trộn.
+- **Chốt bảng mùa đã đóng (`season_standings`, 0073)**:
+  Bấm "Kết thúc mùa" là app dựng bảng xếp hạng một lần (`buildSeasonStandings`) rồi ghi vào bảng
+  `season_standings` — mỗi người một dòng, giữ nguyên dòng BXH kèm sổ điểm từng trận và Elo lúc chốt —
+  CÙNG giao dịch với việc đóng mùa trong `clubs.seasons` (mùa mang `frozenAt`, `frozenStats`, và
+  khoá luôn `startPoints` / `challengeMultiplier` đã dùng). RPC `season_freeze`, chốt một lần.
+  Mùa đã chốt: `calculateSeasonLeaderboard` trả bảng chốt (`db.seasonStandings`, nạp riêng từng mùa
+  qua `useSeasonStandings`), KHÔNG tính lại từ trận. "Đồng bộ lại Elo", sửa tỉ số, đổi trình độ, sửa
+  code công thức, người nghỉ CLB đều không đổi được bảng đó. Mùa đang chạy vẫn tính trực tiếp.
+  Mùa đóng trước khi có 0073 (Q3): chủ CLB bấm "Chốt bảng" ở Cài đặt mùa — chốt theo số đang hiện.
+- **Bục vinh danh (`podiumSnapshot`)**: top 3 lúc trao giải, chỉ giữ trường gọn (id, tên, hạng,
+  giới tính, điểm…) — huy hiệu "vô địch mùa" đọc từ đây.
 
 ---
 
@@ -915,7 +920,8 @@ Cho phép giải đấu nhiều đội thi đấu số vòng rút gọn mà vẫ
 | `challenge_predictions` | `stake_points`, `team`, `status`, `settled_at`, `payout_points` | RPC 0042 quyết toán cược |
 | `club_members` | `badge_shelf` | người dùng chọn 3 danh hiệu để khoe |
 | `club_members` | `signature` | châm ngôn cá nhân của hội viên |
-| `clubs` | `seasons` (jsonb) | cấu hình mùa + `podiumSnapshot` đóng băng Top 1/2/3 và BXH mùa |
+| `clubs` | `seasons` (jsonb) | cấu hình mùa + `podiumSnapshot` top 3 + `frozenAt` khi đã chốt |
+| `season_standings` | `rank`, `points`, `data` | RPC `season_freeze` lúc kết thúc mùa / chốt mùa cũ (0073) |
 | `push_subscriptions` | `endpoint`, `p256dh`, `auth`, `user_id` | đăng ký Web Push PWA |
 | `attendances` | `state` (`true` / `extra` / `noshow` / `false`) | màn điểm danh |
 | `tournament_matches` | `sets`, `winner`, `status`, `rule` | kết quả trận giải đấu (cách ly khỏi Elo CLB) |

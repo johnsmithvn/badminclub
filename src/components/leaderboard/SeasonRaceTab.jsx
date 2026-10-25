@@ -97,7 +97,7 @@ export default function SeasonRaceTab({
     return (db.members || []).find((m) => m.userId === db.currentUserId) || null
   }, [db])
 
-  const { season, leaderboard = [], topStats = {} } = seasonLeaderboardData || {}
+  const { season, leaderboard = [], topStats = {}, frozen, pending } = seasonLeaderboardData || {}
 
   // Kệ mỗi người = danh hiệu đã gắn VÀ đang giữ ở mùa đang xem (cùng luật với trang Danh hiệu/hồ sơ)
   const shelfById = useMemo(() => {
@@ -167,7 +167,8 @@ export default function SeasonRaceTab({
           }}
         >
           <span style={{ fontSize: 16 }}>📁</span>
-          <span>{t('season.archivedSeasonNotice')}</span>
+          {/* "Không thay đổi" chỉ đúng khi bảng đã chốt; mùa đóng mà chưa chốt vẫn tính lại từ trận. */}
+          <span>{t(pending ? 'season.standingsLoading' : frozen ? 'season.archivedSeasonNotice' : 'season.archivedUnfrozenNotice')}</span>
         </div>
       )}
 

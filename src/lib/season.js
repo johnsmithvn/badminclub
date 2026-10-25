@@ -235,13 +235,114 @@ export function seasonMatchesOf(db, season = null) {
   })
 }
 
+/* ---------- BẢNG CHỐT MÙA (0073) ---------- */
+//
+// Mùa đã đóng đọc bảng chốt (`season_standings`), không tính lại từ trận: "Tính lại Elo", đổi
+// trình độ, sửa code công thức đều ghi đè dữ liệu mà công thức đọc — mùa cũ trôi theo dù đã trao giải.
+// Mùa đang chạy vẫn tính trực tiếp, nên sửa tỉ số nhập sai trong mùa vẫn chảy đúng vào điểm.
+
+/** Khoá của một mùa trong `db.seasonStandings` và cột `season_standings.season_id`. */
+export const seasonKeyOf = (season) => season?.id || season?.code || null
+
+// Trường được chốt — đúng những gì các màn mùa cũ đọc (BXH, sổ điểm, sòng bạc, hồ sơ, huy hiệu).
+// Liệt kê tường minh chứ không chép cả dòng: `member` mang SĐT / tài khoản ngân hàng, và `matchLogs`
+// gốc trải nguyên object trận — thêm trường vào bảng xếp hạng sau này không được tự lọt vào DB.
+const FROZEN_ROW_FIELDS = [
+  'id', 'name', 'avatar', 'avatarUrl', 'gender', 'level', 'rank', 'totalSeasonPoints', 'attendedCount',
+  'totalSessionsExpected', 'matchesCount', 'winsCount', 'lossesCount', 'winRate', 'upsetsCount',
+  'threeSetsCount', 'streak', 'isInactive', 'daysSinceLastMatch', 'lastMatchAt', 'breakdown',
+]
+const FROZEN_LOG_FIELDS = [
+  'id', 'at', 'sessionId', 'challengeId', 'sourceType', 'sets', 'teamA', 'teamB', 'inA', 'won', 'myElo',
+  'oppElo', 'isUpset', 'isThreeSets', 'delta', 'tier', 'gap', 'matchBonus', 'earnedStreakBonus',
+  'earnedUpsetBonus', 'effectiveChange', 'pointsAfter',
+]
+const FROZEN_PREDICTION_FIELDS = ['id', 'challengeId', 'memberId', 'stakePoints', 'status', 'settledAt']
+const PODIUM_FIELDS = ['id', 'name', 'rank', 'gender', 'level', 'avatarUrl', 'totalSeasonPoints', 'winsCount', 'matchesCount', 'winRate']
+
+const pick = (o, keys) => Object.fromEntries(keys.filter((k) => o?.[k] !== undefined).map((k) => [k, o[k]]))
+
+/**
+ * Dựng bảng chốt của một mùa từ dữ liệu hiện tại — chính các con số màn hình đang hiện.
+ * @param {Object} db
+ * @param {Object} season - mùa CHƯA chốt (đã chốt thì đây chỉ chép lại bảng chốt)
+ * @param {(memberId: string) => ({ rating, gamesCount, confidence } | null)} eloOf - Elo lúc chốt
+ * @returns {{ rows: Array<Object>, stats: { totalSeasonMatches: number, playedSessionsCount: number } }}
+ */
+export function buildSeasonStandings(db, season, eloOf = () => null) {
+  const { leaderboard, topStats } = calculateSeasonLeaderboard(db, season)
+  const rows = leaderboard.map((r) => {
+    const m = r.member || {}
+    const elo = eloOf(r.id)
+    return {
+      ...pick(r, FROZEN_ROW_FIELDS),
+      member: { id: r.id, name: m.name ?? r.name, avatarUrl: m.avatarUrl || m.avatar || '', gender: m.gender, level: m.level },
+      eloAtClose: elo?.rating ?? null,
+      gamesAtClose: elo?.gamesCount ?? 0,
+      confidenceAtClose: elo?.confidence || 'low',
+      matchLogs: (r.matchLogs || []).map((l) => pick(l, FROZEN_LOG_FIELDS)),
+      predictionLogs: (r.predictionLogs || []).map((l) => ({
+        at: l.at, numPts: l.numPts, pointsAfter: l.pointsAfter, prediction: pick(l.prediction, FROZEN_PREDICTION_FIELDS),
+      })),
+    }
+  })
+  return {
+    rows,
+    stats: { totalSeasonMatches: topStats.totalSeasonMatches, playedSessionsCount: topStats.playedSessionsCount },
+  }
+}
+
+/**
+ * Mùa sau khi chốt — đúng object ghi vào `clubs.seasons` cùng lúc với bảng chốt.
+ * Giữ bục vinh danh cũ nếu đã có (ảnh lúc trao giải là sự thật lịch sử), chỉ bỏ các trường cá nhân.
+ */
+export function frozenSeasonOf(season, standings, nowIso) {
+  const podium = season.podiumSnapshot?.length ? season.podiumSnapshot : standings.rows.slice(0, 3)
+  return {
+    ...season,
+    active: false,
+    closedAt: season.closedAt || nowIso,
+    frozenAt: nowIso,
+    frozenStats: standings.stats,
+    // Chốt luôn luật đã dùng: mùa không lưu thì engine lấy app.json, sửa app.json về sau sẽ đổi sổ.
+    startPoints: season.startPoints ?? cfg.season?.startPoints ?? 0,
+    challengeMultiplier: season.challengeMultiplier ?? cfg.season?.challengeMultiplier ?? 1,
+    podiumSnapshot: podium.map((p) => pick(p, PODIUM_FIELDS)),
+  }
+}
+
+/** Kết quả cùng dạng `calculateSeasonLeaderboard`, dựng từ bảng chốt. */
+function frozenSeasonResult(season, rows) {
+  const leaderboard = [...rows].sort((a, b) => a.rank - b.rank).map((r) => ({ ...r }))
+  // Sort ổn định trên mảng đã theo hạng: hoà thì người hạng trên thắng, y như nhánh tính trực tiếp.
+  const top = (key) => [...leaderboard].sort((a, b) => b[key] - a[key])[0] || null
+  return {
+    season,
+    leaderboard,
+    frozen: true,
+    topStats: {
+      totalSeasonPoints: leaderboard.reduce((s, r) => s + r.totalSeasonPoints, 0),
+      totalSeasonMatches: season.frozenStats?.totalSeasonMatches ?? 0,
+      leaderPlayer: leaderboard[0] || null,
+      mostAttendedPlayer: top('attendedCount'),
+      mostUpsetsPlayer: top('upsetsCount'),
+      playedSessionsCount: season.frozenStats?.playedSessionsCount ?? 0,
+    },
+  }
+}
+
 /**
  * Tính toán bảng xếp hạng Mùa giải theo cơ chế Cày Rank Thi Đấu (Season Points Leaderboard - Screen SS1)
+ * Mùa đã chốt mà bảng chốt đã nạp (`db.seasonStandings`) thì trả bảng chốt, không tính lại.
  * @param {Object} db - Toàn bộ dữ liệu CLB
  * @param {Object} [customSeason] - Cấu hình mùa giải tùy biến
  */
 export function calculateSeasonLeaderboard(db = {}, customSeason = null) {
-  const season = resolveSeason(db, customSeason) || cfg?.season || {
+  const resolved = resolveSeason(db, customSeason)
+  const frozenRows = resolved?.frozenAt ? db.seasonStandings?.[seasonKeyOf(resolved)] : null
+  if (frozenRows) return frozenSeasonResult(resolved, frozenRows)
+
+  const season = resolved || cfg?.season || {
     id: '2026-Q3',
     code: '2026-Q3',
     name: 'Thu Rực Lửa', // i18n-ok: default season name

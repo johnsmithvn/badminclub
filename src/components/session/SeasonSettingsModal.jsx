@@ -24,6 +24,9 @@ export default function SeasonSettingsModal({
   selectedSeasonId = null,
   onSelectSeason,
   canEdit = true,
+  // Chốt bảng mùa đã đóng từ trước khi có bảng chốt (0073). Cờ `settings` — đúng quyền RPC đòi.
+  canFreeze = false,
+  onFreezeSeason,
   onClose,
   onSaveSeason,
   onEndSeasonEarly,
@@ -31,6 +34,16 @@ export default function SeasonSettingsModal({
   const { isDark } = useTheme()
   const [editing, setEditing] = useState(false)
   const [confirmingEnd, setConfirmingEnd] = useState(false)
+  // Mùa đang hỏi xác nhận chốt / đang chốt — chốt là một chiều nên phải bấm hai lần.
+  const [freezeAsk, setFreezeAsk] = useState(null)
+  const [freezing, setFreezing] = useState(null)
+  const unfrozenSeasons = seasons.filter((s) => !s.active && !s.frozenAt)
+  const handleFreeze = async (key) => {
+    setFreezing(key)
+    await onFreezeSeason?.(key)
+    setFreezing(null)
+    setFreezeAsk(null)
+  }
   const [seasonName, setSeasonName] = useState(season.name || '')
   const [startDate, setStartDate] = useState(season.startDate || '2026-07-01')
   const [endDate, setEndDate] = useState(season.endDate || '2026-09-30')
@@ -90,7 +103,6 @@ export default function SeasonSettingsModal({
           startDate: nextStart,
           endDate: nextEnd,
         },
-        podiumSnapshot: topPodium,
       })
     }
   }
@@ -239,7 +251,7 @@ export default function SeasonSettingsModal({
                             {p.name}
                           </div>
                           <div style={{ font: "700 13px/1 'IBM Plex Mono', monospace", color: 'var(--teal-600)' }}>
-                            {p.points || 0} pts
+                            {p.totalSeasonPoints ?? p.points ?? 0} pts
                           </div>
                         </div>
                       </div>
@@ -383,6 +395,76 @@ export default function SeasonSettingsModal({
           </div>
         ) : (
           <>
+            {/* Mùa đã đóng nhưng chưa chốt bảng (đóng trước khi có 0073) */}
+            {canFreeze && unfrozenSeasons.length > 0 && (
+              <div
+                style={{
+                  background: isDark ? 'rgba(240,210,106,.12)' : 'rgba(245,158,11,.10)',
+                  border: '1px solid #F0D26A',
+                  borderRadius: 10,
+                  padding: 13,
+                  display: 'grid',
+                  gap: 9,
+                }}
+              >
+                <div style={{ font: "600 13px/1.2 'IBM Plex Sans', sans-serif", color: 'var(--text-primary)' }}>
+                  🔒 {t('season.freezeCardTitle')}
+                </div>
+                <div style={{ font: "400 12px/1.45 'IBM Plex Sans', sans-serif", color: 'var(--text-secondary)' }}>
+                  {t('season.freezeCardDesc')}
+                </div>
+                {unfrozenSeasons.map((s) => {
+                  const key = s.id || s.code
+                  const name = s.name || s.code || key
+                  const busy = freezing === key
+                  return (
+                    <div key={key} style={{ display: 'flex', alignItems: 'center', gap: 10, flexWrap: 'wrap' }}>
+                      <span style={{ flex: '1 1 180px', minWidth: 0, font: "600 12px/1.4 'IBM Plex Sans', sans-serif", color: 'var(--text-primary)' }}>
+                        {freezeAsk === key ? t('season.freezeConfirm', { name }) : `${name} (${s.startDate} → ${s.endDate})`}
+                      </span>
+                      {freezeAsk === key && (
+                        <button
+                          type="button"
+                          disabled={busy}
+                          onClick={() => setFreezeAsk(null)}
+                          style={{
+                            padding: '7px 12px',
+                            borderRadius: 6,
+                            background: 'var(--surface-raised)',
+                            border: '1px solid var(--border-default)',
+                            color: 'var(--text-primary)',
+                            fontWeight: 600,
+                            fontSize: 12,
+                            cursor: 'pointer',
+                          }}
+                        >
+                          {t('common.cancel')}
+                        </button>
+                      )}
+                      <button
+                        type="button"
+                        disabled={busy}
+                        onClick={() => (freezeAsk === key ? handleFreeze(key) : setFreezeAsk(key))}
+                        style={{
+                          padding: '7px 12px',
+                          borderRadius: 6,
+                          background: 'var(--teal-500)',
+                          color: '#04302C',
+                          border: 'none',
+                          fontWeight: 600,
+                          fontSize: 12,
+                          cursor: busy ? 'wait' : 'pointer',
+                          opacity: busy ? 0.6 : 1,
+                        }}
+                      >
+                        {freezeAsk === key ? t('season.freezeConfirmBtn') : t('season.freezeBtn')}
+                      </button>
+                    </div>
+                  )
+                })}
+              </div>
+            )}
+
             {/* 2 Top Cards */}
             <div style={{ display: 'grid', gridTemplateColumns: 'repeat(2, minmax(0, 1fr))', gap: 12 }}>
               {/* Mùa đang chạy */}

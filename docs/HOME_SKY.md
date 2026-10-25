@@ -29,7 +29,7 @@ Danh sách ở `app.json → sky`:
 | Loại | Trang (route) | Có gì |
 | --- | --- | --- |
 | `routes` — nền + nhân vật | Trang chủ (`home`) · Bảng xếp hạng (`leaderboard`) | Trời + nhân vật ghé thăm + sao ước (đêm) — đúng như mục 2–4 |
-| `liteRoutes` — bản nhẹ | Trận đấu & Kèo (`matches`) · Danh hiệu (`badges`) · Buổi tập (`sessions`) · Thư viện (`library`) · Thành viên (`members`) · Hồ sơ của tôi (`profile`) · Cài đặt (`settings`) · Giao diện (`theme`) | Theme gốc có chuyển động: trăng, sao, mưa sao băng + **cú mèo** (sau 22h). Không siêu nhân, UFO, băng rôn, xếp hình đom đóm, sao ước, không hoạt cảnh đêm (Cuội, cầu lửa, nguyệt thực), không nhóm hiệu ứng nền — đỡ nặng máy trên điện thoại |
+| `liteRoutes` — bản nhẹ | Trận đấu & Kèo (`matches`) · Danh hiệu (`badges`) · Buổi tập (`sessions`) · Thư viện (`library`) · Thành viên (`members`) · Hồ sơ của tôi (`profile`) · Cài đặt (`settings`) · Giao diện (`theme`) | Theme gốc có chuyển động: trăng, sao, mưa sao băng, cá voi sao, thành phố chân trời + **cú mèo** (sau 22h). Không siêu nhân, UFO, băng rôn, xếp hình đom đóm, sao ước, không hoạt cảnh đêm (Cuội, cầu lửa, nguyệt thực) — giữ máy nhẹ và mượt mà |
 | `bgRoutes` — chỉ nền, đứng yên | Chi tiết buổi tập (`session`) · Bài thư viện (`libraryPost`) | Trời **tĩnh** (không hoạt hình — trang ghi điểm hay mở cả buổi tối, chạy liên tục tốn pin): nền, sao, trăng, ngân hà, đom đóm đứng yên / mây, núi, biển mây. Không sao băng, sao chổi, cá voi, chòm sao, mưa sao băng, máy bay, chim, không hoạt cảnh đêm (§2.1). **Không** nhân vật, **không** sao ước, không tính số liệu |
 | Không có nền | Tổng quan CLB, Lịch tháng, Giải đấu (mọi trang con), Công nợ, Sổ quỹ, Sơ đồ dữ liệu | Như cũ |
 

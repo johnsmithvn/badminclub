@@ -490,7 +490,7 @@ Cung cấp tính năng dự đoán kết quả các trận thách đấu hấp d
   - Cho phép CLB tổ chức nhiều mùa giải kế tiếp nhau (Mùa 1, Mùa 2, Mùa hè, Mùa thu...).
   - Mỗi mùa giải xác định: Tên mùa, ngày bắt đầu, ngày kết thúc, trạng thái (`active` / `closed`), số trận tiêu chuẩn để xếp hạng chính thức (`minMatchesOfficial`).
 - **Lưu trữ Bục Vinh Quang (Podium Snapshots)**:
-  - Khi chủ CLB đóng mùa giải, hệ thống tự động chụp lại danh sách bục vinh quang (`podiumSnapshot`): Top 1 (Vàng), Top 2 (Bạc), Top 3 (Đồng) cùng toàn bộ bảng xếp hạng chung cuộc đóng băng của mùa đó.
+  - Khi chủ CLB đóng mùa giải, hệ thống chụp lại bục vinh quang (`podiumSnapshot`): Top 1 (Vàng), Top 2 (Bạc), Top 3 (Đồng), và chốt cứng toàn bộ bảng xếp hạng chung cuộc vào `season_standings` (0073) — "Đồng bộ lại Elo", sửa tỉ số hay đổi trình độ về sau không làm đổi bảng mùa cũ. Mùa đóng trước khi có tính năng này: chủ CLB bấm "Chốt bảng" ở Cài đặt mùa.
   - Cho phép thành viên tra cứu lại lịch sử vinh danh các mùa giải cũ bất cứ lúc nào trên giao diện Bảng xếp hạng.
 - **Cơ chế Reset Chuyển Mùa An Toàn**:
   - Khi bắt đầu mùa mới: Điểm Mùa (Season Points) của toàn bộ thành viên reset về 0, chuỗi thắng/thua mùa giải reset.

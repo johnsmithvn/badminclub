@@ -12,6 +12,7 @@ import BadgeDetailModal from '#components/badges/BadgeDetailModal.jsx'
 import BadgeUnlockModal from '#components/badges/BadgeUnlockModal.jsx'
 import CollectorLeaderboardTab from '#components/badges/CollectorLeaderboardTab.jsx'
 import { useMobile } from '#hooks/useMobile.js'
+import { useSeasonStandings } from '#hooks/useSeasonStandings.js'
 import MobileBadgeCollection, { BadgeFilterButton, MobileBadgeTopBar } from '#components/badges/mobile/MobileBadgeCollection.jsx'
 import TierBackdrop from '#components/badges/TierBackdrop.jsx'
 import { TIER_FX, levelTier } from '#components/badges/tierFx.js'
@@ -188,9 +189,11 @@ export default function Badges() {
   }, [db, currentSeason, preloadedSeasonMatches])
 
   // 3. Bảng xếp hạng mùa giải để lấy Điểm Mùa & Hạng Mùa THẬT
+  // Mùa đã chốt: chờ bảng chốt, không tính lại từ trận trong lúc chờ.
+  const standingsPending = useSeasonStandings(currentSeason)
   const seasonRows = useMemo(() => {
-    return getSeasonRankLeaderboard(db, currentSeason)
-  }, [db, currentSeason])
+    return standingsPending ? [] : getSeasonRankLeaderboard(db, currentSeason)
+  }, [db, currentSeason, standingsPending])
 
   const memberSeasonData = useMemo(() => {
     const found = seasonRows.find((r) => r.id === activeMemberId)

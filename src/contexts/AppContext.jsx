@@ -69,6 +69,9 @@ export function StoreProvider({ children }) {
           myRole: role,
           viewAs: (same && cur.viewAs) || role,
           sessionId: (same && cur.sessionId) || null,
+          // Bảng chốt mùa nạp riêng từng mùa và không bao giờ đổi — nạp lại CLB không được làm rơi nó,
+          // rơi là màn mùa cũ quay về tính lại từ trận đúng lúc đang mở.
+          seasonStandings: (same && cur.seasonStandings) || undefined,
         }
       })
       setError(null)

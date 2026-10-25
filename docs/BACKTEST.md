@@ -138,7 +138,8 @@ Chép vào `data/`, tạo mốc bằng `--save`, xong. Test tự động gác t�
 - **Ít buổi thì đừng chốt.** 50 trận đủ để loại phương án tệ, không đủ để tinh chỉnh hệ số.
 - **"Tính lại toàn bộ", "Huỷ trận", "Sửa tỉ số" ghi đè số Elo lưu trong MỌI trận** (`initialRatingA/B`)
   bằng công thức hiện tại và trình độ hiện tại. Điểm mùa đọc chính số đó, nên bấm một lần là điểm
-  mùa cả CLB xê dịch, kể cả mùa đã đóng. Đo 2026-10-16: 114/118 trận Q3 bị đổi số, điểm Q3 lệch tới
+  mùa cả CLB xê dịch, kể cả mùa đã đóng mà chưa chốt bảng (từ 0073, mùa đã chốt đọc `season_standings`,
+  không trôi nữa). Đo 2026-10-16: 114/118 trận Q3 bị đổi số, điểm Q3 lệch tới
   −19/người. File xuất SAU lần bấm không còn số cũ — so trước/sau phải dùng lịch sử thay đổi (§7.1).
 
 ### 7.1 Lịch sử thay đổi — dữ liệu để truy vết (0070)
@@ -179,20 +180,24 @@ ORDER BY id;
 
 ## 8. Bộ số mốc hiện tại
 
-Đo trên 118 trận · 8 buổi · trọn mùa 2026-Q3 (05/09 → 27/09, file bản 3 có kèo + phiếu cược):
+Đo trên 254 trận · 16 buổi · toàn bộ lịch sử 04/09 → 25/10 (trọn Q3 + Q4 tới 25/10, file bản 3
+có kèo + phiếu cược) — `data/all_2026-10-25_pk-badminton.json`:
 
 ```
-eloDrift          +82     ✓ ≈ +0.7/trận, do K khác nhau theo người (§2.6 CHI_SO_VA_CONG_THUC)
+eloDrift          +27     ✓ ≈ +0.1/trận
 clampGainTotal      0     ✓ sàn 0 không tạo điểm (từ khi có startPoints 100)
-totalUpsets         2     — chênh đội tối đa 200, mới chạm ngưỡng 150 vài lần
-tierCounts        balanced 220 · favored 91 · underdog 86
-                  heavyFavored 5 · deepUnderdog 4  ← hai dải ngoài hiếm khi chạy
-pairGapMedian     114     — xếp tay ghép mạnh + yếu, nên đôi lệch nhau nhiều
-teamGapMedian      45     ✓ trận cân (p90 113)
+totalUpsets        10
+tierCounts        balanced 386 · favored 221 · underdog 212
+                  heavyFavored 36 · deepUnderdog 30
+pairGapMedian     129     — xếp tay ghép mạnh + yếu, nên đôi lệch nhau nhiều (p90 310)
+teamGapMedian      58     ✓ trận cân (p90 146)
 ```
 
-Bộ 53 trận cũ (14/09) là tập con của bộ này nên đã bỏ. Mốc cũ lúc đó: `clampGainTotal` từng là +201
-trước khi có `startPoints`, nay về 0.
+File không có `range` nên khung điểm mùa của backtest là **gộp Q3 + Q4** (buổi đầu → buổi cuối).
+Điểm mùa trong mốc vẫn gác đúng công thức, nhưng **không phải** bảng Q4 trên app — muốn mốc riêng
+Q4 thì xuất thêm "Mùa hiện tại".
+
+Bộ 118 trận Q3 cũ (2026-Q3_pk-badminton) là tập con của bộ này nên đã bỏ.
 
 ---
 

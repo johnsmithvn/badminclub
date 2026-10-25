@@ -14,17 +14,17 @@ import { CATS, fundBalance, groupKey, ledger, undoTarget } from '#lib/ledger.js'
 import { modeToast, activeCourtIdxs, arrange, autoSplit, courtSlotIds, isLiveDone, matchStats, place, removePlayer, sessionPlayers, slotCourtIdx } from '#lib/assign.js'
 import { can, membersWithPerm, roleDesc, roleName, viewAsOptions } from '#lib/roles.js'
 import { applyScheduleEdit, planScheduleDelete, planScheduleEdit } from '#lib/schedules.js'
-import { teamRating, replayRatingCascade, MIN_RATING, applyRatingDelta, calcPlayerDeltas, rankTierOf, initialRatingOf, seedLevelOf, startLevelAfter, lastMatchAtOf, computeClubCalibration, confidenceOf } from '#lib/rating.js'
+import { teamRating, getPlayerRating, replayRatingCascade, MIN_RATING, applyRatingDelta, calcPlayerDeltas, rankTierOf, initialRatingOf, seedLevelOf, startLevelAfter, lastMatchAtOf, computeClubCalibration, confidenceOf } from '#lib/rating.js'
 import { nextChallengeCode, nextChallengeSetNo, isChallengeFullyAccepted, getChallengeSeriesProgress, canMemberPredict, availableSeasonPoints, stakeBaseOf, settlePredictionsLocal, expiredChallenges, orphanedChallenges, abandonedChallenges, isChallengeAccepted, validateStakePoints, challengeGuestIds, guestsMissingFromSession, openChallengeOfGuest } from '#lib/challenge.js'
 import { resolveVenue } from '#lib/forms.js'
 import { supabase, unwrap } from '#supabase'
 import { pathOf, buildPushUrl } from '#routes'
 import { t } from '#i18n'
 import { getMemberStreak, cleanShelf, calculateMemberBadges, resolveBadgeId } from '#lib/badges.js'
-import { seasonMatchesOf, calculateSeasonLeaderboard } from '#lib/season.js'
+import { seasonMatchesOf, calculateSeasonLeaderboard, buildSeasonStandings, frozenSeasonOf, seasonKeyOf } from '#lib/season.js'
 import { buildMatchBackup, validateMatchBackup } from '#lib/matchBackup.js'
 import cfgBadges from '#config/badges.json' with { type: 'json' }
-import { flushNow, loadTrace, pollSessionSlice, syncPatchMatchVideo } from '#contexts/storage.js'
+import { flushNow, freezeSeason as freezeSeasonIo, loadSeasonStandings as loadSeasonStandingsIo, loadTrace, pollSessionSlice, syncPatchMatchVideo } from '#contexts/storage.js'
 import { cleanVideoParts, matchVideosOf } from '#utils/videoUtils.js'
 import { makeTournamentActions } from '#contexts/tournamentActions.js'
 import { makeLibraryActions } from '#contexts/libraryActions.js'
@@ -4761,25 +4761,82 @@ export function makeActions({ setDb, setUi, dbRef, uiRef, navRef, toast, reload,
     toast(t('season.saveSeasonSuccess'))
   }
 
-  A.endSeasonAndStartNew = ({ oldSeasonId, newSeasonData, podiumSnapshot = [] }) => {
+  /* ---------- Bảng chốt mùa (0073) ---------- */
+
+  const seasonsOf = (d) => (Array.isArray(d.seasons) && d.seasons.length > 0 ? d.seasons : (d.club?.seasons || [cfg.season]))
+
+  /**
+   * Ghi bảng chốt + `clubs.seasons` trong CÙNG giao dịch (RPC season_freeze), xong mới đổi màn hình.
+   * Hỏng thì không đổi gì: không bao giờ có mùa đánh dấu đã chốt mà thiếu bảng.
+   */
+  const saveFrozenSeason = async (seasonKey, standings, nextSeasons, okMsg) => {
+    const d0 = db()
+    try {
+      // Thay đổi CLB đang chờ phải xuống TRƯỚC: lượt ghi `clubs` cũ chạy sau RPC sẽ đè `seasons` vừa chốt.
+      await flushNow()
+      await freezeSeasonIo(d0.clubId, seasonKey, standings.rows, nextSeasons)
+    } catch (e) {
+      const msg = String(e?.message || '')
+      toast(msg.startsWith('season.err.') ? t(msg) : t('season.freezeFailed', { msg }))
+      return false
+    }
+    up((d) => (d.clubId !== d0.clubId ? {} : {
+      seasons: nextSeasons,
+      club: { ...(d.club || {}), seasons: nextSeasons },
+      seasonStandings: { ...(d.seasonStandings || {}), [seasonKey]: standings.rows },
+    }))
+    toast(okMsg)
+    return true
+  }
+
+  // Bảng chốt không bao giờ đổi nữa nên mỗi mùa nạp một lần; `reload` giữ nguyên phần đã nạp.
+  const standingsLoading = new Set()
+  A.loadSeasonStandings = async (seasonKey) => {
+    const d0 = db()
+    if (!d0 || !seasonKey || d0.seasonStandings?.[seasonKey] || standingsLoading.has(seasonKey)) return
+    standingsLoading.add(seasonKey)
+    try {
+      const rows = await loadSeasonStandingsIo(d0.clubId, seasonKey)
+      up((d) => (d.clubId !== d0.clubId ? {} : { seasonStandings: { ...(d.seasonStandings || {}), [seasonKey]: rows } }))
+    } catch (e) {
+      toast(t('season.standingsLoadFailed', { msg: e?.message || '' }))
+    } finally {
+      standingsLoading.delete(seasonKey)
+    }
+  }
+
+  /** Chốt bảng một mùa đã đóng từ trước khi có bảng chốt (Q3), theo đúng số đang hiện. */
+  A.freezeClosedSeason = async (seasonKey) => {
+    const d0 = db()
+    const seasons = seasonsOf(d0)
+    const target = seasons.find((s) => seasonKeyOf(s) === seasonKey)
+    if (!target || target.active || target.frozenAt) return false
+    // Elo lúc hết mùa: chạy lại các trận tới ngày cuối mùa — Elo hiện tại đã ăn thêm trận của mùa sau.
+    const endTs = target.endDate ? Date.parse(`${target.endDate}T23:59:59Z`) : Infinity
+    const { finalRatings } = replayRatingCascade((d0.matches || []).filter((m) => (m.at || 0) <= endTs), null, d0.members, d0.levels, d0.guests)
+    const standings = buildSeasonStandings(d0, target, (id) => {
+      const r = finalRatings[id]
+      return r ? { rating: r.displayRating, gamesCount: r.gamesCount, confidence: r.confidence } : null
+    })
+    const next = seasons.map((s) => (s === target ? frozenSeasonOf(s, standings, new Date().toISOString()) : s))
+    return saveFrozenSeason(seasonKey, standings, next, t('season.freezeSuccess'))
+  }
+
+  A.endSeasonAndStartNew = async ({ oldSeasonId, newSeasonData }) => {
     const d0 = db()
     const nowIso = new Date().toISOString()
-    const existingSeasons = Array.isArray(d0.seasons) && d0.seasons.length > 0
-      ? d0.seasons
-      : (d0.club?.seasons || [cfg.season])
+    const existingSeasons = seasonsOf(d0)
+    const isTarget = (s) => (oldSeasonId ? (s.id === oldSeasonId || s.code === oldSeasonId) : s.active)
+    const target = existingSeasons.find(isTarget)
+    if (!target) return false
 
-    const updatedSeasons = existingSeasons.map((s) => {
-      const isTarget = oldSeasonId ? (s.id === oldSeasonId || s.code === oldSeasonId) : s.active
-      if (isTarget) {
-        return {
-          ...s,
-          active: false,
-          closedAt: nowIso,
-          podiumSnapshot: podiumSnapshot.length > 0 ? podiumSnapshot : (s.podiumSnapshot || []),
-        }
-      }
-      return { ...s, active: false }
+    // Chốt bảng mùa cũ ngay lúc đóng. Elo lúc chốt = đúng số màn hình đang hiện cho từng người.
+    const memberById = new Map(d0.members.map((m) => [m.id, m]))
+    const standings = buildSeasonStandings(d0, target, (id) => {
+      const pr = getPlayerRating(d0.playerRatings, id, memberById.get(id), d0.levels)
+      return { rating: pr.displayRating ?? pr.rating, gamesCount: pr.gamesCount || 0, confidence: pr.confidence }
     })
+    const updatedSeasons = existingSeasons.map((s) => (isTarget(s) ? frozenSeasonOf(s, standings, nowIso) : { ...s, active: false }))
 
     const newSeason = {
       id: newSeasonData.id || newSeasonData.code || uid(),
@@ -4798,16 +4855,7 @@ export function makeActions({ setDb, setUi, dbRef, uiRef, navRef, toast, reload,
     }
 
     const finalSeasons = [newSeason, ...updatedSeasons]
-
-    up((d) => ({
-      seasons: finalSeasons,
-      club: {
-        ...(d.club || {}),
-        seasons: finalSeasons,
-      },
-    }))
-
-    toast(t('season.seasonEndedSuccess'))
+    return saveFrozenSeason(seasonKeyOf(target), standings, finalSeasons, t('season.seasonEndedSuccess'))
   }
 
   // Giải đấu: state riêng `tour`, ghi riêng — xem tournamentActions.js.

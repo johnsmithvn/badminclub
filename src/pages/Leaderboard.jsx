@@ -8,6 +8,7 @@ import { getPlayerRating, DEFAULT_RATING, rankPairs } from '#lib/rating.js'
 import { myMember } from '#lib/money.js'
 import { can } from '#lib/roles.js'
 import { useMobile } from '#hooks/useMobile.js'
+import { useSeasonStandings } from '#hooks/useSeasonStandings.js'
 import { t } from '#i18n'
 import NotificationBell from '#components/notification/NotificationBell.jsx'
 import cfg from '#config/app.js'
@@ -93,9 +94,24 @@ export default function Leaderboard() {
     return (db.members || []).filter((m) => m.active !== false)
   }, [db.members])
 
+  // Mùa đã chốt: chờ bảng chốt, không tính lại từ trận trong lúc chờ.
+  const standingsPending = useSeasonStandings(resolvedSeason)
+
   const seasonLeaderboardData = useMemo(() => {
+    if (standingsPending) return { season: resolvedSeason, leaderboard: [], topStats: {}, pending: true }
     const raw = calculateSeasonLeaderboard(db, resolvedSeason)
     const enrichedList = (raw.leaderboard || []).map((row) => {
+      // Dòng bảng chốt mang Elo lúc chốt — mùa cũ hiện Elo của mùa đó, không phải Elo hôm nay.
+      if (row.eloAtClose != null) {
+        return {
+          ...row,
+          rating: row.eloAtClose,
+          displayRating: row.eloAtClose,
+          gamesCount: row.gamesAtClose || 0,
+          isProvisional: (row.gamesAtClose || 0) < 5,
+          confidence: row.confidenceAtClose || 'low',
+        }
+      }
       const pr = getPlayerRating(db.playerRatings, row.id, row.member || row, db.levels)
       const elo = pr.displayRating ?? pr.rating ?? DEFAULT_RATING
       const isProv = pr.isProvisional || (pr.gamesCount || 0) < 5
@@ -112,7 +128,7 @@ export default function Leaderboard() {
       ...raw,
       leaderboard: enrichedList,
     }
-  }, [db, resolvedSeason])
+  }, [db, resolvedSeason, standingsPending])
 
   const handleExportCsv = () => {
     let csvContent = 'data:text/csv;charset=utf-8,\uFEFF'
@@ -343,6 +359,8 @@ export default function Leaderboard() {
           selectedSeasonId={resolvedSeason?.id || resolvedSeason?.code}
           onSelectSeason={(sId) => setSelectedSeasonId(sId)}
           canEdit={isAdmin}
+          canFreeze={can(role, 'settings')}
+          onFreezeSeason={(seasonKey) => a.freezeClosedSeason?.(seasonKey)}
           onClose={() => setSeasonSettingsOpen(false)}
           onSaveSeason={(newSeason) => {
             a.setSeasonConfig?.(newSeason)

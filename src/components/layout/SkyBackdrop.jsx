@@ -14,7 +14,7 @@ import cfg from '#config/app.js'
 /**
  * Nền bầu trời động (thiết kế "Home · Nền bầu trời"). AppLayout gắn ở các route trong
  * app.json → sky.routes (`mode` 'full': nền + nhân vật — Trang chủ, BXH), sky.liteRoutes ('lite': trăng, sao,
- * mưa sao băng và cú mèo — các trang chính khác, cho nhẹ máy) và sky.bgRoutes ('bg', trang con: nền đứng yên).
+ * mưa sao băng, cá voi sao, thành phố xa và cú mèo — các trang chính khác, cho nhẹ máy) và sky.bgRoutes ('bg', trang con: nền đứng yên).
  * - Tối: trời sao — trăng có chú Cuội, cá voi sao, ngân hà, sao băng, sao chổi, đom đóm, chòm sao
  *   hiện ở header, mưa sao băng, sao ước bay ngang (bấm để ước).
  * - Sáng: hoàng hôn trên biển mây — ráng chiều, sao sớm, ba lớp mây cuộn, chim, máy bay.
@@ -173,12 +173,27 @@ export default function SkyBackdrop({ mode, isMobile, scrollRef }) {
   const nightOpt = useMemo(() => (isMobile ? nightMobile(mw) : {}), [isMobile, mw])
   const age = moonAge(C.moon, opened.now)
   // Trời ngày theo giờ mở trang: trước 12h là bình minh, từ 12h là hoàng hôn (không có kiểu nắng trưa gắt).
-  const phase = new Date(opened.now).getHours() < 12 ? 'dawn' : 'dusk'
-
   const amb = full && P.on.ambient
+  const lite = mode === 'lite'
+  const showWhale = (full || lite) && P.on.ambient
+  const showHorizon = (full || lite) && P.on.ambient
   const back = useMemo(
-    () => (isDark ? <Night o={nightOpt} motion={live} amb={amb} age={age} full={C.moon === 'full'} /> : <Day motion={live} amb={amb} phase={phase} />),
-    [isDark, nightOpt, live, age, amb, phase],
+    () => (
+      isDark ? (
+        <Night
+          o={nightOpt}
+          motion={live}
+          amb={amb}
+          age={age}
+          full={C.moon === 'full'}
+          showWhale={showWhale}
+          showHorizon={showHorizon}
+        />
+      ) : (
+        <Day motion={live} amb={amb} phase={phase} />
+      )
+    ),
+    [isDark, nightOpt, live, age, amb, phase, showWhale, showHorizon],
   )
 
   // Hoạt cảnh trời đêm định kỳ: bật / "cứ N giây" ở trang Giao diện. Chỉ trang 'full', không giảm chuyển động.
@@ -433,7 +448,7 @@ function moonShape(o, age, full) {
   return { D, Rr, MX, MY, lit, clip }
 }
 
-function Night({ o, motion, amb = true, age, full }) {
+function Night({ o, motion, amb = true, age, full, showWhale = amb, showHorizon = amb }) {
   // `amb` = nhóm "hiệu ứng nền" (trang Giao diện). Tắt thì chỉ còn trời, sao, trăng, sương đáy (+ mưa sao băng ở lớp trên).
   const an = (v) => (motion ? v : 'none')
   const { D, Rr, MX, MY, lit, clip } = moonShape(o, age, full)
@@ -469,7 +484,7 @@ function Night({ o, motion, amb = true, age, full }) {
           <span style={{ position: 'absolute', inset: 0, borderRadius: full ? '50%' : 0, background: MOON_BG, clipPath: clip, WebkitClipPath: clip }} />
         </span>
       </span>
-      {amb && <Whale o={o} an={an} />}
+      {showWhale && <Whale o={o} an={an} />}
       {amb && <NightPlanes an={an} />}
       {amb && <NightRocket an={an} />}
       {amb && SHOOTS.map(([top, l, dur, delay, w], i) => (
@@ -510,7 +525,7 @@ function Night({ o, motion, amb = true, age, full }) {
         )
       })}
       {amb && <span style={{ position: 'absolute', left: -20, top: 64, width: 2.4, height: 2.4, borderRadius: '50%', background: '#F4F8FF', boxShadow: '0 0 4px 1px rgba(220,232,255,.8)', '--sx': '1480px', '--sy': '70px', opacity: 0, animation: an('skySat 120s linear 35s infinite') }} />}
-      {amb && <NightHorizon an={an} />}
+      {showHorizon && <NightHorizon an={an} />}
       <div style={{ position: 'absolute', left: 0, right: 0, bottom: 0, height: '32%', background: 'linear-gradient(to top,rgba(40,70,130,.32),transparent)' }} />
     </div>
   )
