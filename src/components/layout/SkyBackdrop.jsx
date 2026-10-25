@@ -173,6 +173,8 @@ export default function SkyBackdrop({ mode, isMobile, scrollRef }) {
   const nightOpt = useMemo(() => (isMobile ? nightMobile(mw) : {}), [isMobile, mw])
   const age = moonAge(C.moon, opened.now)
   // Trời ngày theo giờ mở trang: trước 12h là bình minh, từ 12h là hoàng hôn (không có kiểu nắng trưa gắt).
+  const phase = new Date(opened.now).getHours() < 12 ? 'dawn' : 'dusk'
+
   const amb = full && P.on.ambient
   const lite = mode === 'lite'
   const showWhale = (full || lite) && P.on.ambient
