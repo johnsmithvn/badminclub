@@ -1165,6 +1165,7 @@
     "histogramTooltip": "{{min}}–{{max}}: {{count}} người",
     "histogramPeakDesc": "Đông nhất ở khoảng {{val}}, chia cân được",
     "ratingSpread": "Trải rating",
+    "monthStatsTitle": "Chỉ số tháng này",
     "monthMatches": "Trận tháng này",
     "monthMatchesSub": "{{sessCount}} buổi · trung bình {{avg}} trận mỗi buổi",
     "tightMatches": "Trận sát điểm",

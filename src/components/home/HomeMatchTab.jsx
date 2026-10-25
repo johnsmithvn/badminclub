@@ -95,6 +95,7 @@ export default function HomeMatchTab({ upcoming = null }) {
     }
   }, [sessions, db.today, db.groups, db.attendance, db.members, db.playerRatings, db.levels])
   const [spreadOpen, setSpreadOpen] = useState(false)
+  const [statsOpen, setStatsOpen] = useState(false)
 
   // 3. Người của tháng (Top Elo gainer trong tháng)
   const topGainers = useMemo(() => {
@@ -229,54 +230,71 @@ export default function HomeMatchTab({ upcoming = null }) {
 
   return (
     <div style={{ display: 'flex', flexDirection: 'column', gap: 16 }}>
-      {/* 4 StatCards trên cùng */}
-      <div style={{ display: 'grid', gridTemplateColumns: isMobile ? '1fr 1fr' : 'repeat(4, minmax(0, 1fr))', gap: 12 }}>
-        {/* Card 1 */}
-        <div style={S.statCard}>
-          <span style={S.statLabel}>{t('home.monthMatches')}</span>
-          <div style={{ display: 'flex', alignItems: 'baseline', gap: 6 }}>
-            <span style={S.statValue}>{stats.totalMonthMatches}</span>
-            <span style={S.statUnit}>{t('units.match')}</span>
-          </div>
-          <span style={S.statSub}>
-            {t('home.monthMatchesSub', { sessCount: stats.sessCount, avg: stats.avgPerSess })}
+      {/* 4 StatCards trên cùng — trên mobile mặc định thu gọn */}
+      {isMobile && (
+        <button
+          type="button"
+          onClick={() => setStatsOpen((v) => !v)}
+          aria-expanded={statsOpen}
+          style={S.statsCollapseBtn}
+        >
+          <span style={S.statsCollapseTitle}>{t('home.monthStatsTitle')}</span>
+          <span style={S.statsCollapseAction}>
+            {statsOpen ? t('scoreModal.collapseChanges') : t('scoreModal.expandChanges')}
+            <span style={{ fontSize: 13, transform: statsOpen ? 'rotate(180deg)' : 'none', transition: 'transform 0.15s ease' }}>▾</span>
           </span>
-        </div>
+        </button>
+      )}
 
-        {/* Card 2 */}
-        <div style={S.statCard}>
-          <span style={S.statLabel}>{t('home.tightMatches')}</span>
-          <div style={{ display: 'flex', alignItems: 'baseline', gap: 6 }}>
-            <span style={{ ...S.statValue, color: '#5FDBD3' }}>{stats.closePct ?? '—'}</span>
-            {stats.closePct != null && <span style={S.statUnit}>%</span>}
+      {(!isMobile || statsOpen) && (
+        <div style={{ display: 'grid', gridTemplateColumns: isMobile ? '1fr 1fr' : 'repeat(4, minmax(0, 1fr))', gap: 12 }}>
+          {/* Card 1 */}
+          <div style={S.statCard}>
+            <span style={S.statLabel}>{t('home.monthMatches')}</span>
+            <div style={{ display: 'flex', alignItems: 'baseline', gap: 6 }}>
+              <span style={S.statValue}>{stats.totalMonthMatches}</span>
+              <span style={S.statUnit}>{t('units.match')}</span>
+            </div>
+            <span style={S.statSub}>
+              {t('home.monthMatchesSub', { sessCount: stats.sessCount, avg: stats.avgPerSess })}
+            </span>
           </div>
-          <span style={S.statSub}>
-            {stats.prevClosePct != null ? t('home.tightMatchesSub', { n: cfg.match?.closeMatchMaxDiff ?? 3, pct: stats.prevClosePct }) : t('home.tightMatchesSubNoPrev', { n: cfg.match?.closeMatchMaxDiff ?? 3 })}
-          </span>
-        </div>
 
-        {/* Card 3 */}
-        <div style={S.statCard}>
-          <span style={S.statLabel}>{t('home.courtScore')}</span>
-          <div style={{ display: 'flex', alignItems: 'baseline', gap: 6 }}>
-            <span style={{ ...S.statValue, color: '#5FD9A2' }}>{stats.balanceScore ?? '—'}</span>
-            {stats.balanceScore != null && <span style={S.statUnit}>/100</span>}
+          {/* Card 2 */}
+          <div style={S.statCard}>
+            <span style={S.statLabel}>{t('home.tightMatches')}</span>
+            <div style={{ display: 'flex', alignItems: 'baseline', gap: 6 }}>
+              <span style={{ ...S.statValue, color: '#5FDBD3' }}>{stats.closePct ?? '—'}</span>
+              {stats.closePct != null && <span style={S.statUnit}>%</span>}
+            </div>
+            <span style={S.statSub}>
+              {stats.prevClosePct != null ? t('home.tightMatchesSub', { n: cfg.match?.closeMatchMaxDiff ?? 3, pct: stats.prevClosePct }) : t('home.tightMatchesSubNoPrev', { n: cfg.match?.closeMatchMaxDiff ?? 3 })}
+            </span>
           </div>
-          <span style={S.statSub}>
-            {t('home.courtScoreSub', { n: stats.balanceSessions })}
-          </span>
-        </div>
 
-        {/* Card 4 */}
-        <div style={S.statCard}>
-          <span style={S.statLabel}>{t('home.ratingUncertain')}</span>
-          <div style={{ display: 'flex', alignItems: 'baseline', gap: 6 }}>
-            <span style={{ ...S.statValue, color: '#F0B75C' }}>{stats.uncertainCount}</span>
-            <span style={S.statUnit}>{t('units.people')}</span>
+          {/* Card 3 */}
+          <div style={S.statCard}>
+            <span style={S.statLabel}>{t('home.courtScore')}</span>
+            <div style={{ display: 'flex', alignItems: 'baseline', gap: 6 }}>
+              <span style={{ ...S.statValue, color: '#5FD9A2' }}>{stats.balanceScore ?? '—'}</span>
+              {stats.balanceScore != null && <span style={S.statUnit}>/100</span>}
+            </div>
+            <span style={S.statSub}>
+              {t('home.courtScoreSub', { n: stats.balanceSessions })}
+            </span>
           </div>
-          <span style={S.statSub}>{t('home.ratingUncertainSub')}</span>
+
+          {/* Card 4 */}
+          <div style={S.statCard}>
+            <span style={S.statLabel}>{t('home.ratingUncertain')}</span>
+            <div style={{ display: 'flex', alignItems: 'baseline', gap: 6 }}>
+              <span style={{ ...S.statValue, color: '#F0B75C' }}>{stats.uncertainCount}</span>
+              <span style={S.statUnit}>{t('units.people')}</span>
+            </div>
+            <span style={S.statSub}>{t('home.ratingUncertainSub')}</span>
+          </div>
         </div>
-      </div>
+      )}
 
       {/* Grid 6 cards nội dung (Bố cục chuẩn Design D0) */}
       <div
@@ -304,13 +322,6 @@ export default function HomeMatchTab({ upcoming = null }) {
                     </span>
                   )}
                 </div>
-
-                {/* Lệch trình thật (mạnh nhất – yếu nhất vượt ngưỡng) mới cảnh báo */}
-                {nextSessionData.spread?.imbalanced && (
-                  <div style={S.alertStrip}>
-                    {t('home.nextSessionAlert', { gap: nextSessionData.spread.gap })}
-                  </div>
-                )}
 
                 {/* Phân bố rating 9 cột — mặc định thu gọn */}
                 {nextSessionData.spread && (
@@ -811,15 +822,34 @@ const S = {
     background: 'var(--surface-sunken)',
     border: '1px solid var(--border-subtle)',
   },
-  alertStrip: {
+  statsCollapseBtn: {
     display: 'flex',
-    alignItems: 'flex-start',
+    alignItems: 'center',
+    justifyContent: 'space-between',
     gap: 8,
-    padding: '9px 11px',
-    borderRadius: 8,
-    background: 'rgba(224,138,0,.14)',
-    font: "400 12.5px/1.45 'IBM Plex Sans', sans-serif",
-    color: '#F0B75C',
+    width: '100%',
+    minHeight: 44,
+    padding: '11px 14px',
+    background: 'var(--surface-card)',
+    border: '1px solid var(--border-default)',
+    borderRadius: 10,
+    boxShadow: 'var(--shadow-xs)',
+    cursor: 'pointer',
+    color: 'inherit',
+    textAlign: 'left',
+  },
+  statsCollapseTitle: {
+    font: "600 11px/1.2 'IBM Plex Sans', sans-serif",
+    letterSpacing: '0.08em',
+    textTransform: 'uppercase',
+    color: 'var(--text-muted)',
+  },
+  statsCollapseAction: {
+    display: 'inline-flex',
+    alignItems: 'center',
+    gap: 4,
+    font: "600 12px/1 'IBM Plex Sans', sans-serif",
+    color: 'var(--text-link)',
   },
   noteFoot: {
     font: "400 12.5px/1.45 'IBM Plex Sans', sans-serif",
