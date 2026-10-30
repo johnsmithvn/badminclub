@@ -10,7 +10,7 @@
 // thì người ghi sau thắng. Chấp nhận được vì đơn vị ghi là từng dòng, không phải cả CLB.
 
 import { supabase, unwrap } from '#supabase'
-import { SLICE_TABLES, clubRow, diff, mergeSessionSlice, toDb, toLibPost, toRows, toStanding, toTour, toTourMatch, toTourMatchEdit, videosRow } from '#contexts/dbmap.js'
+import { SLICE_TABLES, clubRow, diff, hasHalfWrittenMatch, mergeSessionSlice, toDb, toLibPost, toRows, toStanding, toTour, toTourMatch, toTourMatchEdit, videosRow } from '#contexts/dbmap.js'
 import { monthOf, todayISO } from '#utils/dates.js'
 import { t } from '#i18n'
 import cfg from '#config/app.json' with { type: 'json' }
@@ -170,7 +170,7 @@ const sameIds = (a, b) => a.length === b.length && [...a].sort().join() === [...
  */
 export async function pollSessionSlice(db, sessionId) {
   if (!supabase || !db || !sessionId || db.clubId !== synced.clubId) return null
-  if (pending || running || dirty) return null // đằng nào cũng không ghép được — khỏi tốn lượt gọi
+  if (pending || running) return null // đằng nào cũng không ghép được — khỏi tốn lượt gọi
   const g0 = gen
   const cid = db.clubId
   const [live, count] = await Promise.all([
@@ -178,6 +178,10 @@ export async function pollSessionSlice(db, sessionId) {
     supabase.from('matches').select('id', { count: 'exact', head: true }).eq('session_id', sessionId),
   ])
   if (live.error || count.error) return null
+  // Lượt ghi trước hỏng vì lỗi tạm (mạng chập, token hết hạn) thì `dirty` chỉ gỡ ở lần save sau. Máy để
+  // mở chỉ đứng xem thì không có lần đó: nhịp nào cũng dừng ở đây, màn đứng hình tới khi đổi tab / F5.
+  // Mạng vừa trả lời bước trên → đẩy lại luôn (như `refresh` khi quay lại app); ghi xong nhịp sau mới ghép.
+  if (dirty) { save(db); return null }
   const localLive = (db.liveMatches || []).filter((m) => m.sessionId === sessionId).map((m) => m.id)
   const localCount = (db.matches || []).filter((m) => m.sessionId === sessionId).length
   if (sameIds(localLive, (live.data || []).map((r) => r.id)) && localCount === count.count) return null
@@ -191,6 +195,7 @@ export async function pollSessionSlice(db, sessionId) {
     of('club_calibration'),
   ])
   if ([liveRows, matches, challenges, playerRatings, clubCalibration].some((r) => r.error)) return null
+  if (hasHalfWrittenMatch(db, matches.data)) return null
   if (synced.clubId !== cid || pending || running || dirty || gen !== g0) return null
 
   const merged = mergeSessionSlice(db, {

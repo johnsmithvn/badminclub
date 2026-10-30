@@ -61,7 +61,7 @@ const KNOWN_DEBT = {
   'pages/Home.jsx': 1,
   'pages/Matches.jsx': 4,
   'pages/Register.jsx': 2,
-  'pages/SessionDetail.jsx': 14,
+  'pages/SessionDetail.jsx': 13,
   'pages/Sessions.jsx': 2,
   // Lớp tiện ích `.mobile-grid-1col` — tại 2026-10-03 không component nào dùng, chỉ còn định nghĩa.
   'styles/tokens/base.css': 1,

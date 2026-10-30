@@ -10,7 +10,7 @@ import assert from 'node:assert/strict'
 import { nextChallengeSetNo } from '../../lib/challenge.js'
 import { recorderName } from '../../lib/money.js'
 import { makeActions } from '../../contexts/appActions.js'
-import { mergeSessionSlice } from '../../contexts/dbmap.js'
+import { hasHalfWrittenMatch, mergeSessionSlice } from '../../contexts/dbmap.js'
 import { isLiveDone, legacyOngoingToPush } from '../../lib/assign.js'
 import { readFileSync } from 'node:fs'
 
@@ -185,6 +185,18 @@ test('mergeSessionSlice — chỉ thay phần của buổi vừa hỏi', () => {
   assert.equal(merged.challenges.find((c) => c.id === 'C9').status, 'pending', 'kèo không nạp lại thì giữ nguyên')
   assert.equal(merged.playerRatings.m1.rating, 912)
   assert.equal(merged.notes, 'giữ nguyên')
+})
+
+// Máy kia ghi `matches` rồi mới `match_players`: hỏi trúng khe giữa là trận về không người, mất tên tới F5 (2026-10-30).
+test('hasHalfWrittenMatch — trận mới chưa có người chơi thì bỏ lượt ghép', () => {
+  const db = { matches: [{ id: 'OLD', sessionId: 'S1' }] }
+  const mp = [{ player_id: 'm1', team: 0 }, { player_id: 'm2', team: 1 }]
+  assert.equal(hasHalfWrittenMatch(db, [{ id: 'N', match_players: [] }]), true, 'trận mới, người chơi chưa xuống DB')
+  assert.equal(hasHalfWrittenMatch(db, [{ id: 'N' }]), true, 'không có cả khoá match_players')
+  assert.equal(hasHalfWrittenMatch(db, [{ id: 'N', match_players: mp }]), false, 'đã đủ người thì ghép')
+  assert.equal(hasHalfWrittenMatch(db, [{ id: 'OLD', match_players: [] }]), false,
+    'trận máy đã có sẵn mà không người (dữ liệu cũ) — tính vào thì buổi đó bỏ lượt mãi')
+  assert.equal(hasHalfWrittenMatch(db, []), false)
 })
 
 // ---------------------------------------------------------------------------------------------

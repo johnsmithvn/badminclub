@@ -407,6 +407,18 @@ export function mergeSessionSlice(db, raw, sessionId) {
   }
 }
 
+/**
+ * Máy kia ghi trận làm HAI lượt: `matches` rồi mới `match_players` (thứ tự TABLES). Hỏi trúng khe giữa
+ * là trận mới về không có người chơi → hai đội rỗng, mất tên; mà số trận đã khớp nên nhịp sau không nạp
+ * lại nữa — kẹt tới F5. Có trận như vậy thì bỏ lượt ghép, nhịp sau hỏi lại.
+ * Trận ĐÃ có trên máy mà không có người (dữ liệu cũ) không tính — không thì buổi đó bỏ lượt mãi.
+ * @param rawMatches dòng Postgres của buổi, kèm match_players
+ */
+export function hasHalfWrittenMatch(db, rawMatches) {
+  const known = new Set((db.matches || []).map((m) => m.id))
+  return (rawMatches || []).some((m) => !known.has(m.id) && !(m.match_players || []).length)
+}
+
 /* ================= client → Postgres ================= */
 
 /**
