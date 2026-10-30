@@ -893,7 +893,9 @@ export default function SessionDetail() {
       {activeTab === 'attend' && (
         <div style={{
           display: 'grid',
-          gridTemplateColumns: isMobile ? '1fr' : 'minmax(0, 1.25fr) minmax(0, 1fr)',
+          // minmax(0, …) cả mobile: '1fr' trơn = minmax(auto, 1fr), một khối con không co được là kéo cả
+          // cột rộng hơn màn hình — khung điểm danh, lưới tên bị cắt mép phải.
+          gridTemplateColumns: isMobile ? 'minmax(0, 1fr)' : 'minmax(0, 1.25fr) minmax(0, 1fr)',
           gap: 16,
           alignItems: 'start',
         }}>
