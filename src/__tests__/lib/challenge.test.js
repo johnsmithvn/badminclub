@@ -346,5 +346,40 @@ assert.deepEqual(ids(sortChallengesBySession([
   { id: 'e', sessionId: 's2' },
 ], dates, 'accepted')), ['b', 'd', 'c', 'e', 'a'])
 
+// 7. Tab con mở sẵn ở Sàn kèo: luôn rơi vào tab có kèo, kèo của mình được ưu tiên.
+import { pickChallengeSubTab } from '#lib/challenge.js'
+const kOthersReady = { id: 'r', status: 'accepted', createdBy: 'x', teamA: ['x'], teamB: ['y'] }
+const kOthersPending = { id: 'p', status: 'pending', createdBy: 'x', teamA: ['x'], teamB: ['y'] }
+const kMinePending = { id: 'mp', status: 'pending', createdBy: 'x', teamA: ['x'], teamB: ['me'] }
+const kMineOncourt = { id: 'mo', status: 'oncourt', createdBy: 'me', teamA: ['me'], teamB: ['y'] }
+const kMineCancelled = { id: 'mc', status: 'cancelled', createdBy: 'me', teamA: ['me'], teamB: ['y'] }
+const kPlayed = { id: 'pl', status: 'played', createdBy: 'x', teamA: ['x'], teamB: ['y'] }
+assert.equal(pickChallengeSubTab([kOthersReady, kMinePending, kMineOncourt], 'me'), 'pending',
+  'Mình có kèo chờ nhận thì mở Pending trước — đó là kèo đang chờ chính mình (hoặc đối thủ) bấm nhận')
+assert.equal(pickChallengeSubTab([kOthersPending, kMineOncourt], 'me'), 'accepted',
+  'Không có kèo mình chờ nhận nhưng có kèo mình sắp/đang đánh (oncourt tính là READY) thì mở READY, dù CLB còn kèo pending')
+assert.equal(pickChallengeSubTab([kOthersPending, kOthersReady, kMineCancelled], 'me'), 'accepted',
+  'Kèo của mình đã huỷ không tính; kèo người khác thì READY đi trước Pending')
+assert.equal(pickChallengeSubTab([kOthersPending, kPlayed], 'me'), 'pending',
+  'Không có READY nào mà còn Pending thì mở Pending')
+assert.equal(pickChallengeSubTab([kPlayed, kMineCancelled], 'me'), 'played',
+  'Không còn kèo nào sống thì mở lịch sử PLAYED, không mở một tab trống')
+assert.equal(pickChallengeSubTab([kMinePending, kOthersReady], null), 'accepted',
+  'Chưa gắn thành viên (myId rỗng) thì không có kèo "của mình" — đi theo thứ tự READY rồi Pending')
+assert.equal(pickChallengeSubTab(undefined, 'me'), 'played', 'CLB chưa có kèo nào thì mở PLAYED, không throw')
+
+// 8. Kèo của mình lên đầu (bỏ tab My thì đây là chỗ thay nó) · tab OLD giữ kèo chết mà không đánh.
+import { mineFirst, isChallengeOld } from '#lib/challenge.js'
+const kOthersReady2 = { id: 'r2', status: 'accepted', createdBy: 'x', teamA: ['x'], teamB: ['y'] }
+const kMineCreatedOnly = { id: 'mk', status: 'accepted', createdBy: 'me', teamA: ['x'], teamB: ['y'] }
+assert.deepEqual(ids(mineFirst([kOthersReady, kMineOncourt, kOthersReady2, kMinePending, kMineCreatedOnly], 'me')),
+  ['mo', 'mp', 'mk', 'r', 'r2'],
+  'Kèo của mình (ở đội A, đội B, hay chỉ là người tạo) lên đầu; trong từng nhóm giữ thứ tự cũ — không thì phá luật xếp theo buổi của READY')
+assert.deepEqual(ids(mineFirst([kOthersReady, kMinePending], null)), ['r', 'mp'],
+  'Chưa gắn thành viên thì không kèo nào là "của mình" — giữ nguyên thứ tự')
+assert.deepEqual(['cancelled', 'declined', 'expired', 'pending', 'accepted', 'oncourt', 'played'].map((status) => isChallengeOld({ status })),
+  [true, true, true, false, false, false, false],
+  'OLD chỉ giữ kèo chết mà không đánh: kèo đã đánh nằm ở PLAYED, kèo còn sống nằm ở Pending/READY — lọt sang OLD là hiện hai nơi')
+
 console.log('challenge check: OK')
 
