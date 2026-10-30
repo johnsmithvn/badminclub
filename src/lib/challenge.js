@@ -901,3 +901,35 @@ export function sortChallengesBySession(list, sessionDateById, mode) {
   return [...list].sort((a, b) => Number(Boolean(sessionDay(a))) - Number(Boolean(sessionDay(b)))
     || sessionDay(b).localeCompare(sessionDay(a)))
 }
+
+/** Kèo "của mình": mình tạo, hoặc mình ở đội A / đội B. */
+function isMyChallenge(c, myId) {
+  return Boolean(myId) && (c.createdBy === myId || (c.teamA || []).includes(myId) || (c.teamB || []).includes(myId))
+}
+
+/** Kèo đã chết mà không đánh (huỷ / bị từ chối / hết hạn) — tab OLD ở Sàn kèo. */
+export function isChallengeOld(c) {
+  return c?.status === 'cancelled' || c?.status === 'declined' || c?.status === 'expired'
+}
+
+/** Đưa kèo của mình lên đầu danh sách, trong từng nhóm giữ nguyên thứ tự đầu vào. */
+export function mineFirst(list, myId) {
+  return [...list.filter((c) => isMyChallenge(c, myId)), ...list.filter((c) => !isMyChallenge(c, myId))]
+}
+
+/**
+ * Tab con mở sẵn khi vào Sàn kèo — luôn rơi vào tab CÓ kèo, không bắt người dùng nhìn danh sách trống.
+ * - Có kèo của mình (tạo / ở đội A / đội B) đang chờ nhận → 'pending'.
+ * - Không thì 'accepted' (READY) trước, rồi mới 'pending'. Kèo READY của mình cũng rơi vào đây
+ *   nên không cần nhánh riêng.
+ * - Không còn kèo nào sống → 'played' (lịch sử).
+ */
+export function pickChallengeSubTab(challenges, myId) {
+  const list = challenges || []
+  const mine = list.filter((c) => isMyChallenge(c, myId))
+  const isPending = (c) => c.status === 'pending'
+  if (mine.some(isPending)) return 'pending'
+  if (list.some(isChallengeAccepted)) return 'accepted'
+  if (list.some(isPending)) return 'pending'
+  return 'played'
+}

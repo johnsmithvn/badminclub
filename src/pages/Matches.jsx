@@ -17,7 +17,7 @@ import {
   isCloseMatch, isThreeSetMatch, isUpsetMatch, matchPrediction, matchSides, minSetDiff,
 } from '#lib/matchSearch.js'
 import { formatGapMinutes, videoTagLabelOf, matchVideosOf } from '#utils/videoUtils.js'
-import { isChallengeAccepted, sortChallengesBySession } from '#lib/challenge.js'
+import { isChallengeAccepted, isChallengeOld, mineFirst, pickChallengeSubTab, sortChallengesBySession } from '#lib/challenge.js'
 import EditScoreModal from '#components/challenge/EditScoreModal.jsx'
 import CreateChallengeModal from '#components/challenge/CreateChallengeModal.jsx'
 import MatchDetailModal from '#components/challenge/MatchDetailModal.jsx'
@@ -76,9 +76,10 @@ export default function Matches() {
     : (tabParam === 'matrix' ? 'matrix' : 'challenges')
 
   const [activeTab, setActiveTab] = useState(initialTab)
-  const [challengeSubTab, setChallengeSubTab] = useState('my') // 'my' | 'pending' | 'accepted' | 'played' | 'bet'
+  // 'pending' | 'accepted' | 'played' | 'bet' | 'old'. Chọn MỘT lần lúc vào trang (db đã nạp xong — App chặn
+  // render tới lúc có db): tính lại theo db là tab tự nhảy dưới tay khi kèo đổi trạng thái.
+  const [challengeSubTab, setChallengeSubTab] = useState(() => pickChallengeSubTab(db.challenges, myId))
   const [challengeSearch, setChallengeSearch] = useState('')
-  const [myEndedCollapsed, setMyEndedCollapsed] = useState(true)
 
   // Đồng bộ URL khi đổi tab
   const handleSelectTab = (newTab) => {
@@ -206,23 +207,18 @@ export default function Matches() {
       return
     }
     subTabCidRef.current = cidParam
-    const isMine = myId && (
-      (targetChal.teamA || []).includes(myId) ||
-      (targetChal.teamB || []).includes(myId) ||
-      targetChal.createdBy === myId
-    )
-    if (isMine) {
-      setChallengeSubTab('my')
-    } else if (targetChal.status === 'pending') {
+    if (targetChal.status === 'pending') {
       setChallengeSubTab('pending')
     } else if (targetChal.status === 'played') {
       setChallengeSubTab('played')
     } else if (isChallengeAccepted(targetChal)) {
       setChallengeSubTab('accepted')
+    } else if (isChallengeOld(targetChal)) {
+      setChallengeSubTab('old')
     } else {
       setChallengeSubTab('pending')
     }
-  }, [searchParams, cidParam, matchIdParam, db.challenges, db.matches, myId])
+  }, [searchParams, cidParam, matchIdParam, db.challenges, db.matches])
 
   // Tự động cuộn đến thẻ kèo khi có highlightedChallengeId
   useEffect(() => {
@@ -332,49 +328,20 @@ export default function Matches() {
     })
   }, [db.challenges])
 
-  const myChallenges = useMemo(() => {
-    if (!myId) return []
-    return allChallenges.filter((c) => {
-      return c.createdBy === myId || (c.teamA || []).includes(myId) || (c.teamB || []).includes(myId)
-    })
-  }, [allChallenges, myId])
-
-  const ACTIVE_STATUS = new Set(['pending', 'accepted', 'oncourt'])
-  const STATUS_ORDER = { pending: 0, accepted: 1, oncourt: 2 }
-
-  const myActiveChallenges = useMemo(() => {
-    return myChallenges
-      .filter((c) => ACTIVE_STATUS.has(c.status))
-      .slice()
-      .sort((a, b) => (STATUS_ORDER[a.status] ?? 9) - (STATUS_ORDER[b.status] ?? 9))
-  }, [myChallenges])
-
-  const myEndedChallenges = useMemo(() => {
-    return myChallenges.filter((c) => !ACTIVE_STATUS.has(c.status))
-  }, [myChallenges])
-
-  // Kèo được trỏ tới (từ thông báo / Bảng tin) nằm trong mục "Đã kết thúc" — mục này mặc định
-  // THU GỌN — thì phải mở ra. Không thì banner "Đang làm nổi bật kèo…" hiện mà thẻ kèo không có
-  // trên màn hình: dính mọi thông báo huỷ kèo / kèo ngã ngũ gửi cho chính người trong kèo.
-  // Mở MỘT lần cho mỗi kèo được trỏ tới, chỉnh ngay lúc render (mẫu "điều chỉnh state khi đầu vào
-  // đổi" của React) thay vì setState trong effect. Bản effect cũ còn mở lại mỗi lần db nạp lại, kể cả
-  // khi người dùng vừa tự thu gọn.
-  const [endedOpenedFor, setEndedOpenedFor] = useState(null)
-  const highlightIsEnded = Boolean(highlightedChallengeId)
-    && myEndedChallenges.some((c) => c.id === highlightedChallengeId)
-  if (highlightIsEnded && endedOpenedFor !== highlightedChallengeId) {
-    setEndedOpenedFor(highlightedChallengeId)
-    setMyEndedCollapsed(false)
-  }
-
+  // Pending / READY / OLD: kèo của mình lên đầu (thay cho tab My đã bỏ), trong nhóm giữ thứ tự cũ.
   const pendingChallenges = useMemo(() => {
-    return allChallenges.filter((c) => c.status === 'pending')
-  }, [allChallenges])
+    return mineFirst(allChallenges.filter((c) => c.status === 'pending'), myId)
+  }, [allChallenges, myId])
 
   // READY: kèo chưa chọn buổi lên đầu, rồi theo ngày buổi giảm dần (luật ở #lib/challenge.js)
   const acceptedChallenges = useMemo(() => {
-    return sortChallengesBySession(allChallenges.filter((c) => isChallengeAccepted(c)), sessionDateById, 'accepted')
-  }, [allChallenges, sessionDateById])
+    return mineFirst(sortChallengesBySession(allChallenges.filter((c) => isChallengeAccepted(c)), sessionDateById, 'accepted'), myId)
+  }, [allChallenges, sessionDateById, myId])
+
+  // OLD: kèo huỷ / bị từ chối / hết hạn — trước nằm ở mục END của tab My, bỏ tab là mất chỗ xem.
+  const oldChallenges = useMemo(() => {
+    return mineFirst(allChallenges.filter(isChallengeOld), myId)
+  }, [allChallenges, myId])
 
   // PLAYED: buổi mới nhất lên đầu
   const playedChallenges = useMemo(() => {
@@ -393,12 +360,12 @@ export default function Matches() {
   const displayedChallenges = useMemo(() => {
     let list
     switch (challengeSubTab) {
-      case 'my': list = myChallenges; break
       case 'pending': list = pendingChallenges; break
       case 'accepted': list = acceptedChallenges; break
       case 'played': list = playedChallenges; break
       case 'bet': list = betChallenges; break
-      default: list = myChallenges
+      case 'old': list = oldChallenges; break
+      default: list = []
     }
 
     if (challengeSearch.trim()) {
@@ -423,7 +390,7 @@ export default function Matches() {
       }
     }
     return list
-  }, [challengeSubTab, myChallenges, pendingChallenges, acceptedChallenges, playedChallenges, betChallenges, challengeSearch, memberNameOf, allChallenges, highlightedChallengeId])
+  }, [challengeSubTab, pendingChallenges, acceptedChallenges, playedChallenges, betChallenges, oldChallenges, challengeSearch, memberNameOf, allChallenges, highlightedChallengeId])
 
   // =========================================================================
   // TAB 2: LỊCH SỬ ĐẤU & VIDEO (SEARCH) - BÊ NGUYÊN TỪ LEADERBOARD CŨ
@@ -901,11 +868,11 @@ export default function Matches() {
       {/* ========================================================================= */}
       {activeTab === 'challenges' && (() => {
         const subTabs = [
-          { id: 'my', label: t('challenge.tabMy'), count: myChallenges.length },
           { id: 'pending', label: t('challenge.tabPending'), count: pendingChallenges.length, color: '#F0B75C' },
           { id: 'accepted', label: t('challenge.tabAccepted'), count: acceptedChallenges.length, color: '#2EC4B6' },
           { id: 'played', label: t('challenge.tabPlayed'), count: playedChallenges.length },
           { id: 'bet', label: t('challenge.tabBet'), count: betChallenges.length, color: '#A78BFA' },
+          { id: 'old', label: t('challenge.tabOld'), count: oldChallenges.length },
         ]
         const currentTabObj = subTabs.find((st) => st.id === challengeSubTab) || subTabs[0]
         const arenaSubtitleText = t('challenge.arenaSubtitle', {
@@ -1162,226 +1129,75 @@ export default function Matches() {
             )}
 
             {/* DANH SÁCH THẺ KÈO: KÈO TÂM ĐIỂM + LƯỚI KÈO */}
-            {challengeSubTab === 'my' ? (
-              <div style={ts({ display: 'grid', gap: 20, width: '100%' })}>
-                {/* SECTION 1: ĐANG DIỄN RA */}
-                {myActiveChallenges.length > 0 ? (
-                  <div style={ts({ display: 'flex', flexDirection: 'column', gap: 16 })}>
-                    {/* KÈO TÂM ĐIỂM PHÓNG TO (KÈO ĐẦU TIÊN) */}
-                    <ArenaChallengeCard
-                      challenge={myActiveChallenges[0]}
-                      isFeatured={true}
-                      {...cardCommonProps}
-                    />
+            {displayedChallenges.length > 0 ? (
+              <div style={ts({ display: 'flex', flexDirection: 'column', gap: 16 })}>
+                {/* KÈO TÂM ĐIỂM (KÈO ĐẦU TIÊN) */}
+                <ArenaChallengeCard
+                  challenge={displayedChallenges[0]}
+                  isFeatured={true}
+                  {...cardCommonProps}
+                />
 
-                    {/* CÁC KÈO CÒN LẠI HIỂN THỊ DẠNG LƯỚI 2 CỘT */}
-                    {myActiveChallenges.length > 1 && (
-                      <div style={arenaGridStyle}>
-                        {myActiveChallenges.slice(1).map((c) => (
-                          <ArenaChallengeCard
-                            key={c.id}
-                            challenge={c}
-                            isFeatured={false}
-                            {...cardCommonProps}
-                          />
-                        ))}
-                      </div>
-                    )}
-                  </div>
-                ) : (
-                  <div
-                    style={ts({
-                      background: '#0D1526',
-                      border: '1px dashed #1E2A40',
-                      borderRadius: 16,
-                      padding: '32px 20px',
-                      display: 'flex',
-                      flexDirection: 'column',
-                      alignItems: 'center',
-                      gap: 8,
-                      textAlign: 'center',
-                    })}
-                  >
-                    <Icon name="circle-check" size={28} style={ts({ color: '#2EC4B6' })} />
-                    <span style={ts({ fontSize: 14, color: '#8494AA' })}>{t('matchesPage.emptyChallenges')}</span>
-                  </div>
-                )}
-
-                {/* SECTION 2: ĐÃ KẾT THÚC (COLLAPSIBLE) */}
-                {myEndedChallenges.length > 0 && (
-                  <div style={ts({ display: 'flex', flexDirection: 'column', gap: 12, marginTop: 4 })}>
-                    <button
-                      type="button"
-                      onClick={() => setMyEndedCollapsed(!myEndedCollapsed)}
-                      style={ts({
-                        display: 'flex',
-                        alignItems: 'center',
-                        gap: 8,
-                        cursor: 'pointer',
-                        background: 'none',
-                        border: 'none',
-                        textAlign: 'left',
-                        padding: 0,
-                        color: '#8494AA',
-                      })}
-                    >
-                      <Icon
-                        name={myEndedCollapsed ? 'chevron-right' : 'chevron-down'}
-                        size={16}
-                        style={ts({ color: '#8494AA' })}
+                {/* CÁC KÈO CÒN LẠI TRONG LƯỚI 2 CỘT */}
+                {displayedChallenges.length > 1 && (
+                  <div style={arenaGridStyle}>
+                    {displayedChallenges.slice(1).map((c) => (
+                      <ArenaChallengeCard
+                        key={c.id}
+                        challenge={c}
+                        isFeatured={false}
+                        {...cardCommonProps}
                       />
-                      <span style={ts({ fontWeight: 600, fontSize: 14, color: '#E9EFF7' })}>
-                        {t('challenge.sectionEnded')}
-                      </span>
-                      <span
-                        style={ts({
-                          fontSize: 12,
-                          fontFamily: '"IBM Plex Mono", monospace',
-                          color: '#8494AA',
-                          background: '#1B2842',
-                          padding: '2px 8px',
-                          borderRadius: 999,
-                        })}
-                      >
-                        {myEndedChallenges.length}
-                      </span>
-                    </button>
-
-                    {!myEndedCollapsed && (
-                      <div style={arenaGridStyle}>
-                        {myEndedChallenges.map((c) => (
-                          <ArenaChallengeCard
-                            key={c.id}
-                            challenge={c}
-                            isFeatured={false}
-                            {...cardCommonProps}
-                          />
-                        ))}
-                      </div>
-                    )}
-                  </div>
-                )}
-
-                {myChallenges.length === 0 && (
-                  <div
-                    style={ts({
-                      background: '#0D1526',
-                      border: '1px dashed #1E2A40',
-                      borderRadius: 16,
-                      padding: '48px 24px',
-                      display: 'flex',
-                      flexDirection: 'column',
-                      alignItems: 'center',
-                      gap: 12,
-                      textAlign: 'center',
-                    })}
-                  >
-                    <Icon name="history" size={36} style={ts({ color: '#5B6A82' })} />
-                    <div style={ts({ fontWeight: 600, fontSize: 16, color: '#F4F7FB' })}>
-                      {t('matchesPage.emptyChallenges')}
-                    </div>
-                    <div style={ts({ fontSize: 13, color: '#8494AA' })}>
-                      {t('matchesPage.createChallengePrompt')}
-                    </div>
-                    <button
-                      type="button"
-                      onClick={() => {
-                        setInitialTeamA(myId ? [myId] : [])
-                        setInitialTeamB([])
-                        setChallengeModalOpen(true)
-                      }}
-                      style={ts({
-                        marginTop: 4,
-                        font: '700 13px/1 "IBM Plex Sans", sans-serif',
-                        color: '#1A1204',
-                        background: '#F5C451',
-                        padding: '10px 18px',
-                        borderRadius: 10,
-                        border: 'none',
-                        cursor: 'pointer',
-                        display: 'inline-flex',
-                        alignItems: 'center',
-                        gap: 6,
-                      })}
-                    >
-                      <Icon name="plus" size={14} />
-                      <span>{t('matchesPage.createBtn')}</span>
-                    </button>
+                    ))}
                   </div>
                 )}
               </div>
             ) : (
-              /* CÁC TAB KHÁC: PENDING, ACCEPTED, PLAYED */
-              displayedChallenges.length > 0 ? (
-                <div style={ts({ display: 'flex', flexDirection: 'column', gap: 16 })}>
-                  {/* KÈO TÂM ĐIỂM (KÈO ĐẦU TIÊN) */}
-                  <ArenaChallengeCard
-                    challenge={displayedChallenges[0]}
-                    isFeatured={true}
-                    {...cardCommonProps}
-                  />
-
-                  {/* CÁC KÈO CÒN LẠI TRONG LƯỚI 2 CỘT */}
-                  {displayedChallenges.length > 1 && (
-                    <div style={arenaGridStyle}>
-                      {displayedChallenges.slice(1).map((c) => (
-                        <ArenaChallengeCard
-                          key={c.id}
-                          challenge={c}
-                          isFeatured={false}
-                          {...cardCommonProps}
-                        />
-                      ))}
-                    </div>
-                  )}
+              <div
+                style={ts({
+                  background: '#0D1526',
+                  border: '1px dashed #1E2A40',
+                  borderRadius: 16,
+                  padding: '48px 24px',
+                  display: 'flex',
+                  flexDirection: 'column',
+                  alignItems: 'center',
+                  gap: 12,
+                  textAlign: 'center',
+                })}
+              >
+                <Icon name="history" size={36} style={ts({ color: '#5B6A82' })} />
+                <div style={ts({ fontWeight: 600, fontSize: 16, color: '#F4F7FB' })}>
+                  {t('matchesPage.emptyChallenges')}
                 </div>
-              ) : (
-                <div
+                <div style={ts({ fontSize: 13, color: '#8494AA' })}>
+                  {t('matchesPage.createChallengePrompt')}
+                </div>
+                <button
+                  type="button"
+                  onClick={() => {
+                    setInitialTeamA(myId ? [myId] : [])
+                    setInitialTeamB([])
+                    setChallengeModalOpen(true)
+                  }}
                   style={ts({
-                    background: '#0D1526',
-                    border: '1px dashed #1E2A40',
-                    borderRadius: 16,
-                    padding: '48px 24px',
-                    display: 'flex',
-                    flexDirection: 'column',
+                    marginTop: 4,
+                    font: '700 13px/1 "IBM Plex Sans", sans-serif',
+                    color: '#1A1204',
+                    background: '#F5C451',
+                    padding: '10px 18px',
+                    borderRadius: 10,
+                    border: 'none',
+                    cursor: 'pointer',
+                    display: 'inline-flex',
                     alignItems: 'center',
-                    gap: 12,
-                    textAlign: 'center',
+                    gap: 6,
                   })}
                 >
-                  <Icon name="history" size={36} style={ts({ color: '#5B6A82' })} />
-                  <div style={ts({ fontWeight: 600, fontSize: 16, color: '#F4F7FB' })}>
-                    {t('matchesPage.emptyChallenges')}
-                  </div>
-                  <div style={ts({ fontSize: 13, color: '#8494AA' })}>
-                    {t('matchesPage.createChallengePrompt')}
-                  </div>
-                  <button
-                    type="button"
-                    onClick={() => {
-                      setInitialTeamA(myId ? [myId] : [])
-                      setInitialTeamB([])
-                      setChallengeModalOpen(true)
-                    }}
-                    style={ts({
-                      marginTop: 4,
-                      font: '700 13px/1 "IBM Plex Sans", sans-serif',
-                      color: '#1A1204',
-                      background: '#F5C451',
-                      padding: '10px 18px',
-                      borderRadius: 10,
-                      border: 'none',
-                      cursor: 'pointer',
-                      display: 'inline-flex',
-                      alignItems: 'center',
-                      gap: 6,
-                    })}
-                  >
-                    <Icon name="plus" size={14} />
-                    <span>{t('matchesPage.createBtn')}</span>
-                  </button>
-                </div>
-              )
+                  <Icon name="plus" size={14} />
+                  <span>{t('matchesPage.createBtn')}</span>
+                </button>
+              </div>
             )}
           </div>
         )

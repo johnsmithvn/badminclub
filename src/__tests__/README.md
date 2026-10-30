@@ -45,7 +45,7 @@ Code chạm Supabase/React không có mặt trong bộ này — kiểm tay trên
 | Sinh link VietQR, parse thông tin ngân hàng từ QR | `lib/vietqr.test.js` |
 | Khách giao lưu đi cùng: logic đồng hành, gom nhóm | `money/companion_guest.test.js` |
 | **Tách biệt dòng tiền**: Giá thành buổi và Quỹ tháng tuyệt đối không bị ảnh hưởng bởi Kèo & Elo | `money/isolation.test.js` |
-| Kèo đấu: Sinh mã C-XXXX · hướng kèo · độ cân · quyền huỷ · thành viên có mặt | `lib/challenge.test.js` · `lib/challenge_full.test.js` |
+| Kèo đấu: Sinh mã C-XXXX · hướng kèo · độ cân · quyền huỷ · thành viên có mặt · tab con mở sẵn ở Sàn kèo (`pickChallengeSubTab`) · kèo của mình lên đầu (`mineFirst`) · tab OLD (`isChallengeOld`) | `lib/challenge.test.js` · `lib/challenge_full.test.js` |
 | **Truy vết điểm mùa**: tua dữ liệu bằng lịch sử thay đổi (0070), chia công từng lần ghi, tổng khớp chênh lệch | `lib/trace.test.js` |
 | **Hai máy cùng ghi sân**: số ván kèo (`set_no`, 0068) · kèo đã xong không nhận thêm ván · trận thường không chặn trùng · tên người ghi · trận nháp trên sân (0069) → trận thật · ghép dữ liệu một buổi khi hỏi server · trận nháp đã có kết quả thì rời sân (`isLiveDone`, danh sách bản cũ, ghi từ khung sân, 0072) | `lib/two_scorers.test.js` · `sync/dbmap.test.js` |
 | **Bảng chốt mùa** (0073): chốt đúng số đang hiện · không mang SĐT / STK · Tính lại Elo / người nghỉ CLB không đổi bảng đã chốt · sổ điểm khớp bảng · mùa đang chạy luôn tính trực tiếp | `lib/season_freeze.test.js` |
