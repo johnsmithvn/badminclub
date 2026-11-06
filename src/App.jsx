@@ -5,7 +5,7 @@
 // Thiếu .env.local thì app KHÔNG chạy được: mọi dữ liệu nằm ở Supabase, không có chế độ
 // dữ liệu mẫu. Xem README mục Chạy.
 
-import { Component, useEffect } from 'react'
+import { Component, Suspense, lazy, useEffect } from 'react'
 import { Navigate, Route, Routes, useLocation, useNavigate } from 'react-router-dom'
 import { Button, Skeleton } from '#ds'
 import AppLayout from '#components/layout/AppLayout.jsx'
@@ -42,11 +42,16 @@ import TournamentFlow from '#pages/TournamentFlow.jsx'
 import TournamentHub from '#pages/TournamentHub.jsx'
 import Tournaments from '#pages/Tournaments.jsx'
 
+// Mini-game tải lười: người không vào mục game không tải byte nào của nó (docs/GAMES.md §7).
+const Games = lazy(() => import('#pages/Games.jsx'))
+const GameRoom = lazy(() => import('#pages/GameRoom.jsx'))
+
 const SCREEN = {
   home: MyStats, overview: Home, calendar: Calendar, sessions: Sessions, session: SessionDetail,
   matches: Matches, leaderboard: Leaderboard, badges: Badges, members: Members, debts: Debts, fund: Fund,
   profile: Profile, settings: Settings, theme: ThemeSettings, schema: Schema, tournaments: Tournaments, tournament: TournamentHub,
   tournamentBracket: TournamentBracket, tournamentFlow: TournamentFlow, library: Library, libraryPost: LibraryPost,
+  games: Games, gameRoom: GameRoom,
 }
 
 export default function App() {
@@ -172,14 +177,16 @@ function InClub() {
   return (
     <AppLayout route={route}>
       <ScreenError key={route}>
-        <Routes>
-          {PAGES.map((p) => {
-            const C = SCREEN[p.key]
-            return <Route key={p.key} path={p.path} element={<C />} />
-          })}
-          <Route path="/lich-co-dinh" element={<Navigate to="/cai-dat" replace />} />
-          <Route path="*" element={<Navigate to="/" replace />} />
-        </Routes>
+        <Suspense fallback={<Skeleton height={320} />}>
+          <Routes>
+            {PAGES.map((p) => {
+              const C = SCREEN[p.key]
+              return <Route key={p.key} path={p.path} element={<C />} />
+            })}
+            <Route path="/lich-co-dinh" element={<Navigate to="/cai-dat" replace />} />
+            <Route path="*" element={<Navigate to="/" replace />} />
+          </Routes>
+        </Suspense>
       </ScreenError>
     </AppLayout>
   )

@@ -7,7 +7,7 @@ import { t } from '#i18n'
 export const ROUTE_KEYS = [
   'home', 'overview', 'calendar', 'sessions', 'session', 'matches', 'leaderboard', 'badges', 'members',
   'debts', 'fund', 'profile', 'settings', 'theme', 'schema', 'tournaments', 'tournament', 'tournamentBracket',
-  'tournamentFlow', 'library', 'libraryPost',
+  'tournamentFlow', 'library', 'libraryPost', 'games', 'gameRoom',
 ]
 
 /**
@@ -43,6 +43,8 @@ const PATHS = {
   tournamentFlow: '/giai-dau/:id/so-do',
   library: '/thu-vien',
   libraryPost: '/thu-vien/:id',
+  games: '/tro-choi',
+  gameRoom: '/tro-choi/:id',
 }
 
 export const PAGES = ROUTE_KEYS.map((key) => ({ key, path: PATHS[key] }))
@@ -74,6 +76,7 @@ export function keyOfPath(pathname) {
     return pathname.includes('/nhanh/') ? 'tournamentBracket' : pathname.endsWith('/so-do') ? 'tournamentFlow' : 'tournament'
   }
   if (pathname.startsWith('/thu-vien/')) return 'libraryPost'
+  if (pathname.startsWith('/tro-choi/')) return 'gameRoom'
   if (pathname === '/lich-co-dinh') return 'settings'
   const hit = ROUTE_KEYS.find((k) => PATHS[k] === pathname)
   return hit || 'home'

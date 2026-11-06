@@ -1,0 +1,311 @@
+// node src/__tests__/games/fixtures.mjs
+// Sinh lại bộ ván mẫu trong file kiểm tay: 0075_games_results_check.sql (khối $fx$ = Ô ăn quan, $cg$ = Cờ gánh),
+// 0076_games_colat_check.sql (khối $cl$ = Cờ lật) và 0077_games_chamo_check.sql (khối $ch$ = Chấm ô).
+// Ván do chính luật JS chơi ngẫu nhiên (tất định theo seed), trộn nước rác; kết quả ghi kèm là JS chấm.
+// <game>.test.js chấm lại các ván này bằng JS; file kiểm chấm bằng SQL trên DB thật.
+// CHỈ chạy khi cố ý đổi luật — rồi phải sửa SQL trong migration cho khớp và chạy lại file kiểm trên DB.
+
+import { readFileSync, writeFileSync } from 'node:fs'
+import oq, { sideOf } from '../../lib/games/oanquan.js'
+import cg, { NEIGHBORS, forcedFrom, hasDiag, QUIET_LIMIT } from '../../lib/games/coganh.js'
+import cl, { movesOf } from '../../lib/games/colat.js'
+import ch from '../../lib/games/chamo.js'
+
+// ponytail: nhân số thực vượt 2^53 rồi lấy `% n` theo bit thấp → rút lệch hẳn về vài lựa chọn. Giữ nguyên để bộ ván
+// 0075 / 0076 không đổi; game mới đừng trông vào any() để phủ đủ loại nước rác — rút lần lượt như chTrash.
+let seed = 1
+const rand = (n) => { seed = (seed * 1103515245 + 12345) % 2147483648; return seed % n }
+const any = (a) => a[rand(a.length)]
+
+/** Nước rác phải bị luật từ chối — lỡ hợp lệ thì dừng luôn, kẻo bộ ván gác nhầm. */
+function junk(game, s, list) {
+  const m = any(list)
+  if (game.validate(s, m.seat, m.move) == null) throw new Error('nước rác lại hợp lệ: ' + JSON.stringify(m))
+  return m
+}
+
+/** Một ván ngẫu nhiên: legal(s) → nước hợp lệ, trash(s) → danh sách nước rác, có thì chèn xen vào. */
+function play(game, sd, { legal, trash, after, options = {} }) {
+  seed = sd
+  let s = game.setup({ options, seats: [0, 1] })
+  const moves = []
+  const tags = new Set()
+  while (!s.over) {
+    if (rand(4) === 0) moves.push(junk(game, s, trash(s)))
+    const prev = s
+    const m = any(legal(s))
+    s = game.apply(s, s.turn, m)
+    moves.push({ seat: prev.turn, move: m })
+    after?.(prev, s, tags)
+  }
+  moves.push(junk(game, s, [{ seat: s.turn ?? 0, move: legal({ ...s, over: false })[0] || { cell: 1, dir: 1 } }]))
+  return { moves, s, tags, result: game.result(s) }
+}
+
+/** Ván ngắn nhất cho từng loại (theo `kind`), cộng nửa đầu một ván làm ván chưa xong. */
+function pick(game, cfg, kind, half) {
+  const best = {}
+  for (let sd = 1; sd < cfg.seeds; sd++) {
+    const g = play(game, sd, cfg)
+    const k = kind(g)
+    if (k && (!best[k] || g.moves.length < best[k].moves.length)) best[k] = { ...g, note: k }
+  }
+  const u = play(game, half, cfg)
+  const part = u.moves.slice(0, Math.min(40, Math.floor(u.moves.length / 2)))
+  const st = part.reduce((s, m) => (game.validate(s, m.seat, m.move) == null ? game.apply(s, m.seat, m.move) : s), game.setup({ options: cfg.options || {} }))
+  if (st.over) throw new Error('nửa ván đã xong — đổi seed ván chưa xong')
+  return [...Object.values(best), { note: 'chưa xong ván', moves: part, result: null }]
+}
+
+/**
+ * Một dòng JSON mỗi ván. Ở ván đầu, nước HỢP LỆ đầu tiên viết số dạng 5.0 (JS đọc ra 5, jsonb giữ 5.0 — SQL phải
+ * coi như nhau, không thì nước đó bị bỏ và cả ván lệch). `f.options` (nếu có) là tuỳ chọn phòng viết NGUYÊN VĂN
+ * — để giữ được cả kiểu 6.0 — file kiểm tạo phòng bằng đúng tuỳ chọn đó.
+ */
+function block(game, fx, keys) {
+  const re = new RegExp('^\\{' + keys.map((k) => `"${k}":(-?\\d+)`).join(',') + '\\}$')
+  const to = '{' + keys.map((k, n) => `"${k}":$${n + 1}.0`).join(',') + '}'
+  const line = (f, i) => {
+    let s = game.setup({ options: f.options ? JSON.parse(f.options) : {} })
+    let dot = i === 0
+    const moves = f.moves.map((m) => {
+      const raw = JSON.stringify(m)
+      const ok = game.validate(s, m.seat, m.move) == null
+      if (ok) s = game.apply(s, m.seat, m.move)
+      if (!dot || !ok) return raw
+      dot = false
+      const mv = JSON.stringify(m.move)
+      if (!re.test(mv)) throw new Error('không chèn được số dạng 5.0 vào ' + mv)
+      return raw.replace(mv, mv.replace(re, to))
+    })
+    if (dot) throw new Error('ván đầu không có nước hợp lệ nào')
+    const opts = f.options ? `,"options":${f.options}` : ''
+    return `{"note":${JSON.stringify(f.note)}${opts},"result":${JSON.stringify(f.result)},"moves":[${moves.join(',')}]}`
+  }
+  return '[\n' + fx.map(line).join(',\n') + '\n]'
+}
+
+// ---------- Ô ăn quan ----------
+const oqLegal = (s) => sideOf(s.turn).flatMap((cell) => [{ cell, dir: 1 }, { cell, dir: -1 }]).filter((m) => oq.validate(s, s.turn, m) == null)
+const oqTrash = (s) => {
+  const t = s.turn, own = sideOf(t), opp = sideOf(1 - t)
+  const list = [
+    { seat: 1 - t, move: { cell: any(opp), dir: 1 } },
+    { seat: t, move: { cell: any(opp), dir: -1 } },
+    { seat: t, move: { cell: any([0, 6]), dir: 1 } },
+    { seat: t, move: { cell: any(own), dir: any([0, 2]) } },
+    { seat: t, move: { cell: String(any(own)), dir: 1 } },
+    { seat: t, move: { cell: any(own) } },
+    { seat: t, move: null },
+    { seat: t, move: [own[0], 1] },
+    { seat: t, move: { cell: any(own) + 0.5, dir: -1 } },
+  ]
+  const e = own.find((c) => s.stones[c] === 0)
+  if (e != null) list.push({ seat: t, move: { cell: e, dir: 1 } })
+  return list
+}
+const oqEmpty = (s, i) => s.stones[i] === 0 && !s.quan[i]
+const oqFx = pick(oq, {
+  seeds: 30000,
+  legal: oqLegal,
+  trash: oqTrash,
+  after: (prev, s, tags) => { if (!s.over && s.score[s.turn] < prev.score[s.turn]) tags.add('refill') },
+}, (g) => {
+  const w = g.result.draw ? 'hoà' : 'ghế ' + g.result.winners[0] + ' thắng'
+  const end = oqEmpty(g.s, 0) && oqEmpty(g.s, 6) ? 'hết quan' : 'hết dân mà thiếu 5 điểm rải lại'
+  if (w === 'ghế 0 thắng' && end === 'hết quan' && g.tags.has('refill')) return w + ' · ' + end + ' · có rải lại · có nước rác'
+  if (w === 'ghế 1 thắng' && end !== 'hết quan') return w + ' · ' + end + ' · có nước rác'
+  if (w === 'hoà') return 'hoà · có nước rác'
+  return null
+}, 7)
+
+// ---------- Cờ gánh ----------
+const cgLegal = (s) => {
+  const out = []
+  for (let f = 0; f < 25; f++) {
+    if (s.board[f] !== s.turn) continue
+    for (const to of NEIGHBORS[f]) if (cg.validate(s, s.turn, { from: f, to }) == null) out.push({ from: f, to })
+  }
+  return out
+}
+const cgTrash = (s) => {
+  const t = s.turn
+  const mine = s.board.flatMap((v, i) => (v === t ? [i] : []))
+  const theirs = s.board.flatMap((v, i) => (v === 1 - t ? [i] : []))
+  const free = s.board.flatMap((v, i) => (v == null ? [i] : []))
+  const list = [
+    { seat: 1 - t, move: { from: any(theirs), to: any(free) } },
+    { seat: t, move: { from: any(theirs), to: any(free) } },
+    { seat: t, move: { from: String(mine[0]), to: 12 } },
+    { seat: t, move: null },
+    { seat: t, move: [1, 2] },
+    { seat: t, move: { from: mine[0] + 0.5, to: 12 } },
+    { seat: t, move: { from: mine[0] } },
+  ]
+  if (mine.length > 1) list.push({ seat: t, move: { from: mine[0], to: mine[1] } })
+  const far = mine.flatMap((f) => free.filter((x) => !NEIGHBORS[f].includes(x)).map((x) => ({ from: f, to: x })))
+  if (far.length) list.push({ seat: t, move: any(far) })
+  const odd = mine.filter((f) => !hasDiag(f)).flatMap((f) => [f - 6, f - 4, f + 4, f + 6]
+    .filter((x) => x >= 0 && x < 25 && Math.abs((x % 5) - (f % 5)) === 1 && s.board[x] == null).map((x) => ({ from: f, to: x })))
+  if (odd.length) list.push({ seat: t, move: any(odd) })
+  if (forcedFrom(s, t).length) {
+    const dodge = mine.flatMap((f) => NEIGHBORS[f].filter((x) => s.board[x] == null && x !== s.open).map((x) => ({ from: f, to: x })))
+    for (let k = 0; k < 4 && dodge.length; k++) list.push({ seat: t, move: any(dodge) })
+  }
+  return list
+}
+const cgFx = pick(cg, {
+  seeds: 6000,
+  legal: cgLegal,
+  trash: cgTrash,
+  after: (prev, s, tags) => { if (forcedFrom(prev, prev.turn).length) tags.add('forced') },
+}, (g) => {
+  const c = [0, 0]
+  g.s.board.forEach((v) => { if (v != null) c[v] += 1 })
+  const w = g.result.draw ? 'hoà' : 'ghế ' + g.result.winners[0] + ' thắng'
+  if (c[0] === 0 || c[1] === 0) {
+    if (w === 'ghế 0 thắng' && g.tags.has('forced')) return w + ' · hết quân · có nước bắt buộc gánh · có nước rác'
+    if (w === 'ghế 1 thắng') return w + ' · hết quân · có nước rác'
+    return null
+  }
+  return g.s.quiet >= QUIET_LIMIT ? 'im ' + QUIET_LIMIT + ' nước · đếm quân: ' + w + ' · có nước rác' : null
+}, 11)
+
+// ---------- Cờ lật ----------
+// Nước "tràn mép": chỉ kẹp được nếu đi bằng cách cộng chỉ số (±1, ±7, ±9 tràn sang hàng bên) — luật đúng phải từ chối.
+const naive = (b, i, t) => [-9, -8, -7, -1, 1, 7, 8, 9].some((d) => {
+  let j = i + d
+  let n = 0
+  while (j >= 0 && j < 64 && b[j] === 1 - t) { j += d; n += 1 }
+  return n > 0 && j >= 0 && j < 64 && b[j] === t
+})
+const clLegal = (s) => movesOf(s.board, s.turn).map((cell) => ({ cell }))
+const clTrash = (s) => {
+  const t = s.turn
+  const legal = movesOf(s.board, t)
+  const taken = s.board.flatMap((v, i) => (v != null ? [i] : []))
+  const dead = s.board.flatMap((v, i) => (v == null && !legal.includes(i) ? [i] : []))
+  const list = [
+    { seat: 1 - t, move: { cell: any(legal) } },
+    { seat: t, move: { cell: any(taken) } },
+    { seat: t, move: { cell: String(any(legal)) } },
+    { seat: t, move: { cell: any(legal) + 0.5 } },
+    { seat: t, move: { cell: any([-1, 64]) } },
+    { seat: t, move: null },
+    { seat: t, move: [any(legal)] },
+  ]
+  if (dead.length) list.push({ seat: t, move: { cell: any(dead) } })
+  for (const i of dead.filter((i) => naive(s.board, i, t))) list.push({ seat: t, move: { cell: i } }, { seat: t, move: { cell: i } })
+  return list
+}
+const hasWrap = (moves) => {
+  let s = cl.setup()
+  return moves.some((m) => {
+    if (cl.validate(s, m.seat, m.move) == null) { s = cl.apply(s, m.seat, m.move); return false }
+    const i = m.move?.cell
+    return !s.over && m.seat === s.turn && Number.isInteger(i) && s.board[i] == null && naive(s.board, i, s.turn)
+  })
+}
+const clFx = pick(cl, {
+  seeds: 4000,
+  legal: clLegal,
+  trash: clTrash,
+  after: (prev, s, tags) => { if (!s.over && s.last.skipped != null) tags.add('skip') },
+}, (g) => {
+  const full = g.s.board.every((v) => v != null)
+  const w = g.result.draw ? 'hoà' : 'ghế ' + g.result.winners[0] + ' thắng'
+  if (!full) return 'hết nước trước khi đầy bàn · ' + w + ' · có nước rác'
+  if (w === 'ghế 0 thắng' && g.tags.has('skip') && hasWrap(g.moves)) return w + ' · đầy bàn · có mất lượt · có nước rác tràn mép'
+  if (w === 'ghế 1 thắng' && hasWrap(g.moves)) return w + ' · đầy bàn · có nước rác tràn mép'
+  if (w === 'hoà') return 'hoà · đầy bàn · có nước rác'
+  return null
+}, 13)
+
+// ---------- Chấm ô ----------
+// Mỗi ván một cỡ bàn, tuỳ chọn viết nguyên văn (cả 6.0 và cỡ bậy phải về 5 × 5). Rác rút LẦN LƯỢT từng loại (any()
+// rút lệch, xem rand) — đủ cả: sai lượt, nét đã nối, chuỗi, lẻ, -1, đúng bằng số nét (hợp lệ ở bàn to hơn), sai khoá,
+// null, mảng. Người vừa ăn ô (đang được đi tiếp) thì loại nào cũng là người kia chen lượt — SQL quên "ăn ô thì đi
+// tiếp" là lệch ngay.
+const chFree = (s) => s.lines.flatMap((v, i) => (v == null ? [i] : []))
+const chLegal = (s) => chFree(s).map((line) => ({ line }))
+let chNext = 0
+const chTrash = (s) => {
+  const t = s.turn
+  const free = chFree(s)
+  const drawn = s.lines.flatMap((v, i) => (v != null ? [i] : []))
+  if (s.last?.boxes.length) return [{ seat: 1 - t, move: { line: any(free) } }]
+  const list = [
+    { seat: 1 - t, move: { line: any(free) } },
+    { seat: t, move: { line: any(drawn.length ? drawn : [-1]) } },
+    { seat: t, move: { line: String(any(free)) } },
+    { seat: t, move: { line: any(free) + 0.5 } },
+    { seat: t, move: { line: -1 } },
+    { seat: t, move: { line: s.lines.length } },
+    { seat: t, move: { cell: any(free) } },
+    { seat: t, move: null },
+    { seat: t, move: [any(free)] },
+  ]
+  return [list[chNext++ % list.length]]
+}
+/** Có nước rác chen lượt lúc người kia đang được đi tiếp (nét còn trống, chỉ sai người) không. */
+const stole = (moves, options) => {
+  let s = ch.setup({ options })
+  return moves.some((m) => {
+    if (ch.validate(s, m.seat, m.move) == null) { s = ch.apply(s, m.seat, m.move); return false }
+    const i = m.move?.line
+    return !s.over && s.last?.boxes.length > 0 && m.seat === 1 - s.turn && Number.isInteger(i) && s.lines[i] == null
+  })
+}
+/** Ván đầu tiên (seed từ `from`) thoả `ok`. Ván Chấm ô dài cố định theo cỡ bàn nên khỏi tìm ván ngắn nhất như pick(). */
+function find(game, cfg, ok, from) {
+  for (let sd = from; sd < from + 20000; sd++) {
+    const g = play(game, sd, cfg)
+    if (ok(g)) return g
+  }
+  throw new Error('không tìm được ván mẫu cho ' + JSON.stringify(cfg.options))
+}
+const chCfg = (options) => ({
+  legal: chLegal,
+  trash: chTrash,
+  options,
+  after: (prev, s, tags) => {
+    if (s.last.boxes.length === 2) tags.add('double')
+    if (s.trail.length >= 4) tags.add('chain')
+  },
+})
+// Mỗi ván tìm từ một seed riêng (from) — ba ván 5 × 5 khỏi trùng nước với nhau.
+const chRun = (text, note, from, ok = () => true) => {
+  const g = find(ch, chCfg(JSON.parse(text)), ok, from)
+  const w = g.result.draw ? 'hoà' : 'ghế ' + g.result.winners[0] + ' thắng'
+  return { ...g, note: note + ' · ' + w + ' · có nước rác', options: text }
+}
+const chFx = [
+  chRun('{}', 'bàn 5 × 5 mặc định · có nét khép hai ô · có ăn dây chuyền · có nước chen lượt lúc người kia được đi tiếp', 1,
+    (g) => g.result.winners[0] === 0 && g.tags.has('double') && g.tags.has('chain') && stole(g.moves, {})),
+  chRun('{"size":3}', 'bàn 3 × 3', 100, (g) => g.result.winners[0] === 1),
+  chRun('{"size":4}', 'bàn 4 × 4', 200, (g) => g.result.draw),
+  chRun('{"size":6.0}', 'cỡ viết 6.0 = bàn 6 × 6', 300),
+  chRun('{"size":"3"}', 'cỡ là chuỗi 3 → về bàn 5 × 5', 400),
+  chRun('{"size":9}', 'cỡ 9 quá lớn → về bàn 5 × 5', 500),
+]
+{
+  const part = play(ch, 29, chCfg({})).moves.slice(0, 30)
+  const st = part.reduce((s, m) => (ch.validate(s, m.seat, m.move) == null ? ch.apply(s, m.seat, m.move) : s), ch.setup())
+  if (st.over) throw new Error('nửa ván Chấm ô đã xong')
+  chFx.push({ note: 'chưa xong ván', moves: part, result: null })
+}
+
+const OUT = [
+  ['supabase/manual/0075_games_results_check.sql', '$fx$', block(oq, oqFx, ['cell', 'dir'])],
+  ['supabase/manual/0075_games_results_check.sql', '$cg$', block(cg, cgFx, ['from', 'to'])],
+  ['supabase/manual/0076_games_colat_check.sql', '$cl$', block(cl, clFx, ['cell'])],
+  ['supabase/manual/0077_games_chamo_check.sql', '$ch$', block(ch, chFx, ['line'])],
+]
+for (const [file, tag, text] of OUT) {
+  const parts = readFileSync(file, 'utf8').split(tag)
+  if (parts.length !== 3) throw new Error(file + ' phải có đúng một khối ' + tag)
+  writeFileSync(file, parts[0] + tag + '\n' + text + '\n' + tag + parts[2])
+}
+for (const [name, fx] of [['Ô ăn quan', oqFx], ['Cờ gánh', cgFx], ['Cờ lật', clFx], ['Chấm ô', chFx]]) {
+  console.log(name + ':\n' + fx.map((f) => '  ' + f.note + ' — ' + f.moves.length + ' nước, ' + JSON.stringify(f.result)).join('\n'))
+}

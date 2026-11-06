@@ -10,7 +10,7 @@
 // thì người ghi sau thắng. Chấp nhận được vì đơn vị ghi là từng dòng, không phải cả CLB.
 
 import { supabase, unwrap } from '#supabase'
-import { SLICE_TABLES, clubRow, diff, hasHalfWrittenMatch, mergeSessionSlice, toDb, toLibPost, toRows, toStanding, toTour, toTourMatch, toTourMatchEdit, videosRow } from '#contexts/dbmap.js'
+import { SLICE_TABLES, clubRow, diff, hasHalfWrittenMatch, mergeSessionSlice, toDb, toGameMove, toGamePlayer, toGameRoom, toLibPost, toRows, toStanding, toTour, toTourMatch, toTourMatchEdit, videosRow } from '#contexts/dbmap.js'
 import { monthOf, todayISO } from '#utils/dates.js'
 import { t } from '#i18n'
 import cfg from '#config/app.json' with { type: 'json' }
@@ -737,4 +737,77 @@ export async function loadSeasonStandings(clubId, seasonId) {
 export async function freezeSeason(clubId, seasonId, rows, seasons) {
   if (!supabase) throw new Error('Chưa cấu hình Supabase')
   return unwrap(await supabase.rpc('season_freeze', { p_club: clubId, p_season_id: seasonId, p_rows: rows, p_seasons: seasons }))
+}
+
+/* ================= MINI-GAME I/O (0074) ================= */
+// Không nằm trong `db`: trang tự nạp, mọi lượt ghi qua RPC game_*. Phòng đang mở nghe realtime.
+
+const ROOM_SEL = '*, game_room_players(*)'
+
+/**
+ * Sảnh: phòng đang chờ / đang chơi của CLB (mới trước) + các ván đã xong mình từng ngồi (để đếm
+ * thắng thua). Phòng riêng (`private`) vẫn trả về — sảnh tự ẩn, trừ phòng mình đang ngồi.
+ */
+export async function loadGameLobby(clubId, memberId) {
+  if (!supabase) throw new Error('Chưa cấu hình Supabase')
+  const [open, mine] = await Promise.all([
+    supabase.from('game_rooms').select(ROOM_SEL).eq('club_id', clubId).in('status', ['waiting', 'playing'])
+      .order('created_at', { ascending: false }).limit(cfg.games.lobbyLimit),
+    memberId
+      ? supabase.from('game_rooms').select('id, game, result, game_room_players!inner(member_id, seat)')
+        .eq('club_id', clubId).eq('status', 'finished').eq('game_room_players.member_id', memberId)
+        .order('ended_at', { ascending: false }).limit(cfg.games.statsLimit)
+      : { data: [], error: null },
+  ])
+  return {
+    rooms: (unwrap(open) || []).map(toGameRoom),
+    finished: (unwrap(mine) || []).map((r) => ({ game: r.game, result: r.result, seat: num0(r.game_room_players?.[0]?.seat) })),
+  }
+}
+
+const num0 = (v) => (v == null ? null : Number(v))
+
+/** Một phòng + ghế + toàn bộ log nước đi theo seq. Không thấy (khác CLB / sai id) → room null. */
+export async function loadGameRoom(roomId) {
+  if (!supabase) throw new Error('Chưa cấu hình Supabase')
+  const [room, moves] = await Promise.all([
+    supabase.from('game_rooms').select(ROOM_SEL).eq('id', roomId).maybeSingle(),
+    supabase.from('game_moves').select('seq, seat, move, created_at').eq('room_id', roomId).order('seq', { ascending: true }),
+  ])
+  const row = unwrap(room)
+  return { room: row ? toGameRoom(row) : null, moves: (unwrap(moves) || []).map(toGameMove) }
+}
+
+/** Mã mời → id phòng của CLB, hoặc null. */
+export async function findGameRoom(clubId, code) {
+  if (!supabase) throw new Error('Chưa cấu hình Supabase')
+  const res = await supabase.from('game_rooms').select('id').eq('club_id', clubId).eq('code', code).maybeSingle()
+  return unwrap(res)?.id || null
+}
+
+export async function gameRpc(name, args) {
+  if (!supabase) throw new Error('Chưa cấu hình Supabase')
+  return unwrap(await supabase.rpc(name, args))
+}
+
+/**
+ * Nghe thay đổi của MỘT phòng. `on(ev)` nhận:
+ *   { type: 'move', move }      — một nước mới
+ *   { type: 'room', room }      — phòng đổi trạng thái (không kèm ghế)
+ *   { type: 'player', player }  — ghế đổi
+ *   { type: 'resync' }          — vừa nối (lại) xong: nạp lại cả phòng, có thể đã lỡ sự kiện lúc mất mạng
+ * Trả hàm huỷ nghe.
+ */
+export function subscribeGameRoom(roomId, on) {
+  if (!supabase) return () => {}
+  const filter = 'room_id=eq.' + roomId
+  const ch = supabase.channel('game:' + roomId)
+    .on('postgres_changes', { event: 'INSERT', schema: 'public', table: 'game_moves', filter },
+      (p) => on({ type: 'move', move: toGameMove(p.new) }))
+    .on('postgres_changes', { event: '*', schema: 'public', table: 'game_room_players', filter },
+      (p) => p.new && on({ type: 'player', player: toGamePlayer(p.new) }))
+    .on('postgres_changes', { event: 'UPDATE', schema: 'public', table: 'game_rooms', filter: 'id=eq.' + roomId },
+      (p) => on({ type: 'room', room: toGameRoom(p.new) }))
+    .subscribe((status) => { if (status === 'SUBSCRIBED') on({ type: 'resync' }) })
+  return () => { supabase.removeChannel(ch) }
 }

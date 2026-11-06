@@ -77,6 +77,7 @@ export default function MoreSheet({ open, onClose, route }) {
         }] : []),
         { value: 'tournaments', icon: 'medal' },
         { value: 'library', icon: 'book-open' },
+        { value: 'games', icon: 'gamepad-2' },
         ...(!currentSlots.includes('badges') ? [{ value: 'badges', icon: 'award' }] : []),
         {
           value: 'members',
@@ -151,7 +152,8 @@ export default function MoreSheet({ open, onClose, route }) {
             <div style={S.groupItems}>
               {grp.items.map((it) => {
                 const isActive = route === it.value || (it.value === 'tournaments' && String(route).startsWith('tournament')) ||
-                  (it.value === 'library' && route === 'libraryPost')
+                  (it.value === 'library' && route === 'libraryPost') ||
+                  (it.value === 'games' && route === 'gameRoom')
                 return (
                   <button
                     key={it.value}

@@ -1325,3 +1325,35 @@ export const libPostRow = (p) => ({
 
 /** Một dòng `season_standings` → dòng bảng xếp hạng. Hạng / điểm lấy từ cột — chính số SQL tra theo. */
 export const toStanding = (r) => ({ ...(r.data || {}), rank: r.rank, totalSeasonPoints: r.points })
+
+/* =========================================================================
+   MINI-GAME (0074) — KHÔNG vào TABLES / diff(): trang tự nạp, ghi qua RPC game_*.
+   ========================================================================= */
+
+export const toGamePlayer = (r) => ({
+  memberId: r.member_id,
+  seat: num(r.seat),
+  joinedAt: r.joined_at || null,
+  leftAt: r.left_at || null,
+  seenAt: r.seen_at || null,
+})
+
+export const toGameMove = (r) => ({ seq: num(r.seq), seat: num(r.seat), move: r.move || {}, at: r.created_at || null })
+
+export const toGameRoom = (r) => ({
+  id: r.id,
+  clubId: r.club_id,
+  game: r.game,
+  code: r.code,
+  hostId: r.host_id,
+  status: r.status,
+  private: !!r.private,
+  options: r.options || {},
+  seed: r.seed || null,
+  result: r.result || null,
+  nextRoom: r.next_room || null,
+  createdAt: r.created_at || null,
+  startedAt: r.started_at || null,
+  endedAt: r.ended_at || null,
+  players: (r.game_room_players || []).map(toGamePlayer),
+})

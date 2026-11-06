@@ -263,5 +263,18 @@
     "pollMs": 250,
     "titleMax": 200,
     "shelfMax": 40
+  },
+  "games": {
+    "_note": "Mini-game trong CLB (0074, docs/GAMES.md). lobbyPollMs: nhịp sảnh hỏi lại danh sách phòng (sảnh không nghe realtime). lobbyLimit: số phòng đang mở tối đa nạp ra sảnh. statsLimit: số ván đã xong gần nhất dùng đếm thắng thua. staleHours: phòng đang chờ quá ngần ấy giờ thì sảnh ẩn đi. caroSizes: các cỡ bàn cho chọn khi tạo phòng Caro (server chặn 5..25). chamoSizes: các cỡ bàn Chấm ô cho chọn (số ô mỗi cạnh; luật nhận 2..8, cỡ khác tự về 5 — lib/games/chamo.js, 0077). pingSec: nhịp người ngồi ghế báo còn kết nối. offlineSec: quá ngần ấy giây không thấy nhịp thì hiện mất kết nối. reconnectGraceSec: quá ngần ấy giây thì đối thủ được xử thắng — PHẢI khớp số giây trong game_claim của 0074 (test gác). claimRetrySec: server từ chối (lệch giờ) thì bao lâu sau thử đòi lại.",
+    "pingSec": 20,
+    "offlineSec": 45,
+    "reconnectGraceSec": 120,
+    "claimRetrySec": 10,
+    "lobbyPollMs": 8000,
+    "lobbyLimit": 50,
+    "statsLimit": 500,
+    "staleHours": 6,
+    "caroSizes": [15, 19],
+    "chamoSizes": [3, 4, 5, 6]
   }
 }

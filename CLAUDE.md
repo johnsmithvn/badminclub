@@ -62,6 +62,7 @@ Load documentation only when relevant.
 | Tasks | docs/TASKS.md |
 | Đổi công thức Elo / điểm mùa | docs/BACKTEST.md |
 | Tra công thức / chỉ số bất kỳ | docs/CHI_SO_VA_CONG_THUC.md |
+| Mini-game trong CLB | docs/GAMES.md |
 
 Never load unrelated documentation.
 
