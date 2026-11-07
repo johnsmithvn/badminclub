@@ -778,6 +778,16 @@ export async function loadGameRoom(roomId) {
   return { room: row ? toGameRoom(row) : null, moves: (unwrap(moves) || []).map(toGameMove) }
 }
 
+/**
+ * Bài chia trong phòng (game có bài úp, 0078) → { [seat]: cards }. RLS: đang chơi chỉ trả tay của người gọi
+ * ({} nếu là người xem); hết ván thì trả mọi tay để lật bài. Ghế -1 (nọc bài) không bao giờ trả.
+ */
+export async function loadGameHand(roomId) {
+  if (!supabase) throw new Error('Chưa cấu hình Supabase')
+  const res = await supabase.from('game_hands').select('seat, cards').eq('room_id', roomId)
+  return Object.fromEntries((unwrap(res) || []).map((h) => [h.seat, h.cards || []]))
+}
+
 /** Mã mời → id phòng của CLB, hoặc null. */
 export async function findGameRoom(clubId, code) {
   if (!supabase) throw new Error('Chưa cấu hình Supabase')

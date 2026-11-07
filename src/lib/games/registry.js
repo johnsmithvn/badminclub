@@ -6,8 +6,16 @@ import oanquan from '#lib/games/oanquan.js'
 import coganh from '#lib/games/coganh.js'
 import colat from '#lib/games/colat.js'
 import chamo from '#lib/games/chamo.js'
+import tienlen from '#lib/games/tienlen.js'
+import covua from '#lib/games/covua.js'
+import cotuong from '#lib/games/cotuong.js'
+import cangua from '#lib/games/cangua.js'
+import bantau from '#lib/games/bantau.js'
+import domino from '#lib/games/domino.js'
+import baibip from '#lib/games/baibip.js'
+import noitu from '#lib/games/noitu.js'
 
-export const GAMES = { caro, oanquan, coganh, colat, chamo }
+export const GAMES = { caro, oanquan, coganh, colat, chamo, tienlen, covua, cotuong, cangua, bantau, domino, baibip, noitu }
 
 export const GAME_IDS = Object.keys(GAMES)
 
@@ -19,12 +27,13 @@ export const seatedOf = (players) => (players || []).filter((p) => !p.leftAt).so
 /**
  * Dựng lại state từ log nước đi. Nước không hợp lệ bị BỎ QUA — máy nào cũng bỏ như nhau,
  * nên một client sửa code để gửi nước bậy chỉ tạo dòng rác mà không ai áp dụng.
- * `moves` phải xếp theo `seq` tăng dần.
+ * `moves` phải xếp theo `seq` tăng dần. `apply` nhận thêm cả dòng log (`m.at` = giờ server ghi nước) cho game
+ * tính giờ theo server (Nối từ); game khác bỏ qua tham số này.
  */
 export function replay(game, { options, seed, seats }, moves) {
   let s = game.setup({ options, seed, seats })
   for (const m of moves || []) {
-    if (game.validate(s, m.seat, m.move) == null) s = game.apply(s, m.seat, m.move)
+    if (game.validate(s, m.seat, m.move) == null) s = game.apply(s, m.seat, m.move, m)
   }
   return s
 }

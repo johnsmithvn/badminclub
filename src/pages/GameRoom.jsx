@@ -70,6 +70,8 @@ export default function GameRoom() {
   }
 
   const turnName = state && state.turn != null && !result ? seated.find((p) => p.seat === state.turn)?.memberId : null
+  // Game tự nói trạng thái khi cả bàn cùng đi (đêm Ma sói, duyệt từ Nối từ…) — `status(state, mySeat)` → { key, params }.
+  const custom = state && !result ? game.status?.(state, mySeat) : null
 
   return (
     <div style={{ display: 'grid', gap: 14, gridTemplateColumns: 'minmax(0, 1fr)' }}>
@@ -86,7 +88,8 @@ export default function GameRoom() {
       {g.err && <Alert tone="danger">{g.err}</Alert>}
 
       <div style={{ display: 'flex', gap: 8, flexWrap: 'wrap' }}>
-        {Array.from({ length: room.status === 'waiting' ? game.maxPlayers : seated.length }, (_, seat) => {
+        {/* Đang chơi: theo số ghế của người còn ngồi — ván 3–4 người có người rời thì số ghế không còn liền 0..n-1. */}
+        {(room.status === 'waiting' ? Array.from({ length: game.maxPlayers }, (_, s) => s) : seated.map((x) => x.seat)).map((seat) => {
           const p = seated.find((x) => x.seat === seat)
           const on = p && state && !result && state.turn === seat
           const m = p && memberOf(p.memberId)
@@ -130,12 +133,13 @@ export default function GameRoom() {
           <div style={{ ...S.status, ...(result ? S.statusDone : null) }} aria-live="polite">
             {result
               ? resultText(result, room.players, mySeat, nameOf)
+              : custom ? t(custom.key, custom.params)
               : mySeat == null ? t('games.spectating')
                 : canMove ? t('games.yourTurn') : t('games.theirTurn', { name: turnName ? nameOf(turnName) : '' })}
             <span style={S.mono}>{t('games.moves', { n: g.moves.length })}</span>
           </div>
           <Suspense fallback={<Skeleton height={320} />}>
-            <Screen state={game.view(state, mySeat)} mySeat={mySeat} canMove={canMove} onMove={g.play} />
+            <Screen state={game.view(state, mySeat)} mySeat={mySeat} canMove={canMove} onMove={g.play} roomId={room.id} result={room.result} />
           </Suspense>
         </>
       )}
@@ -169,7 +173,7 @@ export default function GameRoom() {
             </>
           )}
         >
-          <span style={S.caption}>{t('games.resignDesc')}</span>
+          <span style={S.caption}>{t(seated.length > 2 ? 'games.resignDescMany' : 'games.resignDesc')}</span>
         </Dialog>
       )}
       {howto && <HowTo gameId={room.game} onClose={() => setHowto(false)} />}
@@ -188,6 +192,8 @@ const clock = (sec) => {
  * lâu (`idle`, game_claim). Tên người thắng tra theo ghế lúc ván kết thúc — người đã rời vẫn còn dòng ghế.
  */
 function resultText(result, players, mySeat, nameOf) {
+  // Máy khách chưa biết ai thắng (Domino tắc — cần quân còn lại): chờ server chấm (room.result thay vào).
+  if (result.pending) return t('games.scoring')
   if (result.draw) return t('games.draw')
   const w = result.winners || []
   if (mySeat != null) {

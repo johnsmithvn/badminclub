@@ -1,12 +1,15 @@
 import { Button, Dialog } from '#ds'
 import { useMobile } from '#hooks/useMobile.js'
 import { t } from '#i18n'
+import { RANK_FACES, rankOf, SUIT_MARKS, suitOf } from '#lib/games/tienlen.js'
 
 // Phần giới thiệu dùng chung của sảnh (pages/Games.jsx) và phòng chơi (pages/GameRoom.jsx):
 // tranh minh hoạ từng game (SVG tự vẽ, màu theo token — tự đổi sáng / tối) và hộp thoại "Cách chơi".
 // Thêm game: thêm một tông màu ở TONE + một tranh ở ART; thiếu thì thẻ chỉ có nền màu, không lỗi.
 
-const TONE = { caro: 'scheduled', oanquan: 'delayed', coganh: 'transit', colat: 'delivered', chamo: 'idle' }
+const TONE = { caro: 'scheduled', oanquan: 'delayed', coganh: 'transit', colat: 'delivered', chamo: 'idle', tienlen: 'incident',
+  covua: 'scheduled', cotuong: 'delayed', cangua: 'delivered',
+  bantau: 'transit', domino: 'idle', baibip: 'delayed', noitu: 'transit' }
 const mix = (c, pct) => `color-mix(in srgb, ${c} ${pct}%, transparent)`
 const RED = 'var(--status-incident)'
 const BLUE = 'var(--navy-400)'
@@ -182,7 +185,198 @@ function ChamOArt() {
   )
 }
 
-const ART = { caro: CaroArt, oanquan: OAnQuanArt, coganh: CoGanhArt, colat: CoLatArt, chamo: ChamOArt }
+function TienLenArt() {
+  // Năm lá xoè trên tay: A♠ 2♥ K♦ Q♣ J♥, xoay quanh một điểm dưới mép tranh.
+  const cards = [44, 51, 42, 37, 35]
+  return (
+    <>
+      <ellipse cx={80} cy={90} rx={62} ry={9} fill={mix('var(--status-incident-fg)', 12)} />
+      {cards.map((c, k) => {
+        const red = suitOf(c) >= 2
+        const ink = red ? 'var(--status-incident-fg)' : 'var(--text-primary)'
+        return (
+          <g key={c} transform={`rotate(${(k - 2) * 15} 80 120)`}>
+            <rect x={63} y={14} width={34} height={50} rx={4} fill="var(--surface-card)" stroke="var(--border-default)" />
+            <text x={67} y={25} fill={ink} style={{ font: '600 9px var(--font-mono)' }}>{RANK_FACES[rankOf(c)]}</text>
+            <text x={80} y={46} fill={ink} textAnchor="middle" style={{ font: '400 17px var(--font-mono)' }}>{SUIT_MARKS[suitOf(c)]}</text>
+          </g>
+        )
+      })}
+    </>
+  )
+}
+
+function CoVuaArt() {
+  // Góc bàn 5 × 3 ô với vua, hậu trắng và mã, vua đen — ký hiệu cờ Unicode như bàn thật (CoVuaBoard.jsx).
+  const ink = 'var(--status-scheduled-fg)'
+  const font = "400 22px/1 'Segoe UI Symbol', 'DejaVu Sans', 'Noto Sans Symbols 2', 'Apple Symbols', sans-serif"
+  const pieces = [['♚', 0, 1, 1], ['♛', 1, 2, 0], ['♞', 2, 0, 0], ['♚', 3, 2, 0], ['♟', 4, 1, 1]]
+  return (
+    <>
+      {Array.from({ length: 15 }, (_, k) => {
+        const c = k % 5
+        const r = Math.floor(k / 5)
+        return <rect key={k} x={30 + c * 20} y={18 + r * 20} width={20} height={20} fill={(r + c) % 2 ? mix(ink, 45) : mix(ink, 12)} />
+      })}
+      <rect x={30} y={18} width={100} height={60} fill="none" stroke={mix(ink, 50)} />
+      {pieces.map(([g, c, r, side], k) => (
+        <text key={k} x={40 + c * 20} y={29 + r * 20} textAnchor="middle" dominantBaseline="central"
+          fill={side ? 'var(--navy-950)' : 'var(--gray-0)'} stroke={side ? 'var(--gray-0)' : 'var(--navy-950)'} strokeWidth={side ? 0.5 : 1} paintOrder="stroke"
+          style={{ font }}>{g + '︎'}</text>
+      ))}
+    </>
+  )
+}
+
+function CoTuongArt() {
+  // Một khúc bàn quanh sông với vài quân tròn khắc chữ: xe, pháo, mã đỏ đối tướng, tốt đen.
+  const ink = 'var(--status-delayed-fg)'
+  const pieces = [['俥', 0, 3, RED], ['炮', 2, 2, RED], ['將', 5, 0, 'var(--navy-950)'], ['卒', 4, 1, 'var(--navy-950)'], ['傌', 6, 3, RED]]
+  return (
+    <>
+      <g stroke={mix(ink, 45)} strokeWidth={1.4}>
+        {[0, 1, 2, 3].map((r) => <line key={'h' + r} x1={20} y1={18 + r * 20} x2={140} y2={18 + r * 20} />)}
+        {Array.from({ length: 7 }, (_, c) => <line key={'v' + c} x1={20 + c * 20} y1={18} x2={20 + c * 20} y2={c % 6 ? 38 : 78} />)}
+        {Array.from({ length: 7 }, (_, c) => <line key={'w' + c} x1={20 + c * 20} y1={58} x2={20 + c * 20} y2={78} />)}
+      </g>
+      {pieces.map(([ch, c, r, color], k) => (
+        <g key={k} transform={`translate(${20 + c * 20} ${18 + r * 20})`}>
+          <circle r={8.5} fill="var(--gray-0)" stroke={color} strokeWidth={1.4} />
+          <text textAnchor="middle" dominantBaseline="central" y={0.5} fill={color} style={{ font: '700 9.5px/1 serif' }}>{ch}</text>
+        </g>
+      ))}
+    </>
+  )
+}
+
+function CaNguaArt() {
+  // Một cung đường đua chấm tròn, bốn con ngựa bốn màu và con xúc xắc mặt 6.
+  const colors = [RED, 'var(--status-delivered)', 'var(--status-delayed)', 'var(--status-scheduled)']
+  const font = "400 13px/1 'Segoe UI Symbol', 'DejaVu Sans', 'Noto Sans Symbols 2', 'Apple Symbols', sans-serif"
+  const dot = (k) => [80 + 62 * Math.cos(Math.PI * (0.05 + k / 16)), 4 + 62 * Math.sin(Math.PI * (0.05 + k / 16))]
+  return (
+    <>
+      {Array.from({ length: 16 }, (_, k) => {
+        const [x, y] = dot(k)
+        return <circle key={k} cx={x} cy={y} r={5.5} fill="var(--surface-card)" stroke={mix('var(--text-secondary)', 40)} />
+      })}
+      {[2, 6, 10, 14].map((k, i) => {
+        const [x, y] = dot(k)
+        return (
+          <g key={k} transform={`translate(${x} ${y})`}>
+            <circle r={7.5} fill="var(--gray-0)" stroke={colors[i]} strokeWidth={1.6} />
+            <text textAnchor="middle" dominantBaseline="central" y={0.5} fill={colors[i]} style={{ font }}>{'♞︎'}</text>
+          </g>
+        )
+      })}
+      <rect x={66} y={22} width={28} height={28} rx={6} fill="var(--gray-0)" stroke="var(--border-default)" />
+      {[[-1, -1], [1, -1], [-1, 0], [1, 0], [-1, 1], [1, 1]].map(([dx, dy], k) => (
+        <circle key={k} cx={80 + dx * 7} cy={36 + dy * 7} r={2.4} fill="var(--navy-950)" />
+      ))}
+    </>
+  )
+}
+
+function BanTauArt() {
+  // Mặt biển kẻ ô, một tàu dài bị trúng hai phát, vài phát trượt.
+  const ink = 'var(--status-scheduled-fg)'
+  const at = (c, r) => [24 + c * 14, 8 + r * 14]
+  return (
+    <>
+      <rect x={24} y={8} width={112} height={84} rx={6} fill={mix(ink, 12)} />
+      <g stroke={mix(ink, 25)}>
+        {Array.from({ length: 9 }, (_, k) => <line key={'v' + k} x1={24 + k * 14} y1={8} x2={24 + k * 14} y2={92} />)}
+        {Array.from({ length: 7 }, (_, k) => <line key={'h' + k} x1={24} y1={8 + k * 14} x2={136} y2={8 + k * 14} />)}
+      </g>
+      <rect x={at(2, 2)[0] + 2} y={at(2, 2)[1] + 2} width={14 * 4 - 4} height={10} rx={5} fill={BLUE} />
+      <rect x={at(6, 4)[0] + 2} y={at(6, 4)[1] + 2} width={10} height={14 * 2 - 4} rx={5} fill={BLUE} />
+      {[[3, 2], [4, 2]].map(([c, r]) => {
+        const [x, y] = at(c, r)
+        return <circle key={c + '-' + r} cx={x + 7} cy={y + 7} r={4.5} fill={RED} />
+      })}
+      {[[1, 4], [5, 1], [3, 5], [7, 1]].map(([c, r]) => {
+        const [x, y] = at(c, r)
+        return <circle key={c + '-' + r} cx={x + 7} cy={y + 7} r={2.2} fill="var(--gray-0)" stroke={ink} strokeWidth={0.8} />
+      })}
+    </>
+  )
+}
+
+function DominoArt() {
+  // Một dây bốn quân nối nhau: 6|6 — 6|3 — 3|1 — 1|5.
+  const PIP = { 1: [4], 3: [0, 4, 8], 5: [0, 2, 4, 6, 8], 6: [0, 2, 3, 5, 6, 8] }
+  const tiles = [[6, 6], [6, 3], [3, 1], [1, 5]]
+  const S = 18
+  return (
+    <>
+      {tiles.map(([a, b], k) => {
+        const x0 = 8 + k * (S * 2 + 0)
+        const y0 = 39 + (k % 2 ? 6 : -6)
+        return (
+          <g key={k} transform={`translate(${x0} ${y0}) rotate(${k % 2 ? 4 : -4} ${S} ${S / 2})`}>
+            <rect width={S * 2 - 1} height={S} rx={3.5} fill="var(--gray-0)" stroke="var(--gray-500)" />
+            <line x1={S} y1={3} x2={S} y2={S - 3} stroke="var(--gray-500)" />
+            {[a, b].map((v, h) => PIP[v].map((p) => (
+              <circle key={h + '-' + p} cx={h * S + 4 + (p % 3) * 5} cy={4 + Math.floor(p / 3) * 5} r={1.5} fill={v === 1 || v === 6 ? RED : 'var(--navy-950)'} />
+            )))}
+          </g>
+        )
+      })}
+    </>
+  )
+}
+
+function BaiBipArt() {
+  // Ba lá xoè (hai lá úp, một lá lật K) cạnh quả bom ngòi đang cháy, bó dây màu bên dưới.
+  const wires = ['var(--status-incident)', 'var(--status-delayed)', 'var(--status-delivered)', 'var(--status-scheduled)']
+  return (
+    <>
+      <ellipse cx={80} cy={88} rx={64} ry={6} fill={mix('var(--status-delayed-fg)', 14)} />
+      {[-18, -4, 10].map((r, k) => (
+        <g key={k} transform={`rotate(${r} 52 96)`}>
+          <rect x={34} y={20} width={30} height={44} rx={4} fill={k === 2 ? 'var(--surface-card)' : 'var(--navy-400)'}
+            stroke={k === 2 ? 'var(--border-default)' : 'var(--gray-0)'} />
+          {k < 2 && <path d="M49 30 l7 12 -7 12 -7 -12z" fill="none" stroke="var(--gray-0)" strokeOpacity={0.6} />}
+          {k === 2 && <text x={49} y={50} textAnchor="middle" fill="var(--status-delayed-fg)" style={{ font: '700 18px var(--font-display)' }}>K</text>}
+        </g>
+      ))}
+      <path d="M118 33 q 6 -10 16 -6" fill="none" stroke="var(--gray-500)" strokeWidth={2} strokeLinecap="round" />
+      <circle cx={135} cy={26} r={3.2} fill="var(--status-delayed)" />
+      <circle cx={112} cy={52} r={20} fill="var(--navy-950)" />
+      <circle cx={105} cy={45} r={5} fill="var(--gray-0)" opacity={0.18} />
+      {wires.map((c, k) => <path key={k} d={`M${100 + k * 8} 70 c 3 6 -3 10 0 16`} fill="none" stroke={c} strokeWidth={3} strokeLinecap="round" />)}
+    </>
+  )
+}
+
+function NoiTuArt() {
+  // Ba thẻ chữ bậc thang, âm tiết chung tô cùng màu: học sinh → sinh viên → viên …
+  const tiles = t('games.noitu.artWords').split('|').map((w) => w.split(' '))
+  const ink = 'var(--status-transit-fg)'
+  return (
+    <>
+      <path d="M30 26 L82 50 L132 74" fill="none" stroke={mix('var(--status-transit)', 45)} strokeWidth={2} strokeDasharray="3 4" />
+      {tiles.map(([a, b], k) => {
+        const x = 8 + k * 50
+        const y = 15 + k * 24
+        return (
+          <g key={k}>
+            <rect x={x} y={y} width={48} height={22} rx={7} fill="var(--surface-card)" stroke={k === 1 ? ink : 'var(--border-default)'} strokeWidth={k === 1 ? 1.5 : 1} />
+            <text x={x + 24} y={y + 14.5} textAnchor="middle" style={{ font: '600 9px var(--font-sans)' }}>
+              <tspan fill={k ? ink : 'var(--text-primary)'}>{a}</tspan>
+              <tspan dx={3} fill={k < 2 ? ink : 'var(--text-muted)'}>{b}</tspan>
+            </text>
+          </g>
+        )
+      })}
+    </>
+  )
+}
+
+const ART = {
+  caro: CaroArt, oanquan: OAnQuanArt, coganh: CoGanhArt, colat: CoLatArt, chamo: ChamOArt, tienlen: TienLenArt,
+  covua: CoVuaArt, cotuong: CoTuongArt, cangua: CaNguaArt, bantau: BanTauArt, domino: DominoArt, baibip: BaiBipArt, noitu: NoiTuArt,
+}
 
 /** Dải tranh của game: nền màu theo tông của game, tranh SVG co theo chiều cao. */
 export function GameArt({ id, height = 104, radius = 0 }) {

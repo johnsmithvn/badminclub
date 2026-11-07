@@ -9,4 +9,12 @@ export const SCREENS = {
   coganh: lazy(() => import('#components/games/CoGanhBoard.jsx')),
   colat: lazy(() => import('#components/games/CoLatBoard.jsx')),
   chamo: lazy(() => import('#components/games/ChamOBoard.jsx')),
+  tienlen: lazy(() => import('#components/games/TienLenBoard.jsx')),
+  covua: lazy(() => import('#components/games/CoVuaBoard.jsx')),
+  cotuong: lazy(() => import('#components/games/CoTuongBoard.jsx')),
+  cangua: lazy(() => import('#components/games/CaNguaBoard.jsx')),
+  bantau: lazy(() => import('#components/games/BanTauBoard.jsx')),
+  domino: lazy(() => import('#components/games/DominoBoard.jsx')),
+  baibip: lazy(() => import('#components/games/BaiBipBoard.jsx')),
+  noitu: lazy(() => import('#components/games/NoiTuBoard.jsx')),
 }

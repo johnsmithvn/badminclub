@@ -9,6 +9,7 @@ import { useTourPoll } from '#hooks/useTourPoll.js'
 import { GameArt, HowTo } from '#components/games/GameInfo.jsx'
 import { myMember } from '#lib/money.js'
 import { GAMES, GAME_IDS, gameOf, isStaleRoom, seatedOf, statsOf } from '#lib/games/registry.js'
+import { TIMES as NOITU_TIMES } from '#lib/games/noitu.js'
 import { pathOf } from '#routes'
 import { t } from '#i18n'
 import cfg from '#config/app.js'
@@ -135,7 +136,7 @@ function RoomRow({ room, me, members, onEnter }) {
   )
 }
 
-/** Form tạo phòng. Tuỳ chọn riêng từng game nằm ở đây — hiện có Caro và Chấm ô (cỡ bàn). */
+/** Form tạo phòng. Tuỳ chọn riêng từng game nằm ở đây — Caro, Chấm ô (cỡ bàn), Nối từ (ngôn ngữ, giờ). */
 function CreateRoom({ gameId, onClose, onDone }) {
   const { a } = useApp()
   const isMobile = useMobile(768)
@@ -188,6 +189,30 @@ function CreateRoom({ gameId, onClose, onDone }) {
             onChange={(e) => setOpts({ ...opts, size: Number(e.target.value) })}
             options={cfg.games.chamoSizes.map((n) => ({ value: String(n), label: t('games.chamo.sizeOpt', { n, lines: 2 * n * (n + 1) }) }))}
           />
+        )}
+        {gameId === 'noitu' && (
+          <>
+            <Select
+              label={t('games.noitu.lang')}
+              value={opts.lang}
+              onChange={(e) => setOpts({ ...opts, lang: e.target.value })}
+              options={['vi', 'en'].map((v) => ({ value: v, label: t(v === 'vi' ? 'games.noitu.langVi' : 'games.noitu.langEn') }))}
+            />
+            {opts.lang === 'en' && (
+              <Select
+                label={t('games.noitu.link')}
+                value={String(opts.link)}
+                onChange={(e) => setOpts({ ...opts, link: Number(e.target.value) })}
+                options={[1, 2].map((n) => ({ value: String(n), label: t('games.noitu.linkOpt', { n }) }))}
+              />
+            )}
+            <Select
+              label={t('games.noitu.time')}
+              value={String(opts.time)}
+              onChange={(e) => setOpts({ ...opts, time: Number(e.target.value) })}
+              options={NOITU_TIMES.map((n) => ({ value: String(n), label: t('games.noitu.timeOpt', { n }) }))}
+            />
+          </>
         )}
         <Switch
           label={t('games.private')}

@@ -83,10 +83,13 @@ assert.deepEqual(
 // Hạn xử thua ở client phải bằng đúng hạn server dùng trong game_claim — lệch là máy cứ đòi mà server cứ từ chối
 // (client ngắn hơn), hoặc người chơi chờ lâu hơn số đếm ngược đang hiện (client dài hơn).
 {
-  const sql = readFileSync('supabase/migrations/0074_games.sql', 'utf8')
-  const m = sql.match(/seen_at < now\(\) - interval '(\d+) seconds'/)
-  assert.ok(m, 'không tìm thấy hạn xử thua trong game_claim (0074)')
-  assert.equal(Number(m[1]), cfg.games.reconnectGraceSec, 'app.json games.reconnectGraceSec phải khớp game_claim')
+  // 0078 viết lại game_claim — bản mới nhất mới là bản chạy, nhưng cả hai đều phải khớp.
+  for (const f of ['0074_games.sql', '0078_games_tienlen.sql']) {
+    const sql = readFileSync('supabase/migrations/' + f, 'utf8')
+    const m = sql.match(/seen_at < now\(\) - interval '(\d+) seconds'/)
+    assert.ok(m, 'không tìm thấy hạn xử thua trong game_claim (' + f + ')')
+    assert.equal(Number(m[1]), cfg.games.reconnectGraceSec, 'app.json games.reconnectGraceSec phải khớp game_claim (' + f + ')')
+  }
   assert.ok(cfg.games.offlineSec < cfg.games.reconnectGraceSec && cfg.games.pingSec < cfg.games.offlineSec,
     'nhịp < mất kết nối < xử thua, không thì người đang chơi bình thường cũng bị báo mất kết nối')
 }

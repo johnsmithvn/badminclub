@@ -76,15 +76,20 @@ export function useGameRoom(roomId) {
     a.gameFinish(room.id, r)
   }, [a, game, room, mySeat, state])
 
-  /** Đi một nước: hiện ngay trên máy mình, ghi xuống sau. Máy kia đi trước (stale) / lỗi → nạp lại. */
+  /**
+   * Đi một nước: hiện ngay trên máy mình, ghi xuống sau. Máy kia đi trước (stale) / lỗi → nạp lại.
+   * Nước server phải điền (`game.request` trả true — xúc xắc, kết quả phát bắn, lá vừa bốc; hàm game_<id>_fill)
+   * thì máy này chưa biết kết quả: không hiện trước, ghi xong nạp lại lấy bản server đã điền.
+   */
   const play = useCallback(async (move) => {
     const d = dataRef.current
     if (!d || !state || game.validate(state, mySeat, move) != null) return
     if (!isContiguous(d.moves)) { reload(); return }
     const seq = nextSeq(d.moves)
-    put({ ...d, moves: [...d.moves, { seq, seat: mySeat, move }] })
+    const ask = !!game.request?.(state, mySeat, move)
+    if (!ask) put({ ...d, moves: [...d.moves, { seq, seat: mySeat, move }] })
     const res = await a.gameMove(d.room.id, seq, move)
-    if (res !== 'ok') reload()
+    if (res !== 'ok' || ask) reload()
   }, [a, game, state, mySeat, reload, put])
 
   // Nhịp kết nối: người ngồi ghế báo "vẫn ở đây" mỗi games.pingSec giây khi tab đang mở.

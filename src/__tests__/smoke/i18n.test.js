@@ -183,7 +183,11 @@ GAME_IDS.forEach((id) => {
   for (let s = 0; s < GAMES[id].maxPlayers; s++) need('games.' + id + '.mark' + s)
 })
 ;['waiting', 'playing', 'finished', 'abandoned'].forEach((s) => need('games.status.' + s))
-;[...files('src/lib/games'), 'src/contexts/gameActions.js', 'supabase/migrations/0074_games.sql', 'supabase/migrations/0075_games_results.sql']
+;['single', 'pair', 'triple', 'quad', 'straight', 'pairs'].forEach((k) => need('games.tienlen.kind.' + k)) // = comboOf().kind
+;[...files('src/lib/games'), 'src/contexts/gameActions.js', 'supabase/migrations/0074_games.sql', 'supabase/migrations/0075_games_results.sql',
+  'supabase/migrations/0078_games_tienlen.sql', 'supabase/migrations/0079_games_cangua.sql',
+  'supabase/migrations/0080_games_bantau.sql', 'supabase/migrations/0081_games_domino.sql',
+  'supabase/migrations/0082_games_baibip.sql', 'supabase/migrations/0083_games_noitu.sql']
   .forEach((p) => { for (const m of readFileSync(p, 'utf8').matchAll(/games\.err\.[A-Za-z]+/g)) need(m[0]) })
 ;['balanced', 'random'].forEach((m) => { need('tournament.pairing.mode.' + m); need('tournament.pairing.modeHint.' + m) })
 ;['ok', 'warn', 'bad', 'idle'].forEach((k) => need('tournament.pairing.tone.' + k))

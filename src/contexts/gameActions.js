@@ -3,7 +3,7 @@
 // Như Thư viện / Giải đấu: dữ liệu KHÔNG nằm trong `db`, KHÔNG qua diff()/save(). Trang tự nạp,
 // mỗi lần ghi chờ DB xong mới báo. Luật quyền nằm ở RPC của 0074; luật game ở lib/games/*.
 
-import { findGameRoom, gameRpc, loadGameLobby, loadGameRoom, subscribeGameRoom } from '#contexts/storage.js'
+import { findGameRoom, gameRpc, loadGameHand, loadGameLobby, loadGameRoom, subscribeGameRoom } from '#contexts/storage.js'
 import { gameOf } from '#lib/games/registry.js'
 import { myMember } from '#lib/money.js'
 import { t } from '#i18n'
@@ -14,8 +14,11 @@ export const gameErr = (e) => {
   return m.startsWith('games.err.') ? t(m) : m
 }
 
-/** Máy này đang thiếu log (máy kia vừa đi trước) → nạp lại, không báo lỗi. 23505 = trùng PK (room_id, seq). */
-const isStale = (e) => e?.code === '23505' || String(e?.message || '') === 'games.err.stale'
+/**
+ * Máy này đang thiếu log (máy kia vừa đi trước) → nạp lại, không báo lỗi. 23505 = trùng PK (room_id, seq).
+ * games.err.notYet = báo hết giờ hơi sớm so với đồng hồ server (Nối từ) — máy tự thử lại, không làm phiền người chơi.
+ */
+const isStale = (e) => e?.code === '23505' || ['games.err.stale', 'games.err.notYet'].includes(String(e?.message || ''))
 
 export function makeGameActions({ dbRef, toast }) {
   const db = () => dbRef.current
@@ -36,6 +39,7 @@ export function makeGameActions({ dbRef, toast }) {
     gameLobby: () => loadGameLobby(db().clubId, me()),
     gameRoom: (id) => loadGameRoom(id),
     gameSubscribe: (id, on) => subscribeGameRoom(id, on),
+    gameHand: (id) => loadGameHand(id),
 
     /** Mã mời → id phòng. Không có → toast, trả null. */
     gameFind: async (code) => {

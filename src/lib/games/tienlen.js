@@ -1,0 +1,281 @@
+// Tiến lên miền Nam (bài tây dân gian, không có chủ). 2–4 người, mỗi người 13 lá. Chơi tới khi chỉ còn một người
+// để xếp Nhất / Nhì / Ba / Bét, có tới trắng, chặt heo (kể cả 4 đôi thông chặt ngoài lượt), chặt chồng, cóng, thối.
+//
+// Game có THÔNG TIN ẨN (docs/GAMES.md §5.2): bài trên tay không nằm trong log. Server chia bài lúc bắt đầu
+// (0078 game_tienlen_deal) vào bảng game_hands — mỗi người chỉ đọc được tay của mình — rồi ghi nước đầu tiên
+// { deal: { first, low, n, white } } cho cả phòng: ai đi trước, lá bắt buộc của nước đầu (null nếu là ván "chơi lại",
+// người về Nhất ván trước đi trước), mỗi người bao nhiêu lá, ai tới trắng (null nếu không ai).
+// Vì vậy state ở đây KHÔNG biết bài người khác, chỉ biết số lá còn lại và các lá đã ra bàn (`gone`).
+// Server kiểm nước đi bằng SQL (0078 game_tienlen_run) với ĐỦ bài từng tay, và chấm thêm phần THỐI (cần biết bài còn
+// lại) — kết quả lưu trong phòng là của server. Đổi luật ở đây là phải đổi cả ở đó (tienlen.test.js chạy chung bộ
+// mẫu với file kiểm 0078 để gác).
+//
+// Lá bài c = hạng * 4 + chất: hạng 0..12 = 3 4 5 6 7 8 9 10 J Q K A 2; chất 0..3 = bích nhép rô cơ.
+// Lá to hơn = số to hơn (cùng hạng thì so chất), nên 3 bích (0) nhỏ nhất, 2 cơ (51) to nhất.
+// Bộ: lẻ · đôi · sám (3 lá) · tứ quý · sảnh (≥ 3 hạng liền, không có 2) · đôi thông (≥ 3 đôi liền, không có 2).
+// Chặn: cùng kiểu, cùng số lá, lá cao nhất to hơn. Chặt: 3 đôi thông chặt một heo; tứ quý chặt heo, đôi heo,
+// 3 đôi thông; 4 đôi thông trở lên chặt cả tứ quý — và được chặt NGOÀI LƯỢT (kể cả đã bỏ lượt).
+// Tiền chặt: hết vòng thì người bị chặt sau cùng trả người chặt sau cùng tổng giá cả chuỗi (heo đen 1, heo đỏ 2,
+// 3 đôi thông 3, tứ quý 4, 4 đôi thông 4).
+// Bỏ lượt là mất quyền tới hết vòng; cả bàn bỏ thì người đánh cuối mở vòng mới (người đó đã về thì người kế sau).
+// Điểm hạng: 4 người +3 +1 −1 −3 · 3 người +2 0 −2 · 2 người +1 −1. Cóng (có người về Nhất mà chưa đánh lá nào):
+// về chót, trừ gấp đôi điểm Bét. Rời ván: về Bét. Thối: hết ván còn heo / hàng trên tay thì trả người về Nhất.
+//
+// state = { started, n0[], counts[], out[], passed[], table, turn, low, gone[], order[], cong[], left[], pot, pay[],
+//           over, last, ply }
+//   table = null (vòng mới) | { cards, kind, len, top, seat }
+//   order = ghế về đích theo thứ tự; hết ván thì là thứ hạng đủ mọi người
+//   left  = ghế đã rời ván, rời sau đứng trước (rời trước về Bét)
+//   pot   = null | { amount, from, to } — tiền chặt đang treo của vòng này
+//   pay   = [{ from, to, amount }] — tiền chặt đã chốt
+//   last  = { seat, play | pass | out, chop? }
+// move  = { play: [lá] } · { pass: true } · { out: true } (server ghi khi người đó rời ván) · { deal } (server ghi)
+
+export const TWO = 12
+export const HAND = 13
+
+export const rankOf = (c) => c >> 2
+export const suitOf = (c) => c & 3
+
+/** Mặt lá in trên bài — ký hiệu chung của bộ bài tây, không phải chữ cần dịch. Chất rô / cơ (2, 3) là chất đỏ. */
+export const RANK_FACES = ['3', '4', '5', '6', '7', '8', '9', '10', 'J', 'Q', 'K', 'A', '2']
+export const SUIT_MARKS = ['♠', '♣', '♦', '♥']
+export const faceOf = (c) => RANK_FACES[rankOf(c)] + SUIT_MARKS[suitOf(c)]
+
+/** Điểm theo thứ hạng, chỉ số = số người lúc chia bài. */
+export const RANK_POINTS = { 2: [1, -1], 3: [2, 0, -2], 4: [3, 1, -1, -3] }
+
+const isCard = (c) => Number.isInteger(c) && c >= 0 && c <= 51
+
+/** Kiểu của một bộ lá: { kind, len, top } hoặc null nếu không thành bộ. len = số lá (đôi thông: số đôi). */
+export function comboOf(cards) {
+  const cs = [...cards].sort((a, b) => a - b)
+  const n = cs.length
+  if (!n || new Set(cs).size !== n) return null
+  const top = cs[n - 1]
+  const rs = cs.map(rankOf)
+  if (n === 1) return { kind: 'single', len: 1, top }
+  if (n <= 4 && rs.every((r) => r === rs[0])) return { kind: ['', '', 'pair', 'triple', 'quad'][n], len: n, top }
+  if (rs[n - 1] === TWO) return null
+  if (n >= 3 && rs.every((r, i) => i === 0 || r === rs[i - 1] + 1)) return { kind: 'straight', len: n, top }
+  if (n >= 6 && n % 2 === 0 && rs.every((r, i) => (i % 2 ? r === rs[i - 1] : i === 0 || r === rs[i - 1] + 1))) {
+    return { kind: 'pairs', len: n / 2, top }
+  }
+  return null
+}
+
+const isHeo = (k) => (k.kind === 'single' || k.kind === 'pair') && rankOf(k.top) === TWO
+const isBomb = (k) => k.kind === 'quad' || k.kind === 'pairs'
+
+/** Bộ `a` có chặn / chặt được bộ đang trên bàn `t` không. */
+export function beats(a, t) {
+  if (!t) return true
+  if (a.kind === t.kind && a.len === t.len) return a.top > t.top
+  const quad = a.kind === 'quad'
+  const p3 = a.kind === 'pairs' && a.len === 3
+  const p4 = a.kind === 'pairs' && a.len >= 4
+  if (t.kind === 'single' && rankOf(t.top) === TWO) return quad || p3 || p4
+  if (t.kind === 'pair' && rankOf(t.top) === TWO) return quad || p4
+  if (t.kind === 'pairs' && t.len === 3) return quad || p4
+  if (t.kind === 'quad') return p4
+  if (t.kind === 'pairs' && t.len >= 4) return a.kind === 'pairs' && a.len > t.len
+  return false
+}
+
+/** Giá một bộ khi bị chặt (heo đen 1, heo đỏ 2 — đôi heo cộng hai lá; 3 đôi thông 3; tứ quý, 4 đôi thông 4). */
+export function priceOf(cards) {
+  const k = comboOf(cards)
+  if (!k) return 0
+  if (isHeo(k)) return cards.reduce((sum, c) => sum + (suitOf(c) >= 2 ? 2 : 1), 0)
+  if (k.kind === 'pairs') return k.len === 3 ? 3 : 4
+  return k.kind === 'quad' ? 4 : 0
+}
+
+/** Số lá mỗi hạng trên một tay. */
+const countRanks = (hand) => {
+  const cnt = Array(13).fill(0)
+  for (const c of hand) cnt[rankOf(c)] += 1
+  return cnt
+}
+
+/**
+ * Giá thối của bài còn trên tay: từng heo (đen 1, đỏ 2) + mỗi tứ quý (không phải heo) 4 + mỗi dải đôi thông
+ * (≥ 3 hạng liền, mỗi hạng ≥ 2 lá, không có heo) 3 nếu dài 3, 4 nếu dài hơn. Server tính y vậy (0078).
+ */
+export function thoiOf(hand) {
+  const cnt = countRanks(hand)
+  let v = hand.filter((c) => rankOf(c) === TWO).reduce((sum, c) => sum + (suitOf(c) >= 2 ? 2 : 1), 0)
+  for (let r = 0; r < TWO; r++) if (cnt[r] === 4) v += 4
+  let run = 0
+  for (let r = 0; r <= TWO; r++) {
+    if (r < TWO && cnt[r] >= 2) { run += 1; continue }
+    if (run >= 3) v += run === 3 ? 3 : 4
+    run = 0
+  }
+  return v
+}
+
+/** Tới trắng khi vừa chia: sảnh rồng (3 → A), tứ quý heo, 5 đôi thông, hoặc 6 đôi (tứ quý tính hai đôi). */
+export function whiteOf(hand) {
+  const cnt = countRanks(hand)
+  if (cnt.slice(0, TWO).every((k) => k >= 1)) return true
+  if (cnt[TWO] === 4) return true
+  if (cnt.reduce((sum, k) => sum + Math.floor(k / 2), 0) >= 6) return true
+  let run = 0
+  for (let r = 0; r < TWO; r++) {
+    run = cnt[r] >= 2 ? run + 1 : 0
+    if (run >= 5) return true
+  }
+  return false
+}
+
+/** Ghế đầu tiên sau `from` (vòng tròn, không tính chính nó) thoả `ok`, hoặc null. */
+const nextFrom = (n, from, ok) => {
+  for (let k = 1; k < n; k++) {
+    const y = (from + k) % n
+    if (ok(y)) return y
+  }
+  return null
+}
+
+/** Chốt tiền chặt đang treo của vòng. */
+const closePot = (s) => (s.pot ? { ...s, pot: null, pay: [...s.pay, s.pot] } : s)
+
+/** Hết ván: thứ hạng = người về đích theo thứ tự, người còn lại, người cóng, người rời ván. */
+function end(s) {
+  const s2 = closePot(s)
+  const rest = s2.out.map((o, i) => (o ? null : i)).filter((i) => i != null)
+  return { ...s2, order: [...s2.order, ...rest, ...s2.cong, ...s2.left], over: true, turn: null, table: null }
+}
+
+/** Người `seat` vừa hết bài. Người về Nhất thì ai chưa đánh lá nào là cóng — ra khỏi ván luôn. */
+function finish(s, seat) {
+  const out = s.out.map((o, i) => o || i === seat)
+  const order = [...s.order, seat]
+  if (order.length > 1) return { ...s, out, order }
+  const cong = s.counts.map((k, i) => (!out[i] && k === s.n0[i] ? i : null)).filter((i) => i != null)
+  return { ...s, out: out.map((o, i) => o || cong.includes(i)), order, cong }
+}
+
+/** Sau mỗi nước: còn ≤ 1 người → hết ván; cả bàn đã bỏ → vòng mới; còn thì chuyển lượt cho người kế chưa bỏ. */
+function settle(s, seat) {
+  const n = s.counts.length
+  const active = s.out.map((o, i) => (o ? null : i)).filter((i) => i != null)
+  if (active.length <= 1) return end(s)
+  if (s.table) {
+    const by = s.table.seat
+    const left = active.filter((i) => !s.passed[i])
+    if (!left.length || (left.length === 1 && left[0] === by)) {
+      const lead = s.out[by] ? nextFrom(n, by, (y) => !s.out[y]) : by
+      return { ...closePot(s), table: null, passed: s.passed.map(() => false), turn: lead }
+    }
+  }
+  if (seat !== s.turn) return s
+  return { ...s, turn: nextFrom(n, seat, (y) => !s.out[y] && !s.passed[y]) }
+}
+
+export default {
+  id: 'tienlen',
+  minPlayers: 2,
+  maxPlayers: 4,
+  defaultOptions: {},
+
+  setup() {
+    return {
+      started: false, n0: [], counts: [], out: [], passed: [], table: null, turn: null, low: null, gone: [],
+      order: [], cong: [], left: [], pot: null, pay: [], over: false, last: null, ply: 0,
+    }
+  },
+
+  validate(s, seat, move) {
+    const d = move?.deal
+    if (d && typeof d === 'object') {
+      if (s.started) return 'games.err.badMove'
+      if (!Array.isArray(d.n) || d.n.length < 2 || d.n.length > 4 || !d.n.every((k) => Number.isInteger(k) && k >= 1 && k <= HAND)) return 'games.err.badMove'
+      if (!Number.isInteger(d.first) || d.first < 0 || d.first >= d.n.length || seat !== d.first) return 'games.err.badMove'
+      if (d.low != null && !isCard(d.low)) return 'games.err.badMove'
+      if (d.white != null && !(Number.isInteger(d.white) && d.white >= 0 && d.white < d.n.length)) return 'games.err.badMove'
+      return null
+    }
+    if (!s.started) return 'games.err.badMove'
+    if (s.over) return 'games.err.over'
+    if (!Number.isInteger(seat) || seat < 0 || seat >= s.counts.length || s.out[seat]) return 'games.err.badMove'
+    if (move?.out === true) return null
+    const mine = seat === s.turn
+    if (move?.pass === true) {
+      if (!mine) return 'games.err.notYourTurn'
+      return s.table ? null : 'games.err.mustLead'
+    }
+    const p = move?.play
+    // Ngoài lượt chỉ có thể là 4 đôi thông chặt (≥ 8 lá) — nước khác báo sai lượt ngay, khỏi xét bài.
+    if (!mine && !(Array.isArray(p) && p.length >= 8)) return 'games.err.notYourTurn'
+    if (!Array.isArray(p) || p.length < 1 || p.length > HAND || !p.every(isCard)) return 'games.err.badMove'
+    // Máy này không biết bài người khác: chỉ chặn được lá đã ra bàn. Server chặn đủ (lá không có trên tay).
+    if (p.some((c) => s.gone.includes(c))) return 'games.err.notYourCard'
+    const k = comboOf(p)
+    if (!k) return 'games.err.badCombo'
+    if (!mine) return k.kind === 'pairs' && k.len >= 4 && s.table && beats(k, s.table) ? null : 'games.err.notYourTurn'
+    if (s.low != null && !p.includes(s.low)) return 'games.err.mustLow'
+    if (!beats(k, s.table)) return 'games.err.tooLow'
+    return null
+  },
+
+  apply(s0, seat, move) {
+    const s = { ...s0, ply: s0.ply + 1 }
+    if (move.deal) {
+      const { n, first, low, white } = move.deal
+      const base = {
+        ...s, started: true, n0: n.slice(), counts: n.slice(), out: n.map(() => false), passed: n.map(() => false),
+        turn: first, low: low ?? null, last: null,
+      }
+      if (white == null) return base
+      return { ...base, over: true, turn: null, order: [white, ...n.map((_, i) => i).filter((i) => i !== white)], last: { seat: white, white: true } }
+    }
+    if (move.out === true) {
+      return settle({ ...s, out: s.out.map((o, i) => o || i === seat), left: [seat, ...s.left], last: { seat, out: true } }, seat)
+    }
+    if (move.pass === true) {
+      return settle({ ...s, passed: s.passed.map((v, i) => v || i === seat), last: { seat, pass: true } }, seat)
+    }
+    const cards = [...move.play].sort((a, b) => a - b)
+    const k = comboOf(cards)
+    let pot = s.pot
+    let chop = false
+    if (s.table && isBomb(k)) {
+      const t = comboOf(s.table.cards)
+      if (isHeo(t) || isBomb(t)) {
+        chop = true
+        pot = { amount: (pot?.amount || 0) + priceOf(s.table.cards), from: s.table.seat, to: seat }
+      }
+    }
+    const counts = s.counts.map((x, i) => (i === seat ? x - cards.length : x))
+    // Chặt ngoài lượt: coi như tới lượt người chặt, lượt sau đi tiếp từ họ. Người chặt được vào lại vòng.
+    let next = {
+      ...s, counts, gone: [...s.gone, ...cards], table: { cards, ...k, seat }, low: null, pot, turn: seat,
+      passed: s.passed.map((v, i) => (i === seat ? false : v)), last: { seat, play: cards, ...(chop ? { chop: true } : {}) },
+    }
+    if (counts[seat] <= 0) next = finish(next, seat)
+    return settle(next, seat)
+  },
+
+  view: (s) => s,
+
+  /**
+   * Thứ hạng + điểm (hạng, cóng, tiền chặt) khi hết ván. Server cộng thêm THỐI — bài còn trên tay — nên điểm
+   * trong `room.result` mới là điểm chốt. `winners` = người về Nhất.
+   */
+  result(s) {
+    if (!s.over) return null
+    return { winners: [s.order[0]], draw: false, ranks: s.order, scores: tally(s) }
+  },
+}
+
+/** Điểm hạng + cóng + tiền chặt, chưa tính thối. */
+export function tally(s) {
+  const n = s.n0.length
+  const pts = RANK_POINTS[n]
+  const scores = Object.fromEntries(s.n0.map((_, i) => [i, 0]))
+  s.order.forEach((seat, pos) => { scores[seat] += s.cong.includes(seat) ? pts[n - 1] * 2 : pts[pos] })
+  for (const p of s.pay) { scores[p.from] -= p.amount; scores[p.to] += p.amount }
+  return scores
+}

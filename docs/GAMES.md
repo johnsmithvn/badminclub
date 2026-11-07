@@ -1,6 +1,6 @@
 # GAMES.md — Phân hệ Mini-game trong CLB
 
-**Version:** v0.4.0 (Giai đoạn 1 đã code — Caro, Ô ăn quan, Cờ gánh, Cờ lật; server chấm cả bốn) · **Updated:** 2026-11-07 · **Nhánh:** `feat/games`
+**Version:** v0.6.0 (Giai đoạn 1 — Caro, Ô ăn quan, Cờ gánh, Cờ lật, Chấm ô; Giai đoạn 2 — Tiến lên, Cờ vua, Cờ tướng, Cờ cá ngựa, Bắn tàu, Domino) · **Updated:** 2026-11-07 · **Nhánh:** `feat/games`
 
 Thành viên cùng một CLB mở phòng và chơi game theo lượt với nhau ngay trong app.
 File này chốt **khung chung** trước khi viết game đầu tiên. Mỗi game sau này chỉ cắm vào khung,
@@ -199,16 +199,37 @@ cũng ghi). Quá `offlineSec` không thấy nhịp → ghế hiện "Mất kết
 lại thắng (`result.idle = true`). Số 120 nằm ở cả `app.json` và `game_claim` — `contract.test.js` gác khớp.
 Tab ẩn (khoá máy, chuyển app) cũng là ngừng nhịp.
 
-### 5.2 Game có thông tin ẩn (Tiến lên, Ma sói…) — Giai đoạn 2
+### 5.2 Game có thông tin ẩn (Tiến lên…) — Giai đoạn 2, đã code (0078)
 
-Seed nằm trong DB mà mọi người đọc được → ai cũng tính được bài người khác. Nên:
-- Seed + bài úp chỉ nằm ở Edge Function (hoặc bảng service-role-only).
-- Edge Function chạy `validate/apply` cùng code §3, ghi nước, rồi trả mỗi người `view(state, seat)`.
-- **Việc phải chốt trước Giai đoạn 2:** Edge Function (Deno) chỉ đóng gói được code trong
-  `supabase/functions/`. Hai cách: (a) đặt logic game ở `supabase/functions/_shared/games/` và
-  client import qua alias `#games/*` trong `package.json`; (b) build bước copy. Nghiêng về (a).
+Seed nằm trong DB mà mọi người đọc được → ai cũng tính được bài người khác. Bản thiết kế cũ định dùng Edge Function;
+**đổi ý 2026-11-07: làm hết trong Postgres**, không thêm runtime, không thêm bước deploy:
 
-Giai đoạn 1 **không** đụng Edge Function.
+- **Bài trên tay** ở bảng `game_hands (room_id, seat, member_id, club_id, cards int[])`. RLS: đang chơi chỉ chủ bài
+  đọc được tay mình, phòng xong / bỏ thì cả CLB đọc được mọi tay (lật bài); ghế âm (nọc bài, để dành Domino) không ai
+  đọc; client không ghi được; không bật realtime. Bài chia xong không đổi — bài còn lại = bài chia − các lá đã đánh.
+- **Chia bài:** `game_start` (bản 0078) tra động `game_<id>_deal(uuid)`, có thì gọi sau khi đánh số lại ghế.
+  Tiến lên xào bằng `random()` của server (không dùng `seed` của phòng), rồi ghi nước 1 `{ deal: { first, low, n, white } }`
+  công khai: ai đi trước, lá bắt buộc của nước đầu (null nếu là ván chơi lại — người về Nhất ván trước, tra qua
+  `next_room` của phòng cũ, đi trước), mỗi người bao nhiêu lá, ai tới trắng (null nếu không ai).
+- **Kiểm từng nước lúc ghi:** `game_move` (bản 0078) khoá phòng rồi tra động `game_<id>_check(uuid, int, jsonb)`,
+  có hàm thì trả mã lỗi là từ chối luôn — nước sai **không vào log** (khác §5.1: ở đó nước sai vẫn ghi, replay bỏ qua).
+  Hàm check dựng lại ván từ log với đủ bài mọi tay. Game cũ không có hàm check → y như trước.
+- **State phía client không biết bài người khác**: chỉ có số lá, các lá đã ra bàn (`gone`). `validate` ở client chặn được
+  mọi thứ trừ "lá không có trên tay" (server chặn). Màn chơi nạp tay mình riêng (`storage.loadGameHand`).
+- **Server chấm thêm phần client không biết:** kết quả lưu trong phòng là của `game_<id>_result` (Tiến lên cộng **thối**
+  — cần bài còn trên tay). Màn chơi nhận `result` = `room.result` (null tới khi server chốt) để hiện điểm chốt.
+- **Nước server điền** (0078 `game_move` gọi `game_<id>_fill(uuid, int, jsonb)` nếu có, sau hàm check): hàm trả nước
+  sẽ ghi — điền số xúc xắc (Cá ngựa 0079), kết quả phát bắn (Bắn tàu 0080), chuyển quân bốc từ nọc vào tay (Domino 0081),
+  hoặc RAISE để từ chối. Game JS khai `request(state, seat, move)` → true cho nước kiểu này: `useGameRoom.play` không hiện
+  trước trên máy mình, ghi xong nạp lại lấy bản đã điền. Nước chưa điền (thiếu migration) thì `apply` bỏ qua, không đoán.
+- **Kết quả chờ server:** máy khách không tự biết người thắng (Domino tắc — cần quân còn lại) thì `result()` trả
+  `{ winners: [], pending: true }` để vẫn gọi `game_finish`; khung phòng hiện "đang chấm điểm" tới khi có `room.result`.
+- **Người rời ván 3–4 người:** `game_leave` / `game_claim` (bản 0078) ghi nước `{ out: true }` cho người rời nếu ván
+  còn ≥ 2 người, luật bỏ qua lượt của họ. Chỉ server ghi được `out` / `deal` — client gửi là `badMove`.
+
+> `ponytail:` luật Tiến lên chép hai nơi (JS + plpgsql), gác bằng bộ mẫu chung trong
+> `supabase/manual/0078_games_tienlen_check.sql` (kiểu bộ, chặn, giá chặt, thối, tới trắng, 10 ván viết tay) mà `tienlen.test.js` đọc lại.
+> Ngưỡng: game luật dài hơn nhiều (Ma sói có pha đêm, nhiều vai) thì lúc đó mới cân Edge Function chạy chung code §3.
 
 ---
 
@@ -308,7 +329,8 @@ RPC/RLS kiểm tay bằng `supabase/manual/0074_games_check.sql`, `0075_games_re
 | Giai đoạn | Nội dung | Kiểm chứng phần nào của khung |
 | --- | --- | --- |
 | **1** | Khung (§2–§7) + **Caro**, **Ô ăn quan**, **Cờ gánh**, **Cờ lật** 2 người, server chấm | phòng, ghế, realtime, dựng lại từ log, lazy-load, chấm động (§5.1) |
-| **2** | **Tiến lên** 4 người | thông tin ẩn qua Edge Function (§5.2) |
+| **2** | **Tiến lên** 2–4 người — đã code | bài úp trong `game_hands`, server chia + kiểm nước lúc ghi (§5.2) |
+| **2b** | **Cờ vua**, **Cờ tướng** 2 người · **Cờ cá ngựa** 2–4 · **Bắn tàu** 2 · **Domino** 2–4 — đã code | nước server điền (`game_<id>_fill`): xúc xắc, phát bắn, bốc nọc; kết quả `pending` |
 | **3** | **Ma sói** hoặc **Nối từ** | nhiều người, vai trò / đồng hồ lượt |
 
 Tách repo / server game riêng chỉ khi: cần game hành động nhanh, mở cho người ngoài CLB,
@@ -335,7 +357,7 @@ cần user duyệt file này trước.
 | Thiết kế | Code | Lý do |
 | --- | --- | --- |
 | `components/games/shared/` nhiều component | Ghế, trạng thái, kết quả nằm luôn trong `pages/GameRoom.jsx`; hook ở `components/games/useGameRoom.js` | Mới một game, tách component dùng một lần là thừa. Tách khi game thứ hai cần |
-| `lib/games/rng.js` | Chưa có | Caro không cần ngẫu nhiên. Thêm cùng Tiến lên (chia bài theo `seed`) |
+| `lib/games/rng.js` | Chưa có | Tiến lên chia bằng `random()` của server (§5.2) nên không cần. Thêm khi có game ngẫu nhiên công khai chạy ở client |
 | `components/games/caro/CaroScreen.jsx` | `components/games/CaroBoard.jsx` | Một file, không cần thư mục |
 | Mời bằng link + QR | Chỉ link + mã 6 ký tự | App chưa có thư viện sinh QR, không thêm dependency |
 | Presence của Supabase Realtime | Nhịp `game_ping` ghi `seen_at` | Server phải tự đo được thời gian mất kết nối để xử thua; Presence chỉ client thấy |
@@ -375,7 +397,49 @@ bản đóng hộp). Bàn 8×8, bốn quân giữa xếp chéo màu, đen đi tr
 đối phương (8 hướng) giữa quân mới và quân mình → lật mọi hàng bị kẹp. Không có nước thì **tự mất lượt** (không có
 nút "bỏ lượt" — state ghi `last.skipped`), cả hai không đi được thì hết ván, đếm quân.
 
+**Tiến lên** (`tienlen.js`, bản miền Nam, đối chiếu luật dautri.com — chỉ lấy luật, chữ tự viết): 2–4 người, mỗi người
+13 lá (2–3 người thì thừa lá, bỏ úp). Lá c = hạng × 4 + chất, hạng 3 < 4 < … < A < 2, chất bích < nhép < rô < cơ.
+- **Bộ:** lẻ, đôi, sám, tứ quý, sảnh (≥ 3 hạng liền, không có 2), đôi thông (≥ 3 đôi liền, không có 2). Chặn = cùng kiểu,
+  cùng số lá, lá cao nhất to hơn.
+- **Chặt:** 3 đôi thông chặt một heo; tứ quý chặt heo, đôi heo, 3 đôi thông; 4 đôi thông trở lên chặt cả tứ quý (dài
+  hơn chặt ngắn hơn). **4 đôi thông chặt ngang được** — ngoài lượt, kể cả đã bỏ lượt; lượt sau đi tiếp từ người chặt.
+  Chặt chồng được. Tiền chặt (heo đen 1, heo đỏ 2, 3 đôi thông 3, tứ quý / 4 đôi thông 4) dồn cả chuỗi trong vòng,
+  hết vòng người bị chặt sau cùng trả người chặt sau cùng (`pot` → `pay`).
+- **Lượt:** ván đầu ai cầm lá nhỏ nhất đi trước, nước đầu phải có lá đó; ván chơi lại người về Nhất đi trước, đánh tự do.
+  Bỏ lượt là mất quyền tới hết vòng; cả bàn bỏ thì người đánh cuối mở vòng (người đó đã về / rời thì ghế kế sau).
+- **Hết ván:** hết bài là về đích, ván chạy tới khi còn một người → `ranks` Nhất … Bét. Điểm hạng 4 người +3 +1 −1 −3,
+  3 người +2 0 −2, 2 người +1 −1. **Cóng:** có người về Nhất mà ai chưa đánh lá nào → về chót, ăn gấp đôi điểm Bét.
+  **Rời ván:** về Bét (rời trước đứng dưới). **Thối:** hết ván ai chưa về đích (kể cả cóng, trừ người rời) còn heo /
+  tứ quý / dải đôi thông trên tay thì trả người về Nhất theo giá chặt — chỉ server chấm (0078), JS không biết bài.
+- **Tới trắng** lúc chia: sảnh rồng 3 → A, tứ quý heo, 5 đôi thông, 6 đôi (tứ quý tính hai đôi) → thắng luôn, xếp hạng
+  những người khác theo ghế, không tính thối.
+- `result` = `{ winners: [Nhất], draw: false, ranks, scores }`.
+
+**Cờ vua** (`covua.js`, luật FIDE): đủ nhập thành, bắt tốt qua đường, phong cấp (chọn hậu / xe / tượng / mã), chiếu hết,
+hoà khi hết nước mà không bị chiếu / lặp thế 3 lần / 50 nước không ăn quân không đi tốt / thiếu quân chiếu hết. Gác bằng
+perft chuẩn (thế đầu tới độ sâu 3, Kiwipete, thế 3, thế 4). Chưa có cầu hoà, đồng hồ, SQL chấm lại.
+
+**Cờ tướng** (`cotuong.js`): đỏ đi trước; tướng / sĩ trong cung, tượng không qua sông + cản mắt, mã cản chân, pháo ăn
+qua đúng một ngòi, tốt qua sông đi ngang; cấm lộ mặt tướng; **hết nước là thua** (kể cả bị vây không chiếu). Chống kéo
+dài: 120 nước liền không ăn quân, lặp thế 3 lần, hai bên hết quân sang sông được → hoà (chưa có luật chiếu dai / đuổi
+dai của giải). Perft thế đầu 44 / 1920.
+
+**Cờ cá ngựa** (`cangua.js`, luật truyền thống): 2–4 người (2 người đỏ / vàng đối diện), 4 ngựa, 1 xúc xắc do server
+đổ (0079). Ra quân bằng 1 hoặc 6; đi đúng số nút, không nhảy qua ngựa nào, không dừng trên ngựa mình, dừng trúng ngựa
+đối phương là đá về chuồng. Phải dừng đúng cửa chuồng; đứng cửa đổ n lên bậc n; trong chuồng chỉ lên bậc kế bằng đúng số
+bậc đó. 6 được đổ tiếp; không đi được thì mất lượt. Thắng: 4 ngựa ở bậc 3–6. Đường đua 48 ô vẽ thành vòng tròn.
+
+**Bắn tàu** (`bantau.js`): 10 × 10, tàu 5-4-3-3-2 thẳng hàng, không chồng (được sát nhau). Xếp xong server cất tàu
+(`game_hands`), log chỉ ghi `{ placed: true }`. Ghế 1 bắn trước; trúng bắn tiếp, trượt đổi lượt; server ghi
+`{ fire, hit, sunk? }` và chấm lại (trúng đủ 17 ô thắng — 0080). Chỉ có xếp ngẫu nhiên, chưa kéo thả từng tàu.
+
+**Domino** (`domino.js`, kiểu bốc, bộ đôi-sáu): 7 quân mỗi người, còn lại là nọc ở ghế -1. Ván đầu: đôi lớn nhất đi
+trước và phải đánh con đó (không ai có đôi thì con nhiều nút nhất); ván chơi lại người thắng đi trước. Không có quân
+khớp thì bốc tới khi đánh được, hết nọc mới được bỏ lượt; có quân khớp thì phải đánh (server kiểm — 0081). Hết quân
+thắng; tắc (cả bàn bỏ liền nhau) thì ít nút nhất thắng, bằng nhau hoà. Người thắng ăn tổng nút của đối thủ.
+
 Nguồn đã đối chiếu: [vi.wikipedia Cờ gánh](https://vi.wikipedia.org/wiki/C%E1%BB%9D_g%C3%A1nh),
 [FPT Shop](https://fptshop.com.vn/tin-tuc/thu-thuat/cach-choi-co-ganh-175672),
 [Wikipedia Ô ăn quan](https://en.wikipedia.org/wiki/%C3%94_%C4%83n_quan),
-[cellphones](https://cellphones.com.vn/sforum/o-an-quan) — chỉ lấy luật, chữ tự viết.
+[cellphones](https://cellphones.com.vn/sforum/o-an-quan); luật Tiến lên, Cờ cá ngựa, Bắn tàu, Domino đối chiếu thêm phần luật
+của dautri.com — chỉ lấy luật, chữ và hình đều tự viết / tự vẽ.
