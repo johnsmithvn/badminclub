@@ -23,7 +23,7 @@ export default function GameRoom() {
   const [resigning, setResigning] = useState(false)
   const [howto, setHowto] = useState(false)
   const [busy, setBusy] = useState(false)
-  const { room, game, state, result, seated, mySeat, canMove } = g
+  const { room, game, state, result, seated, inGame, mySeat, canMove } = g
 
   const nameOf = (memberId) => db.members.find((m) => m.id === memberId)?.name || t('games.unknownPlayer')
   const memberOf = (memberId) => db.members.find((m) => m.id === memberId)
@@ -139,7 +139,7 @@ export default function GameRoom() {
             <span style={S.mono}>{t('games.moves', { n: g.moves.length })}</span>
           </div>
           <Suspense fallback={<Skeleton height={320} />}>
-            <Screen state={game.view(state, mySeat)} mySeat={mySeat} canMove={canMove} onMove={g.play} roomId={room.id} result={room.result} />
+            <Screen state={game.view(state, mySeat)} mySeat={mySeat} canMove={canMove} onMove={g.play} roomId={room.id} result={room.result} players={inGame} />
           </Suspense>
         </>
       )}

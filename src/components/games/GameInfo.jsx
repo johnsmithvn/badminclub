@@ -1,3 +1,4 @@
+import { useId } from 'react'
 import { Button, Dialog } from '#ds'
 import { useMobile } from '#hooks/useMobile.js'
 import { t } from '#i18n'
@@ -9,7 +10,7 @@ import { RANK_FACES, rankOf, SUIT_MARKS, suitOf } from '#lib/games/tienlen.js'
 
 const TONE = { caro: 'scheduled', oanquan: 'delayed', coganh: 'transit', colat: 'delivered', chamo: 'idle', tienlen: 'incident',
   covua: 'scheduled', cotuong: 'delayed', cangua: 'delivered',
-  bantau: 'transit', domino: 'idle', baibip: 'delayed', noitu: 'transit' }
+  bantau: 'transit', domino: 'idle', baibip: 'delayed', noitu: 'transit', masoi: 'incident' }
 const mix = (c, pct) => `color-mix(in srgb, ${c} ${pct}%, transparent)`
 const RED = 'var(--status-incident)'
 const BLUE = 'var(--navy-400)'
@@ -373,9 +374,54 @@ function NoiTuArt() {
   )
 }
 
+function MaSoiArt() {
+  // Ô trời đêm tròn: trăng, sao, Sói ngồi tru trên đồi, mái nhà sáng đèn — cạnh hai lá vai, một úp, một lật mặt Sói.
+  const clip = 'ms' + useId().replace(/[^a-zA-Z0-9]/g, '') // sảnh vẽ tranh nhiều lần — id clipPath phải riêng
+  const night = 'var(--navy-950)'
+  const land = 'var(--navy-800)'
+  const stars = [[40, 24], [52, 15], [30, 36], [88, 46], [64, 22], [46, 44]]
+  return (
+    <>
+      <ellipse cx={86} cy={89} rx={66} ry={5} fill={mix('var(--status-incident-fg)', 14)} />
+      <clipPath id={clip}><circle cx={62} cy={48} r={37} /></clipPath>
+      <circle cx={62} cy={48} r={38.5} fill="none" stroke={mix('var(--status-incident-fg)', 30)} />
+      <g clipPath={`url(#${clip})`}>
+        <rect x={20} y={6} width={84} height={84} fill={night} />
+        {stars.map(([x, y], k) => <circle key={k} cx={x} cy={y} r={k % 2 ? 0.9 : 1.3} fill="var(--gray-0)" opacity={0.75} />)}
+        <circle cx={78} cy={28} r={16} fill="var(--gray-0)" opacity={0.08} />
+        <circle cx={78} cy={28} r={9.5} fill="var(--gray-0)" opacity={0.95} />
+        <circle cx={75} cy={25.5} r={1.8} fill="var(--navy-100)" />
+        <circle cx={81} cy={31} r={1.2} fill="var(--navy-100)" />
+        <path d="M76 84 V75 L82 69.5 L88 75 V84 Z M89 84 V78 L93.5 74 L98 78 V84 Z" fill={land} />
+        <rect x={80.5} y={76.5} width={3} height={3} rx={0.6} fill="var(--status-delayed)" />
+        <rect x={92} y={79} width={2.6} height={2.6} rx={0.5} fill="var(--status-delayed)" opacity={0.85} />
+        <g transform="translate(33 47)" fill={land}>
+          <path d="M2 35 Q-1 27 6 25 L9 22 Q11 15 13 12 L15 6 L15.6 1 L18 4.6 L25 1.2 L21.4 6.6 Q19 9.5 19.6 13 Q21 18 20.6 22 L21 34 L23 36 L17.4 36 L16.6 27 Q15 31 14.6 36 L7 36 Q4 36 2 35 Z" />
+        </g>
+        <path d="M18 92 Q48 72 110 92 Z" fill={land} />
+      </g>
+      <g transform="rotate(-10 117 72)">
+        <rect x={101} y={24} width={32} height={46} rx={4} fill="var(--navy-400)" stroke="var(--gray-0)" />
+        <path d="M117 34 l8 13 -8 13 -8 -13z" fill="none" stroke="var(--gray-0)" strokeOpacity={0.6} />
+      </g>
+      <g transform="rotate(9 131 72)">
+        <rect x={115} y={22} width={32} height={46} rx={4} fill="var(--surface-card)" stroke="var(--border-default)" />
+        <circle cx={131} cy={40} r={10.5} fill="var(--status-incident)" />
+        <g transform="translate(131 40.6) scale(0.42) translate(-24 -26)">
+          <path d="M13 13 L19 20 L24 18.5 L29 20 L35 13 L35.5 25 Q35 32.5 28 36.5 L24 39 L20 36.5 Q13 32.5 12.5 25 Z" fill="var(--gray-0)" />
+          <path d="M17.5 25 l4 1.4 M30.5 25 l-4 1.4" stroke="var(--status-incident)" strokeWidth={2.4} strokeLinecap="round" />
+        </g>
+        <rect x={122} y={56} width={18} height={2.6} rx={1.3} fill="var(--border-default)" />
+        <rect x={125} y={61} width={12} height={2.2} rx={1.1} fill="var(--border-subtle)" />
+      </g>
+    </>
+  )
+}
+
 const ART = {
   caro: CaroArt, oanquan: OAnQuanArt, coganh: CoGanhArt, colat: CoLatArt, chamo: ChamOArt, tienlen: TienLenArt,
   covua: CoVuaArt, cotuong: CoTuongArt, cangua: CaNguaArt, bantau: BanTauArt, domino: DominoArt, baibip: BaiBipArt, noitu: NoiTuArt,
+  masoi: MaSoiArt,
 }
 
 /** Dải tranh của game: nền màu theo tông của game, tranh SVG co theo chiều cao. */

@@ -17,4 +17,5 @@ export const SCREENS = {
   domino: lazy(() => import('#components/games/DominoBoard.jsx')),
   baibip: lazy(() => import('#components/games/BaiBipBoard.jsx')),
   noitu: lazy(() => import('#components/games/NoiTuBoard.jsx')),
+  masoi: lazy(() => import('#components/games/MaSoiBoard.jsx')),
 }

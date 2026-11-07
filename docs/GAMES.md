@@ -1,6 +1,6 @@
 # GAMES.md — Phân hệ Mini-game trong CLB
 
-**Version:** v0.6.0 (Giai đoạn 1 — Caro, Ô ăn quan, Cờ gánh, Cờ lật, Chấm ô; Giai đoạn 2 — Tiến lên, Cờ vua, Cờ tướng, Cờ cá ngựa, Bắn tàu, Domino) · **Updated:** 2026-11-07 · **Nhánh:** `feat/games`
+**Version:** v0.7.0 (Giai đoạn 1 — Caro, Ô ăn quan, Cờ gánh, Cờ lật, Chấm ô; Giai đoạn 2 — Tiến lên, Cờ vua, Cờ tướng, Cờ cá ngựa, Bắn tàu, Domino; Giai đoạn 3 — Bài bịp, Nối từ, Ma sói) · **Updated:** 2026-11-07 · **Nhánh:** `feat/games`
 
 Thành viên cùng một CLB mở phòng và chơi game theo lượt với nhau ngay trong app.
 File này chốt **khung chung** trước khi viết game đầu tiên. Mỗi game sau này chỉ cắm vào khung,
@@ -226,10 +226,21 @@ Seed nằm trong DB mà mọi người đọc được → ai cũng tính đư�
   `{ winners: [], pending: true }` để vẫn gọi `game_finish`; khung phòng hiện "đang chấm điểm" tới khi có `room.result`.
 - **Người rời ván 3–4 người:** `game_leave` / `game_claim` (bản 0078) ghi nước `{ out: true }` cho người rời nếu ván
   còn ≥ 2 người, luật bỏ qua lượt của họ. Chỉ server ghi được `out` / `deal` — client gửi là `badMove`.
+  Client dựng lại ván với ghế của **mọi người lúc ván bắt đầu** (`registry.inGameOf`: người còn ngồi + người rời sau
+  `started_at`), không chỉ người còn ngồi — không thì Cờ cá ngựa (đếm ghế ở `setup`) dựng lại thành ván ít ghế hơn
+  và báo nhầm người thắng. Người rời lúc phòng còn chờ không tính (ghế cũ của họ có thể trùng số).
+- **Vai bí mật (Ma sói 0084):** server làm quản trò. Vai + dữ kiện riêng (đồng đội Sói, kết quả soi, ai bị cắn…) nằm ở
+  hàng `game_hands` của từng ghế; vai cả bàn, lựa chọn đêm nay, trí nhớ ván ở ghế âm. Đêm nào **mọi người còn sống đều
+  gửi một nước** `{ night }` (vai không có việc bấm Ngủ) và log chỉ ghi `{ night: true }` — nhìn log không đoán được ai
+  có vai. Có Phù thủy trong bộ vai thì luôn có bước Phù thủy, kể cả khi Phù thủy đã chết. Xong bước thì máy bất kỳ gửi
+  `{ next: true }`, server tính rồi ghi kết quả công khai (ai chết, lộ vai nào, Thợ săn, ai thắng).
+- **Game cả bàn cùng đi** (Ma sói, Nối từ): `state.turn` có thể là null cả bước. Game khai `status(state, mySeat)` →
+  `{ key, params }` thì khung phòng hiện dòng đó thay cho "lượt của ai"; màn chơi tự quyết khi nào được bấm.
 
 > `ponytail:` luật Tiến lên chép hai nơi (JS + plpgsql), gác bằng bộ mẫu chung trong
 > `supabase/manual/0078_games_tienlen_check.sql` (kiểu bộ, chặn, giá chặt, thối, tới trắng, 10 ván viết tay) mà `tienlen.test.js` đọc lại.
-> Ngưỡng: game luật dài hơn nhiều (Ma sói có pha đêm, nhiều vai) thì lúc đó mới cân Edge Function chạy chung code §3.
+> Ma sói (pha đêm, 9 vai) vẫn làm được trong plpgsql (0084) nên chưa cần Edge Function. Ngưỡng: game cần chạy chung
+> đúng một bản code JS ở server (luật quá dài để chép hai nơi) thì lúc đó mới cân Edge Function.
 
 ---
 
@@ -316,10 +327,17 @@ Sảnh ── Tạo phòng (chọn game + tuỳ chọn) ──┐
 - `colat.test.js` — xếp quân, 4 nước mở đầu, lật nhiều hàng một lúc, dừng ở quân mình gần nhất, hàng chạm mép /
   có ô trống thì không lật, không tràn từ cuối hàng sang đầu hàng kia, mất lượt, xoá sạch quân, đầy bàn người đi
   cuối vẫn thua, hoà; 300 ván ngẫu nhiên chỉ đổi màu đúng các quân bị kẹp; xếp quân + ván mẫu khớp SQL.
-- `fixtures.mjs` — không phải test: sinh lại bộ ván mẫu trong file kiểm 0075 và 0076 (§5.1).
+- `chamo.test.js` — đánh số nét / ô với mọi cỡ bàn, khép ô thì đi tiếp, một nét khép hai ô, hoà; 300 ván ngẫu nhiên;
+  hằng số + ván mẫu khớp SQL 0077.
+- `tienlen.test.js` — kiểu bộ, chặn / chặt / chặt ngang, xếp hạng, cóng, thối, tới trắng, người rời; bộ mẫu chung với
+  `supabase/manual/0078_games_tienlen_check.sql`. `covua.test.js` / `cotuong.test.js` — perft chuẩn, chiếu hết, hoà.
+  `cangua.test.js` — ra quân, không nhảy qua, đá ngựa, về chuồng, người rời ván 3 người vẫn đủ ghế. `bantau.test.js`,
+  `domino.test.js`, `baibip.test.js`, `noitu.test.js`, `masoi.test.js` — luật phần công khai + hằng số / mã lỗi khớp SQL.
+- `fixtures.mjs` — không phải test: sinh lại bộ ván mẫu trong file kiểm 0075, 0076 và 0077 (§5.1).
 - Mutation-test theo `RULES.md` §5.
 
-RPC/RLS kiểm tay bằng `supabase/manual/0074_games_check.sql`, `0075_games_results_check.sql`, `0076_games_colat_check.sql`
+RPC/RLS kiểm tay bằng `supabase/manual/0074_games_check.sql`, `0075_games_results_check.sql`, `0076_games_colat_check.sql`,
+`0077_games_chamo_check.sql`, `0078_games_tienlen_check.sql`
 (bản chấm từng game chạy trên ván mẫu, `game_finish` bỏ qua kết quả bịa, game chưa có bản chấm vẫn nhận kết quả client).
 
 ---
@@ -331,7 +349,7 @@ RPC/RLS kiểm tay bằng `supabase/manual/0074_games_check.sql`, `0075_games_re
 | **1** | Khung (§2–§7) + **Caro**, **Ô ăn quan**, **Cờ gánh**, **Cờ lật** 2 người, server chấm | phòng, ghế, realtime, dựng lại từ log, lazy-load, chấm động (§5.1) |
 | **2** | **Tiến lên** 2–4 người — đã code | bài úp trong `game_hands`, server chia + kiểm nước lúc ghi (§5.2) |
 | **2b** | **Cờ vua**, **Cờ tướng** 2 người · **Cờ cá ngựa** 2–4 · **Bắn tàu** 2 · **Domino** 2–4 — đã code | nước server điền (`game_<id>_fill`): xúc xắc, phát bắn, bốc nọc; kết quả `pending` |
-| **3** | **Ma sói** hoặc **Nối từ** | nhiều người, vai trò / đồng hồ lượt |
+| **3** | **Bài bịp** 2–4 · **Nối từ** 2–8 · **Ma sói** 5–12 — đã code | lá úp nói dối, giờ theo server (`m.at`), vai bí mật + cả bàn cùng đi (`status`) |
 
 Tách repo / server game riêng chỉ khi: cần game hành động nhanh, mở cho người ngoài CLB,
 hoặc vượt quota Supabase.
@@ -438,8 +456,39 @@ trước và phải đánh con đó (không ai có đôi thì con nhiều nút n
 khớp thì bốc tới khi đánh được, hết nọc mới được bỏ lượt; có quân khớp thì phải đánh (server kiểm — 0081). Hết quân
 thắng; tắc (cả bàn bỏ liền nhau) thì ít nút nhất thắng, bằng nhau hoà. Người thắng ăn tổng nút của đối thủ.
 
+**Chấm ô** (`chamo.js`, trò giấy bút trên vở ô ly): 2 người, bàn n × n ô (chủ phòng chọn 3–6, server nhận 2–8,
+lạ thì về 5). Mỗi lượt nối một nét ngang / dọc giữa hai chấm kề nhau. Nét khép kín ô nào thì ô đó của người nối và người
+đó đi tiếp (một nét có thể khép hai ô); không khép được thì đổi lượt. Nối hết nét thì đếm ô, bằng nhau hoà (0077 chấm lại).
+
+**Bài bịp** (`baibip.js`): 2–4 người, bộ 20 lá (6 Q, 6 K, 6 A, 2 Joker), mỗi ván chia 5 lá + một "lá chủ". Đến lượt úp 1–3
+lá và nhận đó là lá chủ (Joker luôn đúng), hoặc tố người vừa úp. Tố đúng thì người úp thua, tố oan thì người tố thua; người
+thua cắt một dây trên bom 6 dây của mình (một dây nổ, server giấu ở ghế -1) — nổ là bị loại. Ai cũng hết bài trừ mình thì
+bắt buộc tố. Còn một người là thắng. Rời bàn = bị loại; đang giữa ván thì chia ván mới (0082).
+
+**Nối từ** (`noitu.js`): 2–8 người, thứ tự lượt server xáo. Tiếng Việt: từ 2 âm tiết, âm tiết đầu = âm tiết cuối của từ
+trước; English: bắt đầu bằng 1 hoặc 2 chữ cuối (tuỳ phòng). Không lặp từ đã dùng / đã bị bác. Không có từ điển: mỗi từ
+được cả bàn duyệt 8 giây, im lặng là nhận, bị bác khi phiếu bác nhiều hơn phiếu nhận; bị bác được cộng 3 giây, mỗi lượt
+gửi tối đa 2 từ. Hết giờ hoặc Chịu là bị loại, người kế bắt đầu bằng từ tự do. Giờ theo server: hết giờ do máy bất kỳ báo,
+0083 chỉ nhận khi đúng là đã hết.
+
+**Ma sói** (`masoi.js`): 5–12 người, server làm quản trò (0084). Bộ vai theo số người (`tableOf`): 1 Sói (≤ 5 người),
+2 (≤ 8), 3 (từ 9); từ 8 người một Sói là Sói nguyền; rồi 2–6 vai đặc biệt theo thứ tự Tiên tri, Bảo vệ, Phù thủy, Thợ săn,
+Già làng, Thần tình yêu; còn lại là Dân làng.
+- **Đêm:** Sói cùng chọn người cắn (nhiều phiếu nhất, hoà thì bốc ngẫu nhiên); Tiên tri soi một người (Sói nguyền tính là
+  Sói); Bảo vệ che một người, được che mình, không che một người hai đêm liền; đêm đầu Thần tình yêu ghép một đôi. Bước
+  Phù thủy: biết ai bị cắn, một bình cứu (cứu được mình) và một bình độc (không tự độc) cho cả ván, mỗi đêm tối đa một bình.
+- **Sáng:** người bị cắn chết nếu không được che / cứu. Sói nguyền một lần trong ván biến nạn nhân thành Sói thay vì giết
+  (người đó biết mặt cả bầy). Già làng sống qua lần đầu bị cắn trúng. Tình nhân chết thì người kia chết theo. Thợ săn chết
+  (trừ rời bàn) được bắn một người.
+- **Ngày:** người còn sống bầu treo cổ hoặc bỏ qua; bị treo khi nhiều phiếu nhất và hơn hẳn mọi lựa chọn khác kể cả bỏ
+  qua, hoà thì không ai.
+- **Thắng:** hết Sói → Dân làng; Sói ≥ số người còn lại → bầy Sói; đôi tình nhân khác phe là hai người cuối → đôi đó.
+  `result.winners` = mọi ghế của phe thắng.
+- **Lộ vai** (chủ phòng chọn, `options.reveal`): mọi người chết · chỉ người bị treo · không ai; hết ván lật hết. Rời bàn
+  = chết, không lộ vai, không được bắn.
+
 Nguồn đã đối chiếu: [vi.wikipedia Cờ gánh](https://vi.wikipedia.org/wiki/C%E1%BB%9D_g%C3%A1nh),
 [FPT Shop](https://fptshop.com.vn/tin-tuc/thu-thuat/cach-choi-co-ganh-175672),
 [Wikipedia Ô ăn quan](https://en.wikipedia.org/wiki/%C3%94_%C4%83n_quan),
-[cellphones](https://cellphones.com.vn/sforum/o-an-quan); luật Tiến lên, Cờ cá ngựa, Bắn tàu, Domino đối chiếu thêm phần luật
+[cellphones](https://cellphones.com.vn/sforum/o-an-quan); luật Tiến lên, Cờ cá ngựa, Bắn tàu, Domino, Ma sói đối chiếu thêm phần luật
 của dautri.com — chỉ lấy luật, chữ và hình đều tự viết / tự vẽ.

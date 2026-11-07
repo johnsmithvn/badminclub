@@ -5,7 +5,7 @@
 import assert from 'node:assert/strict'
 import { readFileSync } from 'node:fs'
 import cg, { DOOR, HOME, movesOf, squareOf } from '#lib/games/cangua.js'
-import { replay } from '#lib/games/registry.js'
+import { inGameOf, replay } from '#lib/games/registry.js'
 
 const room = (n) => ({ seats: Array.from({ length: n }, (_, i) => i) })
 const step = (s, seat, move) => {
@@ -107,6 +107,31 @@ assert.deepEqual(cg.setup(room(4)).horses, Array(4).fill([-1, -1, -1, -1]))
   assert.match(sql, /FUNCTION public\.game_cangua_fill\(p_room uuid, p_seat integer, p_move jsonb\)/)
   assert.match(sql, /1 \+ floor\(random\(\) \* 6\)/)
   assert.match(sql, /REVOKE ALL ON FUNCTION public\.game_cangua_fill\(uuid, integer, jsonb\) FROM PUBLIC, anon, authenticated/)
+}
+
+// Ván 3 người, ghế 1 rời giữa ván: vẫn dựng lại đủ 3 ghế (lượt sang ghế 2, chưa hết ván). Trước đây useGameRoom chỉ
+// đưa ghế đang ngồi → setup thành ván 2 người, nước { out } của ghế 1 làm ghế 0 "thắng" ngay. Giờ lấy ghế từ inGameOf.
+{
+  const room = {
+    startedAt: '2026-11-07T06:00:00.000+00:00',
+    players: [
+      { seat: 0, leftAt: null },
+      { seat: 1, leftAt: '2026-11-07T06:05:00.000+00:00' },
+      { seat: 2, leftAt: null },
+      { seat: 1, leftAt: '2026-11-07T05:59:00.000+00:00' }, // rời lúc còn chờ — ghế cũ trùng số, không tính
+    ],
+  }
+  const seats = inGameOf(room).map((p) => p.seat)
+  assert.deepEqual(seats, [0, 1, 2])
+  const s = replay(cg, { seats }, [
+    { seq: 1, seat: 0, move: { roll: true, dice: 3 } },
+    { seq: 2, seat: 1, move: { roll: true, dice: 2 } },
+    { seq: 3, seat: 1, move: { out: true } },
+  ])
+  assert.equal(s.horses.length, 3)
+  assert.equal(s.over, false)
+  assert.equal(s.turn, 2)
+  assert.deepEqual(s.out, [false, true, false])
 }
 
 console.log('cangua check: OK')

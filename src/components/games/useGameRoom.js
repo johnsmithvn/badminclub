@@ -2,7 +2,7 @@ import { useCallback, useEffect, useMemo, useRef, useState } from 'react'
 import { useApp } from '#contexts/AppContext.jsx'
 import { gameErr } from '#contexts/gameActions.js'
 import { myMember } from '#lib/money.js'
-import { gameOf, idleOf, isContiguous, nextSeq, replay, seatedOf } from '#lib/games/registry.js'
+import { gameOf, idleOf, inGameOf, isContiguous, nextSeq, replay, seatedOf } from '#lib/games/registry.js'
 import cfg from '#config/app.js'
 
 const IDLE = { offlineSec: cfg.games.offlineSec, graceSec: cfg.games.reconnectGraceSec }
@@ -55,13 +55,14 @@ export function useGameRoom(roomId) {
   const room = data?.room || null
   const game = room ? gameOf(room.game) : null
   const seated = useMemo(() => seatedOf(room?.players), [room?.players])
+  const inGame = useMemo(() => inGameOf(room), [room])
   const mySeat = seated.find((p) => p.memberId === me)?.seat ?? null
 
   const moves = data?.moves
   const state = useMemo(() => {
     if (!game || !room || room.status === 'waiting') return null
-    return replay(game, { options: room.options, seed: room.seed, seats: seated.map((p) => p.seat) }, moves)
-  }, [game, room, seated, moves])
+    return replay(game, { options: room.options, seed: room.seed, seats: inGame.map((p) => p.seat) }, moves)
+  }, [game, room, inGame, moves])
 
   const result = room?.result || (state && game.result(state)) || null
   const canMove = !!state && room.status === 'playing' && mySeat != null && !result && state.turn === mySeat
@@ -125,5 +126,5 @@ export function useGameRoom(roomId) {
     a.gameClaim(roomId).then((ok) => { if (ok) reload() })
   }, [a, roomId, status, seatedHere, result, seated, me, idle, now, reload])
 
-  return { room, game, state, result, seated, mySeat, me, canMove, idle, moves: data?.moves || [], loading: !data && !err, err, reload, play }
+  return { room, game, state, result, seated, inGame, mySeat, me, canMove, idle, moves: data?.moves || [], loading: !data && !err, err, reload, play }
 }

@@ -14,8 +14,9 @@ import bantau from '#lib/games/bantau.js'
 import domino from '#lib/games/domino.js'
 import baibip from '#lib/games/baibip.js'
 import noitu from '#lib/games/noitu.js'
+import masoi from '#lib/games/masoi.js'
 
-export const GAMES = { caro, oanquan, coganh, colat, chamo, tienlen, covua, cotuong, cangua, bantau, domino, baibip, noitu }
+export const GAMES = { caro, oanquan, coganh, colat, chamo, tienlen, covua, cotuong, cangua, bantau, domino, baibip, noitu, masoi }
 
 export const GAME_IDS = Object.keys(GAMES)
 
@@ -23,6 +24,16 @@ export const gameOf = (id) => GAMES[id] || null
 
 /** Ghế ngồi theo thứ tự của những người CHƯA rời phòng. */
 export const seatedOf = (players) => (players || []).filter((p) => !p.leftAt).sort((x, y) => x.seat - y.seat)
+
+/**
+ * Người của ván, theo ghế: người còn ngồi + người rời SAU khi ván bắt đầu — họ vẫn có lượt trong log (luật bỏ qua
+ * bằng nước { out }) và vẫn cần tên trên bàn. Ghế của họ là tham số `seats` của setup: đếm bằng seatedOf thì ván
+ * 3–4 người có người rời bị dựng lại thành ván ít ghế hơn.
+ * Người rời lúc còn chờ không tính: game_start không đánh số lại ghế của họ, có thể trùng số với người đang ngồi.
+ */
+export const inGameOf = (room) => (room?.players || [])
+  .filter((p) => !p.leftAt || (room.startedAt && Date.parse(p.leftAt) >= Date.parse(room.startedAt)))
+  .sort((x, y) => x.seat - y.seat)
 
 /**
  * Dựng lại state từ log nước đi. Nước không hợp lệ bị BỎ QUA — máy nào cũng bỏ như nhau,

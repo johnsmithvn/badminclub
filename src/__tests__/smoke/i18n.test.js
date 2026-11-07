@@ -23,6 +23,7 @@ import { SCHEMA_GROUPS } from '#data/schema.js'
 import { EVENT_KINDS, EVENT_STATUSES, HUB_TABS, TOUR_STATUSES, hubChecklist } from '#lib/tournament/hub.js'
 import { RULE_PRESETS, TEMPLATES } from '#lib/tournament/format.js'
 import { GAMES, GAME_IDS } from '#lib/games/registry.js'
+import { REVEALS as MASOI_REVEALS, ROLE_IDS as MASOI_ROLES } from '#lib/games/masoi.js'
 
 // Miền giá trị của các họ key ghép động mà file nguồn không export ra được.
 // Đổi ở nguồn thì phải đổi ở đây — cố ý, để test đòi key mới.
@@ -184,10 +185,17 @@ GAME_IDS.forEach((id) => {
 })
 ;['waiting', 'playing', 'finished', 'abandoned'].forEach((s) => need('games.status.' + s))
 ;['single', 'pair', 'triple', 'quad', 'straight', 'pairs'].forEach((k) => need('games.tienlen.kind.' + k)) // = comboOf().kind
+// Ma sói: vai, đội thắng (= team của 0084 game_masoi_after), kiểu lộ vai, việc theo vai (act.* / do.*), dòng trạng thái của masoi.status.
+MASOI_ROLES.forEach((r) => { need('games.masoi.role.' + r); need('games.masoi.roleDesc.' + r) })
+;['village', 'wolves', 'lovers'].forEach((k) => need('games.masoi.win.' + k))
+MASOI_REVEALS.forEach((v) => need('games.masoi.revealOpt.' + v))
+;['wolf', 'seer', 'guard', 'cupid', 'vote', 'shoot'].forEach((m) => { need('games.masoi.act.' + m); need('games.masoi.do.' + m) })
+;['Night', 'Witch', 'Day', 'Hunter', 'Settle'].forEach((k) => need('games.masoi.status' + k))
 ;[...files('src/lib/games'), 'src/contexts/gameActions.js', 'supabase/migrations/0074_games.sql', 'supabase/migrations/0075_games_results.sql',
   'supabase/migrations/0078_games_tienlen.sql', 'supabase/migrations/0079_games_cangua.sql',
   'supabase/migrations/0080_games_bantau.sql', 'supabase/migrations/0081_games_domino.sql',
-  'supabase/migrations/0082_games_baibip.sql', 'supabase/migrations/0083_games_noitu.sql']
+  'supabase/migrations/0082_games_baibip.sql', 'supabase/migrations/0083_games_noitu.sql',
+  'supabase/migrations/0084_games_masoi.sql']
   .forEach((p) => { for (const m of readFileSync(p, 'utf8').matchAll(/games\.err\.[A-Za-z]+/g)) need(m[0]) })
 ;['balanced', 'random'].forEach((m) => { need('tournament.pairing.mode.' + m); need('tournament.pairing.modeHint.' + m) })
 ;['ok', 'warn', 'bad', 'idle'].forEach((k) => need('tournament.pairing.tone.' + k))

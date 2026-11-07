@@ -10,6 +10,7 @@ import { GameArt, HowTo } from '#components/games/GameInfo.jsx'
 import { myMember } from '#lib/money.js'
 import { GAMES, GAME_IDS, gameOf, isStaleRoom, seatedOf, statsOf } from '#lib/games/registry.js'
 import { TIMES as NOITU_TIMES } from '#lib/games/noitu.js'
+import { REVEALS as MASOI_REVEALS } from '#lib/games/masoi.js'
 import { pathOf } from '#routes'
 import { t } from '#i18n'
 import cfg from '#config/app.js'
@@ -136,7 +137,7 @@ function RoomRow({ room, me, members, onEnter }) {
   )
 }
 
-/** Form tạo phòng. Tuỳ chọn riêng từng game nằm ở đây — Caro, Chấm ô (cỡ bàn), Nối từ (ngôn ngữ, giờ). */
+/** Form tạo phòng. Tuỳ chọn riêng từng game nằm ở đây — Caro, Chấm ô (cỡ bàn), Nối từ (ngôn ngữ, giờ), Ma sói (lộ vai). */
 function CreateRoom({ gameId, onClose, onDone }) {
   const { a } = useApp()
   const isMobile = useMobile(768)
@@ -213,6 +214,14 @@ function CreateRoom({ gameId, onClose, onDone }) {
               options={NOITU_TIMES.map((n) => ({ value: String(n), label: t('games.noitu.timeOpt', { n }) }))}
             />
           </>
+        )}
+        {gameId === 'masoi' && (
+          <Select
+            label={t('games.masoi.reveal')}
+            value={opts.reveal}
+            onChange={(e) => setOpts({ ...opts, reveal: e.target.value })}
+            options={MASOI_REVEALS.map((v) => ({ value: v, label: t('games.masoi.revealOpt.' + v) }))}
+          />
         )}
         <Switch
           label={t('games.private')}
