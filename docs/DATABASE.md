@@ -305,6 +305,15 @@ State `db` của client dùng shape gọn của prototype. Cài đặt tại `sr
 | `0082_games_baibip.sql` | Bài bịp (`docs/GAMES.md` §5.2, §12): `game_baibip_deal` / `_round` (5 lá mỗi người, lá chủ, dây nổ từng bom ở ghế -1) · `game_baibip_run` (dựng lại ván, kiểm nước) · `game_baibip_fill` (đánh → bớt lá khỏi tay, cất lá úp ở ghế -2, log chỉ `{play: số lá}`; tố → lật lá; cắt dây → `{cut, boom}`, chia ván mới) · `game_baibip_result`. REVOKE khỏi client. Chỉ thêm hàm. Chạy sau 0078. |
 | `0083_games_noitu.sql` | Nối từ (`docs/GAMES.md` §12): `game_noitu_deal` (xáo thứ tự lượt) · `game_noitu_run` / `_check` (kiểm từ, phiếu duyệt, hết giờ theo `now()` của server — báo sớm là `games.err.notYet`) · `game_noitu_result`. REVOKE khỏi client. Chỉ thêm hàm. Chạy sau 0078. |
 | `0084_games_masoi.sql` | Ma sói (`docs/GAMES.md` §5.2, §12): server làm quản trò — `game_masoi_deal` (xáo vai theo `game_masoi_table`, vai + dữ kiện riêng ở ghế ≥ 0, vai cả bàn ở ghế -1, lựa chọn đêm ở -2, trí nhớ ván ở -3) · `game_masoi_run` (dựng lại phần công khai, kiểm nước) · `game_masoi_fill` (lựa chọn đêm → log chỉ `{night: true}`; `{next}` → tính ai chết, lộ vai nào, Thợ săn, ai thắng) · `game_masoi_after` · `game_masoi_result`. REVOKE khỏi client. Chỉ thêm hàm. Chạy sau 0078. |
+| `0085_games_claim.sql` | Mất kết nối chỉ xử người ván đang chờ: `game_claim(p_room, p_seats int[])` thay bản một tham số — chỉ xử ghế được nêu, ván phải đứng yên ≥ 120 giây (`docs/GAMES.md` §5.1b). Không đụng bảng. Kiểm: `supabase/manual/0085_games_claim_check.sql`. |
+| `0086_games_masoi_wolfbite.sql` | Ma sói: Sói được cắn Sói; nguyền chỉ lên người không phải Sói. Chỉ thay hàm. Kiểm: `0086_games_masoi_wolfbite_check.sql`. |
+| `0087_games_masoi_roles.sql` | Ma sói: chủ phòng tự chọn bộ vai (`options.roles`) — `game_masoi_deck`, chia / quản trò dùng bộ vai đó. Chỉ thay hàm. Kiểm: `0087_games_masoi_roles_check.sql`. |
+| `0088_games_caro_classic.sql` | Caro: `game_create` nhận cỡ bàn 3–25 (bàn X-O 3 × 3). Chỉ thay hàm. |
+| `0089_games_covay.sql` | Cờ vây 9 / 13 / 19: `game_covay_result` (server dựng lại ván, chấm vùng + komi). Chỉ thêm hàm. Kiểm: `0089_games_covay_check.sql`. |
+| `0090_games_phom.sql` | Phỏm (`docs/GAMES.md` §5.2, §12): `game_phom_deal` / `_fill` / `_result` + hàm phụ. Bài ở `game_hands`, nọc ghế -1. Chỉ thêm hàm. Kiểm: `0090_games_phom_check.sql`. |
+| `0091_games_board.sql` | Bảng xếp hạng game: `game_board(p_club, p_month)` (SECURITY INVOKER, chỉ đọc) — cộng dồn ván / thắng / hoà / thua / điểm theo game × thành viên, tháng theo giờ VN. Không bảng mới. Kiểm: `0091_games_board_check.sql`. |
+| `0092_games_bacay.sql` | Ba cây (bộ 36 lá A…9): `game_bacay_deal` / `_fill` / `_result` / `_score`. Chỉ thêm hàm. Kiểm: `0092_games_bacay_check.sql`. |
+| `0093_games_coins.sql` | Xu ảo (`docs/GAMES.md` §4b): bảng `game_coins` (sổ xu, client chỉ đọc) · `game_stake` · `game_coin_balance` · `game_wallets` · 4 trigger trên `game_rooms` / `game_room_players` (chặn mức cược lạ, chặn ví thiếu, trả xu khi ván xong). Không sửa RPC nào. Không dính tiền thật / Elo / điểm mùa. Kiểm: `0093_games_coins_check.sql`. |
 
 ---
 

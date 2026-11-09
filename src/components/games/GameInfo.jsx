@@ -10,7 +10,8 @@ import { RANK_FACES, rankOf, SUIT_MARKS, suitOf } from '#lib/games/tienlen.js'
 
 const TONE = { caro: 'scheduled', oanquan: 'delayed', coganh: 'transit', colat: 'delivered', chamo: 'idle', tienlen: 'incident',
   covua: 'scheduled', cotuong: 'delayed', cangua: 'delivered',
-  bantau: 'transit', domino: 'idle', baibip: 'delayed', noitu: 'transit', masoi: 'incident', covay: 'delayed', phom: 'scheduled' }
+  bantau: 'transit', domino: 'idle', baibip: 'delayed', noitu: 'transit', masoi: 'incident', covay: 'delayed', phom: 'scheduled',
+  bacay: 'delivered' }
 const mix = (c, pct) => `color-mix(in srgb, ${c} ${pct}%, transparent)`
 const RED = 'var(--status-incident)'
 const BLUE = 'var(--navy-400)'
@@ -481,7 +482,35 @@ function PhomArt() {
   )
 }
 
+function BaCayArt() {
+  const ink = 'var(--status-delivered-fg)'
+  const card = (x, y, rot, face, suit, red, key) => (
+    <g key={key} transform={`translate(${x} ${y}) rotate(${rot})`}>
+      <rect x={-14} y={-20} width={28} height={40} rx={3.5} fill="var(--gray-0)" stroke={mix(ink, 35)} strokeWidth={0.8} />
+      <text x={-10.5} y={-10} fontSize={8.5} fontWeight={700} fill={red ? RED : 'var(--gray-950)'} style={{ fontFamily: 'var(--font-mono)' }}>{face}</text>
+      <text x={0} y={8} fontSize={14} textAnchor="middle" fill={red ? RED : 'var(--gray-950)'}>{suit}</text>
+    </g>
+  )
+  // Lá úp: mặt sau kẻ sọc như bàn chơi.
+  const back = (x, y, rot, key) => (
+    <g key={key} transform={`translate(${x} ${y}) rotate(${rot})`}>
+      <rect x={-14} y={-20} width={28} height={40} rx={3.5} fill="var(--navy-700)" stroke="var(--gray-0)" strokeWidth={1.4} />
+      <rect x={-9} y={-15} width={18} height={30} rx={2} fill="none" stroke={mix('var(--gray-0)', 40)} strokeWidth={0.8} />
+    </g>
+  )
+  return (
+    <>
+      {/* Tay bên trái còn úp; tay bên phải vừa lật: 2 + 3 + 4 = 9 nút. */}
+      {[-10, 0, 10].map((rot, k) => back(30 + k * 10, 52 + Math.abs(rot) * 0.3, rot, 'b' + k))}
+      {[['2', '♦', true, -10], ['3', '♠', false, 0], ['4', '♥', true, 10]].map(([f, s, r, rot], k) => card(100 + k * 16, 50 + Math.abs(rot) * 0.3, rot, f, s, r, 'f' + k))}
+      <rect x={104} y={76} width={32} height={14} rx={7} fill={ink} />
+      <text x={120} y={86} fontSize={9} fontWeight={700} textAnchor="middle" fill="var(--gray-0)" style={{ fontFamily: 'var(--font-mono)' }}>9</text>
+    </>
+  )
+}
+
 const ART = {
+  bacay: BaCayArt,
   phom: PhomArt,
   covay: CoVayArt,
   caro: CaroArt, oanquan: OAnQuanArt, coganh: CoGanhArt, colat: CoLatArt, chamo: ChamOArt, tienlen: TienLenArt,

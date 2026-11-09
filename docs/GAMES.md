@@ -1,6 +1,6 @@
 # GAMES.md — Phân hệ Mini-game trong CLB
 
-**Version:** v0.9.0 (Giai đoạn 1 — Caro, Ô ăn quan, Cờ gánh, Cờ lật, Chấm ô; Giai đoạn 2 — Tiến lên, Cờ vua, Cờ tướng, Cờ cá ngựa, Bắn tàu, Domino; Giai đoạn 3 — Bài bịp, Nối từ, Ma sói; 0085 — mất kết nối chỉ xử người ván đang chờ; 0086 — Ma sói: Sói được cắn Sói; 0087 — Ma sói: chủ phòng tự chọn bộ vai; 0088 — Caro bàn X-O 3 × 3; 0089 — Cờ vây; 0090 — Phỏm) · **Updated:** 2026-11-09 · **Nhánh:** `feat/games`
+**Version:** v0.9.0 (Giai đoạn 1 — Caro, Ô ăn quan, Cờ gánh, Cờ lật, Chấm ô; Giai đoạn 2 — Tiến lên, Cờ vua, Cờ tướng, Cờ cá ngựa, Bắn tàu, Domino; Giai đoạn 3 — Bài bịp, Nối từ, Ma sói; 0085 — mất kết nối chỉ xử người ván đang chờ; 0086 — Ma sói: Sói được cắn Sói; 0087 — Ma sói: chủ phòng tự chọn bộ vai; 0088 — Caro bàn X-O 3 × 3; 0089 — Cờ vây; 0090 — Phỏm; 0091 — Bảng xếp hạng game; 0092 — Ba cây; 0093 — Xu ảo) · **Updated:** 2026-11-09 · **Nhánh:** `feat/games`
 
 Thành viên cùng một CLB mở phòng và chơi game theo lượt với nhau ngay trong app.
 File này chốt **khung chung** trước khi viết game đầu tiên. Mỗi game sau này chỉ cắm vào khung,
@@ -136,7 +136,17 @@ game_moves (
 ```
 
 **Không có bảng thống kê.** Thắng/thua đếm từ `game_rooms.result` của phòng `finished`.
-Chậm thì mới thêm view/bảng tổng hợp.
+**Bảng xếp hạng (0091, chủ dự án duyệt 2026-11-09):** hàm đọc `game_board(p_club, p_month)` cộng dồn trên server, trả mỗi
+(game, thành viên) một dòng `played / won / drawn / lost / points`; không bảng mới, SECURITY INVOKER (RLS giới hạn CLB).
+- Tháng = tháng của `ended_at` theo giờ Việt Nam; `p_month` NULL = từ trước tới nay. Phòng `abandoned` không tính.
+- Người rời giữa ván vẫn tính (thua); người rời lúc phòng còn chờ không tính (ghế cũ có thể trùng sau khi game_start đánh số lại).
+- Thắng = ghế trong `winners` (Ma sói: cả phe). `points` = tổng `scores[ghế]` — chỉ Phỏm, Tiến lên (`registry.BOARD_POINTS`)
+  xếp theo điểm; Cờ vây / Chấm ô / Cờ lật có `scores` nhưng là số ô / quân của riêng ván, cộng dồn vô nghĩa → xếp theo thắng.
+- Xếp ở client (`registry.boardOf`): game có điểm → điểm, thắng, ít ván; còn lại và "Tất cả game" → thắng, ít ván (cùng số thắng thì ít ván = tỉ lệ cao hơn).
+  Bằng hết tiêu chí thì cùng hạng.
+- Cờ vua / Cờ tướng / Cá ngựa chưa có bản chấm server — kết quả do client báo vẫn được tính (CLB người quen, chủ dự án chấp nhận).
+  Hàm đọc `result` phòng thủ (không ép kiểu) để một result bịa sai kiểu không làm hỏng cả bảng.
+- Giao diện: tab "Bảng xếp hạng" trong sảnh (`components/games/GameBoard.jsx`); đang ở tab này thì sảnh thôi hỏi lại danh sách phòng.
 
 ### RLS + RPC
 
@@ -160,6 +170,31 @@ Realtime: `alter publication supabase_realtime add table game_moves, game_room_p
 Kèm `supabase/manual/0074_games_check.sql` theo khuôn 0068–0073.
 
 ---
+
+## 4b. Xu ảo — migration `0093_games_coins.sql` (chủ dự án duyệt 2026-11-09)
+
+Xu ảo cho vui, **không dính tiền thật**, không đụng Elo / điểm mùa / sổ quỹ.
+- **Ví:** mỗi thành viên (theo CLB) bắt đầu 1000 xu, **cộng dồn mãi** (không làm lại theo tháng). Ví = 1000 + tổng
+  `game_coins.delta`. Bảng sổ `game_coins` mỗi người mỗi phòng một dòng (PK `room_id, member_id`), máy khách chỉ đọc.
+- **Mức cược:** chủ phòng chọn `options.stake` = 0 / 10 / 50 / 100 khi tạo phòng ("Chơi lại" giữ nguyên). Cờ vua, Cờ
+  tướng, Cá ngựa **không được cược** vì kết quả do máy khách báo (`NO_STAKE`; coins.test.js gác: đúng những game chưa
+  có `game_<id>_result`).
+- **Chặn (chủ dự án chọn "chặn", không cho nợ để chơi tiếp):** ngồi ghế phòng có cược mà ví < mức cược →
+  `games.err.noCoins`; bấm Bắt đầu mà có người đã tụt dưới mức → `games.err.noCoinsSeat`. Ván điểm vẫn có thể làm ví
+  âm (thua nhiều điểm hơn số xu còn lại) — khi đó người đó chỉ chơi được phòng không cược. Chưa có cách "cứu trợ".
+- **Trả xu** khi phòng sang `finished` bằng bất kỳ đường nào (game_finish / game_leave / game_claim):
+  - Phỏm / Tiến lên / Ba cây có `result.scores`: xu = điểm × mức cược. (Tiến lên có cóng ×2 nên tổng xu cả bàn có
+    thể lệch khỏi 0 — chấp nhận, xu ảo.)
+  - Còn lại, và ván bỏ cuộc không có `scores`: mỗi người thua mất đúng mức cược, người thắng chia đều (chia nguyên,
+    lẻ bỏ). Hoà / không ai thắng / không ai thua → không ai mất.
+  - Người của ván như BXH (0091): người bỏ giữa ván thua cược, người rời lúc phòng còn chờ không bị trừ.
+- **Cách gắn:** không chép lại RPC nào — 4 trigger: `game_rooms_stake_guard` (BEFORE INSERT phòng),
+  `game_players_coin_guard` (BEFORE INSERT / UPDATE OF left_at ghế — bắt cả tạo phòng, vào, vào lại),
+  `game_rooms_start_guard` (BEFORE UPDATE OF status, waiting → playing), `game_rooms_settle` (AFTER UPDATE OF status
+  → `game_coins_settle`, `ON CONFLICT DO NOTHING` nên trả đúng một lần).
+- **Giao diện:** sảnh hiện "Ví: N xu", form tạo phòng có ô Mức cược (ẩn với 3 game không cược; ví thiếu thì tắt nút
+  Tạo), dòng phòng có nhãn "Cược N"; phòng hiện nhãn cược, hết ván hiện ±xu dưới tên từng người (`game_coins` của
+  phòng); tab "Ví xu" trong sảnh xếp theo số xu (`game_wallets`, chỉ người đã chơi phòng có cược).
 
 ## 5. Ai giữ "sự thật" của ván
 
@@ -356,6 +391,10 @@ Sảnh ── Tạo phòng (chọn game + tuỳ chọn) ──┐
 - `phom.test.js` — phỏm (A thấp, không vòng), xếp lá ăn (một phỏm một lá ăn), ù khan, chuyển bài + lượt hạ, chấm điểm
   (hạng, móm, ăn chốt, ù, ù tròn, đền, người rời); bộ mẫu 0090: trọng tài JS ghi đúng từng nước / báo đúng 12 mã lỗi,
   máy khách nhận mọi nước đã ghi, chấm khớp; giá điểm + mã lỗi khớp SQL.
+- `bacay.test.js` — bộ 36 lá, nút, so lá to nhất (chất trước, A to nhất), người rời thua, đọc log như server; bộ mẫu 0092
+  (20 ván 2–8 người) chấm khớp `game_bacay_score`; hằng số khớp SQL. `board.test.js` — xếp hạng BXH game + gác SQL 0091.
+- `coins.test.js` — xu ảo: mức cược / ví ban đầu / danh sách game không cược khớp SQL 0093, `NO_STAKE` đúng là game
+  chưa có bản chấm server, đủ 4 trigger, mã lỗi có chữ.
 - `covay.test.js` — ăn quân / cả nhóm, tự sát bị cấm trừ khi ăn được quân, ko (cấm ăn lại ngay, đi nước khác thì hết),
   hai lần bỏ lượt hết ván, điểm vùng + komi, trần số nước, nước rác; hằng số + bộ ván mẫu khớp SQL 0089.
   `caro.test.js` thêm bàn X-O 3 × 3 (3 quân thắng, hoà khi đầy) và game_create 0088 nhận cỡ 3.
@@ -365,7 +404,7 @@ Sảnh ── Tạo phòng (chọn game + tuỳ chọn) ──┐
 - Mutation-test theo `RULES.md` §5.
 
 RPC/RLS kiểm tay bằng `supabase/manual/0074_games_check.sql`, `0075_games_results_check.sql`, `0076_games_colat_check.sql`,
-`0077_games_chamo_check.sql`, `0078_games_tienlen_check.sql`, `0085_games_claim_check.sql`, `0086_games_masoi_wolfbite_check.sql`, `0087_games_masoi_roles_check.sql`, `0089_games_covay_check.sql`, `0090_games_phom_check.sql`
+`0077_games_chamo_check.sql`, `0078_games_tienlen_check.sql`, `0085_games_claim_check.sql`, `0086_games_masoi_wolfbite_check.sql`, `0087_games_masoi_roles_check.sql`, `0089_games_covay_check.sql`, `0090_games_phom_check.sql`, `0091_games_board_check.sql`, `0092_games_bacay_check.sql`, `0093_games_coins_check.sql`
 (bản chấm từng game chạy trên ván mẫu, `game_finish` bỏ qua kết quả bịa, game chưa có bản chấm vẫn nhận kết quả client;
 0085: chỉ xử ghế được nêu, ván vừa có nước mới thì chưa xử; 0086: ván Ma sói 5 người dựng sẵn vai — Sói cắn Sói, nguyền lên
 Sói không ăn, nguyền lên dân vẫn hoá Sói. Chỉ cần CLB có 5 thành viên, không cần ghép tài khoản; 0087: bộ vai tự chọn
@@ -383,6 +422,7 @@ chạy được trước 0085.
 | **2b** | **Cờ vua**, **Cờ tướng** 2 người · **Cờ cá ngựa** 2–4 · **Bắn tàu** 2 · **Domino** 2–4 — đã code | nước server điền (`game_<id>_fill`): xúc xắc, phát bắn, bốc nọc; kết quả `pending` |
 | **3** | **Bài bịp** 2–4 · **Nối từ** 2–8 · **Ma sói** 5–12 — đã code | lá úp nói dối, giờ theo server (`m.at`), vai bí mật + cả bàn cùng đi (`status`) |
 | **4** | **Cờ vây** 9 / 13 / 19 · **Caro** thêm bàn X-O 3 × 3 · **Phỏm** 2–4 — đã code | server chấm Cờ vây bằng ván mẫu chung (§5.1); Phỏm: bài úp + nước server điền (`game_phom_fill`), bộ mẫu là kịch bản đủ bài từng tay (§5.2) |
+| **5** | **Bảng xếp hạng game** (0091) · **Ba cây** 2–8 (0092) · **Xu ảo** (0093) — đã code | BXH cộng dồn trên server; Ba cây: bài úp, lật thì server điền lá vào log; xu: trigger trên bảng phòng (§4b) |
 
 Tách repo / server game riêng chỉ khi: cần game hành động nhanh, mở cho người ngoài CLB,
 hoặc vượt quota Supabase.
@@ -565,6 +605,17 @@ miền Bắc phổ biến, đơn vị là điểm, không tiền:
 - Log chỉ có phần công khai: `{ draw: true }` (không lộ lá bốc) · `{ eat: lá }` · `{ discard }` · `{ lay, send }` ·
   `{ u, tron, discard }`. Kết quả cần bài trên tay nên chỉ server chấm (`result()` trả `pending`). Bản JS của server
   (`referee`, `judge`, `dealMove`) chỉ test và bộ mẫu dùng; mã lỗi và THỨ TỰ KIỂM khớp `game_phom_fill`.
+
+**Ba cây** (`bacay.js`, server 0092; chủ dự án duyệt 2026-11-09: so bài, tính điểm, bộ 36 lá bỏ 10 / J / Q / K — nên
+không có Ba tiên). 2–8 người, không nhà cái, không có lượt.
+- Chia mỗi người 3 lá úp (`game_bacay_deal`, nước 1 `{ deal: { n } }`). Máy mình chạm từng lá để nặn (chỉ ở máy mình),
+  bấm Lật → gửi `{ flip: true }`, server điền 3 lá thật (`game_bacay_fill`) → cả bàn thấy. Mọi người lật / rời là hết ván.
+- Điểm lá A = 1 … 9 = 9; nút = tổng % 10 (tròn chục là bù). Nút cao thắng; bằng nút so lá to nhất: chất ♦ > ♥ > ♠ > ♣
+  trước, cùng chất A > 9 > … > 2 — 36 lá có 36 độ to khác nhau nên không bao giờ hoà. Người rời thua.
+- Điểm: người thắng ăn mỗi người 1 → cả bàn bằng 0 → BXH xếp theo điểm (`BOARD_POINTS`).
+- Lá đã lật nằm trong log nên `result()` ở JS tính được đủ; `game_bacay_result` đọc log y như `apply` (nước sau lúc ván
+  đã xong bị bỏ qua) rồi chấm bằng `game_bacay_score` — hàm thuần mà file kiểm chạy trên bộ mẫu chung.
+- Chọn so bài, không làm cái (làm cái = mỗi người cược riêng với nhà cái — chưa làm).
 
 Nguồn đã đối chiếu: [vi.wikipedia Cờ gánh](https://vi.wikipedia.org/wiki/C%E1%BB%9D_g%C3%A1nh),
 [FPT Shop](https://fptshop.com.vn/tin-tuc/thu-thuat/cach-choi-co-ganh-175672),

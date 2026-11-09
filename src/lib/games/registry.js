@@ -17,8 +17,9 @@ import noitu from '#lib/games/noitu.js'
 import masoi from '#lib/games/masoi.js'
 import covay from '#lib/games/covay.js'
 import phom from '#lib/games/phom.js'
+import bacay from '#lib/games/bacay.js'
 
-export const GAMES = { caro, oanquan, coganh, colat, chamo, tienlen, covua, cotuong, cangua, bantau, domino, baibip, noitu, masoi, covay, phom }
+export const GAMES = { caro, oanquan, coganh, colat, chamo, tienlen, covua, cotuong, cangua, bantau, domino, baibip, noitu, masoi, covay, phom, bacay }
 
 export const GAME_IDS = Object.keys(GAMES)
 
@@ -71,6 +72,51 @@ export function statsOf(finished) {
     else s.l += 1
   }
   return out
+}
+
+/* ---------- Xu ảo (0093) — server giữ luật, ở đây chỉ để vẽ form / nhãn. Số phải khớp SQL (coins.test.js gác). ---------- */
+
+/** Ví ban đầu của mỗi người, cộng dồn mãi. */
+export const COIN_START = 1000
+/** Mức cược chủ phòng chọn được; 0 = không cược. */
+export const STAKES = [0, 10, 50, 100]
+/** Game kết quả do máy khách báo (chưa có bản chấm server) — không cho cược. */
+export const NO_STAKE = ['covua', 'cotuong', 'cangua']
+/** Mức cược của phòng — như game_stake ở SQL: ngoài danh sách là 0. */
+export const stakeOf = (options) => (STAKES.includes(options?.stake) ? options.stake : 0)
+
+/**
+ * Game mà tổng điểm cộng dồn qua các ván có nghĩa (điểm ăn thua giữa người chơi) → BXH xếp theo điểm, và phòng có cược
+ * trả xu = điểm × mức cược (0093).
+ */
+export const BOARD_POINTS = ['phom', 'tienlen', 'bacay']
+
+const cmpKeys = (a, b) => {
+  for (let i = 0; i < a.length; i++) if (a[i] !== b[i]) return a[i] - b[i]
+  return 0
+}
+
+/**
+ * Bảng xếp hạng game. `rows` = dòng của game_board (0091): { game, memberId, played, won, drawn, lost, points }.
+ * `game` null = tất cả game: cộng dồn mọi game theo người, bỏ game không còn trong GAMES.
+ * Xếp: game có điểm (BOARD_POINTS) theo điểm → thắng → ít ván hơn; còn lại theo thắng → ít ván hơn (cùng số thắng
+ * thì ít ván hơn chính là tỉ lệ thắng cao hơn — không cần tiêu chí tỉ lệ riêng). Bằng hết thì cùng hạng (1, 2, 2, 4).
+ */
+export function boardOf(rows, game = null) {
+  const by = new Map()
+  for (const r of rows || []) {
+    if (game ? r.game !== game : !GAMES[r.game]) continue
+    const o = by.get(r.memberId) || { memberId: r.memberId, played: 0, won: 0, drawn: 0, lost: 0, points: 0 }
+    o.played += r.played; o.won += r.won; o.drawn += r.drawn; o.lost += r.lost; o.points += r.points
+    by.set(r.memberId, o)
+  }
+  const byPoints = BOARD_POINTS.includes(game)
+  const key = (o) => (byPoints ? [o.points, o.won, -o.played] : [o.won, -o.played])
+  const list = [...by.values()].filter((o) => o.played > 0)
+    .map((o) => ({ ...o, rate: Math.round((o.won * 100) / o.played) }))
+    .sort((a, b) => cmpKeys(key(b), key(a)) || String(a.memberId).localeCompare(String(b.memberId)))
+  list.forEach((o, i) => { o.rank = i > 0 && cmpKeys(key(o), key(list[i - 1])) === 0 ? list[i - 1].rank : i + 1 })
+  return { byPoints, rows: list }
 }
 
 /**
