@@ -47,6 +47,8 @@ export default function GameRoom() {
   const isHost = room.hostId === g.me
   const full = seated.length >= game.maxPlayers
   const enough = seated.length >= game.minPlayers
+  // Game tự nói điều cần biết ở phòng chờ (Ma sói: bộ vai sẽ chia) — `block` thì chặn nút Bắt đầu.
+  const lobby = room.status === 'waiting' ? game.lobby?.(room.options, seated.length) ?? null : null
   const copyLink = async () => {
     const url = window.location.origin + pathOf('gameRoom', room.id) + '?club=' + room.clubId
     try {
@@ -104,7 +106,8 @@ export default function GameRoom() {
                 </span>
                 {p && p.memberId !== g.me && !result && g.idle[p.memberId]?.offline && (
                   <span style={{ ...S.mono, color: 'var(--status-delayed-fg)' }}>
-                    {room.status === 'playing'
+                    {/* Đếm ngược chỉ khi ván đang chờ người này — người khác khoá máy lúc chờ thì không bị xử. */}
+                    {room.status === 'playing' && g.idle[p.memberId].leftSec != null
                       ? t('games.offlineLeft', { time: clock(g.idle[p.memberId].leftSec) })
                       : t('games.offline')}
                   </span>
@@ -120,9 +123,10 @@ export default function GameRoom() {
           <span style={S.caption}>
             {!enough ? t('games.needPlayers', { n: game.minPlayers }) : isHost ? t('games.readyHost') : t('games.waitHost')}
           </span>
+          {lobby && <span style={{ ...S.caption, color: lobby.block ? 'var(--status-delayed-fg)' : undefined }}>{t(lobby.key, lobby.params)}</span>}
           <div style={{ display: 'flex', gap: 8, flexWrap: 'wrap' }}>
             {mySeat == null && g.me && !full && <Button disabled={busy} onClick={() => act(() => a.gameJoin(room))}>{t('games.join')}</Button>}
-            {isHost && <Button icon="play" disabled={busy || !enough} onClick={() => act(() => a.gameStart(room))}>{t('games.start')}</Button>}
+            {isHost && <Button icon="play" disabled={busy || !enough || !!lobby?.block} onClick={() => act(() => a.gameStart(room))}>{t('games.start')}</Button>}
             {mySeat != null && <Button variant="secondary" icon="log-out" disabled={busy} onClick={leave}>{t('games.leave')}</Button>}
           </div>
         </div>

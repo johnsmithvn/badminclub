@@ -15,8 +15,10 @@ import domino from '#lib/games/domino.js'
 import baibip from '#lib/games/baibip.js'
 import noitu from '#lib/games/noitu.js'
 import masoi from '#lib/games/masoi.js'
+import covay from '#lib/games/covay.js'
+import phom from '#lib/games/phom.js'
 
-export const GAMES = { caro, oanquan, coganh, colat, chamo, tienlen, covua, cotuong, cangua, bantau, domino, baibip, noitu, masoi }
+export const GAMES = { caro, oanquan, coganh, colat, chamo, tienlen, covua, cotuong, cangua, bantau, domino, baibip, noitu, masoi, covay, phom }
 
 export const GAME_IDS = Object.keys(GAMES)
 
@@ -72,15 +74,39 @@ export function statsOf(finished) {
 }
 
 /**
+ * Ghế mà ván đang chờ đi nước: người tới lượt (`state.turn`), hoặc game tự khai `waiting(state)` cho bước cả bàn cùng
+ * đi (Ma sói: người còn sống chưa bấm · Bắn tàu: người chưa chốt tàu). Mất kết nối chỉ xử những ghế này — người đang
+ * chờ đối thủ nghĩ mà khoá máy không làm ván đứng (docs/GAMES.md §5.1b).
+ */
+export function waitingOf(game, state) {
+  if (!game || !state) return []
+  if (game.waiting) return game.waiting(state)
+  return state.turn == null ? [] : [state.turn]
+}
+
+/**
+ * Lúc ván bắt đầu chờ nước tiếp theo, theo giờ server: giờ ghi nước gần nhất, chưa có nước thì lúc bắt đầu ván.
+ * game_claim (0085) đo y vậy. null = nước gần nhất là nước máy mình vừa hiện trước, server chưa trả giờ — chưa tính.
+ */
+export function waitSinceOf(room, moves) {
+  if (!moves?.length) return room?.startedAt || null
+  return moves[moves.length - 1].at || null
+}
+
+/**
  * Người ngồi ghế còn kết nối không, theo nhịp gần nhất (`seenAt`, server ghi qua game_ping / game_move).
  *   offline: quá `offlineSec` giây không thấy nhịp — hiện "mất kết nối"
- *   leftSec: còn bao nhiêu giây nữa thì đối thủ đòi xử thắng được (≤ 0 = được đòi ngay)
+ *   leftSec: chỉ tính khi ván đang chờ người này (`since` = waitSinceOf). Còn bao nhiêu giây nữa thì được đòi xử thua
+ *            (≤ 0 = được đòi ngay), đếm từ lúc muộn hơn giữa nhịp cuối và lúc ván bắt đầu chờ: khoá máy từ trước
+ *            thì khi tới lượt vẫn còn đủ `graceSec`. null = ván không chờ người này, không bị xử.
  * Đồng hồ máy khách có thể lệch server; lệch thì server từ chối game_claim và máy thử lại sau.
  */
-export function idleOf(player, now, { offlineSec, graceSec }) {
+export function idleOf(player, now, { offlineSec, graceSec }, since = null) {
   const seen = player?.seenAt ? new Date(player.seenAt).getTime() : now
-  const gone = (now - seen) / 1000
-  return { offline: gone > offlineSec, leftSec: Math.ceil(graceSec - gone) }
+  const offline = (now - seen) / 1000 > offlineSec
+  if (since == null) return { offline, leftSec: null }
+  const from = Math.max(seen, new Date(since).getTime())
+  return { offline, leftSec: Math.ceil(graceSec - (now - from) / 1000) }
 }
 
 /** Phòng đang chờ quá `hours` giờ thì coi như bỏ — sảnh ẩn đi. */

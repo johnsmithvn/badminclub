@@ -105,4 +105,19 @@ for (const line of [
   assert.ok(fn.includes(`(v_opt ->> 'blockedEnds')::boolean, ${caro.defaultOptions.blockedEnds})`), 'chặn hai đầu mặc định SQL ≠ JS')
 }
 
+// X-O cổ điển 3 × 3 (0088): 3 quân liền là thắng, đầy 9 ô không ai thắng là hoà.
+{
+  const xo = { size: 3, win: 3 }
+  const s = play(fresh(xo), [[0, 0], [1, 0], [1, 1], [2, 0], [2, 2]])
+  assert.equal(s.winner, 0, 'X đủ 3 quân chéo trên bàn 3 × 3 phải thắng')
+  assert.deepEqual(s.line, [at(s, 0, 0), at(s, 1, 1), at(s, 2, 2)])
+  const draw = play(fresh(xo), [[0, 0], [0, 1], [0, 2], [1, 1], [1, 0], [1, 2], [2, 1], [2, 0], [2, 2]])
+  assert.deepEqual(caro.result(draw), { winners: [], draw: true }, 'đầy bàn 3 × 3 không ai thắng là hoà')
+  // Server phải nhận bàn 3 (bản 0088) — chặn ở 5 như 0074 là chủ phòng chọn X-O mà không tạo được phòng.
+  const sql = readFileSync('supabase/migrations/0088_games_caro_classic.sql', 'utf8')
+  assert.ok(sql.includes("(p_options ->> 'size')::int, 15) BETWEEN 3 AND 25"), 'game_create 0088 phải nhận cỡ bàn 3')
+  const cfg = JSON.parse(readFileSync('src/config/app.json', 'utf8'))
+  assert.ok(cfg.games.caroSizes.every((n) => n >= 3 && n <= 25), 'cỡ bàn cho chọn phải nằm trong khoảng server nhận')
+}
+
 console.log('caro check: OK')

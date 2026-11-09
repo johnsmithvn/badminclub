@@ -10,7 +10,7 @@ import { RANK_FACES, rankOf, SUIT_MARKS, suitOf } from '#lib/games/tienlen.js'
 
 const TONE = { caro: 'scheduled', oanquan: 'delayed', coganh: 'transit', colat: 'delivered', chamo: 'idle', tienlen: 'incident',
   covua: 'scheduled', cotuong: 'delayed', cangua: 'delivered',
-  bantau: 'transit', domino: 'idle', baibip: 'delayed', noitu: 'transit', masoi: 'incident' }
+  bantau: 'transit', domino: 'idle', baibip: 'delayed', noitu: 'transit', masoi: 'incident', covay: 'delayed', phom: 'scheduled' }
 const mix = (c, pct) => `color-mix(in srgb, ${c} ${pct}%, transparent)`
 const RED = 'var(--status-incident)'
 const BLUE = 'var(--navy-400)'
@@ -418,7 +418,72 @@ function MaSoiArt() {
   )
 }
 
+function CoVayArt() {
+  const wood = 'var(--status-delayed-bg)'
+  const ink = 'var(--status-delayed-fg)'
+  const g = 10 // khoảng cách đường kẻ — bàn 9 × 9 thu nhỏ
+  const at = (r, c) => [40 + c * g, 8 + r * g]
+  // [hàng, cột, ghế]: thế giữa ván, Đen đang vây nhóm Trắng ở giữa; chấm đỏ là nước vừa đi.
+  const stones = [
+    [2, 2, 0], [2, 6, 1], [3, 3, 0], [3, 4, 1], [3, 5, 1], [4, 3, 0], [4, 5, 1], [4, 6, 0], [5, 4, 0], [5, 5, 0],
+    [6, 2, 1], [6, 6, 0], [4, 4, 1], [3, 6, 0], [2, 4, 0],
+  ]
+  const [lx, ly] = at(2, 4)
+  return (
+    <>
+      <rect x={34} y={2} width={92} height={92} rx={7} fill={`color-mix(in srgb, ${wood} 70%, ${ink})`} />
+      <rect x={36} y={4} width={88} height={88} rx={5} fill={wood} />
+      <g stroke={mix(ink, 55)} strokeWidth={0.7}>
+        {Array.from({ length: 9 }, (_, k) => [
+          <line key={'v' + k} x1={40 + k * g} y1={8} x2={40 + k * g} y2={88} />,
+          <line key={'h' + k} x1={40} y1={8 + k * g} x2={120} y2={8 + k * g} />,
+        ])}
+      </g>
+      {[[2, 2], [2, 6], [6, 2], [6, 6], [4, 4]].map(([r, c]) => <circle key={'s' + r + c} cx={40 + c * g} cy={8 + r * g} r={1.3} fill={mix(ink, 80)} />)}
+      {stones.map(([r, c, seat]) => {
+        const [x, y] = at(r, c)
+        return seat
+          ? <circle key={r + '-' + c} cx={x} cy={y} r={4.4} fill="var(--gray-0)" stroke={mix(ink, 35)} strokeWidth={0.6} />
+          : (
+            <g key={r + '-' + c}>
+              <circle cx={x} cy={y} r={4.4} fill="var(--gray-950)" />
+              <circle cx={x - 1.4} cy={y - 1.4} r={1.4} fill={mix('var(--gray-0)', 22)} />
+            </g>
+          )
+      })}
+      <circle cx={lx} cy={ly} r={1.6} fill={RED} />
+    </>
+  )
+}
+
+function PhomArt() {
+  const ink = 'var(--status-scheduled-fg)'
+  // Một lá bài nhỏ: mặt trắng, số + chất ở góc, chất to giữa lá.
+  const card = (x, y, rot, face, suit, red, key) => (
+    <g key={key} transform={`translate(${x} ${y}) rotate(${rot})`}>
+      <rect x={-12} y={-17} width={24} height={34} rx={3} fill="var(--gray-0)" stroke={mix(ink, 35)} strokeWidth={0.8} />
+      <text x={-9} y={-8} fontSize={7.5} fontWeight={700} fill={red ? RED : 'var(--gray-950)'} style={{ fontFamily: 'var(--font-mono)' }}>{face}</text>
+      <text x={0} y={7} fontSize={12} textAnchor="middle" fill={red ? RED : 'var(--gray-950)'}>{suit}</text>
+    </g>
+  )
+  return (
+    <>
+      {/* Hai phỏm đã hạ: bộ ba lá 7 và dây 5-6-7 cơ; lá ăn có viền xanh. */}
+      <rect x={20} y={58} width={54} height={36} rx={5} fill={mix('var(--status-delivered)', 22)} />
+      {[['7', '♠', false], ['7', '♦', true], ['7', '♣', false]].map(([f, s, r], k) => card(32 + k * 15, 76, 0, f, s, r, 'a' + k))}
+      <rect x={86} y={58} width={54} height={36} rx={5} fill={mix('var(--status-delivered)', 22)} />
+      {[['5', '♥'], ['6', '♥'], ['7', '♥']].map(([f, s], k) => card(98 + k * 15, 76, 0, f, s, true, 'b' + k))}
+      <rect x={100} y={58} width={26} height={36} rx={4} fill="none" stroke="var(--status-transit)" strokeWidth={1.6} />
+      {/* Bài trên tay xoè quạt phía trên. */}
+      {[['K', '♣', false, -18], ['Q', '♦', true, -9], ['9', '♠', false, 0], ['4', '♥', true, 9], ['A', '♠', false, 18]].map(([f, s, r, rot], k) =>
+        card(56 + k * 12, 26 + Math.abs(rot) * 0.25, rot, f, s, r, 'h' + k))}
+    </>
+  )
+}
+
 const ART = {
+  phom: PhomArt,
+  covay: CoVayArt,
   caro: CaroArt, oanquan: OAnQuanArt, coganh: CoGanhArt, colat: CoLatArt, chamo: ChamOArt, tienlen: TienLenArt,
   covua: CoVuaArt, cotuong: CoTuongArt, cangua: CaNguaArt, bantau: BanTauArt, domino: DominoArt, baibip: BaiBipArt, noitu: NoiTuArt,
   masoi: MaSoiArt,

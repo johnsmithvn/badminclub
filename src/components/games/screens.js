@@ -18,4 +18,6 @@ export const SCREENS = {
   baibip: lazy(() => import('#components/games/BaiBipBoard.jsx')),
   noitu: lazy(() => import('#components/games/NoiTuBoard.jsx')),
   masoi: lazy(() => import('#components/games/MaSoiBoard.jsx')),
+  covay: lazy(() => import('#components/games/CoVayBoard.jsx')),
+  phom: lazy(() => import('#components/games/PhomBoard.jsx')),
 }

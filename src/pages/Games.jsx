@@ -1,6 +1,6 @@
 import { useCallback, useEffect, useState } from 'react'
 import { useNavigate } from 'react-router-dom'
-import { Alert, Button, Dialog, Input, Select, Skeleton, Switch } from '#ds'
+import { Alert, Button, Checkbox, Dialog, Input, Select, Skeleton, Switch } from '#ds'
 import { Empty } from '#ui'
 import { useApp } from '#contexts/AppContext.jsx'
 import { gameErr } from '#contexts/gameActions.js'
@@ -10,7 +10,8 @@ import { GameArt, HowTo } from '#components/games/GameInfo.jsx'
 import { myMember } from '#lib/money.js'
 import { GAMES, GAME_IDS, gameOf, isStaleRoom, seatedOf, statsOf } from '#lib/games/registry.js'
 import { TIMES as NOITU_TIMES } from '#lib/games/noitu.js'
-import { REVEALS as MASOI_REVEALS } from '#lib/games/masoi.js'
+import { SIZES as COVAY_SIZES } from '#lib/games/covay.js'
+import { REVEALS as MASOI_REVEALS, ROLE_IDS as MASOI_ROLE_IDS, SPECIALS as MASOI_SPECIALS, GUARD, SEER, WITCH, WOLF, isWolf, lineupOf, minPlayersOf } from '#lib/games/masoi.js'
 import { pathOf } from '#routes'
 import { t } from '#i18n'
 import cfg from '#config/app.js'
@@ -137,7 +138,13 @@ function RoomRow({ room, me, members, onEnter }) {
   )
 }
 
-/** Form tạo phòng. Tuỳ chọn riêng từng game nằm ở đây — Caro, Chấm ô (cỡ bàn), Nối từ (ngôn ngữ, giờ), Ma sói (lộ vai). */
+/** Bộ vai mặc định khi chủ phòng bật Tự chọn Ma sói — chỉ là điểm xuất phát để sửa. */
+const MASOI_CUSTOM = [WOLF, WOLF, SEER, GUARD, WITCH]
+
+/**
+ * Form tạo phòng. Tuỳ chọn riêng từng game nằm ở đây — Caro, Chấm ô (cỡ bàn), Nối từ (ngôn ngữ, giờ),
+ * Ma sói (lộ vai, bộ vai Tự động / Tự chọn — `options.roles`, lib/games/masoi.js deckOf).
+ */
 function CreateRoom({ gameId, onClose, onDone }) {
   const { a } = useApp()
   const isMobile = useMobile(768)
@@ -145,6 +152,13 @@ function CreateRoom({ gameId, onClose, onDone }) {
   const [opts, setOpts] = useState(g.defaultOptions)
   const [priv, setPriv] = useState(false)
   const [busy, setBusy] = useState(false)
+
+  // Ma sói tự chọn: số Sói thường + các vai đặc biệt đang bật. Không có Sói nào thì chưa cho tạo phòng.
+  const roles = gameId === 'masoi' ? opts.roles || null : null
+  const wolves = roles ? roles.filter((r) => r === WOLF).length : 0
+  const specials = roles ? roles.filter((r) => r !== WOLF) : []
+  const setRoles = (w, sp) => setOpts({ ...opts, roles: [...Array(w).fill(WOLF), ...sp].sort((x, y) => x - y) })
+  const noWolf = !!roles && !roles.some(isWolf)
 
   const submit = async () => {
     setBusy(true)
@@ -162,7 +176,7 @@ function CreateRoom({ gameId, onClose, onDone }) {
       footer={(
         <>
           <Button variant="secondary" onClick={onClose}>{t('common.cancel')}</Button>
-          <Button onClick={submit} disabled={busy}>{t('games.create')}</Button>
+          <Button onClick={submit} disabled={busy || noWolf}>{t('games.create')}</Button>
         </>
       )}
     >
@@ -172,15 +186,23 @@ function CreateRoom({ gameId, onClose, onDone }) {
             <Select
               label={t('games.caro.size')}
               value={String(opts.size)}
-              onChange={(e) => setOpts({ ...opts, size: Number(e.target.value) })}
-              options={cfg.games.caroSizes.map((n) => ({ value: String(n), label: t('games.caro.sizeOpt', { n }) }))}
+              // Bàn 3 × 3 là X-O cổ điển: 3 quân thắng, không có luật chặn hai đầu. Bàn lớn: 5 quân.
+              onChange={(e) => {
+                const size = Number(e.target.value)
+                setOpts({ ...opts, size, win: size === 3 ? 3 : 5, blockedEnds: size === 3 ? false : !!opts.blockedEnds })
+              }}
+              options={cfg.games.caroSizes.map((n) => ({
+                value: String(n), label: t(n === 3 ? 'games.caro.sizeOptClassic' : 'games.caro.sizeOpt', { n }),
+              }))}
             />
-            <Switch
-              label={t('games.caro.blockedEnds')}
-              description={t('games.caro.blockedEndsHint')}
-              checked={!!opts.blockedEnds}
-              onChange={(e) => setOpts({ ...opts, blockedEnds: e.target.checked })}
-            />
+            {opts.size !== 3 && (
+              <Switch
+                label={t('games.caro.blockedEnds')}
+                description={t('games.caro.blockedEndsHint')}
+                checked={!!opts.blockedEnds}
+                onChange={(e) => setOpts({ ...opts, blockedEnds: e.target.checked })}
+              />
+            )}
           </>
         )}
         {gameId === 'chamo' && (
@@ -189,6 +211,14 @@ function CreateRoom({ gameId, onClose, onDone }) {
             value={String(opts.size)}
             onChange={(e) => setOpts({ ...opts, size: Number(e.target.value) })}
             options={cfg.games.chamoSizes.map((n) => ({ value: String(n), label: t('games.chamo.sizeOpt', { n, lines: 2 * n * (n + 1) }) }))}
+          />
+        )}
+        {gameId === 'covay' && (
+          <Select
+            label={t('games.covay.size')}
+            value={String(opts.size)}
+            onChange={(e) => setOpts({ ...opts, size: Number(e.target.value) })}
+            options={COVAY_SIZES.map((n) => ({ value: String(n), label: t('games.covay.sizeOpt.' + n) }))}
           />
         )}
         {gameId === 'noitu' && (
@@ -216,12 +246,52 @@ function CreateRoom({ gameId, onClose, onDone }) {
           </>
         )}
         {gameId === 'masoi' && (
-          <Select
-            label={t('games.masoi.reveal')}
-            value={opts.reveal}
-            onChange={(e) => setOpts({ ...opts, reveal: e.target.value })}
-            options={MASOI_REVEALS.map((v) => ({ value: v, label: t('games.masoi.revealOpt.' + v) }))}
-          />
+          <>
+            <Select
+              label={t('games.masoi.reveal')}
+              value={opts.reveal}
+              onChange={(e) => setOpts({ ...opts, reveal: e.target.value })}
+              options={MASOI_REVEALS.map((v) => ({ value: v, label: t('games.masoi.revealOpt.' + v) }))}
+            />
+            <Select
+              label={t('games.masoi.deck')}
+              value={roles ? 'custom' : 'auto'}
+              onChange={(e) => {
+                if (e.target.value === 'custom') setOpts({ ...opts, roles: MASOI_CUSTOM })
+                else { const { roles: _drop, ...rest } = opts; setOpts(rest) }
+              }}
+              options={[{ value: 'auto', label: t('games.masoi.deckAuto') }, { value: 'custom', label: t('games.masoi.deckCustom') }]}
+            />
+            {roles && (
+              <>
+                <Select
+                  label={t('games.masoi.wolfCount')}
+                  value={String(wolves)}
+                  onChange={(e) => setRoles(Number(e.target.value), specials)}
+                  options={[0, 1, 2, 3, 4, 5].map((n) => ({ value: String(n), label: t('games.masoi.wolfCountOpt', { n }) }))}
+                />
+                <div style={S.col}>
+                  <span style={S.label}>{t('games.masoi.specialsLabel')}</span>
+                  {MASOI_SPECIALS.map((r) => (
+                    <Checkbox
+                      key={r}
+                      label={t('games.masoi.role.' + MASOI_ROLE_IDS[r])}
+                      description={t('games.masoi.roleDesc.' + MASOI_ROLE_IDS[r])}
+                      checked={specials.includes(r)}
+                      onChange={(e) => setRoles(wolves, e.target.checked ? [...specials, r] : specials.filter((x) => x !== r))}
+                    />
+                  ))}
+                </div>
+                {noWolf
+                  ? <Alert tone="danger">{t('games.err.noWolf')}</Alert>
+                  : (
+                    <span style={S.caption}>
+                      {t('games.masoi.customList', { list: lineupOf(roles) })} · {t('games.masoi.customHint', { n: minPlayersOf(roles) })}
+                    </span>
+                  )}
+              </>
+            )}
+          </>
         )}
         <Switch
           label={t('games.private')}

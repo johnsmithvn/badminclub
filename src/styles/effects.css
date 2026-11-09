@@ -397,13 +397,15 @@
    gameFlash: ô vừa bị ăn / vừa đổi màu nháy rồi dịu xuống.
    gameSlide: quân trượt từ điểm cũ tới — đặt --game-dx / --game-dy (có đơn vị px) = điểm cũ trừ điểm mới.
    gameFlip: quân vừa đổi màu lật như đồng xu (cần transform-box như gamePop). Không nảy, không lò xo (DESIGN §6).
-   gameFlipOut: nửa đầu cú lật — mặt cũ co lại; ghép với gameFlip trễ đúng một nhịp cho mặt mới (Cờ lật). */
+   gameFlipOut: nửa đầu cú lật — mặt cũ co lại; ghép với gameFlip trễ đúng một nhịp cho mặt mới (Cờ lật).
+   gameLift: quân vừa bị ăn nhấc khỏi bàn — co nhẹ rồi mờ hẳn, giữ trạng thái cuối (fill-mode both) (Cờ vây). */
 @keyframes gamePop { from { transform: scale(.55); opacity: 0; } to { transform: scale(1); opacity: 1; } }
 @keyframes gameDraw { from { stroke-dashoffset: var(--game-len, 600); } to { stroke-dashoffset: 0; } }
 @keyframes gameFlash { from { opacity: 1; } to { opacity: .35; } }
 @keyframes gameSlide { from { transform: translate(var(--game-dx, 0), var(--game-dy, 0)); } to { transform: translate(0, 0); } }
 @keyframes gameFlip { from { transform: scaleX(0); } to { transform: scaleX(1); } }
 @keyframes gameFlipOut { from { transform: scaleX(1); } to { transform: scaleX(0); } }
+@keyframes gameLift { from { transform: scale(1); opacity: .9; } to { transform: scale(.7); opacity: 0; } }
 @media (prefers-reduced-motion: reduce) {
   [data-game-fx] * { animation: none !important; }
 }

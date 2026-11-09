@@ -71,7 +71,8 @@ export default function CaroBoard({ state, mySeat, canMove, onMove }) {
       role="img"
       aria-label={t('games.caro.boardAria', { n: size })}
       style={{
-        width: '100%', maxWidth: 640, aspectRatio: '1', display: 'block', margin: '0 auto',
+        // Nét vẽ co giãn theo viewBox: bàn nhỏ (3 × 3) mà kéo tới 640px thì X / O dày cộp — chặn bề rộng theo số ô.
+        width: '100%', maxWidth: Math.min(640, size * 110), aspectRatio: '1', display: 'block', margin: '0 auto',
         background: 'var(--surface-card)', borderRadius: 10, border: '1px solid var(--border-default)',
         boxShadow: 'var(--shadow-sm)', cursor: canMove ? 'pointer' : 'default', touchAction: 'manipulation', userSelect: 'none',
       }}

@@ -78,8 +78,11 @@ export function makeGameActions({ dbRef, toast }) {
     /** Nhịp "tôi vẫn ở đây" — im lặng: hỏng một nhịp thì nhịp sau bù, không làm phiền người chơi. */
     gamePing: (roomId) => gameRpc('game_ping', { p_room: roomId }).catch(() => null),
 
-    /** Đòi xử thắng vì đối thủ mất kết nối quá lâu. Im lặng: server chưa đồng ý (lệch giờ) thì máy thử lại sau. */
-    gameClaim: (roomId) => gameRpc('game_claim', { p_room: roomId }).then(() => true).catch(() => null),
+    /**
+     * Đòi xử những ghế ván đang chờ mà mất kết nối quá lâu (0085: server chỉ xử đúng các ghế này). Im lặng: server
+     * chưa đồng ý (lệch giờ, ván vừa có nước mới) thì máy thử lại sau.
+     */
+    gameClaim: (roomId, seats) => gameRpc('game_claim', { p_room: roomId, p_seats: seats }).then(() => true).catch(() => null),
 
     /** Báo ván đã xong. Caro: server tự chấm lại từ log, không tin kết quả gửi lên. Server chỉ nhận lần đầu. */
     gameFinish: (roomId, result) => gameRpc('game_finish', { p_room: roomId, p_result: result }).catch((e) => {
