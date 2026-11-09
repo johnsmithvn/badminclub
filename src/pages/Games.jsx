@@ -28,12 +28,14 @@ export default function Games() {
   const [creating, setCreating] = useState(null) // id game đang mở form tạo phòng
   const [howto, setHowto] = useState(null) // id game đang mở luật chơi
 
-  const refresh = useCallback(() => a.gameLobby()
-    .then((r) => { setData({ ...r, now: Date.now() }); setErr('') })
+  // Thống kê thắng thua (tới statsLimit ván) chỉ nạp lúc mở sảnh; nhịp hỏi lại chỉ lấy danh sách phòng.
+  const refresh = useCallback((withStats = false) => a.gameLobby(withStats)
+    .then((r) => { setData((d) => ({ ...r, finished: r.finished ?? d?.finished ?? [], now: Date.now() })); setErr('') })
     .catch((e) => { setErr(gameErr(e)); setData((d) => d || { rooms: [], finished: [], now: Date.now() }) }), [a])
+  const poll = useCallback(() => refresh(false), [refresh])
 
-  useEffect(() => { refresh() }, [refresh, db.clubId])
-  useTourPoll(true, refresh, cfg.games.lobbyPollMs)
+  useEffect(() => { refresh(true) }, [refresh, db.clubId])
+  useTourPoll(true, poll, cfg.games.lobbyPollMs)
 
   const open = (id) => navigate(pathOf('gameRoom', id))
   const enter = async (room) => {

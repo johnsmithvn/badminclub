@@ -269,6 +269,8 @@ Seed nằm trong DB mà mọi người đọc được → ai cũng tính đư�
   Nhận nước có `seq` không liền mạch → tải lại log.
 - Rời trang / tab ẩn quá lâu → `removeChannel`. Chỉ phòng đang mở mới tốn kết nối.
 - Sảnh (`Games.jsx`) **không** subscribe — dùng `useTourPoll` có sẵn, nhịp chậm (`games.lobbyPollMs`).
+  Nhịp hỏi lại chỉ lấy danh sách phòng; thống kê thắng thua (tới `statsLimit` ván) nạp **một lần** lúc mở
+  sảnh (`loadGameLobby(…, withStats)`), vì đó là truy vấn nặng nhất và lặp mỗi 8 giây là tốn lưu lượng gói free.
 
 Đây là chỗ đầu tiên app dùng Supabase Realtime. Phần còn lại vẫn poll như cũ (`ARCHITECTURE.md` §7).
 Free tier (khoảng 200 kết nối đồng thời, 2 triệu message/tháng) dư cho một CLB.

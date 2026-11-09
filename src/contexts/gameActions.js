@@ -36,7 +36,7 @@ export function makeGameActions({ dbRef, toast }) {
   }
 
   return {
-    gameLobby: () => loadGameLobby(db().clubId, me()),
+    gameLobby: (withStats) => loadGameLobby(db().clubId, me(), withStats),
     gameRoom: (id) => loadGameRoom(id),
     gameSubscribe: (id, on) => subscribeGameRoom(id, on),
     gameHand: (id) => loadGameHand(id),

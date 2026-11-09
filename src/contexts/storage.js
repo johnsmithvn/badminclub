@@ -747,13 +747,15 @@ const ROOM_SEL = '*, game_room_players(*)'
 /**
  * Sảnh: phòng đang chờ / đang chơi của CLB (mới trước) + các ván đã xong mình từng ngồi (để đếm
  * thắng thua). Phòng riêng (`private`) vẫn trả về — sảnh tự ẩn, trừ phòng mình đang ngồi.
+ * `withStats` false → bỏ truy vấn ván đã xong (nặng nhất, tới statsLimit dòng), `finished` = null:
+ * sảnh hỏi lại mỗi lobbyPollMs chỉ cần danh sách phòng, thống kê nạp một lần lúc mở trang.
  */
-export async function loadGameLobby(clubId, memberId) {
+export async function loadGameLobby(clubId, memberId, withStats = true) {
   if (!supabase) throw new Error('Chưa cấu hình Supabase')
   const [open, mine] = await Promise.all([
     supabase.from('game_rooms').select(ROOM_SEL).eq('club_id', clubId).in('status', ['waiting', 'playing'])
       .order('created_at', { ascending: false }).limit(cfg.games.lobbyLimit),
-    memberId
+    memberId && withStats
       ? supabase.from('game_rooms').select('id, game, result, game_room_players!inner(member_id, seat)')
         .eq('club_id', clubId).eq('status', 'finished').eq('game_room_players.member_id', memberId)
         .order('ended_at', { ascending: false }).limit(cfg.games.statsLimit)
@@ -761,7 +763,9 @@ export async function loadGameLobby(clubId, memberId) {
   ])
   return {
     rooms: (unwrap(open) || []).map(toGameRoom),
-    finished: (unwrap(mine) || []).map((r) => ({ game: r.game, result: r.result, seat: num0(r.game_room_players?.[0]?.seat) })),
+    finished: withStats
+      ? (unwrap(mine) || []).map((r) => ({ game: r.game, result: r.result, seat: num0(r.game_room_players?.[0]?.seat) }))
+      : null,
   }
 }
 
