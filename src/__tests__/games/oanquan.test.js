@@ -3,7 +3,7 @@
 
 import assert from 'node:assert/strict'
 import { readFileSync } from 'node:fs'
-import oq, { isQuanNon, MAX_STEPS, QUAN_NON, QUAN_VALUE, START_STONES } from '#lib/games/oanquan.js'
+import oq, { isQuanNon, MAX_STEPS, QUAN_NON, QUAN_VALUE, queueStates, START_STONES } from '#lib/games/oanquan.js'
 import { replay } from '#lib/games/registry.js'
 
 const fresh = () => oq.setup({ options: oq.defaultOptions, seats: [0, 1] })
@@ -175,6 +175,23 @@ const total = (s) => s.stones.reduce((a, b) => a + b, 0) + s.score[0] + s.score[
     assert.deepEqual(oq.result(s), f.result, 'ván mẫu "' + f.note + '": JS chấm khác kết quả ghi trong file kiểm 0075 — cố ý đổi luật thì chạy node src/__tests__/games/fixtures.mjs')
   }
   assert.ok(fixtures.some((f) => f.result?.draw) && fixtures.some((f) => f.result == null), 'bộ ván phải có cả ván hoà và ván chưa xong')
+}
+
+// Hàng chờ diễn lại (queueStates): nước mới không được cắt ngang nước đang diễn.
+{
+  const s0 = fresh()
+  const s1 = oq.apply(s0, 0, { cell: 1, dir: 1 })
+  const s2 = oq.apply(s1, 1, { cell: 7, dir: 1 })
+  assert.deepEqual(queueStates([], s0), [s0])
+  const q1 = queueStates([s0], s1)
+  assert.deepEqual(q1.map((x) => x.ply), [0, 1])
+  assert.deepEqual(queueStates(q1, s2).map((x) => x.ply), [0, 1, 2], 'máy đi ngay sau mình: nước của mình phải còn trong hàng — bỏ đi là người chơi không thấy sỏi mình rải')
+  assert.equal(queueStates(q1, s1), q1, 'cùng thế thì giữ nguyên hàng (đổi mảng là bàn vẽ lại vô ích)')
+  const s1b = { ...s1 }
+  const q1b = queueStates(q1, s1b)
+  assert.equal(q1b.length, 2, 'cùng ply, object mới (phòng nạp lại): thay chỗ, không xếp thêm — xếp thêm là diễn một nước hai lần')
+  assert.equal(q1b[1], s1b)
+  assert.deepEqual(queueStates([s1, s2], s0), [s0], 'ván mới (ply lùi về 0): bỏ cả hàng, không diễn tiếp ván cũ')
 }
 
 console.log('oanquan check: OK')

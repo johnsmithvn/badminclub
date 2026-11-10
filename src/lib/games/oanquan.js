@@ -39,6 +39,19 @@ const worth = (s, i) => s.stones[i] + (s.quan[i] ? s.quanValue : 0)
 /** Quan còn đó mà chưa đủ dân — bàn chơi vẽ mờ đi cho người chơi biết chưa ăn được. */
 export const isQuanNon = (s, i) => s.quan[i] && s.stones[i] < QUAN_NON
 
+/**
+ * Hàng chờ để bàn diễn lại: q[0] là thế đang hiện, phần sau chờ tới lượt. Nước mới KHÔNG cắt ngang nước đang diễn
+ * (máy trả lời sau 450ms trong khi một nước diễn 1–3 giây — cắt ngang là người chơi không thấy nước của chính mình).
+ *   cùng ply với cuối hàng → thay chỗ (cùng thế, object mới) · ply lớn hơn → xếp vào cuối ·
+ *   ply nhỏ hơn (ván mới / đi lại) → bỏ cả hàng, hiện ngay.
+ */
+export function queueStates(q, s) {
+  const tail = q[q.length - 1]
+  if (!tail || s.ply < tail.ply) return [s]
+  if (tail === s) return q
+  return s.ply === tail.ply ? [...q.slice(0, -1), s] : [...q, s]
+}
+
 /** Hết quan, tàn dân: sỏi còn bên nào về bên đó, ô quan (nếu còn sỏi lẻ) không của ai. */
 function sweep(s) {
   for (const seat of [0, 1]) {

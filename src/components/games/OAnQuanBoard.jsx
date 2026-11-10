@@ -1,13 +1,16 @@
-import { useEffect, useId, useState } from 'react'
+import { useCallback, useEffect, useState } from 'react'
 import { Button } from '#ds'
 import { useMobile } from '#hooks/useMobile.js'
 import { t } from '#i18n'
-import { isQuanNon, sideOf } from '#lib/games/oanquan.js'
+import { isQuanNon, queueStates, sideOf } from '#lib/games/oanquan.js'
 
-// Bàn Ô ăn quan bằng SVG: mặt gỗ, ô khoét, sỏi có khối, quan to màu đỏ (quan non vẽ mờ + ghi chú).
+// Bàn Ô ăn quan bằng SVG, vẽ phẳng theo design system (không bóng, không gradient): bàn hình viên thuốc như bàn
+// vẽ phấn — hai đầu bán nguyệt là ô quan —, sỏi mờ một màu có viền mảnh, quan là viên đá lớn màu đỏ (quan non vẽ
+// mờ + ghi chú). Sỏi trong ô xếp CÂN quanh tâm (vòng tròn đều), số sỏi ghi ở mép ô phía người chơi.
 // Hàng của mình luôn nằm dưới: ghế 1 thì đọc ô i ở vị trí của ô i+6 (bàn đối xứng tâm), chữ số vẫn đứng
 // thẳng; nhờ vậy "sang phải" luôn là dir +1 với hàng của mình.
 // Nước vừa đi được diễn lại từng bước (bốc → rải từng viên → ăn) từ `state.last.frames` (lib/games/oanquan.js).
+// Nước tới trong lúc đang diễn thì XẾP HÀNG (queueStates), diễn xong nước này mới tới nước kế — không cắt ngang.
 // Chạm bàn để xem ngay. Máy bật "giảm chuyển động" thì không diễn.
 
 const C = 80 // cạnh một ô dân
@@ -15,47 +18,77 @@ const PAD = 10 // viền gỗ quanh các ô
 const BAND = 30 // dải ghi điểm trên / dưới
 const W = C * 7 + PAD * 2
 const H = BAND * 2 + C * 2 + PAD * 2
-// Sỏi lấy màu từ bảng màu gốc (không đổi theo sáng / tối) để viên sỏi có khối ở cả hai chế độ.
+const MID = BAND + PAD + C // đường giữa hai hàng
+// Sỏi lấy màu từ bảng màu gốc (không đổi theo sáng / tối) để nổi trên mặt gỗ ở cả hai chế độ.
 const PEBBLES = ['var(--gray-400)', 'var(--navy-300)', 'var(--gray-500)']
 const QUAN = 'var(--status-incident)'
 const WOOD = 'var(--status-delayed-bg)'
 const INK = 'var(--status-delayed-fg)'
 const mix = (c, pct) => `color-mix(in srgb, ${c} ${pct}%, transparent)`
+const EDGE = mix('var(--navy-950)', 32) // viền sỏi / quan
 
 /** Khung của ô i khi chưa xoay: quan trái (0), hàng dưới 1..5, quan phải (6), hàng trên 11..7. */
 function slot(i) {
   const y = BAND + PAD
   if (i === 0) return { x: PAD, y, w: C, h: C * 2, quan: 'L' }
   if (i === 6) return { x: PAD + C * 6, y, w: C, h: C * 2, quan: 'R' }
-  return i < 6 ? { x: PAD + C * i, y: y + C, w: C, h: C } : { x: PAD + C * (12 - i), y, w: C, h: C }
+  return i < 6 ? { x: PAD + C * i, y: y + C, w: C, h: C } : { x: PAD + C * (12 - i), y, w: C, h: C, top: true }
 }
 
-/** Hình ô: ô dân bo tròn, ô quan hình bán nguyệt quay ra ngoài bàn. */
+/** Hình ô: ô dân bo tròn, ô quan nửa hình tròn đồng dạng với đầu bàn. */
 function pitPath(b) {
   const x0 = b.x + 5, x1 = b.x + b.w - 5, y0 = b.y + 5, y1 = b.y + b.h - 5
-  if (b.quan === 'L') return `M${x1} ${y0} A${b.w - 10} ${(b.h - 10) / 2} 0 0 0 ${x1} ${y1} Z`
-  if (b.quan === 'R') return `M${x0} ${y0} A${b.w - 10} ${(b.h - 10) / 2} 0 0 1 ${x0} ${y1} Z`
+  const R = (b.h - 10) / 2
+  if (b.quan === 'L') return `M${x1} ${y0} A${R} ${R} 0 0 0 ${x1} ${y1} Z`
+  if (b.quan === 'R') return `M${x0} ${y0} A${R} ${R} 0 0 1 ${x0} ${y1} Z`
   const r = 16
   return `M${x0 + r} ${y0} H${x1 - r} A${r} ${r} 0 0 1 ${x1} ${y0 + r} V${y1 - r} A${r} ${r} 0 0 1 ${x1 - r} ${y1}`
     + ` H${x0 + r} A${r} ${r} 0 0 1 ${x0} ${y1 - r} V${y0 + r} A${r} ${r} 0 0 1 ${x0 + r} ${y0} Z`
 }
 
-/** Sỏi xếp xoắn ốc hoa hướng dương quanh tâm ô — đông mấy cũng gọn trong ô; quá 15 viên thì chỉ còn số. */
-const pile = (cx, cy, n) => Array.from({ length: Math.min(n, 15) }, (_, k) => {
-  const r = 6.6 * Math.sqrt(k)
-  return [cx + r * Math.cos(k * 2.4), cy + r * Math.sin(k * 2.4)]
+/** Tâm ô. Ô quan: trọng tâm nửa hình tròn (4R / 3π ≈ 32 tính từ cạnh thẳng) — hai quan đối xứng qua giữa bàn. */
+const centerOf = (b) => ({ cx: b.quan === 'L' ? b.x + b.w - 37 : b.quan === 'R' ? b.x + 37 : b.x + b.w / 2, cy: b.y + b.h / 2 })
+
+const PEB = 4.8 // bán kính viên sỏi
+const GAP = 10.6 // khoảng cách tâm hai viên kề nhau
+const MAX_DRAWN = 18 // nhiều hơn thì chỉ còn con số nói
+const ringR = (k) => (k < 2 ? 0 : GAP / (2 * Math.sin(Math.PI / k)))
+const ring = (k, r) => Array.from({ length: k }, (_, j) => {
+  // Lẻ: một viên ở đỉnh. Chẵn: xoay nửa bước cho cặp trên cùng nằm ngang.
+  const a = -Math.PI / 2 + (k % 2 ? 0 : Math.PI / k) + (j * 2 * Math.PI) / k
+  return [r * Math.cos(a), r * Math.sin(a)]
 })
+/**
+ * Vị trí n viên sỏi quanh tâm ô, luôn cân: tới 5 viên xếp một vòng đều (2 = cặp ngang, 3 = tam giác, 4 = vuông…),
+ * 6–9 viên một viên giữa + một vòng, từ 10 viên hai vòng đồng tâm. Tính sẵn một lần.
+ */
+const PILES = Array.from({ length: MAX_DRAWN + 1 }, (_, n) => {
+  if (n <= 5) return ring(n, ringR(n))
+  if (n <= 9) return [[0, 0], ...ring(n - 1, Math.max(GAP, ringR(n - 1)))]
+  const a = Math.round(n / 3)
+  return [...ring(a, ringR(a)), ...ring(n - a, Math.max(ringR(a) + GAP, ringR(n - a)))]
+})
+const POP = { transformBox: 'fill-box', transformOrigin: 'center', animation: 'gamePop var(--dur-base) var(--ease-standard) both' }
+const GLIDE = 'transform var(--dur-base) var(--ease-standard)'
 
 export default function OAnQuanBoard(props) {
+  const { state } = props
   // Chỉ diễn lại nước đi tới trong lúc đang mở phòng; vào phòng giữa ván thì hiện ngay bàn hiện tại.
-  const [mountPly] = useState(props.state.ply)
+  const [mountPly] = useState(state.ply)
   const [still] = useState(() => !!window.matchMedia?.('(prefers-reduced-motion: reduce)').matches)
+  // Hàng chờ: q[0] đang hiện, phần sau chờ diễn. Cập nhật ngay trong lúc render (state suy ra từ props).
+  const [q, setQ] = useState([state])
+  const queue = queueStates(q, state)
+  if (queue !== q) setQ(queue)
+  const done = useCallback(() => setQ((cur) => (cur.length > 1 ? cur.slice(1) : cur)), [])
+  const shown = queue[0]
+  const more = queue.length > 1
   // key theo ply: mỗi nước mới dựng lại Board → bộ đếm khung bắt đầu từ 0, ô đang chọn tự bỏ.
-  return <Board key={props.state.ply} {...props} animate={!still && props.state.ply > mountPly} />
+  // Còn nước chờ diễn thì chưa cho đi (bàn đang hiện thế cũ).
+  return <Board key={shown.ply} {...props} state={shown} canMove={props.canMove && !more} more={more} onDone={done} animate={!still && shown.ply > mountPly} />
 }
 
-function Board({ state, mySeat, canMove, onMove, animate }) {
-  const uid = useId().replace(/[^a-zA-Z0-9]/g, '')
+function Board({ state, mySeat, canMove, onMove, animate, more, onDone }) {
   const isMobile = useMobile(768)
   const frames = animate && state.last?.frames?.length ? state.last.frames : null
   const [k, setK] = useState(frames ? 0 : null)
@@ -68,6 +101,8 @@ function Board({ state, mySeat, canMove, onMove, animate }) {
     const id = setTimeout(() => setK(k + 1 < frames.length ? k + 1 : null), k === 0 ? tick * 2 : tick)
     return () => clearTimeout(id)
   }, [k, frames, tick])
+  // Diễn xong (hoặc bị chạm để bỏ qua, hoặc không diễn) mà còn nước chờ → chuyển sang nước kế.
+  useEffect(() => { if (k == null && more) onDone() }, [k, more, onDone])
 
   const f = k == null ? null : frames[k]
   const view = f || state
@@ -96,18 +131,9 @@ function Board({ state, mySeat, canMove, onMove, animate }) {
         onClick={f ? () => setK(null) : undefined}
         style={{ width: '100%', maxWidth: 720, display: 'block', margin: '0 auto', touchAction: 'manipulation', userSelect: 'none', cursor: f ? 'pointer' : 'default' }}
       >
-        <defs>
-          {[...PEBBLES, QUAN].map((c, n) => (
-            <radialGradient key={n} id={uid + 'g' + n} cx="38%" cy="32%" r="70%">
-              <stop offset="0%" style={{ stopColor: 'var(--gray-0)', stopOpacity: 0.9 }} />
-              <stop offset="38%" style={{ stopColor: c }} />
-              <stop offset="100%" style={{ stopColor: `color-mix(in srgb, ${c} 62%, var(--navy-950))` }} />
-            </radialGradient>
-          ))}
-        </defs>
-
-        <rect x={0.5} y={BAND + 0.5} width={W - 1} height={C * 2 + PAD * 2 - 1} rx={22} fill={WOOD} stroke={mix(INK, 35)} />
-        <line x1={PAD + C} y1={BAND + PAD + C} x2={PAD + C * 6} y2={BAND + PAD + C} stroke={mix(INK, 25)} strokeDasharray="2 6" />
+        {/* Bàn hình viên thuốc: bán kính góc = nửa chiều cao, hai đầu tròn ôm đúng hai ô quan. */}
+        <rect x={0.5} y={BAND + 0.5} width={W - 1} height={C * 2 + PAD * 2 - 1} rx={C + PAD} fill={WOOD} stroke={mix(INK, 30)} />
+        <line x1={PAD + C} y1={MID} x2={PAD + C * 6} y2={MID} stroke={mix(INK, 22)} strokeDasharray="2 6" />
 
         {[1 - bottom, bottom].map((seat, row) => (
           <text key={seat} x={W / 2} y={row ? H - 9 : 20} textAnchor="middle" fontSize={15}
@@ -121,20 +147,23 @@ function Board({ state, mySeat, canMove, onMove, animate }) {
 
         {view.stones.map((n, i) => {
           const b = at(i)
-          const cx = b.quan === 'L' ? b.x + 46 : b.quan === 'R' ? b.x + 34 : b.x + b.w / 2
-          const cy = b.y + b.h / 2
+          const { cx, cy } = centerOf(b)
           const hasQuan = view.quan[i]
           const non = isQuanNon(view, i)
           const tap = live && mine.includes(i) && n > 0
           const hot = f && f.at === i
           const path = pitPath(b)
+          // Đống sỏi: ô dân lùi 5 về phía đường giữa nhường chỗ cho con số ở mép ngoài; ô quan nằm dưới viên quan.
+          const py = b.quan ? (hasQuan ? cy + 20 : cy) : cy + (b.top ? 5 : -5)
+          const numY = b.quan ? cy + 60 : b.top ? b.y + 20 : b.y + b.h - 10
+          const spots = PILES[Math.min(n, MAX_DRAWN)]
           return (
             <g key={i} onClick={tap ? () => setPicked(picked === i ? null : i) : undefined}
               role={tap ? 'button' : undefined} aria-label={tap ? t('games.oanquan.cellAria', { n }) : undefined}
               style={{ cursor: tap ? 'pointer' : undefined }}>
-              <path d={path} fill={mix(INK, tap ? 18 : 11)}
-                stroke={sel === i ? 'var(--border-focus-color)' : hot ? 'var(--text-accent)' : mix(INK, 30)}
-                strokeWidth={sel === i || hot ? 3 : 1.5}
+              <path d={path} fill={mix(INK, tap ? 16 : 9)}
+                stroke={sel === i ? 'var(--border-focus-color)' : hot ? 'var(--text-accent)' : mix(INK, 24)}
+                strokeWidth={sel === i || hot ? 3 : 1}
                 strokeDasharray={!f && state.last?.cell === i ? '7 5' : undefined} />
               {taken.has(i) && <path d={path} fill="var(--status-delivered-bg)" opacity={0.75} />}
               {f?.kind === 'eat' && hot && (
@@ -143,37 +172,38 @@ function Board({ state, mySeat, canMove, onMove, animate }) {
               {refilled?.has(i) && <path d={path} fill="var(--status-transit-bg)" opacity={0.8} />}
 
               {hasQuan && (
-                <g opacity={non ? 0.55 : 1}>
-                  <circle cx={cx} cy={cy - 26} r={18} fill={`url(#${uid}g3)`} />
-                  {non && <circle cx={cx} cy={cy - 26} r={23} fill="none" stroke={INK} strokeDasharray="3 4" />}
+                <g opacity={non ? 0.5 : 1}>
+                  <ellipse cx={cx} cy={cy - 34} rx={14} ry={17} fill={QUAN} stroke={EDGE} />
+                  {non && <ellipse cx={cx} cy={cy - 34} rx={19} ry={22} fill="none" stroke={INK} strokeDasharray="3 4" />}
                 </g>
               )}
-              {pile(cx, hasQuan ? cy + 18 : cy, n).map(([x, y], s) => (
-                <circle key={s} cx={x} cy={y} r={5.4} fill={`url(#${uid}g${(i + s) % 3})`}
-                  style={{ transformBox: 'fill-box', transformOrigin: 'center', animation: 'gamePop var(--dur-base) var(--ease-standard) both' }} />
+              {/* Viên cũ trượt về chỗ mới khi ô thêm sỏi; chỉ viên VỪA RƠI (hoặc vừa rải lại) mới hiện dần. */}
+              {spots.map(([dx, dy], s) => (
+                <g key={s} style={{ transform: `translate(${cx + dx}px, ${py + dy}px)`, transition: GLIDE }}>
+                  <circle r={PEB} fill={PEBBLES[(i + s) % 3]} stroke={EDGE} strokeWidth={0.8}
+                    style={refilled?.has(i) || (hot && f.kind === 'drop' && s === spots.length - 1) ? POP : undefined} />
+                </g>
               ))}
 
               {(n > 0 || hasQuan) && (
-                <g>
-                  <rect x={b.quan === 'R' ? b.x + 9 : b.x + b.w - 33} y={b.y + 9} width={24} height={18} rx={9} fill={mix(INK, 16)} />
-                  <text x={b.quan === 'R' ? b.x + 21 : b.x + b.w - 21} y={b.y + 22} textAnchor="middle" fontSize={12} fontWeight={600}
-                    fill={INK} style={{ fontFamily: 'var(--font-mono)' }}>{n}</text>
-                </g>
+                <text x={cx} y={numY} textAnchor="middle" fontSize={11} fontWeight={600} fill={INK} style={{ fontFamily: 'var(--font-mono)' }}>{n}</text>
               )}
               {non && (
-                <text x={cx} y={b.y + b.h - 13} textAnchor="middle" fontSize={11} fill={INK}>{t('games.oanquan.young')}</text>
+                <text x={cx} y={cy - 4} textAnchor="middle" fontSize={10} fill={INK}>{t('games.oanquan.young')}</text>
               )}
             </g>
           )
         })}
 
+        {/* Số sỏi đang cầm: ô dân thì nằm sát đường giữa, nhích vào ô đang rải (không đè con số ở mép ngoài); ô quan thì trên đỉnh ô. */}
         {f && f.hand > 0 && (() => {
           const b = at(f.at)
-          const x = b.quan === 'L' ? b.x + 46 : b.quan === 'R' ? b.x + 34 : b.x + b.w / 2
+          const x = centerOf(b).cx
+          const y = b.quan ? b.y + 14 : MID + (b.top ? -6 : 6)
           return (
             <g key={'hand' + k} style={{ transformBox: 'fill-box', transformOrigin: 'center', animation: 'gamePop var(--dur-fast) var(--ease-standard) both' }}>
-              <circle cx={x} cy={b.y + 2} r={14} fill="var(--text-accent)" />
-              <text x={x} y={b.y + 7} textAnchor="middle" fontSize={13} fontWeight={700} fill="var(--text-inverse)" style={{ fontFamily: 'var(--font-mono)' }}>{f.hand}</text>
+              <circle cx={x} cy={y} r={13} fill="var(--text-accent)" />
+              <text x={x} y={y + 4.5} textAnchor="middle" fontSize={13} fontWeight={700} fill="var(--text-inverse)" style={{ fontFamily: 'var(--font-mono)' }}>{f.hand}</text>
             </g>
           )
         })()}

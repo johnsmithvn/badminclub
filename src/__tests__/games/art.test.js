@@ -19,4 +19,16 @@ for (const id of GAME_IDS) {
 // Linh vật Bầu cua tra theo SỐ THỨ TỰ trong SYMS (0..5), không theo tên — bàn chơi truyền mặt xúc xắc là số.
 SYMS.forEach((_, k) => assert.ok(html(BauCuaIcon, { sym: k }).includes('<svg'), 'thiếu linh vật Bầu cua thứ ' + k))
 
+// Bàn Ô ăn quan lúc đứng yên không được gắn hiệu ứng lên sỏi: trước đây viên nào cũng mang gamePop nên mỗi nước
+// mới cả bàn ~50 viên cùng nảy, người chơi không theo được sỏi nào vừa rơi. Chỉ viên vừa rơi mới được hiện dần.
+{
+  globalThis.window ||= {} // OAnQuanBoard hỏi window.matchMedia lúc dựng
+  const { default: oq } = await import('#lib/games/oanquan.js')
+  const { default: OAnQuanBoard } = await load('#components/games/OAnQuanBoard.jsx')
+  const s = oq.apply(oq.setup(), 0, { cell: 1, dir: 1 })
+  const out = html(OAnQuanBoard, { state: s, mySeat: 1, canMove: true, onMove() {} })
+  assert.ok(!out.includes('gamePop'), 'bàn đứng yên mà sỏi vẫn mang gamePop — mỗi nước mới cả bàn sẽ nảy')
+  assert.equal((out.match(/translate\(/g) || []).length, s.stones.reduce((a, n) => a + n, 0), 'mỗi viên sỏi trên bàn phải được vẽ đúng một lần')
+}
+
 console.log('games art check: OK')
