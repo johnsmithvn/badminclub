@@ -4,7 +4,7 @@
 
 import assert from 'node:assert/strict'
 import { readFileSync } from 'node:fs'
-import tl, { HAND, TWO, beats, comboOf, priceOf, thoiOf, whiteOf } from '#lib/games/tienlen.js'
+import tl, { HAND, TWO, beats, comboOf, priceOf, thoiOf, variantOf, whiteOf } from '#lib/games/tienlen.js'
 import { replay } from '#lib/games/registry.js'
 
 /** Nước deal như server ghi (0078 game_tienlen_deal): ván chơi lại thì `first` đi trước, không thì ai cầm lá nhỏ nhất. */
@@ -163,6 +163,66 @@ function serverResult(s, hands) {
     assert.deepEqual(replay(tl, {}, log), s, 'ván mẫu "' + g.note + '": dựng lại từ log phải ra đúng state')
   }
   assert.ok(games.some((g) => g.result == null) && games.some((g) => g.hands.length === 4), 'bộ ván phải có ván chưa xong và ván 4 người')
+}
+
+// MIỀN BẮC (0085): đồng chất, heo chặn mọi lẻ / đôi, không đôi thông, không tới trắng, không cóng, về bằng heo / tứ quý là về chót.
+{
+  const c = (r, su) => r * 4 + su // hạng 0 = 3 … 12 = 2; chất 0 ♠ 1 ♣ 2 ♦ 3 ♥
+  const k = (cards) => comboOf(cards, true)
+  assert.equal(variantOf({ variant: 'bac' }), 'bac')
+  assert.equal(variantOf({ variant: 'x' }), 'nam', 'tuỳ chọn bậy → miền Nam như SQL')
+  assert.equal(k([c(0, 0), c(1, 1), c(2, 0)]), null, 'sảnh lẫn chất không thành bộ')
+  assert.equal(k([c(0, 0), c(0, 1), c(1, 0), c(1, 1), c(2, 0), c(2, 1)]), null, 'không có đôi thông')
+  assert.ok(comboOf([c(0, 0), c(1, 1), c(2, 0)]), 'miền Nam vẫn nhận sảnh lẫn chất')
+  assert.equal(beats(k([c(5, 1)]), k([c(4, 0)]), true), false, 'lẻ khác chất không chặn được')
+  assert.equal(beats(k([c(5, 0)]), k([c(4, 0)]), true), true)
+  assert.equal(beats(k([c(TWO, 0)]), k([c(11, 3)]), true), true, 'heo chặn mọi lẻ')
+  assert.equal(beats(k([c(TWO, 0)]), k([c(TWO, 1)]), true), false, 'heo với heo so chất')
+  assert.equal(beats(k([c(6, 2), c(6, 3)]), k([c(5, 2), c(5, 3)]), true), true, 'đôi đỏ chặn đôi đỏ')
+  assert.equal(beats(k([c(6, 0), c(6, 1)]), k([c(5, 2), c(5, 3)]), true), false, 'đôi đen không chặn đôi đỏ')
+  assert.equal(beats(k([c(TWO, 0), c(TWO, 1)]), k([c(9, 2), c(9, 3)]), true), true, 'đôi heo chặn mọi đôi')
+  assert.equal(beats(k([c(1, 0), c(2, 0), c(3, 0)]), k([c(0, 0), c(1, 0), c(2, 0)]), true), true, 'sảnh cùng chất cao hơn')
+  assert.equal(beats(k([c(1, 1), c(2, 1), c(3, 1)]), k([c(0, 0), c(1, 0), c(2, 0)]), true), false, 'sảnh khác chất')
+  const quad = k([c(3, 0), c(3, 1), c(3, 2), c(3, 3)])
+  assert.equal(beats(quad, k([c(TWO, 3)]), true), true, 'tứ quý chặt heo')
+  assert.equal(beats(quad, k([c(TWO, 0), c(TWO, 1)]), true), true, 'tứ quý chặt đôi heo')
+  assert.equal(beats(quad, k([c(11, 3)]), true), false, 'tứ quý không chặn lẻ thường')
+  assert.equal(thoiOf([c(TWO, 3), c(0, 0), c(0, 1), c(1, 0), c(1, 1), c(2, 0), c(2, 1)], true), 2, 'miền Bắc không thối đôi thông')
+
+  const bac = (hands) => {
+    const n = hands.map((h) => h.length)
+    const low = Math.min(...hands.flat())
+    const f = hands.findIndex((h) => h.includes(low))
+    const s0 = tl.setup({ options: { variant: 'bac' } })
+    assert.equal(tl.validate(s0, f, { deal: { first: f, low, n, white: 0 } }), 'games.err.badMove', 'miền Bắc không tới trắng')
+    return tl.apply(s0, f, { deal: { first: f, low, n, white: null } })
+  }
+  // Về bằng heo → về chót: người còn bài xếp trên.
+  let s = bac([[c(0, 0), c(TWO, 3)], [c(1, 1), c(5, 1)]])
+  s = step(s, 0, { play: [c(0, 0)] })
+  assert.equal(tl.validate(s, 1, { play: [c(5, 1)] }), 'games.err.tooLow', 'lẻ khác chất bị chặn')
+  s = step(s, 1, { pass: true })
+  s = step(s, 0, { play: [c(TWO, 3)] })
+  assert.equal(s.over, true)
+  assert.deepEqual(tl.result(s).ranks, [1, 0], 'về bằng heo là về chót')
+  // Không cóng: người về Nhất không kéo người chưa đánh lá nào ra khỏi ván.
+  s = bac([[c(0, 0)], [c(5, 1), c(6, 1)], [c(7, 2), c(8, 2)]])
+  s = step(s, 0, { play: [c(0, 0)] })
+  assert.deepEqual([s.over, s.cong, s.out], [false, [], [true, false, false]])
+  // Ván đầu đánh tự do (lead = 'free'): server ghi low = null → nước đầu không buộc có lá nhỏ nhất.
+  {
+    const free = tl.apply(tl.setup({ options: { lead: 'free' } }), 0, { deal: { first: 0, low: null, n: [2, 2], white: null } })
+    assert.equal(tl.validate(free, 0, { play: [c(5, 1)] }), null, 'lead free: nước đầu không cần lá nhỏ nhất')
+    const must = tl.apply(tl.setup(), 0, { deal: { first: 0, low: c(0, 0), n: [2, 2], white: null } })
+    assert.equal(tl.validate(must, 0, { play: [c(5, 1)] }), 'games.err.mustLow', 'mặc định: nước đầu phải có lá nhỏ nhất')
+    assert.deepEqual(tl.defaultOptions, { variant: 'nam', lead: 'must' })
+  }
+  // SQL 0085 chép đúng các nhánh này.
+  const sql = readFileSync('supabase/migrations/0085_games_tienlen_bac.sql', 'utf8')
+  for (const frag of ["options ->> 'variant' = 'bac'", 'game_tienlen_bac_combo(v_play)', 'game_tienlen_bac_beats(v_k, v_table)',
+    'v_chot := v_chot || m.seat', 'v_alive || v_chot || v_cong', 'game_tienlen_bac_thoi(', "options ->> 'lead' FROM game_rooms"]) {
+    assert.ok(sql.includes(frag), '0085 thiếu: ' + frag)
+  }
 }
 
 console.log('tienlen check: OK')

@@ -24,6 +24,8 @@
 -- game_masoi_fill  — (game_move gọi) { night } → kiểm theo vai, cất lựa chọn, log { night: true };
 --                    { next } → chốt bước (đêm / phù thủy / ngày / thợ săn / có người rời) và log kết quả.
 -- game_masoi_result — đội thắng; game_finish 0075 dùng hàm này, bỏ kết quả client.
+-- Đồng hồ: options.time = giây ban ngày (0 = không giới hạn cả ván), đêm / Phù thủy / Thợ săn 45 giây, tính từ created_at
+-- của nước mở bước. Qua hạn thì { next } được nhận dù chưa đủ người (sớm → games.err.notYet, máy khách im lặng thử lại).
 -- Chép luật lib/games/masoi.js — đổi luật thì sửa cả hai.
 
 /* ---------- Tiện ích ---------- */
@@ -143,12 +145,22 @@ DECLARE
   nx   text;
   i    int;
   done boolean;
+  v_opt   jsonb;
+  v_time  bigint;
+  v_since bigint;
 BEGIN
   o_settle := false;
+  -- Đọc options như optsOf ở JS. CASE lồng nhau: chỉ ép kiểu số khi đúng là số.
+  SELECT options INTO v_opt FROM game_rooms WHERE id = p_room;
+  v_time := 1000 * CASE WHEN jsonb_typeof(v_opt -> 'time') = 'number'
+                        THEN CASE WHEN (v_opt ->> 'time')::numeric IN (0, 60, 120, 180, 300) THEN (v_opt ->> 'time')::numeric::int ELSE 120 END
+                        ELSE 120 END;
   FOR m IN
-    SELECT x.seat, x.move, x.cand FROM (
-      SELECT seq, seat::int AS seat, move, false AS cand FROM game_moves WHERE room_id = p_room
-      UNION ALL SELECT 2147483647, p_seat, p_move, true WHERE p_move IS NOT NULL
+    SELECT x.seat, x.move, x.at, x.cand FROM (
+      SELECT seq, seat::int AS seat, move, floor(extract(epoch FROM created_at) * 1000)::bigint AS at, false AS cand
+        FROM game_moves WHERE room_id = p_room
+      UNION ALL
+      SELECT 2147483647, p_seat, p_move, floor(extract(epoch FROM now()) * 1000)::bigint, true WHERE p_move IS NOT NULL
     ) x ORDER BY x.seq
   LOOP
     mv := m.move;
@@ -165,7 +177,8 @@ BEGIN
         done := o_settle
           OR (o_phase IN ('night', 'witch') AND NOT EXISTS (SELECT 1 FROM generate_series(1, o_n) j WHERE o_alive[j] AND NOT o_acted[j]))
           OR (o_phase = 'day' AND NOT EXISTS (SELECT 1 FROM generate_series(1, o_n) j WHERE o_alive[j] AND o_votes[j] IS NULL))
-          OR (o_phase = 'hunter' AND o_shot IS NOT NULL);
+          OR (o_phase = 'hunter' AND o_shot IS NOT NULL)
+          OR (v_time > 0 AND m.at >= v_since + CASE WHEN o_phase = 'day' THEN v_time ELSE 45000 END);
         IF mv -> 'next' IS DISTINCT FROM 'true'::jsonb THEN o_err := 'games.err.badMove';
         ELSIF NOT done THEN o_err := 'games.err.notYet';
         END IF;
@@ -206,6 +219,7 @@ BEGIN
       o_votes := array_fill(NULL::int, ARRAY[o_n]);
       o_phase := 'night';
       o_night := 1;
+      v_since := m.at;
       CONTINUE;
     END IF;
     IF o_n IS NULL OR o_over IS NOT NULL THEN CONTINUE; END IF;
@@ -225,6 +239,7 @@ BEGIN
       o_shot := (mv ->> 'shoot')::int;
     ELSIF mv ? 'next' THEN
       nx := mv ->> 'next';
+      IF nx <> 'settle' THEN v_since := m.at; END IF;
       FOR t IN SELECT (e)::int FROM jsonb_array_elements_text(COALESCE(mv -> 'dead', '[]'::jsonb)) e LOOP
         o_alive[t + 1] := false;
       END LOOP;

@@ -116,7 +116,7 @@ export default function NoiTuBoard({ state, mySeat, onMove }) {
         {live && !v && state.fresh && state.chain.length > 0 && <span style={S.caption}>{t('games.noitu.fresh')}</span>}
         {state.verdict && (
           <span style={{ ...S.event, color: state.verdict.ok ? 'var(--status-delivered-fg)' : 'var(--status-incident-fg)' }}>
-            {state.verdict.ok ? t('games.noitu.verdictOk', { word: state.verdict.word }) : t('games.noitu.verdictNo', { word: state.verdict.word })}
+            {state.verdict.ok ? t(state.verdict.dict ? 'games.noitu.verdictDict' : 'games.noitu.verdictOk', { word: state.verdict.word }) : t('games.noitu.verdictNo', { word: state.verdict.word })}
           </span>
         )}
         {(last?.timeout || last?.giveup || last?.out) && (
@@ -164,7 +164,10 @@ export default function NoiTuBoard({ state, mySeat, onMove }) {
                   <Button type="submit" icon="play" disabled={!cur.text.trim() || state.asks >= ASKS}>{t('games.noitu.send')}</Button>
                   <Button type="button" variant="secondary" icon="flag" onClick={() => onMove({ giveup: true })}>{t('games.noitu.giveup')}</Button>
                 </div>
-                <span style={S.mono}>{state.asks >= ASKS ? t('games.noitu.noAsksHint') : t('games.noitu.asksLeft', { n: ASKS - state.asks })}</span>
+                <span style={S.mono}>
+                  {state.opts.dict === 'dict' ? t('games.noitu.dictHint')
+                    : state.asks >= ASKS ? t('games.noitu.noAsksHint') : t('games.noitu.asksLeft', { n: ASKS - state.asks })}
+                </span>
               </form>
             )
             : (

@@ -4,7 +4,7 @@
 
 import assert from 'node:assert/strict'
 import { readFileSync } from 'node:fs'
-import bb, { fits, kindOf, mustCall } from '#lib/games/baibip.js'
+import bb, { deadlineOf, fits, kindOf, mustCall, optsOf } from '#lib/games/baibip.js'
 import { replay } from '#lib/games/registry.js'
 
 const Q = [0, 1, 2, 3, 4, 5]
@@ -155,6 +155,30 @@ assert.equal(fits(J[1], 0), true)
   for (const k of ['mustCut', 'wireCut', 'nothingToCall', 'playCount', 'mustCall', 'notYourCard']) {
     assert.ok(sql.includes('games.err.' + k), '0082 phải dùng cùng mã lỗi ' + k)
   }
+}
+
+// Đồng hồ lượt: ai còn trụ cũng báo được hết giờ (server kiểm giờ); log ghi nước server đi thay người tới lượt.
+{
+  const at = (ms) => ({ at: new Date(Date.parse('2026-11-08T10:00:00Z') + ms).toISOString() })
+  assert.deepEqual(optsOf({}), { time: 30 })
+  assert.deepEqual(optsOf({ time: 0 }), { time: 0 })
+  assert.deepEqual(optsOf({ time: 45 }), { time: 30 }, 'số lạ về mặc định — khớp 0082')
+  let s = bb.apply(bb.setup({ options: { time: 20 } }), 0, { deal: deal([false, false, false], 0) }, at(0))
+  assert.equal(deadlineOf(s) - Date.parse('2026-11-08T10:00:00Z'), 20000)
+  assert.equal(bb.validate(s, 2, { timeout: true }), null, 'máy khác báo hộ được')
+  assert.equal(bb.request(s, 2, { timeout: true }), true)
+  assert.deepEqual(bb.apply(s, 2, { timeout: true }, at(21000)), s, 'chưa qua server thì không áp')
+  assert.equal(bb.validate(bb.setup({ options: { time: 0 } }), 0, { timeout: true }), 'games.err.badMove')
+  s = bb.apply(s, 2, { timeout: true, play: 1 }, at(21000)) // server đánh thay ghế 0 một lá
+  assert.deepEqual([s.counts, s.turn, s.last, deadlineOf(s) - Date.parse('2026-11-08T10:00:00Z')],
+    [[4, 5, 5], 1, { seat: 0, play: 1, timeout: true }, 41000])
+  assert.equal(bb.validate(s, 0, { timeout: true, play: 1 }), null, 'bản đã ghi kiểm như nước của người tới lượt (ghế 1)')
+  s = bb.apply(s, 0, { timeout: true, call: true, cards: [K[0]], liar: false }, at(42000)) // ghế 1 tố thay, ghế 0 đánh thật
+  assert.deepEqual([s.phase, s.cutter, s.last.timeout], ['cut', 1, true])
+  s = bb.apply(s, 0, { timeout: true, cut: 2, boom: false, deal: deal([false, false, false], 1) }, at(63000))
+  assert.deepEqual([s.cuts[1], s.phase, s.turn], [[2], 'play', 1])
+  const sql = readFileSync(new URL('../../../supabase/migrations/0082_games_baibip.sql', import.meta.url), 'utf8')
+  assert.ok(sql.includes('IN (0, 20, 30, 60)') && sql.includes('ELSE 30 END'), 'bảng giờ + mặc định khớp TIMES / optsOf')
 }
 
 console.log('baibip check: OK')

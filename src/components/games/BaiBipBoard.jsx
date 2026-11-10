@@ -1,14 +1,25 @@
-import { useEffect, useState } from 'react'
+import { useEffect, useRef, useState } from 'react'
 import { Button } from '#ds'
 import { useApp } from '#contexts/AppContext.jsx'
 import { t } from '#i18n'
-import bb, { fits, KINDS, kindOf, mustCall, WIRES } from '#lib/games/baibip.js'
+import bb, { deadlineOf, fits, KINDS, kindOf, mustCall, WIRES } from '#lib/games/baibip.js'
 
 // Bàn Bài bịp: ghế + quả bom từng người, lá chủ, chồng lá úp, lá vừa lật khi tố, bài trên tay mình.
 // Bài trên tay KHÔNG có trong state (docs/GAMES.md §5.2): nạp từ game_hands (RLS chỉ trả tay mình) — server bớt lá khi
 // đánh nên hàng đó luôn là bài còn lại; số lá đổi / sang ván mới là nạp lại. Luật: lib/games/baibip.js.
 
 const side = (seat) => t('games.baibip.mark' + seat)
+
+/** Đồng hồ máy, nhích mỗi giây khi có hạn lượt. */
+function useNow(on) {
+  const [now, setNow] = useState(() => Date.now())
+  useEffect(() => {
+    if (!on) return undefined
+    const id = setInterval(() => setNow(Date.now()), 1000)
+    return () => clearInterval(id)
+  }, [on])
+  return now
+}
 const kindName = (k) => t('games.baibip.kind' + KINDS[k])
 // Màu dây bom, theo thứ tự dây 0..5.
 const WIRE_INK = ['var(--status-incident)', 'var(--status-delayed)', 'var(--status-delivered)', 'var(--status-transit)', 'var(--status-scheduled)', 'var(--gray-0)']
@@ -140,7 +151,8 @@ export default function BaiBipBoard({ state, mySeat, roomId, onMove, result }) {
   }, [a, roomId, seated, reveal, state.round, myCount, tries])
 
   const mine = got?.roomId === roomId ? got : null
-  const hand = seated ? [...(mine?.hands?.[mySeat] || [])].sort((x, y) => x - y) : []
+  // Chờ chia ván mới: tay cũ đã hết hiệu lực (server sẽ chia lại) — không hiện nữa.
+  const hand = seated && state.phase !== 'redeal' ? [...(mine?.hands?.[mySeat] || [])].sort((x, y) => x - y) : []
   const sel = pick.ply === state.ply ? pick.cards.filter((c) => hand.includes(c)) : []
   const myTurn = seated && !state.over && state.turn === mySeat && !state.out[mySeat]
   const canPlay = myTurn && state.phase === 'play'
@@ -152,6 +164,23 @@ export default function BaiBipBoard({ state, mySeat, roomId, onMove, result }) {
     setPick({ ply: state.ply, cards: next })
   }
   const { last, reveal: shown } = state
+
+  // Hết giờ lượt → tự báo { timeout }: người tới lượt báo trước, người khác chờ thêm (phòng máy kia đã tắt).
+  // Server đo bằng giờ của nó; chưa tới thì im lặng, mỗi 4 giây thử lại.
+  const due = deadlineOf(state)
+  const now = useNow(due != null && !result)
+  const sent = useRef('')
+  const alive = seated && !state.out[mySeat]
+  useEffect(() => {
+    if (due == null || !alive || result) return
+    const at = due + (state.turn === mySeat ? 300 : 2000 + ((mySeat - state.turn + state.n) % state.n) * 800)
+    if (now < at) return
+    const tag = state.ply + ':' + Math.floor((now - at) / 4000)
+    if (sent.current === tag) return
+    sent.current = tag
+    onMove({ timeout: true })
+  }, [due, alive, result, now, mySeat, state.turn, state.n, state.ply, onMove])
+  const secs = due != null && !result ? Math.max(0, Math.ceil((due - now) / 1000)) : null
   const tableKind = state.table
 
   return (
@@ -196,6 +225,12 @@ export default function BaiBipBoard({ state, mySeat, roomId, onMove, result }) {
             </div>
           </div>
         </div>
+        {secs != null && (
+          <span style={{ ...S.caption, color: secs <= 5 ? 'var(--status-incident-fg)' : undefined }} role="timer">
+            {t('games.baibip.timeLeft', { side: side(state.turn), n: secs })}
+          </span>
+        )}
+        {last?.timeout && <span style={S.caption}>{t('games.baibip.autoMove', { side: side(last.seat) })}</span>}
         {state.lastPlay && state.phase === 'play' && (
           <span style={S.event}>{t('games.baibip.lastPlay', { side: side(state.lastPlay.seat), n: state.lastPlay.n, kind: kindName(tableKind) })}</span>
         )}

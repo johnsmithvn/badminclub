@@ -2,7 +2,7 @@ import { useEffect, useState } from 'react'
 import { Button } from '#ds'
 import { useApp } from '#contexts/AppContext.jsx'
 import { t } from '#i18n'
-import { complete, CUPID, CURSED, ELDER, F, GUARD, HUNTER, isWolf, ROLE_IDS, rowOf, SEER, tableOf, tallyOf, VILLAGER, WITCH, WOLF } from '#lib/games/masoi.js'
+import { complete, CUPID, CURSED, deadlineOf, ELDER, F, GUARD, HUNTER, isWolf, ROLE_IDS, rowOf, SEER, tableOf, tallyOf, VILLAGER, WITCH, WOLF } from '#lib/games/masoi.js'
 
 // Bàn Ma sói: bầu trời theo pha, lá vai của mình (game_hands — chỉ mình đọc được), bảng người chơi (bấm thẻ để
 // chọn người), khung việc cần làm theo vai, diễn biến. Cả bàn cùng đi: xong bước thì máy mình tự gửi { next } — máy
@@ -14,6 +14,17 @@ const INK = [
 ]
 const roleName = (r) => t('games.masoi.role.' + ROLE_IDS[r])
 const W = 'var(--gray-0)'
+
+/** Đồng hồ máy, nhích mỗi giây khi bước có hạn giờ. */
+function useNow(on) {
+  const [now, setNow] = useState(() => Date.now())
+  useEffect(() => {
+    if (!on) return undefined
+    const id = setInterval(() => setNow(Date.now()), 1000)
+    return () => clearInterval(id)
+  }, [on])
+  return now
+}
 
 /** Hình vẽ của từng vai (trắng trên nền màu vai), khung 48×48. */
 function Glyph({ role }) {
@@ -124,7 +135,7 @@ const HOUSES = [[18, 24, 15], [66, 18, 11], [138, 28, 17], [214, 20, 13], [300, 
 const TREES = [[50, 9], [104, 11], [184, 10], [262, 12], [342, 9]]
 
 /** Bầu trời: đêm (trăng, sao, cửa sổ sáng) · bước Phù thủy (quầng tím) · ngày (mặt trời) · hết ván. */
-function Sky({ dark, witch, title }) {
+function Sky({ dark, witch, title, clock }) {
   const land = dark ? 'var(--navy-900)' : 'color-mix(in srgb, var(--status-delivered) 40%, var(--surface-card))'
   return (
     <div style={{ position: 'relative', borderRadius: 12, overflow: 'hidden', border: '1px solid var(--border-subtle)' }}>
@@ -161,6 +172,7 @@ function Sky({ dark, witch, title }) {
         ))}
       </svg>
       <span style={{ ...S.skyTitle, color: dark ? W : 'var(--text-primary)' }}>{title}</span>
+      {clock && <span role="timer" aria-label={t('games.masoi.timeLeft', { time: clock })} style={{ ...S.skyClock, color: dark ? W : 'var(--text-primary)' }}>{clock}</span>}
     </div>
   )
 }
@@ -214,13 +226,19 @@ export default function MaSoiBoard({ state, mySeat, roomId, onMove, result, play
   // Đủ người thì tự chốt bước: ghế thấp gửi trước; server chưa nhận thì gửi lại sau.
   const ready = complete(state)
   const rank = Math.max(0, (players || []).map((p) => p.seat).sort((x, y) => x - y).indexOf(mySeat))
+  // Có đồng hồ: hết giờ cũng chốt (server kiểm giờ của nó; máy mình nhanh hơn server thì im lặng thử lại).
+  const due = deadlineOf(state)
   const [again, setAgain] = useState(0)
   useEffect(() => {
-    if (!ready || !seated || result) return undefined
-    const fire = setTimeout(() => onMove({ next: true }), 600 + rank * 1200)
-    const retry = setTimeout(() => setAgain((n) => n + 1), 9000 + rank * 1200)
+    const at = ready ? Date.now() : due
+    if (at == null || !seated || result) return undefined
+    const wait = Math.max(0, at - Date.now()) + 600 + rank * 1200
+    const fire = setTimeout(() => onMove({ next: true }), wait)
+    const retry = setTimeout(() => setAgain((n) => n + 1), wait + 8000)
     return () => { clearTimeout(fire); clearTimeout(retry) }
-  }, [ready, seated, result, rank, state.ply, again, onMove])
+  }, [ready, due, seated, result, rank, state.ply, again, onMove])
+  const now = useNow(due != null && !result)
+  const secs = due != null && !result ? Math.max(0, Math.ceil((due - now) / 1000)) : null
 
   const live = state.started && !state.over && !result
   const alive = seated && !!state.alive[mySeat]
@@ -270,7 +288,7 @@ export default function MaSoiBoard({ state, mySeat, roomId, onMove, result, play
 
   return (
     <div style={{ display: 'grid', gap: 12, gridTemplateColumns: 'minmax(0, 1fr)' }}>
-      <Sky dark={dark} witch={live && ph === 'witch'} title={title} />
+      <Sky dark={dark} witch={live && ph === 'witch'} title={title} clock={secs != null ? Math.floor(secs / 60) + ':' + String(secs % 60).padStart(2, '0') : null} />
 
       {/* Vai của mình */}
       {seated && (
@@ -472,5 +490,6 @@ const S = {
     display: 'inline-flex', gap: 5, alignItems: 'center', padding: '3px 9px 3px 4px', borderRadius: 99,
     border: '1px solid var(--border-subtle)', background: 'var(--surface-card)', font: 'var(--type-caption)', color: 'var(--text-secondary)',
   },
+  skyClock: { position: 'absolute', right: 14, bottom: 8, font: '700 15px/1 var(--font-mono)', textShadow: '0 1px 2px color-mix(in srgb, var(--navy-950) 35%, transparent)' },
   skyTitle: { position: 'absolute', left: 14, top: 10, font: '700 17px/1.2 var(--font-display)', textShadow: '0 1px 2px color-mix(in srgb, var(--navy-950) 35%, transparent)' },
 }

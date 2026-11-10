@@ -8,9 +8,19 @@ import { useMobile } from '#hooks/useMobile.js'
 import { useTourPoll } from '#hooks/useTourPoll.js'
 import { GameArt, HowTo } from '#components/games/GameInfo.jsx'
 import { myMember } from '#lib/money.js'
-import { GAMES, GAME_IDS, gameOf, isStaleRoom, seatedOf, statsOf } from '#lib/games/registry.js'
-import { TIMES as NOITU_TIMES } from '#lib/games/noitu.js'
-import { REVEALS as MASOI_REVEALS } from '#lib/games/masoi.js'
+import { BOT_GAMES, BOT_PREFIX, GAMES, GAME_IDS, gameOf, isStaleRoom, seatedOf, statsOf } from '#lib/games/registry.js'
+import { DICTS as NOITU_DICTS, REPEATS as NOITU_REPEATS, TIMES as NOITU_TIMES } from '#lib/games/noitu.js'
+import { DAY_TIMES as MASOI_TIMES, REVEALS as MASOI_REVEALS } from '#lib/games/masoi.js'
+import { TIMES as BAIBIP_TIMES } from '#lib/games/baibip.js'
+import { LEADS as TIENLEN_LEADS, VARIANTS as TIENLEN_VARIANTS } from '#lib/games/tienlen.js'
+import { LAPS as BAUCUA_LAPS, TIMES as BAUCUA_TIMES } from '#lib/games/baucua.js'
+import { TIMES as LOTO_TIMES } from '#lib/games/loto.js'
+import { LAPS as XIDACH_LAPS, TIMES as XIDACH_TIMES } from '#lib/games/xidach.js'
+import { TIMES as PHOM_TIMES } from '#lib/games/phom.js'
+
+// Game có đồng hồ / số vòng chọn lúc tạo phòng: chữ ở games.<id>.time · timeOpt · timeNone (0 = tắt) · laps · lapsOpt.
+const TIME_OPTS = { baucua: BAUCUA_TIMES, loto: LOTO_TIMES, xidach: XIDACH_TIMES, phom: PHOM_TIMES }
+const LAP_OPTS = { baucua: BAUCUA_LAPS, xidach: XIDACH_LAPS }
 import { pathOf } from '#routes'
 import { t } from '#i18n'
 import cfg from '#config/app.js'
@@ -35,6 +45,8 @@ export default function Games() {
   useTourPoll(true, refresh, cfg.games.lobbyPollMs)
 
   const open = (id) => navigate(pathOf('gameRoom', id))
+  // Cờ tướng với máy cần trang tải mới (header cách ly cho engine — vercel.json), nên không chuyển trang kiểu SPA.
+  const vsBot = (id) => (id === 'cotuong' ? window.location.assign(pathOf('gameRoom', BOT_PREFIX + id)) : open(BOT_PREFIX + id))
   const enter = async (room) => {
     const mine = seatedOf(room.players).some((p) => p.memberId === me)
     if (room.status === 'waiting' && !mine && me && (await a.gameJoin(room)) == null) return
@@ -72,6 +84,7 @@ export default function Games() {
                   </span>
                   <div style={{ display: 'flex', gap: 8, flexWrap: 'wrap', marginTop: 'auto', paddingTop: 4 }}>
                     <Button icon="plus" disabled={!me} onClick={() => setCreating(id)}>{t('games.create')}</Button>
+                    {BOT_GAMES.includes(id) && <Button variant="secondary" icon="bot" onClick={() => vsBot(id)}>{t('games.bot.play')}</Button>}
                     <Button variant="ghost" icon="book-open" onClick={() => setHowto(id)}>{t('games.howto')}</Button>
                   </div>
                 </div>
@@ -213,14 +226,92 @@ function CreateRoom({ gameId, onClose, onDone }) {
               onChange={(e) => setOpts({ ...opts, time: Number(e.target.value) })}
               options={NOITU_TIMES.map((n) => ({ value: String(n), label: t('games.noitu.timeOpt', { n }) }))}
             />
+            {opts.lang !== 'en' && (
+              <>
+                <Select
+                  label={t('games.noitu.dict')}
+                  value={opts.dict}
+                  onChange={(e) => setOpts({ ...opts, dict: e.target.value })}
+                  options={NOITU_DICTS.map((v) => ({ value: v, label: t('games.noitu.dictOpt.' + v) }))}
+                />
+                {opts.dict !== 'vote' && (
+                  <Switch
+                    label={t('games.noitu.cut')}
+                    description={t('games.noitu.cutHint')}
+                    checked={!!opts.cut}
+                    onChange={(e) => setOpts({ ...opts, cut: e.target.checked })}
+                  />
+                )}
+                <Switch
+                  label={t('games.noitu.flip')}
+                  description={t('games.noitu.flipHint')}
+                  checked={opts.flip !== false}
+                  onChange={(e) => setOpts({ ...opts, flip: e.target.checked })}
+                />
+              </>
+            )}
+            <Select
+              label={t('games.noitu.repeat')}
+              value={String(opts.repeat)}
+              onChange={(e) => setOpts({ ...opts, repeat: Number(e.target.value) })}
+              options={NOITU_REPEATS.map((n) => ({ value: String(n), label: t('games.noitu.repeatOpt.' + n) }))}
+            />
           </>
         )}
         {gameId === 'masoi' && (
+          <>
+            <Select
+              label={t('games.masoi.reveal')}
+              value={opts.reveal}
+              onChange={(e) => setOpts({ ...opts, reveal: e.target.value })}
+              options={MASOI_REVEALS.map((v) => ({ value: v, label: t('games.masoi.revealOpt.' + v) }))}
+            />
+            <Select
+              label={t('games.masoi.time')}
+              value={String(opts.time)}
+              onChange={(e) => setOpts({ ...opts, time: Number(e.target.value) })}
+              options={MASOI_TIMES.map((n) => ({ value: String(n), label: n ? t('games.masoi.timeOpt', { n }) : t('games.masoi.timeNone') }))}
+            />
+          </>
+        )}
+        {gameId === 'tienlen' && (
+          <>
+            <Select
+              label={t('games.tienlen.variant')}
+              value={opts.variant}
+              onChange={(e) => setOpts({ ...opts, variant: e.target.value })}
+              options={TIENLEN_VARIANTS.map((v) => ({ value: v, label: t('games.tienlen.variantOpt.' + v) }))}
+            />
+            <Select
+              label={t('games.tienlen.lead')}
+              value={opts.lead}
+              onChange={(e) => setOpts({ ...opts, lead: e.target.value })}
+              options={TIENLEN_LEADS.map((v) => ({ value: v, label: t('games.tienlen.leadOpt.' + v) }))}
+            />
+          </>
+        )}
+        {gameId === 'baibip' && (
           <Select
-            label={t('games.masoi.reveal')}
-            value={opts.reveal}
-            onChange={(e) => setOpts({ ...opts, reveal: e.target.value })}
-            options={MASOI_REVEALS.map((v) => ({ value: v, label: t('games.masoi.revealOpt.' + v) }))}
+            label={t('games.baibip.time')}
+            value={String(opts.time)}
+            onChange={(e) => setOpts({ ...opts, time: Number(e.target.value) })}
+            options={BAIBIP_TIMES.map((n) => ({ value: String(n), label: n ? t('games.baibip.timeOpt', { n }) : t('games.baibip.timeNone') }))}
+          />
+        )}
+        {TIME_OPTS[gameId] && (
+          <Select
+            label={t('games.' + gameId + '.time')}
+            value={String(opts.time)}
+            onChange={(e) => setOpts({ ...opts, time: Number(e.target.value) })}
+            options={TIME_OPTS[gameId].map((n) => ({ value: String(n), label: n ? t('games.' + gameId + '.timeOpt', { n }) : t('games.' + gameId + '.timeNone') }))}
+          />
+        )}
+        {LAP_OPTS[gameId] && (
+          <Select
+            label={t('games.' + gameId + '.laps')}
+            value={String(opts.laps)}
+            onChange={(e) => setOpts({ ...opts, laps: Number(e.target.value) })}
+            options={LAP_OPTS[gameId].map((n) => ({ value: String(n), label: t('games.' + gameId + '.lapsOpt', { n }) }))}
           />
         )}
         <Switch

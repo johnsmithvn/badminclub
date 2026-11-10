@@ -16,12 +16,24 @@ const step = (s, seat, move, ms) => {
   return nt.apply(s, seat, move, at(ms))
 }
 
-// Tuỳ chọn: lạ thì về mặc định — PHẢI khớp phần đọc options ở 0083.
-assert.deepEqual(optsOf({}), { lang: 'vi', link: 1, time: 20 })
-assert.deepEqual(optsOf({ lang: 'en', link: 2, time: 15 }), { lang: 'en', link: 2, time: 15 })
-assert.deepEqual(optsOf({ lang: 'fr', link: '2', time: 99 }), { lang: 'vi', link: 1, time: 20 })
+// Tuỳ chọn: lạ thì về mặc định — PHẢI khớp phần đọc options ở 0091. Phòng cũ (không có dict…) chạy y như 0083.
+const OLD = { dict: 'vote', cut: false, flip: true, repeat: 0 }
+assert.deepEqual(optsOf({}), { lang: 'vi', link: 1, time: 20, ...OLD })
+assert.deepEqual(optsOf({ lang: 'en', link: 2, time: 15 }), { lang: 'en', link: 2, time: 15, ...OLD })
+assert.deepEqual(optsOf({ lang: 'fr', link: '2', time: 99, dict: 'x', cut: 1, flip: 0, repeat: 9 }), { lang: 'vi', link: 1, time: 20, ...OLD })
+assert.deepEqual(optsOf({ dict: 'dict', cut: true, flip: false, repeat: 2 }), { lang: 'vi', link: 1, time: 20, dict: 'dict', cut: true, flip: false, repeat: 2 })
+assert.equal(optsOf({ dict: 'vote', cut: true }).cut, false, 'không từ điển thì không chặn từ cụt')
+assert.deepEqual(optsOf({ lang: 'en', dict: 'mix', cut: true, flip: false }), { lang: 'en', link: 1, time: 20, ...OLD }, 'English không có từ điển')
+assert.deepEqual(nt.defaultOptions, { lang: 'vi', link: 1, time: 20, dict: 'mix', cut: false, flip: true, repeat: 0 })
 assert.equal(normWord('  Học   SINH '), 'học sinh')
 assert.equal(normWord('học sinh'), 'học sinh', 'chữ có dấu tổ hợp phải về dạng dựng sẵn (NFC)')
+// Dấu oa / oe / uy cuối âm tiết về kiểu cũ — từ điển 0092 chuẩn hoá y vậy.
+assert.equal(normWord('Hoà Bình'), 'hòa bình')
+assert.equal(normWord('thuỷ thủ'), 'thủy thủ')
+assert.equal(normWord('khoẻ mạnh'), 'khỏe mạnh')
+assert.equal(normWord('quý giá'), 'quý giá', '"qu" giữ nguyên')
+assert.equal(normWord('hoàn toàn'), 'hoàn toàn', 'có âm cuối thì không đổi')
+assert.equal(normWord('huế thuệ'), 'huế thuệ')
 
 // Chia: thứ tự lượt của server; người đầu tiên tới lượt, hạn = giờ chia + thời gian mỗi lượt.
 {
@@ -127,6 +139,40 @@ assert.equal(normWord('học sinh'), 'học sinh', 'chữ có dấu tổ hợp p
   assert.equal(nt.validate(authorGone, 0, { vote: true }), 'games.err.badMove')
 }
 
+// Từ điển: server ghi kèm { ok: true } → nhận ngay, không mở phiếu, không tốn lượt gửi.
+{
+  let s = begin([0, 1], { dict: 'mix' })
+  s = step(s, 0, { word: 'học sinh', ok: true }, 2000)
+  assert.deepEqual([s.vote, s.chain.map((c) => c.word), s.turn, s.deadline - T0, s.fresh, s.asks], [null, ['học sinh'], 1, 22000, false, 0])
+  assert.deepEqual(s.verdict, { word: 'học sinh', seat: 0, ok: true, dict: true })
+  s = step(s, 1, { word: 'sinh hoạt' }, 3000) // từ lạ → cả bàn duyệt như cũ
+  assert.equal(s.vote.word, 'sinh hoạt')
+}
+
+// Đảo từ: cấm thì không được trả "sinh học" sau "học sinh"; từ khác cùng phần nối vẫn được.
+{
+  const yes = step(begin([0, 1]), 0, { word: 'học sinh', ok: true }, 1000)
+  assert.equal(wordErr(yes, 'sinh học'), null, 'mặc định cho đảo')
+  const no = step(begin([0, 1], { flip: false }), 0, { word: 'học sinh', ok: true }, 1000)
+  assert.equal(wordErr(no, 'sinh học'), 'games.err.flipWord')
+  assert.equal(wordErr(no, 'sinh viên'), null)
+}
+
+// Lặp từ: nhận lại tối đa `repeat` lần; từ bị bác thì vẫn không gửi lại được.
+{
+  const play = (repeat) => {
+    let s = begin([0, 1], { repeat })
+    for (const [k, w] of ['học sinh', 'sinh học', 'học sinh', 'sinh học'].entries()) s = step(s, k % 2, { word: w, ok: true }, 1000 * (k + 1))
+    return s
+  }
+  assert.throws(() => play(0), /usedWord/, 'không cho lặp')
+  assert.equal(wordErr(play(1), 'học sinh'), 'games.err.usedWord', 'đã dùng 2 lần = lặp 1 lần')
+  assert.equal(wordErr(play(2), 'học sinh'), null)
+  let s = begin([0, 1], { repeat: 2 })
+  s = step(step(s, 0, { word: 'cá voi' }, 1000), 1, { vote: false }, 2000)
+  assert.equal(wordErr(s, 'cá voi'), 'games.err.usedWord')
+}
+
 // Dựng lại từ log: lấy giờ server ở cột at của từng dòng.
 {
   const room = { options: { time: 15 }, seed: 's', seats: [0, 1] }
@@ -140,14 +186,26 @@ assert.equal(normWord('học sinh'), 'học sinh', 'chữ có dấu tổ hợp p
   assert.deepEqual([s.chain.length, s.turn, s.deadline - T0, s.ply], [1, 0, 2000 + 15000, 3])
 }
 
-// SQL 0083 dùng cùng bảng chữ, cùng hằng số, cùng mã lỗi.
-{
-  const sql = readFileSync(new URL('../../../supabase/migrations/0083_games_noitu.sql', import.meta.url), 'utf8')
+// SQL 0083 / 0091 dùng cùng bảng chữ, cùng hằng số, cùng mã lỗi; 0091 đọc tuỳ chọn như optsOf.
+for (const f of ['0083_games_noitu.sql', '0091_games_noitu_dict.sql']) {
+  const sql = readFileSync(new URL('../../../supabase/migrations/' + f, import.meta.url), 'utf8')
   assert.ok(sql.includes('a-zàáảãạăằắẳẵặâầấẩẫậđèéẻẽẹêềếểễệìíỉĩịòóỏõọôồốổỗộơờớởỡợùúủũụưừứửữựỳýỷỹỵ]{1,10}'), 'bảng chữ tiếng Việt phải khớp JS')
   assert.ok(sql.includes(':= ' + VOTE_MS + ';') && sql.includes(':= ' + BONUS_MS + ';') && sql.includes(':= ' + ASKS + ';'))
   for (const k of ['badWord', 'noLink', 'usedWord', 'noVote', 'voted', 'voting', 'noAsks', 'notYet', 'late']) {
-    assert.ok(sql.includes('games.err.' + k), '0083 phải dùng mã lỗi ' + k)
+    assert.ok(sql.includes('games.err.' + k), f + ' phải dùng mã lỗi ' + k)
   }
+}
+{
+  const sql = readFileSync(new URL('../../../supabase/migrations/0091_games_noitu_dict.sql', import.meta.url), 'utf8')
+  for (const k of ['notInDict', 'deadEnd', 'flipWord']) assert.ok(sql.includes('games.err.' + k))
+  for (const frag of ["v_opt ->> 'dict' IN ('mix', 'dict')", "r.options ->> 'dict' IN ('mix', 'dict')", "(v_opt ->> 'repeat')::numeric IN (1, 2)",
+    "OR mv ? 'ok' THEN", `p_move || '{"ok": true}'::jsonb`]) assert.ok(sql.includes(frag), '0091 thiếu: ' + frag)
+  const data = readFileSync(new URL('../../../supabase/migrations/0092_games_words_vi.sql', import.meta.url), 'utf8')
+  const words = [...data.matchAll(/'([^'\n]+ [^'\n]+)'/g)].map((m) => m[1])
+  assert.ok(words.length > 40000, 'từ điển phải có vài chục nghìn từ')
+  const bad = words.filter((w) => wordErr(nt.setup({}), w) !== null || normWord(w) !== w)
+  assert.deepEqual(bad.slice(0, 5), [], 'mọi từ trong 0092 phải đúng mẫu và đã chuẩn hoá như normWord')
+  for (const w of ['học sinh', 'sinh viên', 'hòa bình']) assert.ok(words.includes(w), 'thiếu ' + w)
 }
 
 console.log('noitu check: OK')

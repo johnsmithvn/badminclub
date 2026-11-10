@@ -31,8 +31,12 @@ const DIAG = [[1, 1], [1, -1], [-1, 1], [-1, -1]]
 const inPalace = (r, c, seat) => c >= 3 && c <= 5 && (seat === 0 ? r >= 7 : r <= 2)
 const ownSide = (r, seat) => (seat === 0 ? r >= 5 : r <= 4)
 
-/** Nước đi theo hình quân của bên `seat` (chưa xét tướng bị chiếu / lộ mặt). */
-function pseudo(b, seat) {
+/**
+ * Nước đi theo hình quân của bên `seat` (chưa xét tướng bị chiếu / lộ mặt).
+ * Cờ úp (coup.js) truyền thêm: `kindAt(i)` = quân đi theo luật quân nào (quân úp đi theo quân gốc ở ô đó),
+ * `free(i)` = sĩ / tượng đã lật, đi khắp bàn (ra khỏi cung, qua sông).
+ */
+export function pseudo(b, seat, kindAt = (i) => typeOf(b[i]), free = () => false) {
   const out = []
   const add = (from, to) => { if (to >= 0 && colorOf(b[to]) !== seat) out.push({ from, to }) }
   for (let i = 0; i < POINTS; i++) {
@@ -40,17 +44,18 @@ function pseudo(b, seat) {
     if (p == null || colorOf(p) !== seat) continue
     const r = Math.floor(i / COLS)
     const c = i % COLS
-    switch (typeOf(p)) {
+    const kind = kindAt(i)
+    switch (kind) {
       case 'K':
         for (const [dr, dc] of ORTH) if (inPalace(r + dr, c + dc, seat)) add(i, at(r + dr, c + dc))
         break
       case 'A':
-        for (const [dr, dc] of DIAG) if (inPalace(r + dr, c + dc, seat)) add(i, at(r + dr, c + dc))
+        for (const [dr, dc] of DIAG) if (free(i) || inPalace(r + dr, c + dc, seat)) add(i, at(r + dr, c + dc))
         break
       case 'E':
         for (const [dr, dc] of DIAG) {
           const eye = at(r + dr, c + dc)
-          if (eye >= 0 && b[eye] == null && ownSide(r + 2 * dr, seat)) add(i, at(r + 2 * dr, c + 2 * dc))
+          if (eye >= 0 && b[eye] == null && (free(i) || ownSide(r + 2 * dr, seat))) add(i, at(r + 2 * dr, c + 2 * dc))
         }
         break
       case 'H':
@@ -67,7 +72,7 @@ function pseudo(b, seat) {
           for (let k = 1; ; k++) {
             const j = at(r + dr * k, c + dc * k)
             if (j < 0) break
-            if (typeOf(p) === 'R') {
+            if (kind === 'R') {
               if (b[j] == null) { out.push({ from: i, to: j }); continue }
               add(i, j)
               break
@@ -92,10 +97,10 @@ function pseudo(b, seat) {
   return out
 }
 
-const kingOf = (b, seat) => b.indexOf(seat === 0 ? 'K' : 'k')
+export const kingOf = (b, seat) => b.indexOf(seat === 0 ? 'K' : 'k')
 
 /** Hai tướng cùng cột, giữa không có quân nào. */
-function facing(b) {
+export function facing(b) {
   const k0 = kingOf(b, 0)
   const k1 = kingOf(b, 1)
   if (k0 % COLS !== k1 % COLS) return false

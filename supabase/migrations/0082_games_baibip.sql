@@ -16,6 +16,9 @@
 --                      tố → lật lá úp, log { call, cards, liar }; cắt → tra dây nổ, log { cut, boom };
 --                      ván mới (sau khi cắt, hoặc người thua đã rời bàn, hoặc bấm chia lại) → gắn { deal } vào nước đó.
 -- game_baibip_result — người cuối cùng còn trụ; game_finish 0075 dùng hàm này, bỏ kết quả client.
+-- Đồng hồ lượt: options.time giây (0 = không giới hạn), tính từ created_at của nước gần nhất. Máy bất kỳ báo
+-- { timeout } → _run chỉ nhận khi now() đã qua hạn (sớm → games.err.notYet, máy khách im lặng thử lại); _fill đi thay
+-- người tới lượt (1 lá ngẫu nhiên / tố khi bắt buộc / 1 dây ngẫu nhiên / chia ván) và log thêm "timeout": true.
 -- Chép luật lib/games/baibip.js — đổi luật thì sửa cả hai.
 
 /* ---------- Chia một ván ---------- */
@@ -87,8 +90,11 @@ $$;
 /* ---------- Dựng lại trận ---------- */
 -- p_move NULL: chỉ dựng lại (o_winner khi xong). p_move có: kiểm nước đó của p_seat trên thế hiện tại → o_err.
 -- o_table = lá chủ ván này · o_last = ghế đánh gần nhất trong ván · o_out = đã loại · o_turn · o_phase.
+-- Đổi danh sách OUT so với bản đầu → phải xoá bản cũ (chỉ là hàm, không đụng dữ liệu).
+DROP FUNCTION IF EXISTS public.game_baibip_run(uuid, int, jsonb);
 CREATE OR REPLACE FUNCTION public.game_baibip_run(p_room uuid, p_seat int, p_move jsonb,
-  OUT o_err text, OUT o_table int, OUT o_last int, OUT o_out boolean[], OUT o_turn int, OUT o_phase text, OUT o_winner int)
+  OUT o_err text, OUT o_table int, OUT o_last int, OUT o_out boolean[], OUT o_turn int, OUT o_phase text, OUT o_winner int,
+  OUT o_counts int[], OUT o_cuts int[])
 LANGUAGE plpgsql
 STABLE
 SECURITY DEFINER
@@ -103,6 +109,9 @@ DECLARE
   v_liar   boolean;
   v_loser  int;
   v_k      int;
+  v_opt    jsonb;
+  v_time   bigint;
+  v_since  bigint;
   d        jsonb;
   m        record;
   mv       jsonb;
@@ -110,10 +119,17 @@ DECLARE
   y        int;
   i        int;
 BEGIN
+  -- Đọc options như optsOf ở JS. CASE lồng nhau: chỉ ép kiểu số khi đúng là số.
+  SELECT options INTO v_opt FROM game_rooms WHERE id = p_room;
+  v_time := 1000 * CASE WHEN jsonb_typeof(v_opt -> 'time') = 'number'
+                        THEN CASE WHEN (v_opt ->> 'time')::numeric IN (0, 20, 30, 60) THEN (v_opt ->> 'time')::numeric::int ELSE 30 END
+                        ELSE 30 END;
   FOR m IN
-    SELECT x.seat, x.move, x.cand FROM (
-      SELECT seq, seat::int AS seat, move, false AS cand FROM game_moves WHERE room_id = p_room
-      UNION ALL SELECT 2147483647, p_seat, p_move, true WHERE p_move IS NOT NULL
+    SELECT x.seat, x.move, x.at, x.cand FROM (
+      SELECT seq, seat::int AS seat, move, floor(extract(epoch FROM created_at) * 1000)::bigint AS at, false AS cand
+        FROM game_moves WHERE room_id = p_room
+      UNION ALL
+      SELECT 2147483647, p_seat, p_move, floor(extract(epoch FROM now()) * 1000)::bigint, true WHERE p_move IS NOT NULL
     ) x ORDER BY x.seq
   LOOP
     mv := m.move;
@@ -121,10 +137,19 @@ BEGIN
 
     /* Nước đang xin ghi (máy khách gửi) — như validate ở JS. */
     IF m.cand THEN
+      o_counts := v_counts;
+      o_cuts := v_cuts;
       IF v_n IS NULL THEN o_err := 'games.err.badMove'; RETURN; END IF;
       IF v_over THEN o_err := 'games.err.over'; RETURN; END IF;
       IF jsonb_typeof(mv) IS DISTINCT FROM 'object' OR s IS NULL OR s < 0 OR s >= v_n OR o_out[s + 1] OR mv ? 'out' THEN
         o_err := 'games.err.badMove'; RETURN;
+      END IF;
+      -- Báo hết giờ: ai còn trụ cũng báo được, server đo bằng giờ của nó.
+      IF mv -> 'timeout' = 'true'::jsonb THEN
+        IF v_time = 0 OR o_turn IS NULL THEN o_err := 'games.err.badMove';
+        ELSIF m.at < v_since + v_time THEN o_err := 'games.err.notYet';
+        END IF;
+        RETURN;
       END IF;
       IF s <> o_turn THEN o_err := 'games.err.notYourTurn'; RETURN; END IF;
       IF o_phase = 'redeal' THEN
@@ -161,7 +186,12 @@ BEGIN
       RETURN;
     END IF;
 
-    /* Nước trong log — đã kiểm lúc ghi, chỉ áp (như apply ở JS). */
+    /* Nước trong log — đã kiểm lúc ghi, chỉ áp (như apply ở JS). Nước hết giờ áp như của người tới lượt. */
+    v_since := m.at;
+    IF mv -> 'timeout' = 'true'::jsonb THEN
+      IF o_turn IS NULL THEN CONTINUE; END IF;
+      s := o_turn;
+    END IF;
     d := NULL;
     IF v_n IS NULL THEN
       IF jsonb_typeof(mv -> 'deal') IS DISTINCT FROM 'object' THEN CONTINUE; END IF;
@@ -275,6 +305,9 @@ AS $$
 DECLARE
   r       record;
   v_out   boolean[];
+  v_auto  jsonb;
+  v_cnt   int[];
+  v_mask  int;
   v_n     int;
   v_hand  int[];
   v_play  int[];
@@ -291,6 +324,27 @@ BEGIN
   IF r.o_err IS NOT NULL THEN RAISE EXCEPTION '%', r.o_err; END IF;
   v_out := r.o_out;
   v_n := cardinality(v_out);
+
+  -- Hết giờ: server đi thay người tới lượt, log thêm "timeout": true.
+  IF p_move -> 'timeout' = 'true'::jsonb THEN
+    y := r.o_turn;
+    v_cnt := r.o_counts;
+    v_mask := r.o_cuts[y + 1];
+    IF r.o_phase = 'redeal' THEN
+      v_auto := '{"deal": true}'::jsonb;
+    ELSIF r.o_phase = 'cut' THEN
+      v_auto := jsonb_build_object('cut', (SELECT w FROM generate_series(0, 5) w WHERE (v_mask >> w) & 1 = 0 ORDER BY random() LIMIT 1));
+    ELSE
+      SELECT cards INTO v_hand FROM game_hands WHERE room_id = p_room AND seat = y;
+      IF COALESCE(cardinality(v_hand), 0) = 0
+         OR NOT EXISTS (SELECT 1 FROM generate_series(0, v_n - 1) g WHERE g <> y AND NOT v_out[g + 1] AND v_cnt[g + 1] > 0) THEN
+        v_auto := '{"call": true}'::jsonb;
+      ELSE
+        v_auto := jsonb_build_object('play', jsonb_build_array(v_hand[1 + floor(random() * cardinality(v_hand))::int]));
+      END IF;
+    END IF;
+    RETURN game_baibip_fill(p_room, y, v_auto) || '{"timeout": true}'::jsonb;
+  END IF;
 
   -- Chia lại ván bị huỷ (có người rời bàn giữa ván): người bấm đi trước.
   IF p_move -> 'deal' = 'true'::jsonb THEN

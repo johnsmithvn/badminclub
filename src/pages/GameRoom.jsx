@@ -1,4 +1,4 @@
-import { Suspense, useState } from 'react'
+import { lazy, Suspense, useState } from 'react'
 import { useNavigate, useParams } from 'react-router-dom'
 import { Alert, Avatar, Button, Dialog, Skeleton } from '#ds'
 import { Empty } from '#ui'
@@ -7,15 +7,26 @@ import { useMobile } from '#hooks/useMobile.js'
 import { useGameRoom } from '#components/games/useGameRoom.js'
 import { SCREENS } from '#components/games/screens.js'
 import { HowTo } from '#components/games/GameInfo.jsx'
+import { BOT_PREFIX } from '#lib/games/registry.js'
 import { pathOf } from '#routes'
 import { t } from '#i18n'
+
+// Chơi với máy (/tro-choi/may-<game>) dùng chung route với phòng thật, tải lười riêng.
+const BotRoom = lazy(() => import('#components/games/BotRoom.jsx'))
+
+export default function GameRoom() {
+  const { id } = useParams()
+  if (id?.startsWith(BOT_PREFIX)) {
+    return <Suspense fallback={<Skeleton height={320} />}><BotRoom key={id} gameId={id.slice(BOT_PREFIX.length)} /></Suspense>
+  }
+  return <RoomPage id={id} />
+}
 
 /**
  * Khung phòng chơi — dùng chung cho mọi game: ghế, chờ, bắt đầu, lượt, kết quả, chơi lại.
  * Màn chơi của từng game tải lười qua `SCREENS`. Đồng bộ: components/games/useGameRoom.js.
  */
-export default function GameRoom() {
-  const { id } = useParams()
+function RoomPage({ id }) {
   const { db, a, toast } = useApp()
   const navigate = useNavigate()
   const isMobile = useMobile(768)

@@ -1,6 +1,6 @@
 # GAMES.md — Phân hệ Mini-game trong CLB
 
-**Version:** v0.7.0 (Giai đoạn 1 — Caro, Ô ăn quan, Cờ gánh, Cờ lật, Chấm ô; Giai đoạn 2 — Tiến lên, Cờ vua, Cờ tướng, Cờ cá ngựa, Bắn tàu, Domino; Giai đoạn 3 — Bài bịp, Nối từ, Ma sói) · **Updated:** 2026-11-07 · **Nhánh:** `feat/games`
+**Version:** v0.7.0 (Giai đoạn 1 — Caro, Ô ăn quan, Cờ gánh, Cờ lật, Chấm ô; Giai đoạn 2 — Tiến lên, Cờ vua, Cờ tướng, Cờ cá ngựa, Bắn tàu, Domino; Giai đoạn 3 — Bài bịp, Nối từ, Ma sói; Giai đoạn 4 — Tiến lên miền Bắc, Cờ úp, Bầu cua, Lô tô, Xì dách, Phỏm) · **Updated:** 2026-11-08 · **Nhánh:** `feat/games`
 
 Thành viên cùng một CLB mở phòng và chơi game theo lượt với nhau ngay trong app.
 File này chốt **khung chung** trước khi viết game đầu tiên. Mỗi game sau này chỉ cắm vào khung,
@@ -234,6 +234,14 @@ Seed nằm trong DB mà mọi người đọc được → ai cũng tính đư�
   gửi một nước** `{ night }` (vai không có việc bấm Ngủ) và log chỉ ghi `{ night: true }` — nhìn log không đoán được ai
   có vai. Có Phù thủy trong bộ vai thì luôn có bước Phù thủy, kể cả khi Phù thủy đã chết. Xong bước thì máy bất kỳ gửi
   `{ next: true }`, server tính rồi ghi kết quả công khai (ai chết, lộ vai nào, Thợ săn, ai thắng).
+- **Đồng hồ lượt (Nối từ 0083, Bài bịp 0082, Ma sói 0084):** Supabase không có tiến trình chạy nền (RPC chạy xong là
+  hết, Realtime chỉ phát lại thay đổi DB), nên không có máy chủ nào tự "bấm giờ" như game server kiểu dautri.com. Thay
+  vào đó: hạn = `created_at` của nước mở bước + số giây phòng chọn; máy bất kỳ thấy hết giờ thì gửi nước báo hết giờ,
+  server so với `now()` — chưa hết thì `notYet` (client coi là cũ, thử lại sau). Bài bịp: `{ timeout: true }` → server
+  tự đi thay người tới lượt (lá ngẫu nhiên / tố khi bắt buộc / dây ngẫu nhiên / chia ván), log ghi như nước của người đó
+  kèm `timeout`. Ma sói: `{ next: true }` được nhận sớm khi hết giờ bước (đêm 45 giây, ngày theo phòng); ai chưa bấm
+  coi như Ngủ / phiếu trống / Thợ săn không bắn. Giờ = 0 thì tắt đồng hồ. Ai cũng thoát hết thì không ai báo — ván nằm
+  yên tới khi có người vào lại (không có cron).
 - **Game cả bàn cùng đi** (Ma sói, Nối từ): `state.turn` có thể là null cả bước. Game khai `status(state, mySeat)` →
   `{ key, params }` thì khung phòng hiện dòng đó thay cho "lượt của ai"; màn chơi tự quyết khi nào được bấm.
 
@@ -266,6 +274,7 @@ Free tier (khoảng 200 kết nối đồng thời, 2 triệu message/tháng) d�
 | --- | --- | --- |
 | `games` | `/tro-choi` | `pages/Games.jsx` |
 | `gameRoom` | `/tro-choi/:id` | `pages/GameRoom.jsx` |
+| (cùng `gameRoom`) | `/tro-choi/may-<game>` | `components/games/BotRoom.jsx` — chơi với máy, xem §7b |
 
 `routes: null` như mọi màn (ai trong CLB cũng vào). Lối vào: Sidebar + `MoreSheet` trên mobile.
 Không thêm vào `MobileFooterNav` (5 slot đã đầy).
@@ -288,6 +297,36 @@ Sảnh ── Tạo phòng (chọn game + tuỳ chọn) ──┐
                                            ▼
                          Phòng — KẾT QUẢ: ResultPanel, Chơi lại (tạo phòng mới cùng người)
 ```
+
+### 7b. Chơi với máy (luyện tập)
+
+8 trò: `BOT_GAMES` ở `registry.js` (Caro, Cờ vua, Cờ tướng, Ô ăn quan, Cờ gánh, Chấm ô, Cờ cá ngựa, Bắn tàu). Sảnh có
+nút **Chơi với máy** → `/tro-choi/may-<game>`; `GameRoom.jsx` thấy tiền tố `may-` thì mở `BotRoom` (tải lười).
+- **Chạy hẳn trong trình duyệt:** luật `lib/games/<id>.js`, không gọi server, không lưu, không tính thống kê. Phần server
+  điền ở phòng thật làm thay bằng `fillLocal` (`lib/games/bots/index.js`): đổ xúc xắc Cá ngựa, cất tàu / tra trúng trượt
+  Bắn tàu (tàu từng bên giữ trong state của BotRoom, máy chỉ đọc `state.shots`). Dùng lại đúng màn chơi `SCREENS`
+  (`BanTauBoard` nhận thêm `hands` thay cho `game_hands`).
+- **Mức Dễ / Vừa / Khó** — tự viết, chạy trong Web Worker (`bots/worker.js`, màn hình không đứng):
+  - `bots/search.js`: minimax + alpha-beta, đào sâu dần trong hạn giờ, tìm thêm nước ăn quân ở lá — Cờ vua, Cờ tướng,
+    Ô ăn quan, Cờ gánh. Gọi thẳng `game.apply` nên không bao giờ đi sai luật (đổi lại chậm hơn engine thật nhiều lần).
+  - `bots/heuristics.js`: chấm điểm từng nước — Caro (đếm thế + cửa sổ 5 ô, nước bắt buộc trước), Chấm ô (ăn ô, tránh
+    cạnh thứ 3, buộc phải cho thì cho ít nhất), Cá ngựa (đá, về chuồng, tránh đứng trong tầm 1–6 sau ngựa địch), Bắn
+    tàu (Dễ: ngẫu nhiên · Vừa: săn / diệt · Khó: bản đồ xác suất).
+  - Bảng độ sâu / giờ / `noise` ở `SEARCH` trong `bots/index.js`. Đa dạng: các nước kém nước tốt nhất ≤ `noise` được
+    chọn ngẫu nhiên (Dễ noise lớn, Khó gần 0); nước bằng điểm luôn được xáo trước.
+- **Mức Cao thủ** (chỉ Cờ vua, Cờ tướng) — engine nhúng, UCI, `bots/engine.js`, file ở `public/engines/` (GPL-3.0, giữ
+  `Copying.txt`; tải lười, chỉ người chọn Cao thủ mới tải):
+  - Cờ vua: Stockfish 18 lite single-thread (`stockfish@18.0.8` của nmrugg, ~7 MB, mọi trình duyệt hiện đại).
+  - Cờ tướng: Fairy-Stockfish (`fairy-stockfish-nnue.wasm@1.1.12`, ~1,7 MB) — bản đa luồng, cần SharedArrayBuffer ⇒
+    trang phải cách ly: header `COOP: same-origin` + `COEP: credentialless` **chỉ** cho `/tro-choi/may-cotuong`
+    (`vercel.json`, dev: plugin `isolateEnginePage` trong `vite.config.js`). Sảnh mở trang này bằng tải trang mới (không
+    chuyển kiểu SPA), rời trang bằng bất kỳ đường nào cũng tải lại (BotRoom) để trang khác (nhúng video) không bị cách ly. Safari / iPhone chưa hỗ
+    trợ `credentialless` ⇒ không cách ly được ⇒ máy lùi về mức Khó và báo cho người chơi.
+  - 10 nửa nước đầu xin engine 3 phương án (MultiPV), chọn ngẫu nhiên trong các nước kém nước tốt nhất ≤ 25 điểm —
+    khai cuộc không lặp lại; sau đó nước tốt nhất. Engine lỗi / không tải được ⇒ lùi về mức Khó.
+- Test: `bots.test.js` — máy đấu máy mọi trò mọi mức không đi sai luật; mức Khó thắng mức Dễ đa số ván (Caro, Ô ăn quan,
+  Cờ gánh, Chấm ô, Bắn tàu); thấy nước chiếu hết; điền thay server của Bắn tàu / Cá ngựa; FEN / UCI của engine.
+- Nâng cấp engine: tải bản mới vào `public/engines/<tên>/` (kiểm mã băm với npm), sửa đường dẫn ở `ENGINES` (engine.js).
 
 ### Hình ảnh — nhẹ mà vẫn đẹp
 
@@ -332,7 +371,8 @@ Sảnh ── Tạo phòng (chọn game + tuỳ chọn) ──┐
 - `tienlen.test.js` — kiểu bộ, chặn / chặt / chặt ngang, xếp hạng, cóng, thối, tới trắng, người rời; bộ mẫu chung với
   `supabase/manual/0078_games_tienlen_check.sql`. `covua.test.js` / `cotuong.test.js` — perft chuẩn, chiếu hết, hoà.
   `cangua.test.js` — ra quân, không nhảy qua, đá ngựa, về chuồng, người rời ván 3 người vẫn đủ ghế. `bantau.test.js`,
-  `domino.test.js`, `baibip.test.js`, `noitu.test.js`, `masoi.test.js` — luật phần công khai + hằng số / mã lỗi khớp SQL.
+  `domino.test.js`, `baibip.test.js`, `noitu.test.js`, `masoi.test.js`, `coup.test.js`, `baucua.test.js`, `loto.test.js`,
+  `xidach.test.js`, `phom.test.js` — luật phần công khai + hằng số / mã lỗi khớp SQL. `bots.test.js` — máy chơi (§7b).
 - `fixtures.mjs` — không phải test: sinh lại bộ ván mẫu trong file kiểm 0075, 0076 và 0077 (§5.1).
 - Mutation-test theo `RULES.md` §5.
 
@@ -350,6 +390,9 @@ RPC/RLS kiểm tay bằng `supabase/manual/0074_games_check.sql`, `0075_games_re
 | **2** | **Tiến lên** 2–4 người — đã code | bài úp trong `game_hands`, server chia + kiểm nước lúc ghi (§5.2) |
 | **2b** | **Cờ vua**, **Cờ tướng** 2 người · **Cờ cá ngựa** 2–4 · **Bắn tàu** 2 · **Domino** 2–4 — đã code | nước server điền (`game_<id>_fill`): xúc xắc, phát bắn, bốc nọc; kết quả `pending` |
 | **3** | **Bài bịp** 2–4 · **Nối từ** 2–8 · **Ma sói** 5–12 — đã code | lá úp nói dối, giờ theo server (`m.at`), vai bí mật + cả bàn cùng đi (`status`) |
+| **4** | **Tiến lên miền Bắc** (tuỳ chọn phòng) · **Cờ úp** 2 · **Bầu cua** 2–10 · **Lô tô** 2–10 · **Xì dách** 2–8 · **Phỏm** 2–4 — đã code (0085–0090) | cái xoay vòng nhiều ván trong một phòng, quân úp theo ô, nhóm bài khoá giấu ở ghế âm |
+| **4c** | **Chơi với máy** 8 trò, 3 mức tự viết + Cao thủ engine nhúng (Cờ vua, Cờ tướng) — đã code (§7b) | chạy luật ở trình duyệt, Web Worker, engine UCI |
+| **4b** | **Nối từ** có từ điển tiếng Việt + tuỳ chọn chặn từ cụt / đảo từ / lặp từ — đã code (0091–0092) | bảng dữ liệu chỉ server đọc, nước server đánh dấu `ok` |
 
 Tách repo / server game riêng chỉ khi: cần game hành động nhanh, mở cho người ngoài CLB,
 hoặc vượt quota Supabase.
@@ -423,7 +466,8 @@ nút "bỏ lượt" — state ghi `last.skipped`), cả hai không đi được 
   hơn chặt ngắn hơn). **4 đôi thông chặt ngang được** — ngoài lượt, kể cả đã bỏ lượt; lượt sau đi tiếp từ người chặt.
   Chặt chồng được. Tiền chặt (heo đen 1, heo đỏ 2, 3 đôi thông 3, tứ quý / 4 đôi thông 4) dồn cả chuỗi trong vòng,
   hết vòng người bị chặt sau cùng trả người chặt sau cùng (`pot` → `pay`).
-- **Lượt:** ván đầu ai cầm lá nhỏ nhất đi trước, nước đầu phải có lá đó; ván chơi lại người về Nhất đi trước, đánh tự do.
+- **Lượt:** ván đầu ai cầm lá nhỏ nhất đi trước, nước đầu phải có lá đó (tuỳ chọn phòng `options.lead = 'free'`: vẫn đi
+  trước nhưng đánh tự do — 0085 ghi `low = null`); ván chơi lại người về Nhất đi trước, đánh tự do.
   Bỏ lượt là mất quyền tới hết vòng; cả bàn bỏ thì người đánh cuối mở vòng (người đó đã về / rời thì ghế kế sau).
 - **Hết ván:** hết bài là về đích, ván chạy tới khi còn một người → `ranks` Nhất … Bét. Điểm hạng 4 người +3 +1 −1 −3,
   3 người +2 0 −2, 2 người +1 −1. **Cóng:** có người về Nhất mà ai chưa đánh lá nào → về chót, ăn gấp đôi điểm Bét.
@@ -432,6 +476,10 @@ nút "bỏ lượt" — state ghi `last.skipped`), cả hai không đi được 
 - **Tới trắng** lúc chia: sảnh rồng 3 → A, tứ quý heo, 5 đôi thông, 6 đôi (tứ quý tính hai đôi) → thắng luôn, xếp hạng
   những người khác theo ghế, không tính thối.
 - `result` = `{ winners: [Nhất], draw: false, ranks, scores }`.
+- **Miền Bắc** (`options.variant = 'bac'`, chọn lúc tạo phòng; 0085): chặn phải **đồng chất** — lẻ cùng chất, đôi / sám
+  cùng bộ chất (`mask`); sảnh phải cả dây một chất. Heo chặn mọi lẻ / đôi không phải heo. Tứ quý chặt heo, đôi heo, tứ
+  quý nhỏ hơn. Không có đôi thông, không chặt ngang, không tới trắng, không cóng. Về bằng nước có heo / tứ quý (**chốt**)
+  thì xếp dưới người còn bài. Thối chỉ tính heo + tứ quý.
 
 **Cờ vua** (`covua.js`, luật FIDE): đủ nhập thành, bắt tốt qua đường, phong cấp (chọn hậu / xe / tượng / mã), chiếu hết,
 hoà khi hết nước mà không bị chiếu / lặp thế 3 lần / 50 nước không ăn quân không đi tốt / thiếu quân chiếu hết. Gác bằng
@@ -463,13 +511,19 @@ lạ thì về 5). Mỗi lượt nối một nét ngang / dọc giữa hai chấ
 **Bài bịp** (`baibip.js`): 2–4 người, bộ 20 lá (6 Q, 6 K, 6 A, 2 Joker), mỗi ván chia 5 lá + một "lá chủ". Đến lượt úp 1–3
 lá và nhận đó là lá chủ (Joker luôn đúng), hoặc tố người vừa úp. Tố đúng thì người úp thua, tố oan thì người tố thua; người
 thua cắt một dây trên bom 6 dây của mình (một dây nổ, server giấu ở ghế -1) — nổ là bị loại. Ai cũng hết bài trừ mình thì
-bắt buộc tố. Còn một người là thắng. Rời bàn = bị loại; đang giữa ván thì chia ván mới (0082).
+bắt buộc tố. Còn một người là thắng. Rời bàn = bị loại; đang giữa ván thì chia ván mới (0082). Đồng hồ lượt 20 / 30 /
+60 giây hoặc tắt (mặc định 30): hết giờ máy tự đi thay.
 
 **Nối từ** (`noitu.js`): 2–8 người, thứ tự lượt server xáo. Tiếng Việt: từ 2 âm tiết, âm tiết đầu = âm tiết cuối của từ
-trước; English: bắt đầu bằng 1 hoặc 2 chữ cuối (tuỳ phòng). Không lặp từ đã dùng / đã bị bác. Không có từ điển: mỗi từ
-được cả bàn duyệt 8 giây, im lặng là nhận, bị bác khi phiếu bác nhiều hơn phiếu nhận; bị bác được cộng 3 giây, mỗi lượt
-gửi tối đa 2 từ. Hết giờ hoặc Chịu là bị loại, người kế bắt đầu bằng từ tự do. Giờ theo server: hết giờ do máy bất kỳ báo,
-0083 chỉ nhận khi đúng là đã hết.
+trước; English: bắt đầu bằng 1 hoặc 2 chữ cuối (tuỳ phòng). Từ bị bác không gửi lại; từ đã nhận được nhận lại tối đa
+`repeat` lần (0 / 1 / 2). Duyệt bằng phiếu: cả bàn duyệt 8 giây, im lặng là nhận, bị bác khi phiếu bác nhiều hơn phiếu
+nhận; bị bác được cộng 3 giây, mỗi lượt gửi tối đa 2 từ. Hết giờ hoặc Chịu là bị loại, người kế bắt đầu bằng từ tự do.
+Giờ theo server: hết giờ do máy bất kỳ báo, 0083 chỉ nhận khi đúng là đã hết.
+- **Từ điển (0091 / 0092, chỉ tiếng Việt):** bảng `game_words_vi` (~48 nghìn từ 2 âm tiết lọc từ UTS_Dictionary,
+  Apache-2.0; chỉ server đọc). Tuỳ chọn `dict`: `'vote'` (phòng cũ — chỉ bỏ phiếu), `'mix'` (mặc định phòng mới — có
+  trong từ điển thì `game_noitu_fill` ghi kèm `{ ok: true }`, nhận ngay; từ lạ thì bỏ phiếu), `'dict'` (không có trong
+  từ điển = `notInDict`, không tốn lượt gửi). `cut` = chặn từ cụt (`deadEnd`). `flip = false` cấm đảo từ vừa dùng
+  (`flipWord`). Dấu oa / oe / uy chuẩn về kiểu cũ ("hoà" → "hòa") ở `normWord` và trong dữ liệu 0092.
 
 **Ma sói** (`masoi.js`): 5–12 người, server làm quản trò (0084). Bộ vai theo số người (`tableOf`): 1 Sói (≤ 5 người),
 2 (≤ 8), 3 (từ 9); từ 8 người một Sói là Sói nguyền; rồi 2–6 vai đặc biệt theo thứ tự Tiên tri, Bảo vệ, Phù thủy, Thợ săn,
@@ -482,10 +536,36 @@ Già làng, Thần tình yêu; còn lại là Dân làng.
   (trừ rời bàn) được bắn một người.
 - **Ngày:** người còn sống bầu treo cổ hoặc bỏ qua; bị treo khi nhiều phiếu nhất và hơn hẳn mọi lựa chọn khác kể cả bỏ
   qua, hoà thì không ai.
+- **Đồng hồ:** mỗi bước đêm 45 giây, ban ngày 60 / 120 / 180 / 300 giây hoặc tắt (mặc định 120); hết giờ thì sang bước.
 - **Thắng:** hết Sói → Dân làng; Sói ≥ số người còn lại → bầy Sói; đôi tình nhân khác phe là hai người cuối → đôi đó.
   `result.winners` = mọi ghế của phe thắng.
 - **Lộ vai** (chủ phòng chọn, `options.reveal`): mọi người chết · chỉ người bị treo · không ai; hết ván lật hết. Rời bàn
   = chết, không lộ vai, không được bắn.
+
+**Cờ úp** (`coup.js`, 0086): bàn / luật Cờ tướng; trừ hai tướng, quân mỗi bên bị úp và xáo vào các ô xuất phát. Quân úp
+đi nước đầu theo quân gốc ở ô đó rồi lật; sĩ / tượng đã lật đi khắp bàn. Server giữ mặt thật (ghế -1, theo ô xuất phát) và
+điền `flip` / `took` lúc ghi. Chỉ còn hai tướng → hoà. ponytail: server chưa kiểm luật đi — client sửa code gửi nước sai bị
+mọi máy bỏ qua nhưng dò được mặt một quân úp; thêm kiểm luật ở SQL nếu đánh giải.
+
+**Bầu cua** (`baucua.js`, 0087): 2–10 người, cái xoay vòng theo ghế (`laps` vòng 1 / 2 / 3). Con đặt tối đa 10 điểm / ván
+(mức 1 / 2 / 5) rồi chốt (chốt 0 = bỏ ván). Cả bàn chốt hoặc hết giờ đặt (15 / 20 / 30 giây, mặc định 20) thì máy bất kỳ
+gửi `{ roll }`, server lắc 3 hột. Con ra k hột ăn k lần, không ra mất tiền đặt. Cái rời giữa ván → ván bỏ.
+
+**Lô tô** (`loto.js`, 0088): 2–10 người, server phát tờ 9 hàng × 5 số (cột 1–9, 10–19 … 80–90, không trùng — tờ công khai)
+và xướng số ngẫu nhiên theo nhịp 3 / 5 / 8 giây (mặc định 5). Hàng đủ 5 số đã xướng thì `{ kinh }`; kinh sai = `noKinh`.
+Người kinh đúng đầu tiên thắng.
+
+**Xì dách** (`xidach.js`, 0089): 2–8 người, cái xoay vòng (`laps`). Chia 2 lá úp; A tính 1 / 10 / 11 (2 lá) hoặc 1 / 10
+(từ 3 lá). Xì bàn > xì dách > ngũ linh (ít điểm thắng) > điểm thường; quắc thua bài không quắc, hai bên cùng quắc hoà.
+Con dằn từ 16, cái từ 15 (server kiểm — `notEnough`). Thắng thường +1, thắng bằng xì / ngũ linh +2. Cái có xì lật ngay; con
+có xì ngồi chờ. Cái dằn thì server ghi bài cả bàn (`show`). Đồng hồ lượt 20 / 30 / 45 giây hoặc tắt (mặc định 30).
+
+**Phỏm** (`phom.js`, 0090): 2–4 người, A = 1 … K = 13. Đi đầu 10 lá (ván chơi lại: người Nhất ván trước), còn lại 9.
+Ăn lá vừa đánh (phải ghép phỏm) hoặc bốc; lá ăn + lá ghép bị khoá (server giữ ở ghế -10 - s, log chỉ `{ eat: true }`).
+Mỗi người 4 lá rác; lượt 4 hạ (không phỏm = móm), gửi, đánh lá cuối. Ù = cả tay thành phỏm hoặc thừa ≤ 1 lá. Hạng: ít điểm
+lẻ nhất (bằng thì ai hạ trước), móm sau, rời bàn cuối. Trả: Nhì 1 · Ba 2 · Bét 3 · móm / rời 4 · bị ăn 1 · bị ăn chốt 4 ·
+ù mỗi người 5, người ù ăn đủ 3 lá của một nhà thì nhà đó đền cả làng. Không làm: ù khan, ù tròn, chuyển phỏm, thêm vòng.
+Đồng hồ lượt 20 / 30 / 45 giây hoặc tắt (hết giờ: bốc · hạ các nhóm khoá · đánh lá to nhất không khoá).
 
 Nguồn đã đối chiếu: [vi.wikipedia Cờ gánh](https://vi.wikipedia.org/wiki/C%E1%BB%9D_g%C3%A1nh),
 [FPT Shop](https://fptshop.com.vn/tin-tuc/thu-thuat/cach-choi-co-ganh-175672),

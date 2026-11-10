@@ -3,7 +3,8 @@ import { Button } from '#ds'
 import { useApp } from '#contexts/AppContext.jsx'
 import { useMobile } from '#hooks/useMobile.js'
 import { t } from '#i18n'
-import tl, { comboOf, faceOf, RANK_FACES, rankOf, SUIT_MARKS, suitOf } from '#lib/games/tienlen.js'
+import tl, { comboOf, faceOf } from '#lib/games/tienlen.js'
+import Card from '#components/games/PlayingCard.jsx'
 
 /**
  * Bàn Tiến lên: số lá / hạng từng ghế, bộ đang trên bàn, bài trên tay mình (chạm để chọn, Đánh / Bỏ lượt),
@@ -18,32 +19,6 @@ import tl, { comboOf, faceOf, RANK_FACES, rankOf, SUIT_MARKS, suitOf } from '#li
 const RED = 'var(--status-incident-fg)'
 const side = (seat) => t('games.tienlen.mark' + seat)
 const placeOf = (pos, n) => t(pos === n - 1 ? 'games.tienlen.placeLast' : 'games.tienlen.place' + pos)
-
-function Card({ c, on, small, onPick }) {
-  const w = small ? 30 : 42
-  return (
-    <button
-      type="button"
-      onClick={onPick}
-      disabled={!onPick}
-      aria-pressed={onPick ? !!on : undefined}
-      aria-label={faceOf(c)}
-      style={{
-        width: w, height: Math.round(w * 1.42), padding: 0, flexShrink: 0, borderRadius: small ? 5 : 7,
-        display: 'grid', placeItems: 'center', alignContent: 'center', gap: 1,
-        background: 'var(--surface-card)', color: suitOf(c) >= 2 ? RED : 'var(--text-primary)',
-        border: '1.5px solid ' + (on ? 'var(--border-focus-color)' : 'var(--border-default)'),
-        boxShadow: on ? 'var(--shadow-md)' : 'var(--shadow-xs)',
-        transform: on ? 'translateY(-10px)' : 'none', transition: 'transform var(--dur-fast) var(--ease-standard)',
-        font: (small ? '600 12px' : '600 15px') + '/1 var(--font-mono)', cursor: onPick ? 'pointer' : 'default',
-        opacity: 1, touchAction: 'manipulation',
-      }}
-    >
-      <span>{RANK_FACES[rankOf(c)]}</span>
-      <span style={{ fontSize: small ? 12 : 16 }}>{SUIT_MARKS[suitOf(c)]}</span>
-    </button>
-  )
-}
 
 export default function TienLenBoard({ state, mySeat, onMove, roomId, result }) {
   const { a } = useApp()
@@ -78,12 +53,13 @@ export default function TienLenBoard({ state, mySeat, onMove, roomId, result }) 
   const canPick = seated && !over && !state.out[mySeat]
   const move = sel.length ? { play: sel } : null
   const err = move ? tl.validate(state, mySeat, move) : null
-  const kind = move && comboOf(sel)?.kind
+  const kind = move && comboOf(sel, state.bac)?.kind
   const play = () => { if (move && !err) { setPick({ ply: -1, cards: [] }); onMove(move) } }
 
   const tagOf = (seat) => {
     const pos = state.order.indexOf(seat)
     if (state.cong.includes(seat)) return t('games.tienlen.cong')
+    if (state.chot?.includes(seat)) return t('games.tienlen.chot')
     if (state.left.includes(seat)) return over ? placeOf(pos, n) + ' · ' + t('games.tienlen.out') : t('games.tienlen.out')
     if (pos >= 0) return placeOf(pos, n)
     return state.passed[seat] ? t('games.tienlen.passed') : null
@@ -92,6 +68,7 @@ export default function TienLenBoard({ state, mySeat, onMove, roomId, result }) 
 
   return (
     <div style={{ display: 'grid', gap: 12, gridTemplateColumns: 'minmax(0, 1fr)' }}>
+      {state.bac && <span style={{ ...S.mono, textAlign: 'center' }}>{t('games.tienlen.variantOpt.bac')}</span>}
       <div style={{ display: 'grid', gap: 8, gridTemplateColumns: `repeat(${Math.min(n, isMobile ? 2 : 4)}, minmax(0, 1fr))` }}>
         {state.counts.map((k, seat) => {
           const on = state.turn === seat

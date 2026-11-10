@@ -6,6 +6,9 @@
 //     Trúng dây nổ → bị loại. Cắt xong là ván mới: người vừa cắt đi trước, nổ rồi thì người kế tiếp.
 //   - Người hết bài được bỏ qua; khi những người khác đều hết bài thì bắt buộc phải tố. Còn một người là thắng.
 //   - Rời bàn = bị loại. Đang đánh dở mà có người rời thì ván đó huỷ, chia lại (người tới lượt bấm chia).
+//   - Đồng hồ lượt (tuỳ phòng, 0 = không giới hạn): hết giờ thì máy bất kỳ báo { timeout }; server kiểm theo giờ của nó
+//     rồi đi thay người tới lượt — đánh 1 lá ngẫu nhiên (bắt buộc tố thì tố), cắt 1 dây ngẫu nhiên, hoặc chia ván mới.
+//     Log ghi { timeout: true, ...nước server đi thay }, áp như nước của người tới lượt.
 //
 // Game có THÔNG TIN ẨN (docs/GAMES.md §5.2): bài trên tay ở game_hands, dây nổ ở ghế -1, lá vừa úp ở ghế -2.
 // Server (0082 game_baibip_fill) kiểm từng nước, bớt lá khỏi tay, log chỉ ghi SỐ lá ({ play: k }). Tố: server lật
@@ -25,6 +28,11 @@ export const DECK = 20
 export const HAND = 5
 export const WIRES = 6
 export const JOKER = 3
+/** Giây mỗi lượt; 0 = không giới hạn. PHẢI khớp phần đọc options ở 0082. */
+export const TIMES = [0, 20, 30, 60]
+export const optsOf = (o) => ({ time: TIMES.includes(o?.time) ? o.time : 30 })
+/** Hạn lượt hiện tại (ms, giờ server = giờ ghi nước gần nhất + thời gian lượt) hoặc null. */
+export const deadlineOf = (s) => (s.opts.time && s.since != null && !s.over ? s.since + s.opts.time * 1000 : null)
 
 /** Loại lá: 0 Q · 1 K · 2 A · 3 Joker. */
 export const kindOf = (c) => (c >= 18 ? JOKER : Math.floor(c / 6))
@@ -67,21 +75,28 @@ const start = (s, d) => ({
 })
 const finish = (s) => ({ ...s, over: true, winner: s.out.findIndex((o) => !o), turn: null, phase: null })
 
-export default {
+const game = {
   id: 'baibip',
   minPlayers: 2,
   maxPlayers: 4,
-  defaultOptions: {},
+  defaultOptions: { time: 30 },
 
-  setup() {
+  setup({ options } = {}) {
     return {
-      started: false, n: 0, round: 0, table: null, counts: [], out: [], blown: [], cuts: [], phase: null, turn: null, pile: 0,
+      opts: optsOf(options), since: null, started: false, n: 0, round: 0, table: null, counts: [], out: [], blown: [], cuts: [], phase: null, turn: null, pile: 0,
       lastPlay: null, reveal: null, cutter: null, over: false, winner: null, last: null, ply: 0,
     }
   },
 
   validate(s, seat, move) {
     if (s.over) return 'games.err.over'
+    if (move?.timeout === true) {
+      const inner = { ...move }
+      delete inner.timeout
+      if (Object.keys(inner).length) return s.started && s.turn != null ? game.validate(s, s.turn, inner) : 'games.err.badMove'
+      // Máy khách báo hết giờ: server mới biết giờ thật (sớm thì games.err.notYet, máy tự thử lại).
+      return s.started && s.opts.time && Number.isInteger(seat) && seat >= 0 && seat < s.n && !s.out[seat] ? null : 'games.err.badMove'
+    }
     const d = move?.deal
     if (d !== undefined && d !== true && move.call === undefined && move.cut === undefined) {
       if (!s.started) return dealOk(null, d) && seat === d.first ? null : 'games.err.badMove'
@@ -121,7 +136,23 @@ export default {
   /** Mọi nước của người chơi đều cần server (lá thật, dây nổ, chia bài) — màn chơi không hiện trước. */
   request: (s, seat, move) => move?.out !== true,
 
-  apply(s0, seat, move) {
+  /** Áp nước; nước hết giờ áp như của người tới lượt. Ghi lại giờ server của nước (`since`) để tính hạn lượt sau. */
+  apply(s0, seat, move, meta) {
+    let s
+    if (move.timeout === true) {
+      const inner = { ...move }
+      delete inner.timeout
+      if (!Object.keys(inner).length) return s0 // chưa qua server
+      s = game.act(s0, s0.turn, inner)
+      if (s !== s0) s = { ...s, last: { ...s.last, timeout: true } }
+    } else {
+      s = game.act(s0, seat, move)
+    }
+    const at = Date.parse(meta?.at)
+    return s === s0 || !Number.isFinite(at) ? s : { ...s, since: at }
+  },
+
+  act(s0, seat, move) {
     const s = { ...s0, ply: s0.ply + 1 }
     const d = move.deal && typeof move.deal === 'object' ? move.deal : null
     if (d && move.call === undefined && move.cut === undefined) {
@@ -174,3 +205,5 @@ export default {
     return { winners: [s.winner], draw: false }
   },
 }
+
+export default game

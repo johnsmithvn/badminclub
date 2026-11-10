@@ -9,6 +9,9 @@
 //   - Thắng: hết Sói → Dân làng; Sói ≥ số người còn lại → Sói; đôi tình nhân khác phe là hai người cuối → đôi đó.
 //   - Lộ vai khi chết (chủ phòng chọn): mọi người chết · chỉ người bị treo cổ · không ai. Hết ván lộ hết.
 //   - Rời bàn = chết (không lộ vai, không được bắn).
+//   - Đồng hồ (tuỳ phòng, 0 = không giới hạn): mỗi bước đêm / Phù thủy / Thợ săn NIGHT_SEC giây, ban ngày opts.time giây,
+//     tính từ giờ server ghi nước mở bước (`since`). Hết giờ thì máy bất kỳ gửi { next } dù chưa đủ người — server
+//     (0084) kiểm giờ; ai chưa bấm coi như ngủ / bỏ phiếu trống / Thợ săn không bắn.
 //
 // KHÔNG LỘ AI CÓ VAI: mỗi bước đêm MỌI người còn sống đều gửi một nước { night } (dân thường bấm Ngủ). Server
 // (0084 game_masoi_fill) đọc vai, kiểm, cất lựa chọn vào ghế âm và log chỉ ghi { night: true }. Xong bước (đủ người,
@@ -30,9 +33,19 @@ export const MAX_PLAYERS = 12
 /** Loại dữ kiện riêng trong hàng game_hands. */
 export const F = { MATE: 1, SEEN: 2, BITTEN: 3, LOVERS: 4, PICK: 5, POTIONS: 6, GUARDED: 7, CURSE: 8, TURNED: 9 }
 const NEXT = ['witch', 'day', 'night', 'hunter', 'settle', 'over']
+/** Giây bàn bạc ban ngày; 0 = không giới hạn (cả đêm cũng không). PHẢI khớp 0084. */
+export const DAY_TIMES = [0, 60, 120, 180, 300]
+export const NIGHT_SEC = 45
 
 export const isWolf = (r) => r === WOLF || r === CURSED
-export const optsOf = (o) => ({ reveal: REVEALS.includes(o?.reveal) ? o.reveal : 'all' })
+export const optsOf = (o) => ({
+  reveal: REVEALS.includes(o?.reveal) ? o.reveal : 'all',
+  time: DAY_TIMES.includes(o?.time) ? o.time : 120,
+})
+
+/** Hạn của bước hiện tại (ms, giờ server) hoặc null (không giới hạn / chưa biết giờ). */
+export const deadlineOf = (s) =>
+  s.opts.time && s.since != null && s.phase && !s.over ? s.since + (s.phase === 'day' ? s.opts.time : NIGHT_SEC) * 1000 : null
 
 /** Bộ vai theo số người — 0084 game_masoi_deal dùng đúng bảng này. */
 export function tableOf(n) {
@@ -74,11 +87,11 @@ export default {
   id: 'masoi',
   minPlayers: MIN_PLAYERS,
   maxPlayers: MAX_PLAYERS,
-  defaultOptions: { reveal: 'all' },
+  defaultOptions: { reveal: 'all', time: 120 },
 
   setup({ options } = {}) {
     return {
-      opts: optsOf(options), started: false, n: 0, alive: [], left: [], phase: null, night: 0, acted: [], votes: [],
+      opts: optsOf(options), since: null, started: false, n: 0, alive: [], left: [], phase: null, night: 0, acted: [], votes: [],
       hunter: null, shot: null, after: null, settle: false, shown: [], events: [], over: null, turn: null, last: null, ply: 0,
     }
   },
@@ -95,7 +108,8 @@ export default {
       // Bản đã ghi (server điền): đang chờ chốt người rời thì chỉ 'settle' hoặc 'over'.
       const nx = move.next
       if (nx !== true && nx !== 'over' && !(NEXT.includes(nx) && (nx === 'settle') === s.settle)) return 'games.err.badMove'
-      return complete(s) ? null : 'games.err.notYet'
+      // Có đồng hồ thì chưa đủ người vẫn chốt được khi hết giờ — giờ thật chỉ server biết, server kiểm.
+      return complete(s) || (s.opts.time && s.phase) ? null : 'games.err.notYet'
     }
     if (move?.night !== undefined) {
       if (s.phase !== 'night' && s.phase !== 'witch') return 'games.err.badMove'
@@ -118,12 +132,14 @@ export default {
   /** Mọi nước của người chơi đều qua server (vai chỉ server biết) — màn chơi không hiện trước. */
   request: (s, seat, move) => move?.out !== true,
 
-  apply(s0, seat, move) {
+  apply(s0, seat, move, meta) {
     const s = { ...s0, ply: s0.ply + 1 }
+    const t = Date.parse(meta?.at)
+    const at = Number.isFinite(t) ? t : null
     if (move.deal) {
       const n = move.deal.n
       return {
-        ...s, started: true, n, alive: Array(n).fill(true), left: Array(n).fill(false), phase: 'night', night: 1,
+        ...s, since: at, started: true, n, alive: Array(n).fill(true), left: Array(n).fill(false), phase: 'night', night: 1,
         acted: Array(n).fill(false), votes: Array(n).fill(null), shown: Array(n).fill(null),
       }
     }
@@ -156,9 +172,11 @@ export default {
     const k = s.settle ? 'settle' : s.phase === 'day' ? 'hang' : s.phase === 'hunter' ? 'shot' : 'dawn'
     const ev = { k, night: s.night, dead }
     if (k === 'hang') ev.seat = move.hang ?? -1
-    if (k === 'shot') Object.assign(ev, { seat: s.hunter, target: s.shot })
+    if (k === 'shot') Object.assign(ev, { seat: s.hunter, target: s.shot ?? -1 })
     const events = nx === 'witch' || (k === 'settle' && !dead.length) ? s.events : [...s.events, ev]
-    const base = { ...s, alive, shown, events, votes: s.votes.map((v, i) => (alive[i] ? v : null)), last: { seat, next: nx } }
+    // Bước mới bắt đầu tính giờ từ nước này; chốt người rời giữ nguyên bước nên giữ nguyên giờ.
+    const since = nx === 'settle' ? s.since : at
+    const base = { ...s, since, alive, shown, events, votes: s.votes.map((v, i) => (alive[i] ? v : null)), last: { seat, next: nx } }
 
     if (nx === 'over') {
       const o = move.over || {}

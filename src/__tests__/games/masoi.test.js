@@ -4,7 +4,7 @@
 
 import assert from 'node:assert/strict'
 import { readFileSync } from 'node:fs'
-import ms, { complete, CUPID, CURSED, GUARD, HUNTER, optsOf, rowOf, SEER, tableOf, tallyOf, VILLAGER, WITCH, WOLF } from '#lib/games/masoi.js'
+import ms, { complete, CUPID, deadlineOf, NIGHT_SEC, CURSED, GUARD, HUNTER, optsOf, rowOf, SEER, tableOf, tallyOf, VILLAGER, WITCH, WOLF } from '#lib/games/masoi.js'
 import { replay } from '#lib/games/registry.js'
 
 const begin = (n, options) => ms.apply(ms.setup({ options }), 0, { deal: { n } })
@@ -26,9 +26,9 @@ const count = (t, r) => t.filter((x) => x === r).length
   assert.deepEqual([tableOf(8)[0], count(tableOf(8), WOLF)], [CURSED, 1], '8 người: 1 Sói nguyền + 1 Sói')
   assert.equal(count(tableOf(12), WOLF) + count(tableOf(12), CURSED), 3)
   assert.ok(tableOf(11).includes(CUPID) && !tableOf(10).includes(CUPID), 'Thần tình yêu từ 11 người')
-  assert.deepEqual(optsOf({}), { reveal: 'all' })
-  assert.deepEqual(optsOf({ reveal: 'none' }), { reveal: 'none' })
-  assert.deepEqual(optsOf({ reveal: 'x' }), { reveal: 'all' })
+  assert.equal(optsOf({}).reveal, 'all')
+  assert.equal(optsOf({ reveal: 'none' }).reveal, 'none')
+  assert.equal(optsOf({ reveal: 'x' }).reveal, 'all')
   assert.deepEqual(rowOf([1, 1, 0, 0, 1, 3, 0]), { role: 1, facts: [[1, 0, 0], [1, 3, 0]] })
   assert.equal(rowOf([]), null)
 }
@@ -36,7 +36,7 @@ const count = (t, r) => t.filter((x) => x === r).length
 // Chia + đêm: mọi người còn sống đều phải bấm (dân thường bấm Ngủ) thì mới chốt được.
 {
   assert.equal(ms.validate(ms.setup({}), 0, { deal: { n: 4 } }), 'games.err.badMove', 'tối thiểu 5 người')
-  let s = begin(6)
+  let s = begin(6, { time: 0 }) // không đồng hồ: chưa đủ người là chưa chốt được
   assert.deepEqual([s.phase, s.night, s.alive.length, s.turn], ['night', 1, 6, null])
   assert.equal(ms.request(s, 0, { night: { target: 2 } }), true)
   assert.equal(ms.request(s, 0, { out: true }), false)
@@ -161,6 +161,31 @@ const count = (t, r) => t.filter((x) => x === r).length
   ]
   const s = replay(ms, room, log)
   assert.deepEqual([s.opts.reveal, s.phase, s.alive, s.votes[1], s.ply], ['hanged', 'day', [true, true, true, true, false], 0, 8])
+}
+
+// Đồng hồ: bước mở lúc server ghi nước; hết giờ thì chốt được dù chưa đủ người (server kiểm giờ).
+{
+  const T0 = Date.parse('2026-11-08T10:00:00Z')
+  const at = (ms) => ({ at: new Date(T0 + ms).toISOString() })
+  assert.deepEqual(optsOf({}), { reveal: 'all', time: 120 })
+  assert.deepEqual(optsOf({ time: 45 }).time, 120, 'số lạ về mặc định — khớp 0084')
+  let s = ms.apply(ms.setup({ options: { time: 60 } }), 0, { deal: { n: 5 } }, at(0))
+  assert.equal(deadlineOf(s) - T0, NIGHT_SEC * 1000)
+  s = ms.apply(s, 1, { night: true }, at(5000))
+  assert.equal(deadlineOf(s) - T0, NIGHT_SEC * 1000, 'người bấm không gia hạn bước')
+  assert.equal(ms.validate(s, 2, { next: true }), null, 'chưa đủ người vẫn gửi được — server kiểm hết giờ chưa')
+  s = ms.apply(s, 2, { next: 'day', dead: [], shown: [], hang: -1 }, at(46000))
+  assert.deepEqual([s.phase, deadlineOf(s) - T0], ['day', 46000 + 60000])
+  s = ms.apply(s, 3, { out: true }, at(50000))
+  s = ms.apply(s, 0, { next: 'settle', dead: [], shown: [] }, at(51000))
+  assert.equal(deadlineOf(s) - T0, 106000, 'chốt người rời không đổi giờ của bước')
+  // Thợ săn hết giờ không bắn: diễn biến ghi "không bắn".
+  let h = ms.apply(s, 0, { next: 'hunter', hunter: 4, dead: [4], shown: [[4, HUNTER]], hang: 4 }, at(107000))
+  h = ms.apply(h, 0, { next: 'night', dead: [], shown: [], hang: -1 }, at(153000))
+  assert.deepEqual(h.events.at(-1), { k: 'shot', night: 1, dead: [], seat: 4, target: -1 })
+  const sql = readFileSync(new URL('../../../supabase/migrations/0084_games_masoi.sql', import.meta.url), 'utf8')
+  assert.ok(sql.includes('IN (0, 60, 120, 180, 300)') && sql.includes('ELSE 120 END'), 'bảng giờ + mặc định khớp DAY_TIMES')
+  assert.ok(sql.includes('ELSE ' + NIGHT_SEC * 1000 + ' END'), 'giờ đêm khớp NIGHT_SEC')
 }
 
 // SQL 0084 dùng cùng bảng vai, cùng mã lỗi.

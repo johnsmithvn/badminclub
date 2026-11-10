@@ -1,10 +1,11 @@
 import { useId, useState } from 'react'
 import { t } from '#i18n'
-import { colorOf, COLS, movesFrom, POINTS, typeOf } from '#lib/games/cotuong.js'
+import { colorOf, COLS, movesFrom as moves0, POINTS, typeOf } from '#lib/games/cotuong.js'
 
 // Bàn Cờ tướng bằng SVG: mặt gỗ, 9 × 10 đường, sông giữa bàn, cung có đường chéo, quân tròn khắc chữ Hán truyền
 // thống (đỏ / đen). Ghế 1 (quân đen) thấy bàn xoay 180° để quân mình ở dưới — chữ trên quân vẫn đứng thẳng.
 // Chạm quân → chấm điểm đi được → chạm điểm. Quân vừa đi trượt tới (effects.css: gameSlide). Luật: lib/games/cotuong.js.
+// Cờ úp (CoUpBoard) dùng lại bàn này: truyền `movesFrom` của coup.js; quân úp ('X' / 'x') vẽ mặt lưng, không chữ.
 
 const G = 56 // khoảng cách hai đường
 const M = 36 // lề
@@ -21,7 +22,7 @@ const CHARS = [
 ]
 const PALACE = [[0, 3, 2, 5], [0, 5, 2, 3], [7, 3, 9, 5], [7, 5, 9, 3]]
 
-export default function CoTuongBoard({ state, mySeat, canMove, onMove }) {
+export default function CoTuongBoard({ state, mySeat, canMove, onMove, movesFrom = moves0, reasons = 'games.cotuong.reason.' }) {
   const uid = useId().replace(/[^a-zA-Z0-9]/g, '')
   const [picked, setPicked] = useState(null)
   const flip = mySeat === 1
@@ -101,10 +102,14 @@ export default function CoTuongBoard({ state, mySeat, canMove, onMove }) {
                 <circle r={24} fill={mix('var(--navy-950)', 30)} cy={2.5} />
                 <circle r={24} fill={`url(#${uid}disc)`} stroke={COLOR[side]} strokeWidth={2.2} />
                 <circle r={19} fill="none" stroke={COLOR[side]} strokeWidth={1.2} opacity={0.7} />
-                <text textAnchor="middle" dominantBaseline="central" y={1} fill={COLOR[side]}
-                  style={{ font: "700 23px/1 'KaiTi', 'STKaiti', 'Noto Serif CJK SC', 'Songti SC', serif" }}>
-                  {CHARS[side][typeOf(p)]}
-                </text>
+                {p === 'X' || p === 'x'
+                  ? <circle r={13} fill={mix(COLOR[side], 35)} stroke={COLOR[side]} strokeWidth={1.2} strokeDasharray="3 3" />
+                  : (
+                    <text textAnchor="middle" dominantBaseline="central" y={1} fill={COLOR[side]}
+                      style={{ font: "700 23px/1 'KaiTi', 'STKaiti', 'Noto Serif CJK SC', 'Songti SC', serif" }}>
+                      {CHARS[side][typeOf(p)]}
+                    </text>
+                  )}
               </g>
             </g>
           )
@@ -132,7 +137,7 @@ export default function CoTuongBoard({ state, mySeat, canMove, onMove }) {
 
       <div style={{ ...S.hint, color: state.check != null && canMove ? 'var(--status-incident-fg)' : S.hint.color }}>
         {state.over
-          ? t('games.cotuong.reason.' + state.reason)
+          ? t(reasons + state.reason)
           : canMove
             ? state.check != null ? t('games.cotuong.inCheck') : sel == null ? t('games.cotuong.pickHint') : t('games.cotuong.moveHint')
             : state.check != null ? t('games.cotuong.check') : ''}

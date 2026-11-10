@@ -1,35 +1,54 @@
 // Nối từ. 2–8 người, lần lượt nói một từ nối tiếp từ trước; bí từ / hết giờ là bị loại, còn một người là thắng.
 //   - Tiếng Việt: từ 2 âm tiết, âm tiết đầu = âm tiết cuối của từ trước ("học sinh" → "sinh viên").
 //   - English: từ bắt đầu bằng 1 hoặc 2 chữ cái cuối của từ trước (tuỳ phòng), dài hơn phần nối.
-//   - Không lặp từ đã dùng / đã bị bác trong ván. Thứ tự lượt server xáo ngẫu nhiên mỗi ván.
+//   - Từ bị bác không gửi lại được; từ đã nhận được nhận lại tối đa `repeat` lần (0 / 1 / 2, tuỳ phòng).
+//     Tuỳ phòng cấm đảo từ vừa dùng (`flip` = false: "học sinh" → "sinh học"). Thứ tự lượt server xáo mỗi ván.
 //   - Mỗi lượt có hạn giờ (tuỳ phòng). Bấm Chịu hoặc hết giờ là bị loại; người kế tiếp bắt đầu lại bằng từ tự do.
-//   - KHÔNG có từ điển: mỗi từ gửi lên được cả bàn duyệt trong 8 giây (đồng hồ của người gửi dừng lại). Không ai
-//     phản đối là được; bị bác khi phiếu bác nhiều hơn phiếu chấp nhận. Bị bác thì người gửi được cộng 3 giây để tìm
-//     từ khác; mỗi lượt gửi tối đa 2 từ.
+//   - Kiểm từ (`dict`, chỉ tiếng Việt — từ điển ở bảng game_words_vi, 0091/0092, chỉ server đọc):
+//       'vote' — cả bàn duyệt mỗi từ trong 8 giây (đồng hồ của người gửi dừng lại). Không ai phản đối là được; bị bác
+//                khi phiếu bác nhiều hơn phiếu chấp nhận. Bị bác thì được cộng 3 giây; mỗi lượt gửi tối đa 2 từ.
+//       'mix'  — từ có trong từ điển được nhận ngay (server ghi kèm { ok: true }), từ lạ thì cả bàn duyệt như trên.
+//       'dict' — chỉ nhận từ có trong từ điển (server báo games.err.notInDict, không mất lượt gửi).
+//     `cut` (chặn từ cụt): từ phải còn ít nhất một từ trong từ điển nối tiếp được (games.err.deadEnd).
+//     Từ điển chỉ server kiểm — validate ở đây không biết, nên hai lỗi trên chỉ đến từ server.
 //
 // Thời gian lấy theo giờ SERVER: mỗi nước có `at` = game_moves.created_at (registry.replay đưa vào tham số thứ 4).
 // Hết giờ / hết hạn duyệt do một máy bất kỳ báo bằng { timeout } / { close }; server (0083 game_noitu_check) chỉ nhận
 // khi đúng là đã hết giờ, nên luật ở đây không cần đồng hồ. Đổi luật ở đây là phải đổi cả ở 0083.
 //
 // state = { opts, started, order[] (ghế theo thứ tự lượt), alive[] (theo ghế), turn, deadline (ms), now (ms của nước
-//           gần nhất), chain[] ({ word, seat }), used[] (từ đã dùng + bị bác), vote { word, seat, at, left, yes[], no[] },
-//           asks, fresh (từ tự do, không cần nối), verdict { word, seat, ok }, over, winner, last, ply }
-// move  = { deal: { order } } (server) · { word } · { vote: bool } · { close } · { giveup } · { timeout } · { out } (server)
+//           gần nhất), chain[] ({ word, seat }), bad[] (từ bị bác), vote { word, seat, at, left, yes[], no[] },
+//           asks, fresh (từ tự do, không cần nối), verdict { word, seat, ok, dict? }, over, winner, last, ply }
+// move  = { deal: { order } } (server) · { word, ok? } (ok do server điền) · { vote: bool } · { close } · { giveup } ·
+//         { timeout } · { out } (server)
 
 export const VOTE_MS = 8000
 export const BONUS_MS = 3000
 export const ASKS = 2
 export const TIMES = [15, 20, 30]
 export const MAX_PLAYERS = 8
+export const DICTS = ['mix', 'dict', 'vote']
+export const REPEATS = [0, 1, 2]
 const VI = 'a-zàáảãạăằắẳẵặâầấẩẫậđèéẻẽẹêềếểễệìíỉĩịòóỏõọôồốổỗộơờớởỡợùúủũụưừứửữựỳýỷỹỵ' // i18n-ok: bảng chữ cái của regex kiểm từ, dữ liệu chứ không phải nhãn
 const WORD = { vi: new RegExp(`^[${VI}]{1,10} [${VI}]{1,10}$`), en: /^[a-z]{2,24}$/ }
 
-/** Chuẩn hoá chữ gõ vào (máy khách gọi trước khi gửi): NFC, chữ thường, một dấu cách. */
-export const normWord = (w) => String(w ?? '').normalize('NFC').toLowerCase().trim().replace(/\s+/g, ' ')
+// Dấu thanh của vần oa / oe / uy cuối âm tiết đặt ở chữ đầu (kiểu cũ): "hoà" → "hòa", "thuỷ" → "thủy" (trừ "qu").
+// Không dùng lookbehind: Safari < 16.4 (iPhone đời cũ) không hiểu, hỏng cả chunk game.
+const TONE = /(^|[^q])([ou])([aey])([\u0300\u0301\u0303\u0309\u0323])(?=\s|$)/g
 
-/** Tuỳ chọn phòng — số / chữ lạ thì về mặc định. PHẢI khớp phần đọc options ở 0083. */
+/** Chuẩn hoá chữ gõ vào (máy khách gọi trước khi gửi): NFC, chữ thường, một dấu cách, dấu oa / oe / uy kiểu cũ
+ *  (từ điển 0092 cũng chuẩn hoá y vậy — hai người gõ hai kiểu vẫn ra cùng một từ). */
+export const normWord = (w) => String(w ?? '').toLowerCase().trim().replace(/\s+/g, ' ')
+  .normalize('NFD').replace(TONE, '$1$2$4$3').normalize('NFC')
+
+/** Tuỳ chọn phòng — số / chữ lạ thì về mặc định (phòng cũ: bỏ phiếu, cho đảo, không lặp). PHẢI khớp 0091. */
 export function optsOf(o) {
-  return { lang: o?.lang === 'en' ? 'en' : 'vi', link: o?.link === 2 ? 2 : 1, time: TIMES.includes(o?.time) ? o.time : 20 }
+  const vi = o?.lang !== 'en'
+  const dict = vi && DICTS.includes(o?.dict) ? o.dict : 'vote'
+  return {
+    lang: vi ? 'vi' : 'en', link: o?.link === 2 ? 2 : 1, time: TIMES.includes(o?.time) ? o.time : 20,
+    dict, cut: dict !== 'vote' && o?.cut === true, flip: !(vi && o?.flip === false), repeat: REPEATS.includes(o?.repeat) ? o.repeat : 0,
+  }
 }
 
 /** Phần nối bắt buộc cho từ kế tiếp ('' = từ tự do). */
@@ -39,12 +58,14 @@ export function linkOf(s) {
   return s.opts.lang === 'vi' ? prev.split(' ')[1] + ' ' : prev.slice(-s.opts.link)
 }
 
-/** Từ hợp lệ không (đúng dạng, đúng phần nối, chưa dùng). */
+/** Từ hợp lệ không (đúng dạng, đúng phần nối, không đảo / lặp quá luật). Từ điển chỉ server kiểm. */
 export function wordErr(s, w) {
   if (typeof w !== 'string' || !WORD[s.opts.lang].test(w)) return 'games.err.badWord'
   const link = linkOf(s)
   if (link && (!w.startsWith(link) || w.length <= link.length)) return 'games.err.noLink'
-  return s.used.includes(w) ? 'games.err.usedWord' : null
+  if (link && !s.opts.flip && w === link + s.chain[s.chain.length - 1].word.split(' ')[0]) return 'games.err.flipWord'
+  if (s.bad.includes(w) || s.chain.filter((c) => c.word === w).length > s.opts.repeat) return 'games.err.usedWord'
+  return null
 }
 
 const atOf = (meta) => {
@@ -69,6 +90,14 @@ function eliminate(s, who, at) {
   return { ...next, turn: nextAlive(next, who), deadline: at + s.opts.time * 1000, fresh: true, asks: 0 }
 }
 
+/** Nhận từ: vào chuỗi, sang người kế. */
+function take(s, word, seat, at, verdict) {
+  return {
+    ...s, chain: [...s.chain, { word, seat }], vote: null, verdict,
+    turn: nextAlive(s, seat), deadline: at + s.opts.time * 1000, fresh: false, asks: 0,
+  }
+}
+
 /** Chốt phiếu khi đã rõ kết quả (closing = hết 8 giây: tính theo phiếu đang có). */
 function decide(s, at, closing) {
   const v = s.vote
@@ -79,24 +108,19 @@ function decide(s, at, closing) {
   const ok = closing ? no <= yes : yes >= no + und
   if (!ok && !(closing || no > yes + und)) return s
   const verdict = { word: v.word, seat: v.seat, ok }
-  if (ok) {
-    return {
-      ...s, chain: [...s.chain, { word: v.word, seat: v.seat }], used: [...s.used, v.word], vote: null, verdict,
-      turn: nextAlive(s, v.seat), deadline: at + s.opts.time * 1000, fresh: false, asks: 0,
-    }
-  }
-  return { ...s, used: [...s.used, v.word], vote: null, verdict, deadline: at + v.left + BONUS_MS }
+  if (ok) return take(s, v.word, v.seat, at, verdict)
+  return { ...s, bad: [...s.bad, v.word], vote: null, verdict, deadline: at + v.left + BONUS_MS }
 }
 
 export default {
   id: 'noitu',
   minPlayers: 2,
   maxPlayers: MAX_PLAYERS,
-  defaultOptions: { lang: 'vi', link: 1, time: 20 },
+  defaultOptions: { lang: 'vi', link: 1, time: 20, dict: 'mix', cut: false, flip: true, repeat: 0 },
 
   setup({ options } = {}) {
     return {
-      opts: optsOf(options), started: false, order: [], alive: [], turn: null, deadline: null, now: null, chain: [], used: [],
+      opts: optsOf(options), started: false, order: [], alive: [], turn: null, deadline: null, now: null, chain: [], bad: [],
       vote: null, asks: 0, fresh: true, verdict: null, over: false, winner: null, last: null, ply: 0,
     }
   },
@@ -153,6 +177,7 @@ export default {
       return alive.filter(Boolean).length <= 1 ? eliminate(gone, seat, now) : { ...gone, alive }
     }
     if (move.word !== undefined) {
+      if (move.ok === true) return take({ ...s, last: { seat, word: move.word } }, move.word, seat, now, { word: move.word, seat, ok: true, dict: true })
       return {
         ...s, asks: s.asks + 1, last: { seat, word: move.word },
         vote: { word: move.word, seat, at: now, left: Math.max(0, s.deadline - now), yes: [], no: [] },

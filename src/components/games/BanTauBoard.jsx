@@ -8,6 +8,7 @@ import { CELLS, randomFleet, SHIPS, SIZE } from '#lib/games/bantau.js'
 // (chạm ô để bắn). Đầu ván xếp tàu: bấm Xếp ngẫu nhiên tới khi ưng, rồi Chốt — tàu cất ở server (game_hands), đối
 // thủ không thấy. Tàu đã chốt nạp lại từ game_hands; hết ván (server chốt kết quả) thì lật tàu đối phương.
 // Luật: lib/games/bantau.js.
+// Chơi với máy (BotRoom) truyền sẵn `hands` (tàu theo ghế, dạng phẳng như game_hands) — khỏi hỏi server.
 // ponytail: chỉ xếp ngẫu nhiên, chưa kéo thả từng tàu — thêm khi người chơi cần.
 
 const Q = 30
@@ -78,7 +79,7 @@ function Sea({ title, fleet, sunk, shots, onFire, aria, hot }) {
   )
 }
 
-export default function BanTauBoard({ state, mySeat, canMove, onMove, roomId, result }) {
+export default function BanTauBoard({ state, mySeat, canMove, onMove, roomId, result, hands: given }) {
   const { a } = useApp()
   const [draft, setDraft] = useState(() => randomFleet())
   const [hands, setHands] = useState(null) // { roomId, hands } — tàu đã chốt (của mình; hết ván: cả hai)
@@ -87,14 +88,14 @@ export default function BanTauBoard({ state, mySeat, canMove, onMove, roomId, re
   const placedMe = seated && state.placed[mySeat]
   const reveal = !!result
   useEffect(() => {
-    if (!(placedMe || reveal)) return undefined
+    if (given || !(placedMe || reveal)) return undefined
     let live = true
     a.gameHand(roomId).then((h) => { if (live) setHands({ roomId, hands: h }) }).catch((e) => console.warn('[games] Không nạp được tàu:', e?.message || e))
     return () => { live = false }
-  }, [a, roomId, placedMe, reveal])
+  }, [a, roomId, placedMe, reveal, given])
 
   const fleetOf = (seat) => {
-    const cells = hands?.roomId === roomId ? hands.hands?.[seat] : null
+    const cells = given ? given[seat] : hands?.roomId === roomId ? hands.hands?.[seat] : null
     return cells?.length ? cut(cells) : null
   }
   const wait = asked === state.ply

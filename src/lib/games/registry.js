@@ -15,10 +15,20 @@ import domino from '#lib/games/domino.js'
 import baibip from '#lib/games/baibip.js'
 import noitu from '#lib/games/noitu.js'
 import masoi from '#lib/games/masoi.js'
+import coup from '#lib/games/coup.js'
+import baucua from '#lib/games/baucua.js'
+import loto from '#lib/games/loto.js'
+import xidach from '#lib/games/xidach.js'
+import phom from '#lib/games/phom.js'
 
-export const GAMES = { caro, oanquan, coganh, colat, chamo, tienlen, covua, cotuong, cangua, bantau, domino, baibip, noitu, masoi }
+export const GAMES = { caro, oanquan, coganh, colat, chamo, tienlen, covua, cotuong, cangua, bantau, domino, baibip, noitu, masoi,
+  coup, baucua, loto, xidach, phom }
 
 export const GAME_IDS = Object.keys(GAMES)
+
+/** Trò có chế độ chơi với máy (lib/games/bots) — vào bằng /tro-choi/may-<id> (GameRoom.jsx tách sang BotRoom). */
+export const BOT_GAMES = ['caro', 'covua', 'cotuong', 'oanquan', 'coganh', 'chamo', 'cangua', 'bantau']
+export const BOT_PREFIX = 'may-'
 
 export const gameOf = (id) => GAMES[id] || null
 

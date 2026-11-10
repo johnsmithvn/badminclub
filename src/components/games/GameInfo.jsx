@@ -3,6 +3,7 @@ import { Button, Dialog } from '#ds'
 import { useMobile } from '#hooks/useMobile.js'
 import { t } from '#i18n'
 import { RANK_FACES, rankOf, SUIT_MARKS, suitOf } from '#lib/games/tienlen.js'
+import { BauCuaIcon } from '#components/games/BauCuaIcons.jsx'
 
 // Phần giới thiệu dùng chung của sảnh (pages/Games.jsx) và phòng chơi (pages/GameRoom.jsx):
 // tranh minh hoạ từng game (SVG tự vẽ, màu theo token — tự đổi sáng / tối) và hộp thoại "Cách chơi".
@@ -10,7 +11,8 @@ import { RANK_FACES, rankOf, SUIT_MARKS, suitOf } from '#lib/games/tienlen.js'
 
 const TONE = { caro: 'scheduled', oanquan: 'delayed', coganh: 'transit', colat: 'delivered', chamo: 'idle', tienlen: 'incident',
   covua: 'scheduled', cotuong: 'delayed', cangua: 'delivered',
-  bantau: 'transit', domino: 'idle', baibip: 'delayed', noitu: 'transit', masoi: 'incident' }
+  bantau: 'transit', domino: 'idle', baibip: 'delayed', noitu: 'transit', masoi: 'incident',
+  coup: 'scheduled', baucua: 'delivered', loto: 'delayed', xidach: 'idle', phom: 'transit' }
 const mix = (c, pct) => `color-mix(in srgb, ${c} ${pct}%, transparent)`
 const RED = 'var(--status-incident)'
 const BLUE = 'var(--navy-400)'
@@ -418,10 +420,103 @@ function MaSoiArt() {
   )
 }
 
+/** Lá bài nhỏ dùng cho tranh Xì dách / Phỏm. `back` = lá úp. */
+function MiniCard({ c, x, y, rot = 0, back }) {
+  const ink = suitOf(c) >= 2 ? 'var(--status-incident-fg)' : 'var(--text-primary)'
+  return (
+    <g transform={`rotate(${rot} ${x + 15} ${y + 22})`}>
+      <rect x={x} y={y} width={30} height={44} rx={4} fill={back ? BLUE : 'var(--surface-card)'} stroke={back ? 'var(--gray-0)' : 'var(--border-default)'} />
+      {!back && <text x={x + 4} y={y + 11} fill={ink} style={{ font: '600 8.5px var(--font-mono)' }}>{RANK_FACES[rankOf(c)]}</text>}
+      {!back && <text x={x + 15} y={y + 30} fill={ink} textAnchor="middle" style={{ font: '400 15px var(--font-mono)' }}>{SUIT_MARKS[suitOf(c)]}</text>}
+    </g>
+  )
+}
+
+function CoUpArt() {
+  // Khúc bàn cờ tướng: vài quân đã lật khắc chữ, vài quân còn úp (vòng nét đứt, không chữ).
+  const ink = 'var(--status-scheduled-fg)'
+  const pieces = [['俥', 0, 1, RED], [null, 1, 1, RED], [null, 3, 0, 'var(--navy-950)'], ['砲', 4, 2, 'var(--navy-950)'], [null, 5, 2, RED], ['帥', 2, 3, RED], [null, 6, 0, 'var(--navy-950)']]
+  return (
+    <>
+      <g stroke={mix(ink, 40)} strokeWidth={1.3}>
+        {[0, 1, 2, 3].map((r) => <line key={'h' + r} x1={20} y1={18 + r * 20} x2={140} y2={18 + r * 20} />)}
+        {Array.from({ length: 7 }, (_, c) => <line key={'v' + c} x1={20 + c * 20} y1={18} x2={20 + c * 20} y2={78} />)}
+      </g>
+      {pieces.map(([ch, c, r, color], k) => (
+        <g key={k} transform={`translate(${20 + c * 20} ${18 + r * 20})`}>
+          <circle r={8.5} fill={ch ? 'var(--gray-0)' : 'var(--gray-100, var(--gray-0))'} stroke={color} strokeWidth={1.4} />
+          {ch
+            ? <text textAnchor="middle" dominantBaseline="central" y={0.5} fill={color} style={{ font: '700 9.5px/1 serif' }}>{ch}</text>
+            : <circle r={5} fill="none" stroke={color} strokeDasharray="2 2" opacity={0.7} />}
+        </g>
+      ))}
+    </>
+  )
+}
+
+function BauCuaArt() {
+  // Ba con xúc xắc vừa mở bát: bầu, cua, cá.
+  return (
+    <>
+      <ellipse cx={80} cy={84} rx={64} ry={7} fill={mix('var(--status-delivered-fg)', 14)} />
+      {['bau', 'cua', 'ca'].map((sym, k) => (
+        <g key={sym}>
+          <rect x={14 + k * 46} y={26 - (k % 2) * 8} width={40} height={40} rx={8} fill="var(--surface-card)" stroke="var(--border-default)" />
+          <BauCuaIcon sym={sym} size={32} g x={18 + k * 46} y={30 - (k % 2) * 8} />
+        </g>
+      ))}
+    </>
+  )
+}
+
+function LoToArt() {
+  // Một khúc vé dò: 3 hàng × 9 cột, vài số đã đánh dấu; quả bóng số vừa xướng.
+  const ink = 'var(--status-delayed-fg)'
+  const rows = [[4, null, 23, null, 41, null, 66, null, 85], [null, 12, null, 37, 45, null, null, 78, 90], [7, null, 28, null, null, 53, 61, 74, null]]
+  const hit = [23, 45, 61, 7]
+  return (
+    <>
+      <rect x={8} y={20} width={110} height={58} rx={6} fill="var(--surface-card)" stroke={mix(ink, 45)} />
+      {rows.flatMap((row, r) => row.map((n, c) => n != null && (
+        <g key={r + '-' + c}>
+          {hit.includes(n) && <circle cx={20 + c * 11.5} cy={32 + r * 17} r={6.2} fill={mix(RED, 30)} />}
+          <text x={20 + c * 11.5} y={32 + r * 17} textAnchor="middle" dominantBaseline="central" fill="var(--text-primary)" style={{ font: '600 7px var(--font-mono)' }}>{n}</text>
+        </g>
+      )))}
+      <circle cx={136} cy={34} r={16} fill={RED} />
+      <circle cx={136} cy={34} r={9.5} fill="var(--gray-0)" />
+      <text x={136} y={34.5} textAnchor="middle" dominantBaseline="central" fill="var(--text-primary)" style={{ font: '700 10px var(--font-mono)' }}>45</text>
+    </>
+  )
+}
+
+function XiDachArt() {
+  // Xì dách: A♠ + K♥ ngửa, nhà cái hai lá úp.
+  return (
+    <>
+      <ellipse cx={80} cy={88} rx={62} ry={7} fill={mix('var(--text-primary)', 8)} />
+      <MiniCard back x={20} y={22} rot={-8} />
+      <MiniCard back x={40} y={22} rot={4} />
+      <MiniCard c={44} x={86} y={26} rot={-6} />
+      <MiniCard c={43} x={110} y={26} rot={8} />
+    </>
+  )
+}
+
+function PhomArt() {
+  // Một phỏm dọc 5♣ 6♣ 7♣ đã hạ và một phỏm ngang 9 9 9.
+  const runs = [[9, 13, 17], [24, 26, 27]]
+  return (
+    <>
+      {runs.map((g, r) => g.map((c, k) => <MiniCard key={c} c={c} x={10 + r * 76 + k * 20} y={24 + r * 6} rot={(k - 1) * 4} />))}
+    </>
+  )
+}
+
 const ART = {
   caro: CaroArt, oanquan: OAnQuanArt, coganh: CoGanhArt, colat: CoLatArt, chamo: ChamOArt, tienlen: TienLenArt,
   covua: CoVuaArt, cotuong: CoTuongArt, cangua: CaNguaArt, bantau: BanTauArt, domino: DominoArt, baibip: BaiBipArt, noitu: NoiTuArt,
-  masoi: MaSoiArt,
+  masoi: MaSoiArt, coup: CoUpArt, baucua: BauCuaArt, loto: LoToArt, xidach: XiDachArt, phom: PhomArt,
 }
 
 /** Dải tranh của game: nền màu theo tông của game, tranh SVG co theo chiều cao. */
