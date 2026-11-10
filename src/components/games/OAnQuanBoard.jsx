@@ -3,6 +3,7 @@ import { Button } from '#ds'
 import { useMobile } from '#hooks/useMobile.js'
 import { t } from '#i18n'
 import { isQuanNon, queueStates, sideOf } from '#lib/games/oanquan.js'
+import cfg from '#config/app.js'
 
 // Bàn Ô ăn quan bằng SVG, vẽ phẳng theo design system (không bóng, không gradient): bàn hình viên thuốc như bàn
 // vẽ phấn — hai đầu bán nguyệt là ô quan —, sỏi mờ một màu có viền mảnh, quan là viên đá lớn màu đỏ (quan non vẽ
@@ -12,6 +13,16 @@ import { isQuanNon, queueStates, sideOf } from '#lib/games/oanquan.js'
 // Nước vừa đi được diễn lại từng bước (bốc → rải từng viên → ăn) từ `state.last.frames` (lib/games/oanquan.js).
 // Nước tới trong lúc đang diễn thì XẾP HÀNG (queueStates), diễn xong nước này mới tới nước kế — không cắt ngang.
 // Chạm bàn để xem ngay. Máy bật "giảm chuyển động" thì không diễn.
+// Tốc độ diễn ×1 / ×2 / ×3 (cfg.games.oanquanSpeeds, mặc định mức đầu) — mỗi máy tự nhớ, không ảnh hưởng người kia.
+
+const SPEEDS = cfg.games.oanquanSpeeds
+const SPEED_KEY = 'oanquan:speed'
+function loadSpeed() {
+  try {
+    const n = Number(localStorage.getItem(SPEED_KEY))
+    return SPEEDS.includes(n) ? n : SPEEDS[0]
+  } catch { return SPEEDS[0] }
+}
 
 const C = 80 // cạnh một ô dân
 const PAD = 10 // viền gỗ quanh các ô
@@ -83,18 +94,27 @@ export default function OAnQuanBoard(props) {
   const done = useCallback(() => setQ((cur) => (cur.length > 1 ? cur.slice(1) : cur)), [])
   const shown = queue[0]
   const more = queue.length > 1
+  // Tốc độ nằm ở đây (Board dựng lại theo từng nước nên không giữ được).
+  const [speed, setSpeed] = useState(loadSpeed)
+  const pickSpeed = useCallback((n) => {
+    setSpeed(n)
+    try { localStorage.setItem(SPEED_KEY, String(n)) } catch { /* trình duyệt chặn lưu — bỏ qua */ }
+  }, [])
   // key theo ply: mỗi nước mới dựng lại Board → bộ đếm khung bắt đầu từ 0, ô đang chọn tự bỏ.
   // Còn nước chờ diễn thì chưa cho đi (bàn đang hiện thế cũ).
-  return <Board key={shown.ply} {...props} state={shown} canMove={props.canMove && !more} more={more} onDone={done} animate={!still && shown.ply > mountPly} />
+  return (
+    <Board key={shown.ply} {...props} state={shown} canMove={props.canMove && !more} more={more} onDone={done}
+      animate={!still && shown.ply > mountPly} speed={still ? null : speed} onSpeed={pickSpeed} />
+  )
 }
 
-function Board({ state, mySeat, canMove, onMove, animate, more, onDone }) {
+function Board({ state, mySeat, canMove, onMove, animate, more, onDone, speed, onSpeed }) {
   const isMobile = useMobile(768)
   const frames = animate && state.last?.frames?.length ? state.last.frames : null
   const [k, setK] = useState(frames ? 0 : null)
   const [picked, setPicked] = useState(null)
-  // Cả nước đi diễn trong ~4 giây dù dài hay ngắn; khung đầu (lúc bốc) đứng lâu gấp đôi cho dễ theo.
-  const tick = frames ? Math.max(70, Math.min(240, Math.round(4200 / frames.length))) : 0
+  // Ở ×1 cả nước đi diễn trong ~4 giây dù dài hay ngắn; ×N thì nhịp chia N. Khung đầu (lúc bốc) đứng lâu gấp đôi cho dễ theo.
+  const tick = frames ? Math.round(Math.max(70, Math.min(240, 4200 / frames.length)) / (speed || 1)) : 0
 
   useEffect(() => {
     if (k == null) return undefined
@@ -243,6 +263,18 @@ function Board({ state, mySeat, canMove, onMove, animate, more, onDone }) {
                   <Button size={isMobile ? 'touch' : 'md'} iconAfter="arrow-right" onClick={() => go(1)}>{t('games.oanquan.sowRight')}</Button>
                 </>
               )}
+        </div>
+      )}
+
+      {/* Tốc độ diễn lại — hàng riêng để không xô lệch hàng nút rải. Máy bật "giảm chuyển động" (không diễn) thì ẩn. */}
+      {speed != null && (
+        <div role="group" aria-label={t('games.oanquan.speed')} style={{ display: 'flex', gap: 6, alignItems: 'center', justifyContent: 'center' }}>
+          <span style={S.hint}>{t('games.oanquan.speed')}</span>
+          {SPEEDS.map((n) => (
+            <Button key={n} size="sm" variant={speed === n ? 'primary' : 'secondary'} aria-pressed={speed === n} onClick={() => onSpeed(n)}>
+              {t('games.oanquan.speedOpt', { n })}
+            </Button>
+          ))}
         </div>
       )}
     </div>

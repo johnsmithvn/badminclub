@@ -6387,6 +6387,8 @@
       "cellAria": "Ô dân bên bạn, {{n}} viên sỏi",
       "pickHint": "Chạm một ô dân bên bạn để chọn, rồi chọn chiều rải",
       "skipHint": "Đang rải sỏi · chạm bàn để xem ngay kết quả",
+      "speed": "Tốc độ rải",
+      "speedOpt": "×{{n}}",
       "sowLeft": "Rải sang trái",
       "sowRight": "Rải sang phải",
       "howto": "Bàn có 10 ô dân, mỗi ô 5 viên sỏi, và 2 ô quan ở hai đầu. Hàng dưới là của bạn.\nĐến lượt, chọn một ô dân bên mình còn sỏi và chọn chiều: bốc hết sỏi trong ô, rải vào mỗi ô kế tiếp một viên.\nRải hết mà ô kế tiếp là ô dân còn sỏi thì bốc ô đó rải tiếp. Gặp ô quan thì dừng.\nÔ kế tiếp trống thì ăn cả ô sau nó; sau đó cứ một ô trống rồi một ô có sỏi là ăn tiếp. Hai ô trống liền thì hết lượt.\nQuan non: ô quan còn dưới 5 dân thì chưa ăn được, gặp là mất lượt.\nĐến lượt mà hàng mình hết sỏi thì lấy 5 điểm của mình rải lại mỗi ô một viên; không đủ 5 điểm thì hết ván.\nHết cả hai quan thì sỏi còn bên nào về bên đó. Quan tính 10 điểm, mỗi viên dân 1 điểm, nhiều điểm hơn thì thắng."

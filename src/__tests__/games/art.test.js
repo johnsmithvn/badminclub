@@ -29,6 +29,13 @@ SYMS.forEach((_, k) => assert.ok(html(BauCuaIcon, { sym: k }).includes('<svg'), 
   const out = html(OAnQuanBoard, { state: s, mySeat: 1, canMove: true, onMove() {} })
   assert.ok(!out.includes('gamePop'), 'bàn đứng yên mà sỏi vẫn mang gamePop — mỗi nước mới cả bàn sẽ nảy')
   assert.equal((out.match(/translate\(/g) || []).length, s.stones.reduce((a, n) => a + n, 0), 'mỗi viên sỏi trên bàn phải được vẽ đúng một lần')
+  // Nút tốc độ: đủ các mức trong cấu hình, mặc định (chưa từng chọn) là mức đầu — ×1.
+  const { default: cfg } = await import('#config/app.js')
+  const speeds = cfg.games.oanquanSpeeds
+  assert.equal(speeds[0], 1, 'mức tốc độ mặc định phải là ×1')
+  const pressed = [...out.matchAll(/<button\b[^>]*aria-pressed="(true|false)"[^>]*>([\s\S]*?)<\/button>/g)].map((m) => [m[1], m[2].replace(/<style[\s\S]*?<\/style>/g, '').replace(/<[^>]+>/g, '').trim()])
+  assert.deepEqual(pressed.map((p) => p[1]), speeds.map((n) => '×' + n), 'thiếu / thừa nút tốc độ so với cfg.games.oanquanSpeeds')
+  assert.deepEqual(pressed.filter((p) => p[0] === 'true').map((p) => p[1]), ['×1'], 'chưa chọn gì thì ×1 phải là nút đang bật')
 }
 
 console.log('games art check: OK')

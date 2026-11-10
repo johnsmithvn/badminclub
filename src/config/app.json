@@ -265,7 +265,7 @@
     "shelfMax": 40
   },
   "games": {
-    "_note": "Mini-game trong CLB (0074, docs/GAMES.md). lobbyPollMs: nhịp sảnh hỏi lại danh sách phòng (sảnh không nghe realtime). lobbyLimit: số phòng đang mở tối đa nạp ra sảnh. statsLimit: số ván đã xong gần nhất dùng đếm thắng thua. staleHours: phòng đang chờ quá ngần ấy giờ thì sảnh ẩn đi. caroSizes: các cỡ bàn cho chọn khi tạo phòng Caro (server chặn 3..25 — 0088; bàn 3 là X-O cổ điển, 3 quân thắng). chamoSizes: các cỡ bàn Chấm ô cho chọn (số ô mỗi cạnh; luật nhận 2..8, cỡ khác tự về 5 — lib/games/chamo.js, 0077). pingSec: nhịp người ngồi ghế báo còn kết nối. offlineSec: quá ngần ấy giây không thấy nhịp thì hiện mất kết nối. reconnectGraceSec: người ván đang chờ (tới lượt / chưa bấm) vắng quá ngần ấy giây, tính từ lúc ván bắt đầu chờ, thì bị xử thua — PHẢI khớp số giây trong game_claim của 0074 / 0078 / 0085 (test gác). claimRetrySec: server từ chối (lệch giờ) thì bao lâu sau thử đòi lại. coinHistory: số lần cộng / trừ xu gần nhất hiện trong thẻ Xu trò chơi ở Hồ sơ (0093).",
+    "_note": "Mini-game trong CLB (0074, docs/GAMES.md). lobbyPollMs: nhịp sảnh hỏi lại danh sách phòng (sảnh không nghe realtime). lobbyLimit: số phòng đang mở tối đa nạp ra sảnh. statsLimit: số ván đã xong gần nhất dùng đếm thắng thua. staleHours: phòng đang chờ quá ngần ấy giờ thì sảnh ẩn đi. caroSizes: các cỡ bàn cho chọn khi tạo phòng Caro (server chặn 3..25 — 0088; bàn 3 là X-O cổ điển, 3 quân thắng). chamoSizes: các cỡ bàn Chấm ô cho chọn (số ô mỗi cạnh; luật nhận 2..8, cỡ khác tự về 5 — lib/games/chamo.js, 0077). pingSec: nhịp người ngồi ghế báo còn kết nối. offlineSec: quá ngần ấy giây không thấy nhịp thì hiện mất kết nối. reconnectGraceSec: người ván đang chờ (tới lượt / chưa bấm) vắng quá ngần ấy giây, tính từ lúc ván bắt đầu chờ, thì bị xử thua — PHẢI khớp số giây trong game_claim của 0074 / 0078 / 0085 (test gác). claimRetrySec: server từ chối (lệch giờ) thì bao lâu sau thử đòi lại. coinHistory: số lần cộng / trừ xu gần nhất hiện trong thẻ Xu trò chơi ở Hồ sơ (0093). oanquanSpeeds: các mức tốc độ diễn lại nước đi của bàn Ô ăn quan (×N), mức đầu là mặc định.",
     "pingSec": 20,
     "offlineSec": 45,
     "reconnectGraceSec": 120,
@@ -276,6 +276,7 @@
     "statsLimit": 500,
     "staleHours": 6,
     "caroSizes": [3, 15, 19],
-    "chamoSizes": [3, 4, 5, 6]
+    "chamoSizes": [3, 4, 5, 6],
+    "oanquanSpeeds": [1, 2, 3]
   }
 }
