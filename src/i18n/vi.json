@@ -6253,22 +6253,35 @@
       "mine": "Ví: {{n}} xu",
       "unit": "xu",
       "stake": "Mức cược",
+      "pointValue": "Giá 1 điểm",
       "noStake": "Không cược",
       "stakeOpt": "{{n}} xu",
       "stakePill": "Cược {{n}}",
-      "hintPoints": "Hết ván mỗi điểm ăn thua đổi thành {{n}} xu (điểm × mức cược).",
-      "hintWin": "Hết ván mỗi người thua mất {{n}} xu, người thắng chia nhau. Hoà thì không ai mất.",
-      "broke": "Ví bạn còn {{n}} xu — không đủ cho mức cược này.",
-      "roomHint": "Phòng cược {{n}} xu: ví phải còn ít nhất {{n}} xu mới ngồi được.",
+      "hintPoints": "Mỗi điểm ăn thua {{n}} xu. Mỗi người mang {{min}}–{{max}} xu vào bàn, thua nhiều nhất bằng số mang vào.",
+      "hintWin": "Bắt đầu ván mỗi người góp {{n}} xu vào hũ. Người thắng chia hũ, hoà thì ai lấy lại phần nấy.",
+      "broke": "Ví bạn còn {{n}} xu — cần ít nhất {{min}} xu để ngồi bàn này.",
+      "roomHint": "Phòng cược {{n}} xu: bấm Bắt đầu thì mỗi người góp {{n}} xu vào hũ, người thắng chia hũ.",
+      "roomHintPoints": "Giá 1 điểm {{n}} xu. Mỗi người chọn mang {{min}}–{{max}} xu vào bàn; bấm Bắt đầu mới trừ ví, hết ván trả lại phần còn.",
+      "buyin": "Xu mang vào bàn",
+      "buyinPill": "Mang {{n}} xu",
+      "onTable": "Trên bàn {{n}} xu",
       "delta": "{{n}} xu",
-      "boardHint": "Xu ảo, không dính tiền thật. Ai cũng bắt đầu với {{n}} xu, thắng thua cộng dồn mãi. Chỉ hiện người đã chơi phòng có cược.",
+      "boardHint": "Xu ảo, không dính tiền thật. Ai cũng bắt đầu với {{n}} xu, thắng thua cộng dồn mãi. Ví không bao giờ âm; còn dưới {{relief}} xu thì mỗi ngày được cứu trợ cho đủ {{relief}}. Chỉ hiện người đã chơi phòng có cược.",
       "line": "{{n}} ván cược · {{w}} thắng · {{l}} thua · {{net}}",
       "emptyTitle": "Chưa ai chơi phòng có cược",
       "emptyHint": "Tạo phòng, chọn Mức cược để bắt đầu",
       "profileTitle": "Xu trò chơi",
       "profileSub": "Xu ảo trong mục Trò chơi, không phải tiền thật",
       "profileNone": "Bạn chưa chơi phòng có cược nào — ví đang ở mức khởi đầu {{n}} xu.",
-      "openRoom": "Mở lại phòng này"
+      "openRoom": "Mở lại phòng này",
+      "kind": {
+        "open": "Mở ví",
+        "buyin": "Mang vào bàn",
+        "cashout": "Nhận về",
+        "refund": "Hoàn xu ván bỏ",
+        "legacy": "Kết ván",
+        "relief": "Cứu trợ"
+      }
     },
     "emptyTitle": "Chưa có phòng nào đang mở",
     "emptyHint": "Tạo phòng rồi chép link mời gửi cho bạn cùng CLB",
@@ -7057,6 +7070,8 @@
       "youBanker": "Bạn đang làm cái — chờ mọi người đặt rồi mở bát.",
       "locked": "Đã chốt — chờ mở bát.",
       "pickHint": "Chọn mức rồi chạm vào con muốn đặt (còn {{n}} điểm).",
+      "pointValue": "1 điểm = {{n}} xu · đang đặt {{total}} xu",
+      "broke": "Bạn hết xu trên bàn — ván này không đặt được.",
       "chip": "Mức đặt",
       "lock": "Chốt {{n}} điểm",
       "lockZero": "Bỏ ván này",
@@ -7073,7 +7088,7 @@
       "timeOpt": "{{n}} giây",
       "laps": "Số vòng làm cái",
       "lapsOpt": "{{n}} vòng",
-      "howto": "Ba hột xúc xắc, mỗi mặt một con: bầu, cua, tôm, cá, gà, nai. Chơi bằng điểm, không dính tiền.\nMỗi ván một người làm cái, lần lượt theo ghế. Những người khác chọn mức rồi chạm vào các con muốn đặt, tổng tối đa 10 điểm một ván.\nĐặt xong bấm Chốt — chốt rồi không sửa được. Chốt 0 điểm là bỏ ván đó.\nCả bàn chốt xong hoặc hết giờ đặt thì mở bát. Con nào ra k hột thì người đặt được k lần số điểm đã đặt (cái trả); con không ra thì cái ăn số điểm đặt.\nCái rời bàn giữa ván thì ván đó bỏ, chuyển cái cho người kế.\nMỗi người làm cái đủ số vòng đã chọn thì hết ván. Ai nhiều điểm nhất thắng."
+      "howto": "Ba hột xúc xắc, mỗi mặt một con: bầu, cua, tôm, cá, gà, nai. Chơi bằng điểm, không dính tiền.\nPhòng có cược: mỗi điểm tính thành xu theo Giá 1 điểm của phòng, và không đặt quá số xu bạn còn trên bàn.\nMỗi ván một người làm cái, lần lượt theo ghế. Những người khác chọn mức rồi chạm vào các con muốn đặt, tổng tối đa 10 điểm một ván.\nĐặt xong bấm Chốt — chốt rồi không sửa được. Chốt 0 điểm là bỏ ván đó.\nCả bàn chốt xong hoặc hết giờ đặt thì mở bát. Con nào ra k hột thì người đặt được k lần số điểm đã đặt (cái trả); con không ra thì cái ăn số điểm đặt.\nCái rời bàn giữa ván thì ván đó bỏ, chuyển cái cho người kế.\nMỗi người làm cái đủ số vòng đã chọn thì hết ván. Ai nhiều điểm nhất thắng."
     },
     "loto": {
       "name": "Lô tô",
@@ -7237,8 +7252,9 @@
       "badSend": "Lá này không gửi được vào phỏm đó",
       "notU": "Chưa đủ phỏm để ù — phải phủ ít nhất 9 lá",
       "flipped": "Bạn đã lật bài rồi",
-      "noCoins": "Ví xu của bạn không đủ cho mức cược của phòng này",
-      "noCoinsSeat": "Có người trong phòng không còn đủ xu cho mức cược — mời họ rời ghế rồi bắt đầu lại"
+      "noCoins": "Ví xu của bạn không đủ để ngồi bàn này",
+      "noChips": "Bạn không còn đủ xu trên bàn để đặt mức này",
+      "noCoinsSeat": "Có người trong phòng không còn đủ số xu đã chọn mang vào — mời họ chọn mức thấp hơn hoặc rời ghế rồi bắt đầu lại"
     }
   }
 }

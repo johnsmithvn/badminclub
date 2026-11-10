@@ -180,8 +180,8 @@ Xu ảo cho vui, **không dính tiền thật**, không đụng Elo / điểm m�
   tướng, Cá ngựa **không được cược** vì kết quả do máy khách báo (`NO_STAKE`; coins.test.js gác: đúng những game chưa
   có `game_<id>_result`).
 - **Chặn (chủ dự án chọn "chặn", không cho nợ để chơi tiếp):** ngồi ghế phòng có cược mà ví < mức cược →
-  `games.err.noCoins`; bấm Bắt đầu mà có người đã tụt dưới mức → `games.err.noCoinsSeat`. Ván điểm vẫn có thể làm ví
-  âm (thua nhiều điểm hơn số xu còn lại) — khi đó người đó chỉ chơi được phòng không cược. Chưa có cách "cứu trợ".
+  `games.err.noCoins`; bấm Bắt đầu mà có người đã tụt dưới mức → `games.err.noCoinsSeat`. (Bản 0093 để ván điểm làm
+  ví âm và chưa có "cứu trợ" — 0101 bên dưới đã thay cách trả xu: ví không bao giờ âm.)
 - **Trả xu** khi phòng sang `finished` bằng bất kỳ đường nào (game_finish / game_leave / game_claim):
   - Phỏm / Tiến lên / Ba cây / Bầu cua / Xì dách có `result.scores`: xu = điểm × mức cược (mức cược = giá 1 điểm). (Tiến lên có cóng ×2 nên tổng xu cả bàn có
     thể lệch khỏi 0 — chấp nhận, xu ảo.)
@@ -197,6 +197,25 @@ Xu ảo cho vui, **không dính tiền thật**, không đụng Elo / điểm m�
   phòng); tab "Ví xu" trong sảnh xếp theo số xu (`game_wallets`, chỉ người đã chơi phòng có cược). Hồ sơ có thẻ
   "Xu trò chơi" (`MyCoinsCard` trong `GameBoard.jsx`, Profile tải lười): số dư + `cfg.games.coinHistory` lần cộng /
   trừ gần nhất đọc thẳng từ `game_coins`, bấm một dòng mở lại phòng đó.
+
+### Ví chuẩn, mang xu vào bàn — migration `0101_games_wallet.sql` (chủ dự án duyệt 2026-11-10)
+
+Thay **cách trả xu** của 0093 (phần mức cược, 3 game không cược, 4 trigger giữ nguyên tên). Chạy sau 0093 và 0096.
+- **Ví** `game_wallet` (`balance CHECK ≥ 0`) + **sổ** `game_coin_tx`: mỗi lần cộng / trừ một dòng kèm số dư sau, loại
+  `open · buyin · cashout · refund · legacy · relief`. Lần đầu đụng ví → mở ví = 1000 + sổ cũ `game_coins`, âm thì về 0.
+- **Mang xu vào bàn** (`game_room_players.buyin`): game điểm (`BOARD_POINTS`) chọn 10 / 20 / 50 × mức cược (mức cược =
+  giá 1 điểm, đổi được lúc phòng chờ bằng `game_buyin`); game thắng / thua góp đúng mức cược vào hũ. Bấm Bắt đầu mới
+  trừ ví (thiếu → `games.err.noCoinsSeat`, cả lệnh huỷ).
+- **Hết ván** → `game_coin_split` (bản JS `splitOf` trong `registry.js`, coins.test.js chạy cùng bộ mẫu với file kiểm
+  0101): không ai mất quá số mang vào; người thắng đòi nhiều hơn số thu được thì chia theo tỷ lệ; trả về ví `buyin +
+  net` (cashout). Ván bỏ (`abandoned`) → hoàn nguyên buyin (refund). Game điểm kết thúc vì bỏ cuộc (không có `scores`)
+  → người bỏ mất cả số mang vào. Phòng bắt đầu trước 0101 → trả kiểu cũ (legacy), thua tối đa số đang có.
+- **Cứu trợ:** ví < 100 và không còn xu trên bàn đang chơi → mỗi ngày (giờ VN) nạp cho đủ 100 (relief), lúc vào sảnh
+  (`game_my_wallet`), ngồi ghế, đổi buyin.
+- **Bầu cua:** phòng cược thì tổng đặt mỗi ván ≤ xu mang vào ÷ giá điểm + điểm đã ăn thua (`games.err.noChips`,
+  `budgetOf` trong `baucua.js`). `game_baucua_run` của 0101 = bản 0096 + các khối đánh dấu `0101` (test so hai bản).
+- **Giao diện:** form tạo phòng ghi "Giá 1 điểm" với game điểm; phòng chờ có ô "Xu mang vào bàn", ghế hiện "Mang N
+  xu" / "Trên bàn N xu"; bàn Bầu cua hiện chip bằng xu; thẻ Xu trò chơi đọc `game_coin_tx` (nhãn `games.coins.kind.*`).
 
 ## 5. Ai giữ "sự thật" của ván
 

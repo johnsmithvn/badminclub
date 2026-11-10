@@ -65,7 +65,8 @@ export default function BauCuaBoard({ state, mySeat, onMove, result, players = [
   if (!started) return <div style={S.panel}><span style={S.caption}>{t('games.baucua.waiting')}</span></div>
 
   const scores = result?.scores || bc.result(state)?.scores || Object.fromEntries(state.scores.map((v, i) => [i, v]))
-  const stake = (k) => state.bets.reduce((sum, b, i) => sum + (i === mySeat ? 0 : b[k]), 0)
+  // Tên khác `stake` (prop = giá 1 điểm của phòng, 0101).
+  const tableOf = (k) => state.bets.reduce((sum, b, i) => sum + (i === mySeat ? 0 : b[k]), 0)
   const mineOf = (k) => (state.ready[mySeat] ? state.bets[mySeat]?.[k] || 0 : bet[k])
   const statusOf = (seat) => {
     if (state.out[seat]) return t('games.baucua.stOut')
@@ -140,7 +141,7 @@ export default function BauCuaBoard({ state, mySeat, onMove, result, players = [
                 <span style={S.label}>{sym(k)}</span>
                 <span style={S.mono}>
                   {mine ? t('games.baucua.mine', { n: mine }) : ' '}
-                  {stake(k) ? ' · ' + t('games.baucua.table', { n: stake(k) }) : ''}
+                  {tableOf(k) ? ' · ' + t('games.baucua.table', { n: tableOf(k) }) : ''}
                 </span>
               </button>
             )

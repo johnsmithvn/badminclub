@@ -9,7 +9,7 @@ import { useApp } from '#contexts/AppContext.jsx'
 import { gameErr } from '#contexts/gameActions.js'
 import RankMedalIcon from '#components/leaderboard/RankMedalIcon.jsx'
 import cfg from '#config/app.js'
-import { COIN_START, GAME_IDS, boardOf } from '#lib/games/registry.js'
+import { COIN_RELIEF, COIN_START, GAME_IDS, boardOf } from '#lib/games/registry.js'
 import { pathOf } from '#routes'
 import { addMonth, ddmy, isoOf, monthOf, todayISO } from '#utils/dates.js'
 import { t } from '#i18n'
@@ -116,7 +116,7 @@ export function CoinBoard({ me, wallets }) {
 
   return (
     <section style={S.col}>
-      <span style={S.caption}>{t('games.coins.boardHint', { n: COIN_START.toLocaleString('vi-VN') })}</span>
+      <span style={S.caption}>{t('games.coins.boardHint', { n: COIN_START.toLocaleString('vi-VN'), relief: COIN_RELIEF })}</span>
       {!wallets && <Skeleton height={180} />}
       {wallets && rows.length === 0 && (
         <div style={S.box}><Empty icon="wallet" title={t('games.coins.emptyTitle')} hint={t('games.coins.emptyHint')} /></div>

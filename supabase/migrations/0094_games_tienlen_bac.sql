@@ -176,7 +176,8 @@ BEGIN
             END IF;
           ELSIF v_low IS NOT NULL AND NOT (v_low = ANY(v_play)) THEN
             v_err := 'games.err.mustLow';
-          ELSIF NOT CASE WHEN v_bac THEN game_tienlen_bac_beats(v_k, v_table) ELSE game_tienlen_beats(v_k, v_table) END THEN
+          -- CASE phải nằm trong ngoặc: plpgsql cắt điều kiện IF ở chữ THEN đầu tiên ngoài ngoặc.
+          ELSIF NOT (CASE WHEN v_bac THEN game_tienlen_bac_beats(v_k, v_table) ELSE game_tienlen_beats(v_k, v_table) END) THEN
             v_err := 'games.err.tooLow';
           END IF;
         END IF;

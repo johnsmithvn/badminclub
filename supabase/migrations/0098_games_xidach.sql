@@ -252,8 +252,9 @@ BEGIN
         IF o_count[v_who + 1] >= 5 THEN v_err := 'games.err.badMove'; END IF;
       ELSIF m.move -> 'stand' = 'true'::jsonb THEN
         -- Dằn: chỉ nước đang xin ghi mới kiểm đủ tuổi (bài ván cũ đã bị ghi đè, nước trong log đã kiểm lúc ghi).
+        -- CASE phải nằm trong ngoặc: plpgsql cắt điều kiện IF ở chữ THEN đầu tiên ngoài ngoặc.
         IF m.cand AND game_xidach_points((SELECT cards FROM game_hands WHERE room_id = p_room AND seat = v_who))
-                      < CASE WHEN v_who = o_banker THEN 15 ELSE 16 END THEN
+                      < (CASE WHEN v_who = o_banker THEN 15 ELSE 16 END) THEN
           v_err := 'games.err.notEnough';
         END IF;
       ELSE
