@@ -155,7 +155,9 @@ dùng chung ở `FantasyFrame.jsx` (`FantasyDefs` / `FantasyFrame` / `FantasyGlo
 - **Giữ nguyên ở cả hai chế độ sáng / tối** — bàn cờ là một "vật" có màu riêng, không đổi theo token.
 - Chỉ phần TRONG `<svg>` của bàn dùng `F`; chữ gợi ý, nút, thông báo quanh bàn vẫn dùng token như mọi nơi.
 - Chỉ dùng gradient, **không** filter / blur (máy yếu). Thêm màu mới thì thêm vào `F`, không viết hex rải trong component.
-- Các bàn game khác (Ô ăn quan, Caro…) vẫn vẽ phẳng bằng token; muốn chuyển bàn nào sang kiểu này thì dùng lại `F` + khung.
+- Các bàn game khác (Caro…) vẫn vẽ phẳng bằng token; muốn chuyển bàn nào sang kiểu này thì dùng lại `F` + khung.
+- **Ô ăn quan kiểu sơn mài** (2026-11-10): cùng ngoại lệ, bảng màu riêng `L` trong `OAnQuanBoard.jsx` (đỏ son, viền vàng,
+  sỏi suối, quan ngọc bích). Khung tối bọc quanh bàn cũng dùng `L`. Hiệu ứng `oaqRipple` / `oaqBurst` / `oaqFloat` ở `effects.css`.
 
 ## 3. Typography
 

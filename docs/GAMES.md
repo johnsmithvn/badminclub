@@ -377,6 +377,9 @@ Sảnh ── Tạo phòng (chọn game + tuỳ chọn) ──┐
 
 8 trò: `BOT_GAMES` ở `registry.js` (Caro, Cờ vua, Cờ tướng, Ô ăn quan, Cờ gánh, Chấm ô, Cờ cá ngựa, Bắn tàu). Sảnh có
 nút **Chơi với máy** → `/tro-choi/may-<game>`; `GameRoom.jsx` thấy tiền tố `may-` thì mở `BotRoom` (tải lười).
+- **Cài đặt ván (nút ⚙):** mức độ, bên đi / số người, **đồng hồ mỗi nước** (15 / 30 giây / không giới hạn, mặc định tắt —
+  `prefs.time`). Đồng hồ chạy lại mỗi lần tới lượt người; hết giờ là thua ván luyện. Chỉ ở phòng máy: phòng thật chưa có
+  (cần server chấm hết giờ). **Đi lại** lùi về trước nước vừa đi của người (không có ở Bắn tàu).
 - **Chạy hẳn trong trình duyệt:** luật `lib/games/<id>.js`, không gọi server, không lưu, không tính thống kê. Phần server
   điền ở phòng thật làm thay bằng `fillLocal` (`lib/games/bots/index.js`): đổ xúc xắc Cá ngựa, cất tàu / tra trúng trượt
   Bắn tàu (tàu từng bên giữ trong state của BotRoom, máy chỉ đọc `state.shots`). Dùng lại đúng màn chơi `SCREENS`

@@ -18,11 +18,13 @@ import { t } from '#i18n'
 const KEY = 'gamebot:'
 const MIN_THINK_MS = 450 // máy đi nhanh quá nhìn không kịp
 const ENGINE_MS = { covua: 1000, cotuong: 1500 }
+const TIMES = [0, 15, 30] // đồng hồ mỗi nước (giây); 0 = không giới hạn
+const mmss = (sec) => Math.floor(sec / 60) + ':' + String(sec % 60).padStart(2, '0')
 
 const setupFor = (game, n) => (game ? game.setup({ options: game.defaultOptions, seats: Array.from({ length: n }, (_, i) => i) }) : null)
 
 function loadPrefs(id) {
-  const base = { level: 'normal', side: 0, n: 2 }
+  const base = { level: 'normal', side: 0, n: 2, time: 0 }
   try { return { ...base, ...JSON.parse(localStorage.getItem(KEY + id) || '{}') } } catch { return base }
 }
 function savePrefs(id, p) {
@@ -89,12 +91,13 @@ export default function BotRoom({ gameId }) {
   // Ván = thế cờ + tàu của từng bên (Bắn tàu — thay game_hands của server) + số ván (đổi là dựng lại màn chơi)
   // + lỗi nước vừa đi (nằm chung để hàm cập nhật không phải gọi setState khác).
   // `past` = thế cờ ngay trước mỗi nước của người — nút Đi lại lùi về đó (bỏ luôn nước máy vừa đáp).
-  const [g, setG] = useState(() => ({ s: setupFor(game, n), fleets: {}, round: 0, err: '', past: [] }))
+  // `timeout` = người để hết giờ của nước đang đi → thua (đồng hồ mỗi nước, prefs.time giây; 0 = tắt).
+  const [g, setG] = useState(() => ({ s: setupFor(game, n), fleets: {}, round: 0, err: '', past: [], timeout: false }))
   const s = g.s
-  const restart = (k = n) => setG((cur) => ({ s: setupFor(game, k), fleets: {}, round: cur.round + 1, err: '', past: [] }))
+  const restart = (k = n) => setG((cur) => ({ s: setupFor(game, k), fleets: {}, round: cur.round + 1, err: '', past: [], timeout: false }))
   // Đổi round để Screen dựng lại và lượt máy đang nghĩ cho thế cũ bị bỏ.
   const undo = () => setG((cur) => (cur.past.length
-    ? { ...cur, s: cur.past[cur.past.length - 1], past: cur.past.slice(0, -1), round: cur.round + 1, err: '' }
+    ? { ...cur, s: cur.past[cur.past.length - 1], past: cur.past.slice(0, -1), round: cur.round + 1, err: '', timeout: false }
     : cur))
 
   const play = useCallback((seat, move, at) => {
@@ -116,8 +119,31 @@ export default function BotRoom({ gameId }) {
     if (self.crossOriginIsolated && !window.location.pathname.endsWith(BOT_PREFIX + 'cotuong')) window.location.reload()
   }, [])
 
-  const result = s && game ? game.result(s) : null
-  const botSeat = s && game ? botToMove(game, s, bots) : null
+  const result = g.timeout ? { winners: bots, draw: false, timeout: true } : s && game ? game.result(s) : null
+  const botSeat = s && game && !result ? botToMove(game, s, bots) : null
+  const canMove = !!s && !result && botSeat == null && (gameId === 'bantau' && s.phase === 'place' ? false : s.turn === human)
+
+  // Đồng hồ mỗi nước: chạy lại từ đầu mỗi khi tới lượt người (thế cờ đổi); hết giờ thì xử thua.
+  const limit = prefs.time || 0
+  // `clk` gắn với đúng thế cờ đang chờ người đi (đổi thế cờ = đồng hồ mới), cập nhật ngay lúc render như queueStates.
+  const want = limit && canMove ? s : null
+  const [clk, setClk] = useState(null) // { s, left }
+  if ((clk?.s ?? null) !== want) setClk(want ? { s: want, left: limit } : null)
+  useEffect(() => {
+    if (!want) return undefined
+    const end = Date.now() + limit * 1000
+    const round = g.round
+    const id = setInterval(() => {
+      const sec = Math.max(0, Math.ceil((end - Date.now()) / 1000))
+      setClk((cur) => (cur?.s === want ? { ...cur, left: sec } : cur))
+      if (sec === 0) {
+        clearInterval(id)
+        setG((cur) => (cur.round === round ? { ...cur, timeout: true } : cur))
+      }
+    }, 250)
+    return () => clearInterval(id)
+  }, [want, limit, g.round])
+  const left = clk?.s === want && want ? clk.left : null
 
   // Tới lượt máy: hỏi engine (Cao thủ) hoặc Worker, chờ tối thiểu một nhịp cho người kịp nhìn rồi đi.
   // Ván đổi (nước mới / ván mới) thì effect chạy lại, lượt nghĩ cũ bị bỏ (off).
@@ -160,12 +186,11 @@ export default function BotRoom({ gameId }) {
     restart(multi ? next.n : 2)
   }
   const back = () => navigate(pathOf('games'))
-  const canMove = !result && botSeat == null && (gameId === 'bantau' && s.phase === 'place' ? false : s.turn === human)
   const fleets = gameId === 'bantau'
     ? { [human]: flatFleet(g.fleets[human]), [1 - human]: result ? flatFleet(g.fleets[1 - human]) : null }
     : undefined
   const status = result
-    ? (result.draw ? t('games.draw') : (result.winners || []).includes(human) ? t('games.youWin') : t('games.youLose'))
+    ? result.timeout ? t('games.bot.timeoutLose') : (result.draw ? t('games.draw') : (result.winners || []).includes(human) ? t('games.youWin') : t('games.youLose'))
     : botSeat != null ? t('games.bot.thinking') : t('games.yourTurn')
 
   const levelLabel = t('games.bot.levelOpt.' + prefs.level)
@@ -179,7 +204,11 @@ export default function BotRoom({ gameId }) {
       <div style={{ display: 'flex', alignItems: 'center', gap: 8, minWidth: 0 }}>
         <Button size="sm" variant="secondary" icon="arrow-left" onClick={back}>{isMobile ? null : t('games.back')}</Button>
         <span style={{ ...S.title, minWidth: 0, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>{t('games.' + gameId + '.name')}</span>
-        {!isMobile && <span style={S.pill}>{t('games.bot.pill', { level: levelLabel })} · {sub}</span>}
+        {!isMobile && (
+          <span style={S.pill}>
+            {t('games.bot.pill', { level: levelLabel })} · {sub}{limit ? ' · ' + t('games.bot.timeOpt', { n: limit }) : ''}
+          </span>
+        )}
         <span style={{ flex: 1 }} />
         <Button size="sm" variant="ghost" icon="book-open" aria-label={t('games.howto')} title={t('games.howto')} onClick={() => setHowto(true)} />
         <div style={{ position: 'relative' }}>
@@ -211,6 +240,12 @@ export default function BotRoom({ gameId }) {
                     options={[0, 1].map((k) => ({ value: String(k), label: t('games.bot.sideOpt' + k) }))}
                   />
                 )}
+              <Select
+                label={t('games.bot.time')}
+                value={String(draft.time || 0)}
+                onChange={(e) => setDraft({ ...draft, time: Number(e.target.value) })}
+                options={TIMES.map((k) => ({ value: String(k), label: k ? t('games.bot.timeOpt', { n: k }) : t('games.bot.timeNone') }))}
+              />
               {draft.level === 'master' && <span style={S.caption}>{t('games.bot.masterHint.' + gameId)}</span>}
               <Button icon="refresh-cw" onClick={apply}>{t('games.bot.apply')}</Button>
             </div>
@@ -229,7 +264,7 @@ export default function BotRoom({ gameId }) {
             roomId={'bot-' + gameId} result={result} hands={fleets} />
         </Suspense>
         <PlayerCard mark="you" name={t('games.bot.you')} sub={multi ? '' : t('games.bot.sideOpt' + human)} line={botSeat == null ? status : ''}
-          active={myTurn} done={!!result} />
+          active={myTurn} done={!!result} clock={limit ? { left: left ?? limit, limit, on: left != null } : null} />
         <div style={{ display: 'grid', gap: 8, gridTemplateColumns: 'repeat(2, minmax(0, 1fr))' }}>
           <Button variant="secondary" icon="undo-2" disabled={!canUndo} onClick={undo}>{t('games.bot.undo')}</Button>
           <Button icon="refresh-cw" onClick={() => restart()}>{t('games.bot.newGame')}</Button>
@@ -243,7 +278,9 @@ export default function BotRoom({ gameId }) {
 }
 
 /** Thẻ người chơi trên / dưới bàn (máy ở trên, bạn ở dưới); viền sáng khi tới lượt. */
-function PlayerCard({ mark, name, sub, line, active, done }) {
+function PlayerCard({ mark, name, sub, line, active, done, clock }) {
+  const low = clock?.on && clock.left <= 5
+  const tone = !clock?.on ? 'var(--text-muted)' : low ? 'var(--status-incident-fg)' : 'var(--status-transit-fg)'
   return (
     <div style={{
       display: 'flex', alignItems: 'center', gap: 12, padding: '10px 14px', borderRadius: 12, minWidth: 0,
@@ -260,6 +297,14 @@ function PlayerCard({ mark, name, sub, line, active, done }) {
         <span style={{ ...S.label, fontWeight: 700 }}>{name}{sub ? <span style={{ ...S.caption, fontWeight: 400 }}> · {sub}</span> : null}</span>
         {line && <span style={{ ...S.caption, fontWeight: 600, color: done ? 'var(--status-delivered-fg)' : active ? 'var(--status-transit-fg)' : 'var(--text-muted)' }}>{line}</span>}
       </div>
+      {clock && (
+        <div style={{ flexShrink: 0, display: 'grid', justifyItems: 'end', gap: 4 }} role="timer" aria-label={t('games.bot.time')}>
+          <span style={{ ...S.clock, color: tone, background: low ? 'var(--status-incident-bg)' : 'var(--surface-inset)' }}>{mmss(clock.left)}</span>
+          <div style={{ width: 72, height: 3, borderRadius: 2, background: 'var(--surface-sunken)', overflow: 'hidden' }}>
+            <div style={{ height: '100%', width: (100 * clock.left) / clock.limit + '%', background: tone, transition: 'width 250ms linear' }} />
+          </div>
+        </div>
+      )}
     </div>
   )
 }
@@ -269,6 +314,7 @@ const S = {
   title: { font: '700 18px/1.2 var(--font-display)', color: 'var(--text-primary)' },
   caption: { font: 'var(--type-caption)', color: 'var(--text-muted)' },
   label: { font: 'var(--type-label)', color: 'var(--text-primary)' },
+  clock: { padding: '4px 10px', borderRadius: 8, font: '700 18px/1 var(--font-mono)' },
   pill: {
     flexShrink: 0, padding: '4px 10px', borderRadius: 99, background: 'var(--surface-inset)', color: 'var(--text-secondary)',
     font: '500 12px/1.2 var(--font-sans)', whiteSpace: 'nowrap',
