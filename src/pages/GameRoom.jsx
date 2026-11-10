@@ -1,4 +1,4 @@
-import { lazy, Suspense, useState } from 'react'
+import { lazy, Suspense, useEffect, useState } from 'react'
 import { useNavigate, useParams } from 'react-router-dom'
 import { Alert, Avatar, Button, Dialog, Skeleton } from '#ds'
 import { Empty } from '#ui'
@@ -7,7 +7,7 @@ import { useMobile } from '#hooks/useMobile.js'
 import { useGameRoom } from '#components/games/useGameRoom.js'
 import { SCREENS } from '#components/games/screens.js'
 import { HowTo } from '#components/games/GameInfo.jsx'
-import { BOT_PREFIX } from '#lib/games/registry.js'
+import { BOT_PREFIX, stakeOf } from '#lib/games/registry.js'
 import { pathOf } from '#routes'
 import { t } from '#i18n'
 
@@ -35,6 +35,17 @@ function RoomPage({ id }) {
   const [howto, setHowto] = useState(false)
   const [busy, setBusy] = useState(false)
   const { room, game, state, result, seated, inGame, mySeat, canMove } = g
+  // Xu ăn thua (0093): server trả lúc phòng chuyển sang 'finished' — nạp một lần khi thấy phòng xong.
+  const [coins, setCoins] = useState(null) // { roomId, map: { [memberId]: delta } }
+  const stake = stakeOf(room?.options)
+  const done = room?.status === 'finished'
+  useEffect(() => {
+    if (!done || !stake || !room?.id) return undefined
+    let live = true
+    a.gameRoomCoins(room.id).then((map) => { if (live) setCoins({ roomId: room.id, map }) }).catch(() => {})
+    return () => { live = false }
+  }, [a, done, stake, room?.id])
+  const coinOf = (memberId) => (coins?.roomId === room?.id ? coins.map[memberId] : undefined)
 
   const nameOf = (memberId) => db.members.find((m) => m.id === memberId)?.name || t('games.unknownPlayer')
   const memberOf = (memberId) => db.members.find((m) => m.id === memberId)
@@ -58,6 +69,8 @@ function RoomPage({ id }) {
   const isHost = room.hostId === g.me
   const full = seated.length >= game.maxPlayers
   const enough = seated.length >= game.minPlayers
+  // Game tự nói điều cần biết ở phòng chờ (Ma sói: bộ vai sẽ chia) — `block` thì chặn nút Bắt đầu.
+  const lobby = room.status === 'waiting' ? game.lobby?.(room.options, seated.length) ?? null : null
   const copyLink = async () => {
     const url = window.location.origin + pathOf('gameRoom', room.id) + '?club=' + room.clubId
     try {
@@ -91,6 +104,7 @@ function RoomPage({ id }) {
         <span style={{ ...S.title, minWidth: 0, flex: 1, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>
           {t('games.' + room.game + '.name')}
         </span>
+        {stake > 0 && <span style={{ ...S.code, letterSpacing: 0, background: 'var(--status-delayed-bg)', color: 'var(--status-delayed-fg)' }}>{t('games.coins.stakePill', { n: stake })}</span>}
         <span style={S.code}>{room.code}</span>
         <Button size="sm" variant="ghost" icon="book-open" aria-label={t('games.howto')} onClick={() => setHowto(true)}>{isMobile ? null : t('games.howto')}</Button>
         <Button size="sm" variant="secondary" icon="link" onClick={copyLink}>{isMobile ? null : t('games.copyLink')}</Button>
@@ -113,9 +127,15 @@ function RoomPage({ id }) {
                   {room.status === 'waiting' ? t('games.seatN', { n: seat + 1 }) : t('games.' + room.game + '.mark' + seat)}
                   {p && p.memberId === room.hostId ? ' · ' + t('games.host') : ''}
                 </span>
+                {p && coinOf(p.memberId) != null && (
+                  <span style={{ ...S.mono, fontWeight: 600, color: coinOf(p.memberId) > 0 ? 'var(--status-delivered-fg)' : coinOf(p.memberId) < 0 ? 'var(--status-incident-fg)' : undefined }}>
+                    {t('games.coins.delta', { n: (coinOf(p.memberId) > 0 ? '+' : '') + coinOf(p.memberId) })}
+                  </span>
+                )}
                 {p && p.memberId !== g.me && !result && g.idle[p.memberId]?.offline && (
                   <span style={{ ...S.mono, color: 'var(--status-delayed-fg)' }}>
-                    {room.status === 'playing'
+                    {/* Đếm ngược chỉ khi ván đang chờ người này — người khác khoá máy lúc chờ thì không bị xử. */}
+                    {room.status === 'playing' && g.idle[p.memberId].leftSec != null
                       ? t('games.offlineLeft', { time: clock(g.idle[p.memberId].leftSec) })
                       : t('games.offline')}
                   </span>
@@ -131,9 +151,11 @@ function RoomPage({ id }) {
           <span style={S.caption}>
             {!enough ? t('games.needPlayers', { n: game.minPlayers }) : isHost ? t('games.readyHost') : t('games.waitHost')}
           </span>
+          {lobby && <span style={{ ...S.caption, color: lobby.block ? 'var(--status-delayed-fg)' : undefined }}>{t(lobby.key, lobby.params)}</span>}
+          {stake > 0 && <span style={S.caption}>{t('games.coins.roomHint', { n: stake })}</span>}
           <div style={{ display: 'flex', gap: 8, flexWrap: 'wrap' }}>
             {mySeat == null && g.me && !full && <Button disabled={busy} onClick={() => act(() => a.gameJoin(room))}>{t('games.join')}</Button>}
-            {isHost && <Button icon="play" disabled={busy || !enough} onClick={() => act(() => a.gameStart(room))}>{t('games.start')}</Button>}
+            {isHost && <Button icon="play" disabled={busy || !enough || !!lobby?.block} onClick={() => act(() => a.gameStart(room))}>{t('games.start')}</Button>}
             {mySeat != null && <Button variant="secondary" icon="log-out" disabled={busy} onClick={leave}>{t('games.leave')}</Button>}
           </div>
         </div>

@@ -59,11 +59,11 @@ assert.deepEqual(optsOf({ time: 7, laps: 9 }), { time: 20, laps: 1 }, 'tuỳ ch�
   assert.deepEqual(bc.result(s), { winners: [1], draw: false, scores: { 0: -2, 1: 2 } })
 }
 
-// SQL 0087 chép cùng hằng số / nhánh.
+// SQL 0096 chép cùng hằng số / nhánh.
 {
-  const sql = readFileSync('supabase/migrations/0087_games_baucua.sql', 'utf8')
+  const sql = readFileSync('supabase/migrations/0096_games_baucua.sql', 'utf8')
   for (const f of ['IN (15, 20, 30)', 'ELSE 20 END', 'IN (1, 2, 3)', "'games.err.notYet'", 'x > 10', '> 10 THEN', 'floor(random() * 6)::int',
-    'v_rounds := v_laps * v_n']) assert.ok(sql.includes(f), '0087 thiếu ' + f)
+    'v_rounds := v_laps * v_n']) assert.ok(sql.includes(f), '0096 thiếu ' + f)
 }
 
 console.log('baucua check: OK')

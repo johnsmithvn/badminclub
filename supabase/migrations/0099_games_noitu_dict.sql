@@ -1,7 +1,7 @@
--- 0091_games_noitu_dict.sql — Nối từ: từ điển tiếng Việt + tuỳ chọn kiểm từ / chặn từ cụt / đảo từ / lặp từ
+-- 0099_games_noitu_dict.sql — Nối từ: từ điển tiếng Việt + tuỳ chọn kiểm từ / chặn từ cụt / đảo từ / lặp từ
 -- (docs/GAMES.md §12).
 --
--- CHẠY SAU 0083. Sau đó chạy 0092 (đổ dữ liệu từ điển). Chạy lại được.
+-- CHẠY SAU 0083. Sau đó chạy 0100 (đổ dữ liệu từ điển). Chạy lại được.
 -- THÊM bảng game_words_vi (chỉ server đọc — RLS bật, không policy) + hàm game_noitu_fill.
 -- THAY game_noitu_run (cùng chữ ký). Phòng cũ không có các tuỳ chọn mới → chạy y như 0083.
 --
@@ -42,10 +42,10 @@ DECLARE
   v_lang   text;
   v_link   int;
   v_time   bigint;
-  v_dict   text;              -- 0091: 'vote' | 'mix' | 'dict'
-  v_cut    boolean;           -- 0091: chặn từ cụt
-  v_flip   boolean;           -- 0091: cho đảo từ vừa dùng
-  v_rep    int;               -- 0091: số lần được nhận lại một từ
+  v_dict   text;              -- 0099: 'vote' | 'mix' | 'dict'
+  v_cut    boolean;           -- 0099: chặn từ cụt
+  v_flip   boolean;           -- 0099: cho đảo từ vừa dùng
+  v_rep    int;               -- 0099: số lần được nhận lại một từ
   v_order  int[];
   v_alive  boolean[];
   v_n      int;
@@ -54,8 +54,8 @@ DECLARE
   v_fresh  boolean := true;   -- từ tự do, không cần nối
   v_asks   int := 0;
   v_prev   text;              -- từ được nhận gần nhất
-  v_used   text[] := '{}';    -- 0091: từ đã nhận (có lặp)
-  v_bad    text[] := '{}';    -- 0091: từ bị bác
+  v_used   text[] := '{}';    -- 0099: từ đã nhận (có lặp)
+  v_bad    text[] := '{}';    -- 0099: từ bị bác
   v_vword  text;              -- từ đang duyệt (NULL = không có)
   v_vseat  int;
   v_vat    bigint;
@@ -66,7 +66,7 @@ DECLARE
   v_elim   int;
   v_dec    boolean;
   v_close  boolean;
-  v_take   boolean;           -- 0091: nhận từ ngay (từ điển) hoặc sau phiếu
+  v_take   boolean;           -- 0099: nhận từ ngay (từ điển) hoặc sau phiếu
   v_voters int;
   v_cy     int;
   v_cn     int;
@@ -189,7 +189,7 @@ BEGIN
         IF (SELECT count(*) FROM unnest(v_alive) a WHERE a) <= 1 THEN v_alive[s + 1] := true; v_elim := s; END IF;
       END IF;
     ELSIF mv ? 'word' AND mv -> 'ok' = 'true'::jsonb THEN
-      -- 0091: từ có trong từ điển (fill ghi kèm ok) — nhận ngay, không mở phiếu.
+      -- 0099: từ có trong từ điển (fill ghi kèm ok) — nhận ngay, không mở phiếu.
       v_vword := mv ->> 'word';
       v_vseat := s;
       v_take := true;

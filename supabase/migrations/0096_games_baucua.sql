@@ -1,4 +1,4 @@
--- 0087_games_baucua.sql — Bầu cua cá cọp (docs/GAMES.md §5.2, §12). Chạy sau 0078. Chỉ thêm hàm, không đụng bảng / data.
+-- 0096_games_baucua.sql — Bầu cua cá cọp (docs/GAMES.md §5.2, §12). Chạy sau 0078. Chỉ thêm hàm, không đụng bảng / data.
 --
 -- game_baucua_deal  — game_start gọi: ghi nước 1 { deal: { n } } (n = số người ngồi), mở đồng hồ đặt của ván đầu.
 -- game_baucua_run   — dựng lại trận từ log (như replay() của lib/games/baucua.js), kiểm nước đang xin ghi → o_err,

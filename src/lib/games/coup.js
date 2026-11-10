@@ -6,7 +6,7 @@
 //   Ăn phải quân úp thì quân đó lật cho cả bàn xem. Chiếu, chiếu hết, lộ mặt tướng, hoà… như Cờ tướng; hết quân, chỉ
 //   còn hai tướng thì hoà.
 //
-// Server giữ mặt thật của quân úp (0086: game_hands ghế -1) và điền vào nước đi lúc ghi:
+// Server giữ mặt thật của quân úp (0095: game_hands ghế -1) và điền vào nước đi lúc ghi:
 //   { from, to, flip?, took? } — flip = mặt thật quân vừa đi (nếu ô `from` là ô xuất phát của quân úp), took = mặt thật
 //   quân bị ăn ở ô `to` (nếu là ô xuất phát của quân úp). Server điền theo ô xuất phát, KHÔNG xét quân còn úp hay đã
 //   lật — ô đã có người đi qua thì mặt thật ở đó đã công khai, điền lại không lộ gì; ở đây chỉ dùng khi quân còn úp.
@@ -24,7 +24,7 @@ export { COLS, POINTS, colorOf, typeOf }
 export const KINDS = ['A', 'E', 'H', 'R', 'C', 'P']
 export const isHidden = (p) => p === 'X' || p === 'x'
 
-/** Ô xuất phát của quân úp (mọi quân trừ tướng) — server cũng xáo đúng các ô này (0086). */
+/** Ô xuất phát của quân úp (mọi quân trừ tướng) — server cũng xáo đúng các ô này (0095). */
 export const HIDDEN_SQUARES = [...START].map((ch, i) => (ch !== '.' && typeOf(ch) !== 'K' ? i : null)).filter((i) => i != null)
 
 const gen = (b, seat) => pseudo(b, seat, (i) => typeOf(isHidden(b[i]) ? START[i] : b[i]), (i) => !isHidden(b[i]))

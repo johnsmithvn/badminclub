@@ -165,7 +165,7 @@ function serverResult(s, hands) {
   assert.ok(games.some((g) => g.result == null) && games.some((g) => g.hands.length === 4), 'bộ ván phải có ván chưa xong và ván 4 người')
 }
 
-// MIỀN BẮC (0085): đồng chất, heo chặn mọi lẻ / đôi, không đôi thông, không tới trắng, không cóng, về bằng heo / tứ quý là về chót.
+// MIỀN BẮC (0094): đồng chất, heo chặn mọi lẻ / đôi, không đôi thông, không tới trắng, không cóng, về bằng heo / tứ quý là về chót.
 {
   const c = (r, su) => r * 4 + su // hạng 0 = 3 … 12 = 2; chất 0 ♠ 1 ♣ 2 ♦ 3 ♥
   const k = (cards) => comboOf(cards, true)
@@ -217,11 +217,11 @@ function serverResult(s, hands) {
     assert.equal(tl.validate(must, 0, { play: [c(5, 1)] }), 'games.err.mustLow', 'mặc định: nước đầu phải có lá nhỏ nhất')
     assert.deepEqual(tl.defaultOptions, { variant: 'nam', lead: 'must' })
   }
-  // SQL 0085 chép đúng các nhánh này.
-  const sql = readFileSync('supabase/migrations/0085_games_tienlen_bac.sql', 'utf8')
+  // SQL 0094 chép đúng các nhánh này.
+  const sql = readFileSync('supabase/migrations/0094_games_tienlen_bac.sql', 'utf8')
   for (const frag of ["options ->> 'variant' = 'bac'", 'game_tienlen_bac_combo(v_play)', 'game_tienlen_bac_beats(v_k, v_table)',
     'v_chot := v_chot || m.seat', 'v_alive || v_chot || v_cong', 'game_tienlen_bac_thoi(', "options ->> 'lead' FROM game_rooms"]) {
-    assert.ok(sql.includes(frag), '0085 thiếu: ' + frag)
+    assert.ok(sql.includes(frag), '0094 thiếu: ' + frag)
   }
 }
 

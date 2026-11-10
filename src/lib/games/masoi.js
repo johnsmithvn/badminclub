@@ -25,6 +25,8 @@
 // move  = { deal: { n } } (server) · { night: lựa chọn } → log { night: true } · { vote } · { shoot }
 //       · { next: true } → log { next: pha mới | 'settle' | 'over', dead, shown, hunter?, hang?, over? } · { out } (server)
 
+import { t } from '#i18n'
+
 export const ROLE_IDS = ['villager', 'wolf', 'cursed', 'seer', 'guard', 'witch', 'hunter', 'elder', 'cupid']
 export const [VILLAGER, WOLF, CURSED, SEER, GUARD, WITCH, HUNTER, ELDER, CUPID] = ROLE_IDS.map((_, i) => i)
 export const REVEALS = ['all', 'hanged', 'none']
@@ -38,23 +40,64 @@ export const DAY_TIMES = [0, 60, 120, 180, 300]
 export const NIGHT_SEC = 45
 
 export const isWolf = (r) => r === WOLF || r === CURSED
+/** Vai đặc biệt chủ phòng bật / tắt được khi tự chọn bộ vai (mỗi vai tối đa 1). */
+export const SPECIALS = [CURSED, SEER, GUARD, WITCH, HUNTER, ELDER, CUPID]
 export const optsOf = (o) => ({
   reveal: REVEALS.includes(o?.reveal) ? o.reveal : 'all',
   time: DAY_TIMES.includes(o?.time) ? o.time : 120,
+  roles: rolesOf(o?.roles),
 })
 
 /** Hạn của bước hiện tại (ms, giờ server) hoặc null (không giới hạn / chưa biết giờ). */
 export const deadlineOf = (s) =>
   s.opts.time && s.since != null && s.phase && !s.over ? s.since + (s.phase === 'day' ? s.opts.time : NIGHT_SEC) * 1000 : null
 
-/** Bộ vai theo số người — 0084 game_masoi_deal dùng đúng bảng này. */
+/** Bộ vai theo số người (chế độ Tự động) — 0084 game_masoi_table dùng đúng bảng này. */
 export function tableOf(n) {
   const wolves = n <= 5 ? 1 : n <= 8 ? 2 : 3
   const specials = Math.min(6, Math.max(2, n - wolves - 2))
-  const t = Array.from({ length: wolves }, (_, i) => (i === 0 && n >= 8 ? CURSED : WOLF))
-  t.push(...[SEER, GUARD, WITCH, HUNTER, ELDER, CUPID].slice(0, specials))
-  while (t.length < n) t.push(VILLAGER)
-  return t
+  const out = Array.from({ length: wolves }, (_, i) => (i === 0 && n >= 8 ? CURSED : WOLF))
+  out.push(...[SEER, GUARD, WITCH, HUNTER, ELDER, CUPID].slice(0, specials))
+  while (out.length < n) out.push(VILLAGER)
+  return out
+}
+
+/**
+ * Bộ vai chủ phòng tự chọn (`options.roles`): danh sách các vai KHÔNG phải Dân làng — Sói thường lặp được, vai khác
+ * tối đa 1. Sai dạng → null = chế độ Tự động. PHẢI khớp phần đọc options của game_masoi_deck ở 0087.
+ */
+export function rolesOf(r) {
+  if (!Array.isArray(r) || !r.length || r.length > MAX_PLAYERS) return null
+  if (!r.every((x) => Number.isInteger(x) && x >= WOLF && x <= CUPID)) return null
+  const other = r.filter((x) => x !== WOLF)
+  if (new Set(other).size !== other.length) return null
+  return [...r].sort((a, b) => a - b)
+}
+
+/**
+ * Bộ vai của ván n người → { deck } (server xáo rồi chia ngẫu nhiên) hoặc { err } (key i18n — chặn nút Bắt đầu).
+ * Tự chọn: các vai đã chọn + Dân làng cho đủ n. Luật: có ít nhất 1 Sói, Sói ít hơn số người còn lại (không thì vừa
+ * chia đã thắng), không quá n vai. PHẢI khớp game_masoi_deck ở 0087.
+ */
+export function deckOf(opts, n) {
+  const r = opts?.roles
+  if (!r) return { deck: tableOf(n) }
+  const wolves = r.filter(isWolf).length
+  if (!wolves) return { err: 'games.err.noWolf' }
+  if (r.length > n) return { err: 'games.err.tooManyRoles' }
+  if (2 * wolves >= n) return { err: 'games.err.tooManyWolves' }
+  return { deck: [...r, ...Array(n - r.length).fill(VILLAGER)] }
+}
+
+/** Ít nhất bao nhiêu người thì bộ vai tự chọn chơi được (5 = mức tối thiểu của game). */
+export const minPlayersOf = (roles) => Math.max(MIN_PLAYERS, roles.length, 2 * roles.filter(isWolf).length + 1)
+
+/** "2 Sói, Tiên tri, Bảo vệ, 3 Dân làng" — bộ vai đọc cho người chơi (phòng chờ, bàn chơi, form tạo phòng). */
+export function lineupOf(deck) {
+  const count = (r) => deck.filter((x) => x === r).length
+  return [WOLF, ...SPECIALS, VILLAGER].filter((r) => count(r))
+    .map((r) => (count(r) > 1 ? t('games.masoi.roleCount', { n: count(r), name: t('games.masoi.role.' + ROLE_IDS[r]) }) : t('games.masoi.role.' + ROLE_IDS[r])))
+    .join(', ')
 }
 
 /** Hàng bài riêng → { role, facts: [[k, a, b]…] } (null nếu chưa có). */
@@ -72,6 +115,17 @@ export function complete(s) {
   if (s.phase === 'night' || s.phase === 'witch') return s.alive.every((a, i) => !a || s.acted[i])
   if (s.phase === 'day') return s.alive.every((a, i) => !a || s.votes[i] != null)
   return s.phase === 'hunter' && s.shot != null
+}
+
+/**
+ * Ghế mà bước hiện tại đang chờ (registry.waitingOf — mất kết nối chỉ xử những ghế này): Thợ săn chưa bắn, hoặc
+ * người còn sống chưa bấm / chưa bỏ phiếu. Bước đã đủ thì không chờ ai — máy nào cũng tự gửi { next }.
+ */
+export function waitingFor(s) {
+  if (!s.started || s.over || complete(s)) return []
+  if (s.phase === 'hunter') return [s.hunter]
+  const done = s.phase === 'day' ? s.votes.map((v) => v != null) : s.acted
+  return s.alive.map((a, i) => (a && !done[i] ? i : null)).filter((i) => i != null)
 }
 
 /** Phiếu đang có: { [ghế]: số phiếu }, ghế -1 = bỏ qua. */
@@ -131,6 +185,20 @@ export default {
 
   /** Mọi nước của người chơi đều qua server (vai chỉ server biết) — màn chơi không hiện trước. */
   request: (s, seat, move) => move?.out !== true,
+
+  /** Cả bàn cùng đi, `turn` thường là null — ghế đang được chờ khai riêng (registry.waitingOf). */
+  waiting: waitingFor,
+
+  /**
+   * Dòng ở phòng chờ (GameRoom.jsx): bộ vai sẽ chia với `n` người đang ngồi. Bộ vai tự chọn không hợp số người thì
+   * `block` = chặn nút Bắt đầu (server cũng từ chối — game_masoi_deck 0087).
+   */
+  lobby(options, n) {
+    if (n < MIN_PLAYERS) return null
+    const d = deckOf(optsOf(options), n)
+    if (d.err) return { key: d.err, params: { n }, block: true }
+    return { key: 'games.masoi.lineup', params: { list: lineupOf(d.deck) }, block: false }
+  },
 
   apply(s0, seat, move, meta) {
     const s = { ...s0, ply: s0.ply + 1 }

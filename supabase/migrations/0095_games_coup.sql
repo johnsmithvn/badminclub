@@ -1,4 +1,4 @@
--- 0086_games_coup.sql — Cờ úp (docs/GAMES.md §5.2, §12). Chạy sau 0078. Chỉ thêm hàm, không đụng bảng / data.
+-- 0095_games_coup.sql — Cờ úp (docs/GAMES.md §5.2, §12). Chạy sau 0078. Chỉ thêm hàm, không đụng bảng / data.
 --
 -- game_coup_deal — game_start (0078) gọi: xáo mặt thật các quân úp trong từng phe vào đúng các ô xuất phát của Cờ tướng
 --   (trừ tướng), cất ở game_hands ghế -1: cards[i + 1] = 0 (ô không có quân úp) | 1..6 = 'AEHRCP' — RLS không ai đọc được.

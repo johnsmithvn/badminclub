@@ -1,123 +1,144 @@
--- 0090_games_phom.sql — Phỏm / Tá lả (docs/GAMES.md §5.2, §12). Chạy sau 0078. Chỉ thêm hàm, không đụng bảng / data.
+-- 0090_games_phom.sql — Phỏm / Tá lả: server chia bài, kiểm từng nước với bài thật, chấm điểm (docs/GAMES.md §5.2, §12).
 --
--- Bài: game_hands ghế ≥ 0 = bài còn trên tay (RLS chỉ chủ bài đọc; hết ván cả CLB xem để lật bài), ghế -1 = nọc,
---   ghế -10 - s = các nhóm bị khoá của ghế s (lá ăn + lá ghép), mã hoá [độ dài, lá…, độ dài, lá…]. Ghế âm không ai đọc.
--- game_phom_deal   — game_start gọi: xáo 52 lá, người đi đầu 10 lá, còn lại 9; ván "chơi lại" thì người Nhất ván trước
---                    đi đầu, không thì bốc ngẫu nhiên; ghi nước 1 { deal: { n, first } }.
--- game_phom_run    — dựng lại phần công khai (như replay() của lib/games/phom.js); kiểm nước đang xin ghi bằng bài thật
---                    → o_err; hết ván → o_result (finalOf của JS, dùng bài còn trên tay).
--- game_phom_check  — game_move gọi. game_phom_fill — game_move gọi: chuyển lá giữa tay / nọc / nhóm khoá, giấu lá ghép
---                    khi ăn, hết giờ thì đi thay người tới lượt (bốc · hạ các nhóm khoá · đánh lá to nhất không khoá).
--- game_phom_result — game_finish (0075) dùng hàm này, bỏ kết quả client.
--- options.time = giây mỗi lượt (0 / 20 / 30 / 45, sai dạng → 30; 0 = tắt). Chép luật lib/games/phom.js — đổi luật thì sửa
--- cả hai. Lá c = hạng * 4 + chất như Tiến lên; số Phỏm: hạng ≤ 10 → hạng + 3, A (11) → 1, 2 (12) → 2.
+-- CHẠY SAU 0078 (cần bảng game_hands + game_start / game_move bản 0078 gọi game_<id>_deal / game_<id>_fill) và 0075
+-- (game_finish tự tìm game_<id>_result). CHỈ THÊM HÀM, không đổi bảng / dữ liệu. Chạy lại được (CREATE OR REPLACE).
+--
+-- game_hands của phòng Phỏm: ghế ≥ 0 = bài đang cầm (sắp tăng dần; ăn / bốc thêm vào, đánh / hạ / gửi bớt ra) · ghế -1 =
+-- nọc (bốc lá đầu). RLS 0078: đang chơi chỉ chủ bài đọc được tay mình, ghế âm không ai đọc.
+-- Log (game_moves) chỉ có phần công khai: { deal } · { draw: true } · { eat: lá } · { discard: lá } · { lay, send } ·
+-- { u, tron, discard } · { out } (game_leave / game_claim ghi).
+--
+-- Luật chép từ lib/games/phom.js (state công khai + referee / judge) — đổi một bên là phải đổi bên kia. phom.test.js
+-- chạy trọng tài JS trên đúng bộ ván mẫu trong supabase/manual/0090_games_phom_check.sql; file kiểm chạy các ván đó qua
+-- game_phom_fill / game_phom_result trên DB thật. Mã lỗi RAISE là key i18n games.err.*, THỨ TỰ KIỂM khớp referee().
 
 BEGIN;
 
-/* ---------- Luật bài ---------- */
+/* ---------- Tiện ích thuần ---------- */
 
-CREATE OR REPLACE FUNCTION public.game_phom_val(c int)
+-- Số nguyên trong jsonb (kể cả viết 5.0), khác → NULL.
+CREATE OR REPLACE FUNCTION public.game_phom_int(p jsonb)
 RETURNS int
 LANGUAGE sql
 IMMUTABLE
-AS $$ SELECT CASE WHEN c >> 2 <= 10 THEN (c >> 2) + 3 WHEN c >> 2 = 11 THEN 1 ELSE 2 END $$;
+AS $$
+  SELECT CASE WHEN jsonb_typeof(p) = 'number' AND (p #>> '{}')::numeric = trunc((p #>> '{}')::numeric)
+                   AND abs((p #>> '{}')::numeric) < 1000000 THEN (p #>> '{}')::numeric::int END
+$$;
 
--- isPhom: 3+ lá khác nhau, cùng số; hoặc cùng chất và số liền nhau.
-CREATE OR REPLACE FUNCTION public.game_phom_ok(p int[])
+-- Phỏm hợp lệ (như meldOk): ≥ 3 lá khác nhau 0..51, cùng hạng — hoặc cùng chất và hạng liên tiếp (A thấp nhất, không vòng).
+CREATE OR REPLACE FUNCTION public.game_phom_meld(p int[])
+RETURNS boolean
+LANGUAGE sql
+IMMUTABLE
+AS $$
+  SELECT COALESCE(cardinality(p), 0) >= 3
+     AND NOT EXISTS (SELECT 1 FROM unnest(p) x WHERE x IS NULL OR x < 0 OR x > 51)
+     AND (SELECT count(DISTINCT x) FROM unnest(p) x) = cardinality(p)
+     AND ((SELECT count(DISTINCT x / 4) FROM unnest(p) x) = 1
+          OR ((SELECT count(DISTINCT x % 4) FROM unnest(p) x) = 1
+              AND (SELECT max(x / 4) - min(x / 4) FROM unnest(p) x) = cardinality(p) - 1))
+$$;
+
+-- Như cover(): xếp được mọi lá ăn vào các phỏm 3 lá rời nhau, mỗi phỏm một lá ăn + hai lá trên tay (không gồm lá ăn).
+CREATE OR REPLACE FUNCTION public.game_phom_cover(p_hand int[], p_eaten int[])
 RETURNS boolean
 LANGUAGE plpgsql
 IMMUTABLE
 AS $$
 DECLARE
-  vs int[];
+  e  int;
+  r  int;
+  s  int;
+  a  int;
+  b  int;
+  pr int[];
 BEGIN
-  IF p IS NULL OR cardinality(p) < 3 OR (SELECT count(DISTINCT x) FROM unnest(p) x) <> cardinality(p) THEN RETURN false; END IF;
-  vs := ARRAY(SELECT game_phom_val(x) FROM unnest(p) x ORDER BY 1);
-  IF vs[1] = vs[cardinality(vs)] THEN RETURN true; END IF;
-  IF (SELECT count(DISTINCT x & 3) FROM unnest(p) x) <> 1 THEN RETURN false; END IF;
-  RETURN vs[cardinality(vs)] - vs[1] = cardinality(vs) - 1 AND (SELECT count(DISTINCT x) FROM unnest(vs) x) = cardinality(vs);
+  IF COALESCE(cardinality(p_eaten), 0) = 0 THEN RETURN true; END IF;
+  e := p_eaten[1];
+  r := e / 4;
+  s := e % 4;
+  -- Bộ: hai lá cùng hạng trên tay.
+  FOR a, b IN SELECT x, y FROM unnest(p_hand) x, unnest(p_hand) y WHERE x < y AND x / 4 = r AND y / 4 = r LOOP
+    IF game_phom_cover(array_remove(array_remove(p_hand, a), b), p_eaten[2:]) THEN RETURN true; END IF;
+  END LOOP;
+  -- Dây: hai lá cùng chất ở hạng (r-2, r-1) · (r-1, r+1) · (r+1, r+2).
+  FOREACH pr SLICE 1 IN ARRAY ARRAY[[r - 2, r - 1], [r - 1, r + 1], [r + 1, r + 2]] LOOP
+    CONTINUE WHEN pr[1] < 0 OR pr[2] > 12;
+    a := pr[1] * 4 + s;
+    b := pr[2] * 4 + s;
+    IF a = ANY(p_hand) AND b = ANY(p_hand)
+       AND game_phom_cover(array_remove(array_remove(p_hand, a), b), p_eaten[2:]) THEN
+      RETURN true;
+    END IF;
+  END LOOP;
+  RETURN false;
 END;
 $$;
 
--- Mảng số lá 0..51 trong jsonb, sai dạng → NULL.
-CREATE OR REPLACE FUNCTION public.game_phom_ints(j jsonb)
-RETURNS int[]
-LANGUAGE plpgsql
+-- Ù khan (như khanOf): không có hai lá cùng hạng, hay cùng chất cách nhau ≤ 2 hạng.
+CREATE OR REPLACE FUNCTION public.game_phom_khan(p int[])
+RETURNS boolean
+LANGUAGE sql
 IMMUTABLE
 AS $$
-BEGIN
-  IF jsonb_typeof(j) IS DISTINCT FROM 'array'
-     OR EXISTS (SELECT 1 FROM jsonb_array_elements(j) e WHERE jsonb_typeof(e) <> 'number' OR (e #>> '{}') !~ '^[0-9]{1,2}$') THEN
-    RETURN NULL;
-  END IF;
-  IF EXISTS (SELECT 1 FROM jsonb_array_elements(j) e WHERE (e #>> '{}')::int > 51) THEN RETURN NULL; END IF;
-  RETURN ARRAY(SELECT (e #>> '{}')::int FROM jsonb_array_elements(j) e);
-END;
+  SELECT NOT EXISTS (SELECT 1 FROM unnest(p) x, unnest(p) y
+                      WHERE x < y AND (x / 4 = y / 4 OR (x % 4 = y % 4 AND abs(x / 4 - y / 4) <= 2)))
 $$;
 
--- Nhóm khoá của ghế s, dạng jsonb [[lá…]…].
-CREATE OR REPLACE FUNCTION public.game_phom_locks(p_room uuid, p_seat int)
+-- Mảng các phỏm (jsonb) → mỗi phỏm sắp tăng dần (như normMelds). Sai dạng — không phải mảng các mảng số nguyên 0..51
+-- (như meldsShape) — trả NULL. Phỏm rỗng giữ nguyên [] để game_phom_meld báo badMeld như JS.
+CREATE OR REPLACE FUNCTION public.game_phom_melds(p jsonb)
 RETURNS jsonb
 LANGUAGE plpgsql
-STABLE
-SECURITY DEFINER
-SET search_path = public
+IMMUTABLE
 AS $$
 DECLARE
-  a   int[];
-  o   jsonb := '[]';
-  i   int := 1;
+  m   jsonb;
+  res jsonb := '[]';
 BEGIN
-  SELECT cards INTO a FROM game_hands WHERE room_id = p_room AND seat = -10 - p_seat;
-  WHILE a IS NOT NULL AND i <= cardinality(a) LOOP
-    o := o || jsonb_build_array(to_jsonb(a[i + 1 : i + a[i]]));
-    i := i + a[i] + 1;
+  IF jsonb_typeof(p) IS DISTINCT FROM 'array' THEN RETURN NULL; END IF;
+  FOR m IN SELECT value FROM jsonb_array_elements(p) LOOP
+    IF jsonb_typeof(m) IS DISTINCT FROM 'array' THEN RETURN NULL; END IF;
+    IF EXISTS (SELECT 1 FROM jsonb_array_elements(m) x
+                WHERE game_phom_int(x) IS NULL OR game_phom_int(x) < 0 OR game_phom_int(x) > 51) THEN
+      RETURN NULL;
+    END IF;
+    res := res || jsonb_build_array(COALESCE((SELECT jsonb_agg(game_phom_int(x) ORDER BY game_phom_int(x)) FROM jsonb_array_elements(m) x), '[]'::jsonb));
   END LOOP;
-  RETURN o;
+  RETURN res;
 END;
 $$;
 
--- Hạ / ù hợp lệ: các phỏm hợp lệ, không trùng lá, nằm trong tay; mỗi nhóm khoá nằm trọn trong đúng một phỏm và không
--- dính phỏm khác; một phỏm chứa tối đa một nhóm khoá; tổng số lá ≥ p_need.
-CREATE OR REPLACE FUNCTION public.game_phom_groups_ok(p_groups jsonb, p_hand int[], p_locks jsonb, p_need int)
-RETURNS boolean
+-- Lá trong một phỏm (jsonb) → int[].
+CREATE OR REPLACE FUNCTION public.game_phom_cards(p jsonb)
+RETURNS int[]
+LANGUAGE sql
+IMMUTABLE
+AS $$ SELECT COALESCE(ARRAY(SELECT game_phom_int(x) FROM jsonb_array_elements(p) x), '{}') $$;
+
+-- Người kế tiếp còn chơi sau p_from (như nextActive): chưa rời, chưa xong (đã hạ và chồng đủ 4 lá). Không còn ai → NULL.
+CREATE OR REPLACE FUNCTION public.game_phom_next(p_n int, p_out boolean[], p_order int[], p_pile int[], p_from int)
+RETURNS int
 LANGUAGE plpgsql
 IMMUTABLE
 AS $$
 DECLARE
-  g    jsonb;
-  l    jsonb;
-  gs   int[];
-  ls   int[];
-  flat int[] := '{}';
-  k    int;
+  k int;
+  y int;
 BEGIN
-  IF jsonb_typeof(p_groups) IS DISTINCT FROM 'array' THEN RETURN false; END IF;
-  FOR g IN SELECT value FROM jsonb_array_elements(p_groups) LOOP
-    gs := game_phom_ints(g);
-    IF NOT game_phom_ok(gs) THEN RETURN false; END IF;
-    flat := flat || gs;
-    k := 0;
-    FOR l IN SELECT value FROM jsonb_array_elements(p_locks) LOOP
-      ls := game_phom_ints(l);
-      IF gs @> ls THEN k := k + 1;
-      ELSIF gs && ls THEN RETURN false;
-      END IF;
-    END LOOP;
-    IF k > 1 THEN RETURN false; END IF;
+  FOR k IN 1 .. p_n LOOP
+    y := (p_from + k) % p_n;
+    IF NOT p_out[y + 1] AND NOT (y = ANY(p_order) AND p_pile[y + 1] >= 4) THEN RETURN y; END IF;
   END LOOP;
-  IF (SELECT count(DISTINCT x) FROM unnest(flat) x) <> cardinality(flat) OR NOT (p_hand @> flat) OR cardinality(flat) < p_need THEN
-    RETURN false;
-  END IF;
-  FOR l IN SELECT value FROM jsonb_array_elements(p_locks) LOOP
-    IF NOT (flat @> game_phom_ints(l)) THEN RETURN false; END IF;
-  END LOOP;
-  RETURN true;
+  RETURN NULL;
 END;
 $$;
 
-/* ---------- Chia bài ---------- */
-
+/* ---------- Chia bài (game_start 0078 gọi) ---------- */
+-- Xào 52 lá bằng random() của server. Người đi đầu 10 lá, còn lại 9, phần dư úp làm nọc (ghế -1). Ván chơi lại (phòng
+-- trước có next_room trỏ về đây) mà người về Nhất ván trước còn ngồi → người đó đi đầu; không thì bốc ngẫu nhiên.
+-- Ù khan xét từ người đi đầu theo vòng. Nước 1 = { deal: { first, n, stock, khan } }.
 CREATE OR REPLACE FUNCTION public.game_phom_deal(p_room uuid)
 RETURNS void
 LANGUAGE plpgsql
@@ -125,13 +146,16 @@ SECURITY DEFINER
 SET search_path = public
 AS $$
 DECLARE
-  v_deck  int[] := ARRAY(SELECT c FROM generate_series(0, 51) c ORDER BY random());
+  v_deck  int[];
   v_n     int;
   v_first int;
+  v_khan  int;
+  v_prev  game_rooms;
   v_club  uuid;
   v_mem   uuid;
-  v_prev  game_rooms;
-  v_k     int;
+  v_pos   int := 0;
+  k       int;
+  i       int;
   r       record;
 BEGIN
   SELECT count(*) INTO v_n FROM game_room_players WHERE room_id = p_room AND left_at IS NULL;
@@ -142,288 +166,163 @@ BEGIN
      WHERE o.room_id = v_prev.id AND o.seat = (v_prev.result #>> '{winners,0}')::int
      ORDER BY o.left_at NULLS FIRST LIMIT 1;
   END IF;
-  v_first := COALESCE(v_first, floor(random() * v_n)::int);
+  IF v_first IS NULL THEN v_first := floor(random() * v_n)::int; END IF;
 
+  v_deck := ARRAY(SELECT c FROM generate_series(0, 51) c ORDER BY random());
   FOR r IN SELECT seat, member_id, club_id FROM game_room_players WHERE room_id = p_room AND left_at IS NULL ORDER BY seat LOOP
-    v_k := CASE WHEN r.seat = v_first THEN 10 ELSE 9 END;
-    INSERT INTO game_hands (room_id, seat, member_id, club_id, cards) VALUES (p_room, r.seat, r.member_id, r.club_id, v_deck[1:v_k])
+    k := CASE WHEN r.seat = v_first THEN 10 ELSE 9 END;
+    INSERT INTO game_hands (room_id, seat, member_id, club_id, cards)
+    VALUES (p_room, r.seat, r.member_id, r.club_id, ARRAY(SELECT x FROM unnest(v_deck[v_pos + 1 : v_pos + k]) x ORDER BY x))
     ON CONFLICT (room_id, seat) DO UPDATE SET member_id = EXCLUDED.member_id, cards = EXCLUDED.cards;
-    INSERT INTO game_hands (room_id, seat, member_id, club_id, cards) VALUES (p_room, -10 - r.seat, r.member_id, r.club_id, '{}')
-    ON CONFLICT (room_id, seat) DO UPDATE SET cards = EXCLUDED.cards;
-    v_deck := v_deck[v_k + 1:];
+    v_pos := v_pos + k;
     v_club := r.club_id;
     v_mem := r.member_id;
   END LOOP;
-  -- Ghế âm: member_id bắt buộc nên ghi tạm một người ngồi — RLS không cho ai đọc ghế âm.
-  INSERT INTO game_hands (room_id, seat, member_id, club_id, cards) VALUES (p_room, -1, v_mem, v_club, v_deck)
-  ON CONFLICT (room_id, seat) DO UPDATE SET cards = EXCLUDED.cards;
+  -- Ghế âm: member_id bắt buộc nên ghi tạm người ngồi cuối — RLS không cho ai đọc ghế âm.
+  INSERT INTO game_hands (room_id, seat, member_id, club_id, cards) VALUES (p_room, -1, v_mem, v_club, v_deck[v_pos + 1 :])
+  ON CONFLICT (room_id, seat) DO UPDATE SET member_id = EXCLUDED.member_id, cards = EXCLUDED.cards;
+
+  FOR i IN 0 .. v_n - 1 LOOP
+    IF game_phom_khan((SELECT cards FROM game_hands WHERE room_id = p_room AND seat = (v_first + i) % v_n)) THEN
+      v_khan := (v_first + i) % v_n;
+      EXIT;
+    END IF;
+  END LOOP;
+
   INSERT INTO game_moves (room_id, seq, club_id, seat, move)
-  VALUES (p_room, 1, v_club, v_first, jsonb_build_object('deal', jsonb_build_object('n', v_n, 'first', v_first)));
+  VALUES (p_room, 1, v_club, v_first, jsonb_build_object('deal', jsonb_build_object(
+    'first', v_first,
+    'n', (SELECT jsonb_agg(CASE WHEN s = v_first THEN 10 ELSE 9 END ORDER BY s) FROM generate_series(0, v_n - 1) s),
+    'stock', 52 - v_pos,
+    'khan', v_khan)));
 END;
 $$;
 
-/* ---------- Dựng lại ván ---------- */
--- o_turn / o_step / o_top = thế hiện tại (fill dùng). Mảng plpgsql: ghế s ở [s + 1]; v_laid = jsonb mảng n phần tử.
-CREATE OR REPLACE FUNCTION public.game_phom_run(p_room uuid, p_seat int, p_move jsonb,
-  OUT o_err text, OUT o_result jsonb, OUT o_turn int, OUT o_step text, OUT o_top int)
+/* ---------- Dựng lại phần ai cũng thấy (như apply ở JS) ---------- */
+-- Log chỉ có nước server đã kiểm (game_phom_fill) nên ở đây áp thẳng, không kiểm lại.
+-- o_pile = số lá trong chồng bài trước mặt từng người · o_last = lá vừa đánh còn ăn được (NULL = không có) ·
+-- o_ec / o_eby / o_efrom / o_echot = các lá đã ăn: lá, người ăn, người bị ăn, ăn chốt · o_melds = phỏm đã hạ theo ghế
+-- (null = chưa hạ) · o_order = thứ tự hạ · o_u = { seat, tron, khan } khi có người ù.
+CREATE OR REPLACE FUNCTION public.game_phom_run(p_room uuid,
+  OUT o_n int, OUT o_first int, OUT o_out boolean[], OUT o_left int[], OUT o_counts int[], OUT o_stock int,
+  OUT o_pile int[], OUT o_turn int, OUT o_step text, OUT o_last int, OUT o_lseat int, OUT o_lchot boolean,
+  OUT o_ec int[], OUT o_eby int[], OUT o_efrom int[], OUT o_echot boolean[],
+  OUT o_melds jsonb, OUT o_order int[], OUT o_mom boolean[], OUT o_over boolean, OUT o_u jsonb)
 LANGUAGE plpgsql
 STABLE
 SECURITY DEFINER
 SET search_path = public
 AS $$
 DECLARE
-  v_opt    jsonb;
-  v_time   bigint;
-  v_n      int := 0;
-  v_out    boolean[];
-  v_turns  int[];
-  v_eaten  jsonb;            -- [[lá ăn của ghế 0], …]
-  v_laid   jsonb;            -- [null | [[lá…]…], …]
-  v_order  int[] := '{}';    -- thứ tự hạ
-  v_eats   jsonb := '[]';    -- [{ from, to, chot }]
-  v_top_s  int;
-  v_u      int;
-  v_over   boolean := false;
-  v_since  bigint;
-  v_err    text;
-  v_who    int;
-  v_hand   int[];
-  v_locks  jsonb;
-  v_w      int[];
-  v_c      int;
-  v_to     int;
-  v_gi     int;
-  v_tgt    jsonb;
-  v_k      int;
-  m        record;
-  d        jsonb;
-  y        int;
-  -- chấm điểm
-  v_pts    int[];
-  v_scores int[];
-  v_mom    int[];
-  v_ok     int[];
-  v_ranks  int[];
-  v_den    int;
-  e        jsonb;
+  m     record;
+  mv    jsonb;
+  s     int;
+  c     int;
+  v_to  int;
+  v_k   int;
+  v_new int[];
+  x     jsonb;
+  v_gone int;
 BEGIN
-  SELECT options INTO v_opt FROM game_rooms WHERE id = p_room;
-  v_time := 1000 * CASE WHEN jsonb_typeof(v_opt -> 'time') = 'number'
-                        THEN CASE WHEN (v_opt ->> 'time')::numeric IN (0, 20, 30, 45) THEN (v_opt ->> 'time')::numeric::int ELSE 30 END
-                        ELSE 30 END;
+  o_over := false;
+  o_left := '{}'; o_ec := '{}'; o_eby := '{}'; o_efrom := '{}'; o_echot := '{}'; o_order := '{}';
+  FOR m IN SELECT seat, move FROM game_moves WHERE room_id = p_room ORDER BY seq LOOP
+    mv := m.move;
+    s := m.seat;
+    IF o_over THEN CONTINUE; END IF;
 
-  FOR m IN
-    SELECT x.seat, x.move, x.at, x.cand FROM (
-      SELECT seq, seat::int AS seat, move, floor(extract(epoch FROM created_at) * 1000)::bigint AS at, false AS cand
-        FROM game_moves WHERE room_id = p_room
-      UNION ALL
-      SELECT 2147483647, p_seat, p_move, floor(extract(epoch FROM now()) * 1000)::bigint, true WHERE p_move IS NOT NULL
-    ) x ORDER BY x.seq
-  LOOP
-    v_err := NULL;
-    d := m.move -> 'deal';
-
-    /* ----- validate ----- */
-    IF jsonb_typeof(d) = 'object' THEN
-      IF v_n > 0 OR m.cand THEN v_err := 'games.err.badMove'; END IF;
-    ELSIF v_n = 0 THEN
-      v_err := 'games.err.badMove';
-    ELSIF v_over THEN
-      v_err := 'games.err.over';
-    ELSIF m.seat IS NULL OR m.seat < 0 OR m.seat >= v_n OR v_out[m.seat + 1] THEN
-      v_err := 'games.err.badMove';
-    ELSIF m.move -> 'out' = 'true'::jsonb THEN
-      IF m.cand THEN v_err := 'games.err.badMove'; END IF;
-    ELSIF o_turn IS NULL THEN
-      v_err := 'games.err.notYourTurn';
-    ELSIF m.cand AND m.move -> 'timeout' = 'true'::jsonb THEN
-      IF v_time = 0 THEN v_err := 'games.err.badMove';
-      ELSIF m.at < v_since + v_time THEN v_err := 'games.err.notYet';
-      END IF;
-    ELSE
-      v_who := CASE WHEN m.move -> 'timeout' = 'true'::jsonb THEN o_turn ELSE m.seat END;
-      IF v_who <> o_turn THEN
-        v_err := 'games.err.notYourTurn';
-      ELSE
-        IF m.cand THEN
-          SELECT cards INTO v_hand FROM game_hands WHERE room_id = p_room AND seat = v_who;
-          v_locks := game_phom_locks(p_room, v_who);
-        END IF;
-        IF m.move -> 'draw' = 'true'::jsonb THEN
-          IF o_step <> 'take' THEN v_err := 'games.err.badMove';
-          ELSIF m.cand AND COALESCE((SELECT cardinality(cards) FROM game_hands WHERE room_id = p_room AND seat = -1), 0) = 0 THEN
-            v_err := 'games.err.badMove';
-          END IF;
-        ELSIF m.move -> 'eat' = 'true'::jsonb THEN
-          IF o_step <> 'take' OR o_top IS NULL OR v_out[v_top_s + 1] THEN v_err := 'games.err.badMove';
-          ELSIF m.cand THEN
-            -- Lá ghép: 2+ lá trên tay, chưa bị khoá, ghép với lá ăn thành phỏm.
-            v_w := game_phom_ints(m.move -> 'with');
-            IF v_w IS NULL OR cardinality(v_w) < 2 OR NOT (v_hand @> v_w) OR NOT game_phom_ok(v_w || o_top)
-               OR EXISTS (SELECT 1 FROM jsonb_array_elements(v_locks) l WHERE game_phom_ints(l) && v_w) THEN
-              v_err := 'games.err.cantEat';
-            END IF;
-          END IF;
-        ELSIF m.move ? 'u' THEN
-          IF o_step = 'take' OR v_turns[v_who + 1] >= 4 OR v_laid -> v_who <> 'null'::jsonb THEN v_err := 'games.err.badMove';
-          ELSIF m.cand AND NOT game_phom_groups_ok(m.move -> 'u', v_hand, v_locks, cardinality(v_hand) - 1) THEN
-            v_err := 'games.err.badLay';
-          END IF;
-        ELSIF m.move ? 'lay' THEN
-          IF o_step <> 'lay' THEN v_err := 'games.err.badMove';
-          ELSIF m.cand AND NOT game_phom_groups_ok(m.move -> 'lay', v_hand, v_locks, 0) THEN v_err := 'games.err.badLay';
-          END IF;
-        ELSIF m.move ? 'send' THEN
-          v_c := game_phom_ints(jsonb_build_array(m.move #> '{send,card}'))[1];
-          v_to := CASE WHEN (m.move #>> '{send,to}') ~ '^[0-9]$' THEN (m.move #>> '{send,to}')::int END;
-          v_gi := CASE WHEN (m.move #>> '{send,group}') ~ '^[0-9]{1,2}$' THEN (m.move #>> '{send,group}')::int END;
-          v_tgt := CASE WHEN v_to < v_n THEN v_laid -> v_to -> v_gi END;
-          IF o_step <> 'discard' OR v_laid -> v_who = 'null'::jsonb OR v_c IS NULL OR v_to IS NULL OR v_to = v_who
-             OR jsonb_typeof(v_tgt) IS DISTINCT FROM 'array' OR NOT game_phom_ok(game_phom_ints(v_tgt) || v_c) THEN
-            v_err := 'games.err.badMove';
-          ELSIF m.cand AND NOT (v_c = ANY(v_hand)) THEN
-            v_err := 'games.err.notYourCard';
-          END IF;
-        ELSIF m.move ? 'discard' THEN
-          v_c := game_phom_ints(jsonb_build_array(m.move -> 'discard'))[1];
-          IF o_step <> 'discard' OR v_c IS NULL THEN v_err := 'games.err.badMove';
-          ELSIF v_eaten -> v_who @> to_jsonb(v_c) THEN v_err := 'games.err.locked';
-          ELSIF m.cand AND NOT (v_c = ANY(v_hand)) THEN v_err := 'games.err.notYourCard';
-          ELSIF m.cand AND EXISTS (SELECT 1 FROM jsonb_array_elements(v_locks) l WHERE v_c = ANY(game_phom_ints(l))) THEN
-            v_err := 'games.err.locked';
-          END IF;
-        ELSE
-          v_err := 'games.err.badMove';
-        END IF;
-      END IF;
-    END IF;
-
-    IF m.cand THEN o_err := v_err; EXIT; END IF;
-    IF v_err IS NOT NULL THEN CONTINUE; END IF;
-
-    /* ----- apply ----- */
-    IF jsonb_typeof(d) = 'object' THEN
-      v_n := (d ->> 'n')::int;
-      o_turn := (d ->> 'first')::int;
+    IF mv ? 'deal' THEN
+      o_n := jsonb_array_length(mv -> 'deal' -> 'n');
+      o_first := (mv -> 'deal' ->> 'first')::int;
+      o_out := array_fill(false, ARRAY[o_n]);
+      o_counts := ARRAY(SELECT game_phom_int(e) FROM jsonb_array_elements(mv -> 'deal' -> 'n') e);
+      o_stock := (mv -> 'deal' ->> 'stock')::int;
+      o_pile := array_fill(0, ARRAY[o_n]);
+      o_turn := o_first;
       o_step := 'discard';
-      v_out := array_fill(false, ARRAY[v_n]);
-      v_turns := array_fill(0, ARRAY[v_n]);
-      v_eaten := (SELECT jsonb_agg('[]'::jsonb) FROM generate_series(1, v_n));
-      v_laid := (SELECT jsonb_agg('null'::jsonb) FROM generate_series(1, v_n));
-      v_since := m.at;
+      o_melds := to_jsonb(array_fill(NULL::int, ARRAY[o_n]));
+      o_mom := array_fill(false, ARRAY[o_n]);
+      IF jsonb_typeof(mv -> 'deal' -> 'khan') = 'number' THEN
+        o_over := true; o_turn := NULL; o_step := NULL;
+        o_u := jsonb_build_object('seat', (mv -> 'deal' ->> 'khan')::int, 'tron', false, 'khan', true);
+      END IF;
       CONTINUE;
     END IF;
-    IF m.move -> 'out' = 'true'::jsonb THEN
-      v_out[m.seat + 1] := true;
-      IF v_top_s = m.seat THEN o_top := NULL; v_top_s := NULL; END IF;
-      IF m.seat <> o_turn THEN CONTINUE; END IF;
-      v_who := m.seat;
-      v_k := NULL;
-      FOR y IN 1..v_n LOOP
-        IF NOT v_out[(v_who + y) % v_n + 1] AND v_turns[(v_who + y) % v_n + 1] < 4 THEN v_k := (v_who + y) % v_n; EXIT; END IF;
-      END LOOP;
-      IF v_k IS NULL THEN o_turn := NULL; v_over := true; ELSE o_turn := v_k; o_step := 'take'; v_since := m.at; END IF;
+    IF o_n IS NULL THEN CONTINUE; END IF;
+
+    IF mv -> 'out' = 'true'::jsonb THEN
+      o_out[s + 1] := true;
+      o_left := o_left || s;
+      IF o_lseat = s THEN o_last := NULL; END IF;
+      IF (SELECT count(*) FROM unnest(o_out) z WHERE NOT z) <= 1 THEN
+        o_over := true; o_turn := NULL; o_step := NULL;
+      ELSIF o_turn = s THEN
+        o_turn := game_phom_next(o_n, o_out, o_order, o_pile, s);
+        IF o_turn IS NULL THEN o_over := true; o_step := NULL; ELSE o_step := 'take'; END IF;
+      END IF;
       CONTINUE;
     END IF;
-    v_since := m.at;
-    IF m.move -> 'draw' = 'true'::jsonb OR m.move -> 'eat' = 'true'::jsonb THEN
-      IF m.move -> 'eat' = 'true'::jsonb THEN
-        v_eats := v_eats || jsonb_build_object('from', v_top_s, 'to', v_who, 'chot', v_turns[v_who + 1] = 3);
-        v_eaten := jsonb_set(v_eaten, ARRAY[v_who::text], (v_eaten -> v_who) || to_jsonb(o_top));
-        o_top := NULL;
-        v_top_s := NULL;
+
+    IF mv -> 'draw' = 'true'::jsonb THEN
+      o_counts[s + 1] := o_counts[s + 1] + 1;
+      o_stock := o_stock - 1;
+      o_step := CASE WHEN NOT s = ANY(o_order) AND o_pile[s + 1] = 3 THEN 'lay' ELSE 'discard' END;
+      CONTINUE;
+    END IF;
+
+    IF mv ? 'eat' THEN
+      c := game_phom_int(mv -> 'eat');
+      o_ec := o_ec || c; o_eby := o_eby || s; o_efrom := o_efrom || o_lseat; o_echot := o_echot || o_lchot;
+      -- Chuyển bài: lá rời chồng người bị ăn; lá trên cùng chồng người ăn chuyển sang (người ăn chưa đánh lá nào thì thôi).
+      o_pile[o_lseat + 1] := o_pile[o_lseat + 1] - 1;
+      IF o_pile[s + 1] > 0 THEN
+        o_pile[s + 1] := o_pile[s + 1] - 1;
+        o_pile[o_lseat + 1] := o_pile[o_lseat + 1] + 1;
       END IF;
-      o_step := CASE WHEN v_turns[v_who + 1] = 3 THEN 'lay' ELSE 'discard' END;
-    ELSIF m.move ? 'u' THEN
-      v_u := v_who;
-      v_laid := jsonb_set(v_laid, ARRAY[v_who::text], m.move -> 'u');
-      v_over := true;
-      o_turn := NULL;
-    ELSIF m.move ? 'lay' THEN
-      v_laid := jsonb_set(v_laid, ARRAY[v_who::text], m.move -> 'lay');
-      v_order := v_order || v_who;
-      o_step := 'discard';
-    ELSIF m.move ? 'send' THEN
-      v_laid := jsonb_set(v_laid, ARRAY[v_to::text, v_gi::text], v_tgt || to_jsonb(v_c));
-    ELSE
-      v_turns[v_who + 1] := v_turns[v_who + 1] + 1;
-      o_top := v_c;
-      v_top_s := v_who;
-      v_k := NULL;
-      FOR y IN 1..v_n LOOP
-        IF NOT v_out[(v_who + y) % v_n + 1] AND v_turns[(v_who + y) % v_n + 1] < 4 THEN v_k := (v_who + y) % v_n; EXIT; END IF;
+      o_last := NULL;
+      o_counts[s + 1] := o_counts[s + 1] + 1;
+      o_step := CASE WHEN NOT s = ANY(o_order) AND o_pile[s + 1] = 3 THEN 'lay' ELSE 'discard' END;
+      CONTINUE;
+    END IF;
+
+    IF mv ? 'u' THEN
+      o_over := true; o_turn := NULL; o_step := NULL;
+      o_u := jsonb_build_object('seat', s, 'tron', (mv ->> 'tron')::boolean, 'khan', false);
+      CONTINUE;
+    END IF;
+
+    IF mv ? 'lay' THEN
+      o_melds := jsonb_set(o_melds, ARRAY[s::text], mv -> 'lay');
+      v_gone := (SELECT count(*) FROM jsonb_array_elements(mv -> 'lay') q, jsonb_array_elements(q) z);
+      FOR x IN SELECT value FROM jsonb_array_elements(COALESCE(mv -> 'send', '[]')) LOOP
+        v_to := game_phom_int(x -> 0);
+        v_k := game_phom_int(x -> 1);
+        c := game_phom_int(x -> 2);
+        v_new := ARRAY(SELECT y FROM unnest(game_phom_cards(o_melds -> v_to -> v_k) || c) y ORDER BY y);
+        o_melds := jsonb_set(o_melds, ARRAY[v_to::text, v_k::text], to_jsonb(v_new));
+        v_gone := v_gone + 1;
       END LOOP;
-      IF v_k IS NULL THEN o_turn := NULL; o_top := NULL; v_over := true; ELSE o_turn := v_k; o_step := 'take'; END IF;
+      o_order := o_order || s;
+      o_mom[s + 1] := jsonb_array_length(mv -> 'lay') = 0;
+      o_counts[s + 1] := o_counts[s + 1] - v_gone;
+      o_step := 'discard';
+      CONTINUE;
+    END IF;
+
+    IF mv ? 'discard' THEN
+      c := game_phom_int(mv -> 'discard');
+      o_pile[s + 1] := o_pile[s + 1] + 1;
+      o_counts[s + 1] := o_counts[s + 1] - 1;
+      o_last := c; o_lseat := s; o_lchot := s = ANY(o_order);  -- đánh sau khi đã hạ = lá chốt
+      o_turn := game_phom_next(o_n, o_out, o_order, o_pile, s);
+      IF o_turn IS NULL THEN o_over := true; o_step := NULL; ELSE o_step := 'take'; END IF;
     END IF;
   END LOOP;
-
-  IF NOT v_over THEN RETURN; END IF;
-
-  /* ----- finalOf() của JS: bài còn trên tay ----- */
-  v_scores := array_fill(0, ARRAY[v_n]);
-  FOR e IN SELECT value FROM jsonb_array_elements(v_eats) LOOP
-    v_k := CASE WHEN (e ->> 'chot')::boolean THEN 4 ELSE 1 END;
-    v_scores[(e ->> 'from')::int + 1] := v_scores[(e ->> 'from')::int + 1] - v_k;
-    v_scores[(e ->> 'to')::int + 1] := v_scores[(e ->> 'to')::int + 1] + v_k;
-  END LOOP;
-  v_pts := ARRAY(SELECT COALESCE((SELECT sum(game_phom_val(x)) FROM game_hands h, unnest(h.cards) x WHERE h.room_id = p_room AND h.seat = g), 0)::int
-                   FROM generate_series(0, v_n - 1) g ORDER BY g);
-  IF v_u IS NOT NULL THEN
-    SELECT (q.f)::int INTO v_den FROM (
-      SELECT x ->> 'from' AS f FROM jsonb_array_elements(v_eats) x WHERE (x ->> 'to')::int = v_u GROUP BY 1 HAVING count(*) >= 3 ORDER BY 1 LIMIT 1) q;
-    FOR y IN 0..v_n - 1 LOOP
-      IF y = v_u THEN CONTINUE; END IF;
-      v_scores[COALESCE(v_den, y) + 1] := v_scores[COALESCE(v_den, y) + 1] - 5;
-      v_scores[v_u + 1] := v_scores[v_u + 1] + 5;
-    END LOOP;
-    v_ranks := v_u || ARRAY(SELECT g FROM generate_series(0, v_n - 1) g WHERE g <> v_u AND NOT v_out[g + 1] ORDER BY g)
-                   || ARRAY(SELECT g FROM generate_series(0, v_n - 1) g WHERE g <> v_u AND v_out[g + 1] ORDER BY g);
-  ELSE
-    v_mom := ARRAY(SELECT g FROM generate_series(0, v_n - 1) g
-                    WHERE NOT v_out[g + 1] AND COALESCE(jsonb_array_length(NULLIF(v_laid -> g, 'null'::jsonb)), 0) = 0
-                    ORDER BY COALESCE(array_position(v_order, g), 99), g);
-    v_ok := ARRAY(SELECT g FROM generate_series(0, v_n - 1) g WHERE NOT v_out[g + 1] AND NOT (g = ANY(v_mom))
-                   ORDER BY v_pts[g + 1], COALESCE(array_position(v_order, g), 99), g);
-    IF cardinality(v_ok) = 0 THEN
-      v_ok := ARRAY(SELECT x FROM unnest(v_mom) x ORDER BY v_pts[x + 1], COALESCE(array_position(v_order, x), 99), x);
-      v_mom := '{}';
-    END IF;
-    v_ranks := v_ok || v_mom || ARRAY(SELECT g FROM generate_series(0, v_n - 1) g WHERE v_out[g + 1] ORDER BY g);
-    FOR y IN 2..cardinality(v_ok) LOOP
-      v_scores[v_ok[y] + 1] := v_scores[v_ok[y] + 1] - (y - 1);
-      v_scores[v_ranks[1] + 1] := v_scores[v_ranks[1] + 1] + (y - 1);
-    END LOOP;
-    FOR y IN 1..v_n LOOP
-      IF NOT (y - 1 = ANY(v_mom) OR v_out[y]) THEN CONTINUE; END IF;
-      v_scores[y] := v_scores[y] - 4;
-      v_scores[v_ranks[1] + 1] := v_scores[v_ranks[1] + 1] + 4;
-    END LOOP;
-  END IF;
-  o_result := jsonb_build_object('winners', jsonb_build_array(v_ranks[1]), 'draw', false, 'ranks', to_jsonb(v_ranks),
-    'scores', (SELECT jsonb_object_agg(g::text, v_scores[g + 1]) FROM generate_series(0, v_n - 1) g),
-    'points', (SELECT jsonb_object_agg(g::text, v_pts[g + 1]) FROM generate_series(0, v_n - 1) g),
-    'mom', to_jsonb(COALESCE(v_mom, '{}')));
 END;
 $$;
 
-CREATE OR REPLACE FUNCTION public.game_phom_check(p_room uuid, p_seat int, p_move jsonb)
-RETURNS text
-LANGUAGE sql
-STABLE
-SECURITY DEFINER
-SET search_path = public
-AS $$ SELECT o_err FROM public.game_phom_run(p_room, p_seat, p_move) $$;
-
-CREATE OR REPLACE FUNCTION public.game_phom_result(p_room uuid)
-RETURNS jsonb
-LANGUAGE sql
-STABLE
-SECURITY DEFINER
-SET search_path = public
-AS $$ SELECT o_result FROM public.game_phom_run(p_room, NULL, NULL) $$;
-
-/* ---------- Điền nước (check đã chặn nước sai) ---------- */
-CREATE OR REPLACE FUNCTION public.game_phom_fill(p_room uuid, p_seat int, p_move jsonb)
+/* ---------- Kiểm + điền nước (game_move 0078 gọi) — như referee() ở JS ---------- */
+CREATE OR REPLACE FUNCTION public.game_phom_fill(p_room uuid, p_seat integer, p_move jsonb)
 RETURNS jsonb
 LANGUAGE plpgsql
 VOLATILE
@@ -431,77 +330,210 @@ SECURITY DEFINER
 SET search_path = public
 AS $$
 DECLARE
-  c       record;
-  y       int;
+  r       record;
   v_hand  int[];
-  v_deck  int[];
-  v_lock  int[];
-  v_locks jsonb;
-  v_mv    jsonb := p_move;
-  v_c     int;
-  v_w     int[];
-  v_flat  int[];
-  v_to    boolean := p_move -> 'timeout' = 'true'::jsonb;
+  v_pend  int[];
+  v_non   int[];
+  v_stock int[];
+  v_melds jsonb;
+  v_all   int[];
+  v_send  jsonb;
+  v_work  jsonb;
+  v_sent  int[] := '{}';
+  v_new   int[];
+  v_tron  boolean;
+  v_disc  int;
+  v_to    int;
+  v_k     int;
+  c       int;
+  x       jsonb;
 BEGIN
-  IF p_move -> 'out' = 'true'::jsonb THEN RETURN p_move; END IF;
-  SELECT * INTO c FROM game_phom_run(p_room, NULL, NULL);
-  y := CASE WHEN v_to THEN c.o_turn ELSE p_seat END;
-  SELECT cards INTO v_hand FROM game_hands WHERE room_id = p_room AND seat = y;
-  v_locks := game_phom_locks(p_room, y);
+  IF jsonb_typeof(p_move) IS DISTINCT FROM 'object' OR p_move ? 'out' OR p_move ? 'deal' THEN RAISE EXCEPTION 'games.err.badMove'; END IF;
+  SELECT * INTO r FROM game_phom_run(p_room);
+  IF r.o_n IS NULL THEN RAISE EXCEPTION 'games.err.badMove'; END IF;
+  IF r.o_over THEN RAISE EXCEPTION 'games.err.over'; END IF;
+  IF p_seat IS DISTINCT FROM r.o_turn THEN RAISE EXCEPTION 'games.err.notYourTurn'; END IF;
 
-  -- Hết giờ: bốc · hạ đúng các nhóm khoá · đánh lá to nhất không bị khoá.
-  IF v_to THEN
-    IF c.o_step = 'take' THEN v_mv := '{"draw": true}';
-    ELSIF c.o_step = 'lay' THEN v_mv := jsonb_build_object('lay', v_locks);
+  SELECT cards INTO v_hand FROM game_hands WHERE room_id = p_room AND seat = p_seat;
+  v_hand := COALESCE(v_hand, '{}');
+  -- Lá ăn chưa hạ: chưa hạ thì là mọi lá người này đã ăn.
+  v_pend := CASE WHEN p_seat = ANY(r.o_order) THEN '{}'::int[]
+                 ELSE ARRAY(SELECT r.o_ec[i] FROM generate_subscripts(r.o_ec, 1) i WHERE r.o_eby[i] = p_seat ORDER BY i) END;
+  v_non := ARRAY(SELECT y FROM unnest(v_hand) y WHERE NOT y = ANY(v_pend));
+
+  /* Bốc nọc: lá đầu nọc vào tay, log không lộ lá. */
+  IF p_move -> 'draw' = 'true'::jsonb THEN
+    IF r.o_step IS DISTINCT FROM 'take' THEN RAISE EXCEPTION 'games.err.badMove'; END IF;
+    SELECT cards INTO v_stock FROM game_hands WHERE room_id = p_room AND seat = -1;
+    IF COALESCE(cardinality(v_stock), 0) = 0 THEN RAISE EXCEPTION 'games.err.pileEmpty'; END IF;
+    UPDATE game_hands SET cards = v_stock[2:] WHERE room_id = p_room AND seat = -1;
+    UPDATE game_hands SET cards = ARRAY(SELECT y FROM unnest(v_hand || v_stock[1]) y ORDER BY y) WHERE room_id = p_room AND seat = p_seat;
+    RETURN '{"draw": true}'::jsonb;
+  END IF;
+
+  /* Ăn lá vừa đánh: vẫn phải xếp được mọi lá ăn vào các phỏm rời nhau. */
+  IF p_move -> 'eat' = 'true'::jsonb THEN
+    IF r.o_step IS DISTINCT FROM 'take' THEN RAISE EXCEPTION 'games.err.badMove'; END IF;
+    IF r.o_last IS NULL THEN RAISE EXCEPTION 'games.err.nothingToEat'; END IF;
+    IF NOT game_phom_cover(v_non, v_pend || r.o_last) THEN RAISE EXCEPTION 'games.err.cantEat'; END IF;
+    UPDATE game_hands SET cards = ARRAY(SELECT y FROM unnest(v_hand || r.o_last) y ORDER BY y) WHERE room_id = p_room AND seat = p_seat;
+    RETURN jsonb_build_object('eat', r.o_last);
+  END IF;
+
+  /* Ù và hạ dùng chung bước kiểm cách xếp phỏm (như meldsErr: dạng → phỏm → trùng → trên tay → lá ăn). */
+  IF p_move ? 'u' OR p_move ? 'lay' THEN
+    IF p_move ? 'u' THEN
+      IF r.o_step IS DISTINCT FROM 'discard' AND r.o_step IS DISTINCT FROM 'lay' OR p_seat = ANY(r.o_order) THEN
+        RAISE EXCEPTION 'games.err.badMove';
+      END IF;
+      v_melds := game_phom_melds(p_move -> 'u');
     ELSE
-      v_c := (SELECT x FROM unnest(v_hand) x
-               WHERE NOT EXISTS (SELECT 1 FROM jsonb_array_elements(v_locks) l WHERE x = ANY(game_phom_ints(l)))
-               ORDER BY game_phom_val(x) DESC, x DESC LIMIT 1);
-      v_mv := jsonb_build_object('discard', v_c);
+      IF r.o_step IS DISTINCT FROM 'lay' THEN RAISE EXCEPTION 'games.err.badMove'; END IF;
+      v_melds := game_phom_melds(p_move -> 'lay');
     END IF;
+    IF v_melds IS NULL THEN RAISE EXCEPTION 'games.err.badMove'; END IF;
+    IF EXISTS (SELECT 1 FROM jsonb_array_elements(v_melds) q WHERE NOT game_phom_meld(game_phom_cards(q))) THEN
+      RAISE EXCEPTION 'games.err.badMeld';
+    END IF;
+    v_all := ARRAY(SELECT game_phom_int(z) FROM jsonb_array_elements(v_melds) q, jsonb_array_elements(q) z);
+    IF (SELECT count(DISTINCT y) FROM unnest(v_all) y) <> cardinality(v_all) THEN RAISE EXCEPTION 'games.err.badMeld'; END IF;
+    IF EXISTS (SELECT 1 FROM unnest(v_all) y WHERE NOT y = ANY(v_hand)) THEN RAISE EXCEPTION 'games.err.notYourCard'; END IF;
+    IF EXISTS (SELECT 1 FROM unnest(v_pend) p
+                WHERE (SELECT count(*) FROM jsonb_array_elements(v_melds) q WHERE p = ANY(game_phom_cards(q))) <> 1)
+       OR EXISTS (SELECT 1 FROM jsonb_array_elements(v_melds) q
+                   WHERE (SELECT count(*) FROM unnest(game_phom_cards(q)) y WHERE y = ANY(v_pend)) > 1) THEN
+      RAISE EXCEPTION 'games.err.eatenMeld';
+    END IF;
+
+    IF p_move ? 'u' THEN
+      IF cardinality(v_all) < cardinality(v_hand) - 1 THEN RAISE EXCEPTION 'games.err.notU'; END IF;
+      v_tron := cardinality(v_all) = cardinality(v_hand);
+      IF NOT v_tron THEN v_disc := (SELECT y FROM unnest(v_hand) y WHERE NOT y = ANY(v_all) ORDER BY y LIMIT 1); END IF;
+      RETURN jsonb_build_object('u', v_melds, 'tron', v_tron, 'discard', v_disc);
+    END IF;
+
+    -- Gửi bài vào phỏm đã hạ của người khác (như layErr).
+    v_send := p_move -> 'send';
+    IF v_send IS NULL OR v_send = 'null'::jsonb THEN v_send := '[]'; END IF;
+    IF jsonb_typeof(v_send) IS DISTINCT FROM 'array' THEN RAISE EXCEPTION 'games.err.badMove'; END IF;
+    IF jsonb_array_length(v_send) > 0 AND jsonb_array_length(v_melds) = 0 THEN RAISE EXCEPTION 'games.err.momSend'; END IF;
+    v_work := r.o_melds;
+    FOR x IN SELECT value FROM jsonb_array_elements(v_send) LOOP
+      IF jsonb_typeof(x) IS DISTINCT FROM 'array' OR jsonb_array_length(x) <> 3
+         OR game_phom_int(x -> 0) IS NULL OR game_phom_int(x -> 1) IS NULL OR game_phom_int(x -> 2) IS NULL THEN
+        RAISE EXCEPTION 'games.err.badSend';
+      END IF;
+      v_to := game_phom_int(x -> 0);
+      v_k := game_phom_int(x -> 1);
+      c := game_phom_int(x -> 2);
+      IF v_to = p_seat OR v_to < 0 OR v_to >= r.o_n OR jsonb_typeof(v_work -> v_to) IS DISTINCT FROM 'array'
+         OR v_k < 0 OR v_k >= jsonb_array_length(v_work -> v_to) THEN
+        RAISE EXCEPTION 'games.err.badSend';
+      END IF;
+      IF c < 0 OR c > 51 OR c = ANY(v_all) OR c = ANY(v_sent) OR c = ANY(v_pend) OR NOT c = ANY(v_hand) THEN
+        RAISE EXCEPTION 'games.err.badSend';
+      END IF;
+      v_new := ARRAY(SELECT y FROM unnest(game_phom_cards(v_work -> v_to -> v_k) || c) y ORDER BY y);
+      IF NOT game_phom_meld(v_new) THEN RAISE EXCEPTION 'games.err.badSend'; END IF;
+      v_work := jsonb_set(v_work, ARRAY[v_to::text, v_k::text], to_jsonb(v_new));
+      v_sent := v_sent || c;
+    END LOOP;
+    -- Hạ / gửi xong vẫn phải còn ít nhất một lá để đánh (phủ hết bài là ù, không phải hạ).
+    IF cardinality(v_all) + cardinality(v_sent) > cardinality(v_hand) - 1 THEN RAISE EXCEPTION 'games.err.badMove'; END IF;
+    UPDATE game_hands SET cards = ARRAY(SELECT y FROM unnest(v_hand) y WHERE NOT y = ANY(v_all) AND NOT y = ANY(v_sent) ORDER BY y)
+     WHERE room_id = p_room AND seat = p_seat;
+    RETURN jsonb_build_object('lay', v_melds, 'send', v_send);
   END IF;
 
-  IF v_mv -> 'draw' = 'true'::jsonb THEN
-    SELECT cards INTO v_deck FROM game_hands WHERE room_id = p_room AND seat = -1;
-    UPDATE game_hands SET cards = v_hand || v_deck[1] WHERE room_id = p_room AND seat = y;
-    UPDATE game_hands SET cards = v_deck[2:] WHERE room_id = p_room AND seat = -1;
-    v_mv := '{"draw": true}';
-  ELSIF v_mv -> 'eat' = 'true'::jsonb THEN
-    v_w := game_phom_ints(v_mv -> 'with');
-    UPDATE game_hands SET cards = v_hand || c.o_top WHERE room_id = p_room AND seat = y;
-    UPDATE game_hands SET cards = cards || (cardinality(v_w) + 1) || c.o_top || v_w WHERE room_id = p_room AND seat = -10 - y;
-    v_mv := '{"eat": true}';  -- lá ghép giữ kín
-  ELSIF v_mv ? 'discard' THEN
-    v_c := (v_mv ->> 'discard')::int;
-    UPDATE game_hands SET cards = array_remove(v_hand, v_c) WHERE room_id = p_room AND seat = y;
-    v_mv := jsonb_build_object('discard', v_c);
-  ELSIF v_mv ? 'lay' THEN
-    v_flat := ARRAY(SELECT (x #>> '{}')::int FROM jsonb_array_elements(v_mv -> 'lay') g, jsonb_array_elements(g) x);
-    UPDATE game_hands SET cards = ARRAY(SELECT x FROM unnest(v_hand) x WHERE NOT (x = ANY(v_flat))) WHERE room_id = p_room AND seat = y;
-    UPDATE game_hands SET cards = '{}' WHERE room_id = p_room AND seat = -10 - y;
-    v_mv := jsonb_build_object('lay', v_mv -> 'lay');
-  ELSIF v_mv ? 'send' THEN
-    v_c := (v_mv #>> '{send,card}')::int;
-    UPDATE game_hands SET cards = array_remove(v_hand, v_c) WHERE room_id = p_room AND seat = y;
-    v_mv := jsonb_build_object('send', v_mv -> 'send');
-  ELSIF v_mv ? 'u' THEN
-    v_flat := ARRAY(SELECT (x #>> '{}')::int FROM jsonb_array_elements(v_mv -> 'u') g, jsonb_array_elements(g) x);
-    v_mv := jsonb_build_object('u', v_mv -> 'u', 'rest', to_jsonb(ARRAY(SELECT x FROM unnest(v_hand) x WHERE NOT (x = ANY(v_flat)))));
+  /* Đánh một lá: phải có trên tay, không phải lá ăn, và vẫn giữ được phỏm cho mọi lá ăn chưa hạ. */
+  IF p_move ? 'discard' THEN
+    IF r.o_step IS DISTINCT FROM 'discard' THEN RAISE EXCEPTION 'games.err.badMove'; END IF;
+    c := game_phom_int(p_move -> 'discard');
+    IF c IS NULL OR NOT c = ANY(v_hand) THEN RAISE EXCEPTION 'games.err.notYourCard'; END IF;
+    IF c = ANY(v_pend) OR NOT game_phom_cover(array_remove(v_non, c), v_pend) THEN RAISE EXCEPTION 'games.err.keepEaten'; END IF;
+    UPDATE game_hands SET cards = array_remove(v_hand, c) WHERE room_id = p_room AND seat = p_seat;
+    RETURN jsonb_build_object('discard', c);
   END IF;
-  IF v_to THEN v_mv := v_mv || '{"timeout": true}'; END IF;
-  RETURN v_mv;
+
+  RAISE EXCEPTION 'games.err.badMove';
 END;
 $$;
 
-REVOKE ALL ON FUNCTION public.game_phom_val(int) FROM PUBLIC, anon, authenticated;
-REVOKE ALL ON FUNCTION public.game_phom_ok(int[]) FROM PUBLIC, anon, authenticated;
-REVOKE ALL ON FUNCTION public.game_phom_ints(jsonb) FROM PUBLIC, anon, authenticated;
-REVOKE ALL ON FUNCTION public.game_phom_locks(uuid, int) FROM PUBLIC, anon, authenticated;
-REVOKE ALL ON FUNCTION public.game_phom_groups_ok(jsonb, int[], jsonb, int) FROM PUBLIC, anon, authenticated;
+/* ---------- Chấm ván (game_finish 0075 gọi) — như judge() ở JS ---------- */
+-- Ăn bài: người bị ăn trả người ăn 1 (ăn chốt 4). Ù: mỗi người trả 5 (ù tròn 10, ù khan 5); người ù đã ăn ≥ 3 lá của cùng
+-- một người thì người đó (ghế nhỏ nhất nếu nhiều) đền thay cả làng. Không ai ù: điểm rác = tổng hạng + 1 bài còn trên tay;
+-- xếp người còn ngồi theo (móm sau, ít điểm trước, hạ trước), rồi người rời (rời trước đứng dưới); Nhì −1, Ba −2, người
+-- cuối −3, móm −4 — Nhất nhận tổng. NULL khi ván chưa xong.
+CREATE OR REPLACE FUNCTION public.game_phom_result(p_room uuid)
+RETURNS jsonb
+LANGUAGE plpgsql
+STABLE
+SECURITY DEFINER
+SET search_path = public
+AS $$
+DECLARE
+  r       record;
+  v_pay   int[];
+  v_pts   int[];
+  v_ranks int[];
+  v_amt   int;
+  v_w     int;
+  v_den   int;
+  i       int;
+  x       int;
+BEGIN
+  SELECT * INTO r FROM game_phom_run(p_room);
+  IF r.o_n IS NULL OR NOT r.o_over THEN RETURN NULL; END IF;
+  v_pay := array_fill(0, ARRAY[r.o_n]);
+  FOR i IN 1 .. COALESCE(cardinality(r.o_ec), 0) LOOP
+    v_amt := CASE WHEN r.o_echot[i] THEN 4 ELSE 1 END;
+    v_pay[r.o_efrom[i] + 1] := v_pay[r.o_efrom[i] + 1] - v_amt;
+    v_pay[r.o_eby[i] + 1] := v_pay[r.o_eby[i] + 1] + v_amt;
+  END LOOP;
+
+  IF r.o_u IS NOT NULL THEN
+    v_w := (r.o_u ->> 'seat')::int;
+    v_amt := CASE WHEN (r.o_u ->> 'tron')::boolean THEN 10 ELSE 5 END;
+    SELECT f INTO v_den FROM (
+      SELECT r.o_efrom[j] AS f, count(*) AS k FROM generate_subscripts(r.o_ec, 1) j WHERE r.o_eby[j] = v_w GROUP BY 1
+    ) q WHERE k >= 3 ORDER BY f LIMIT 1;
+    FOR x IN 0 .. r.o_n - 1 LOOP
+      CONTINUE WHEN x = v_w;
+      v_pay[COALESCE(v_den, x) + 1] := v_pay[COALESCE(v_den, x) + 1] - v_amt;
+      v_pay[v_w + 1] := v_pay[v_w + 1] + v_amt;
+    END LOOP;
+    v_ranks := ARRAY[v_w] || ARRAY(SELECT y FROM generate_series(0, r.o_n - 1) y WHERE y <> v_w ORDER BY y);
+    RETURN jsonb_build_object('winners', jsonb_build_array(v_w), 'draw', false, 'ranks', to_jsonb(v_ranks),
+      'scores', (SELECT jsonb_object_agg(s::text, v_pay[s + 1]) FROM generate_series(0, r.o_n - 1) s), 'u', r.o_u);
+  END IF;
+
+  v_pts := ARRAY(SELECT COALESCE((SELECT sum(c / 4 + 1) FROM game_hands h, unnest(h.cards) c WHERE h.room_id = p_room AND h.seat = s), 0)::int
+                   FROM generate_series(0, r.o_n - 1) s ORDER BY s);
+  v_ranks := ARRAY(SELECT s FROM generate_series(0, r.o_n - 1) s WHERE NOT r.o_out[s + 1]
+                    ORDER BY r.o_mom[s + 1], v_pts[s + 1], COALESCE(array_position(r.o_order, s), 99), s)
+          || ARRAY(SELECT y FROM unnest(r.o_left) WITH ORDINALITY AS q(y, k) ORDER BY k DESC);
+  FOR i IN 2 .. r.o_n LOOP
+    x := v_ranks[i];
+    v_amt := CASE WHEN r.o_mom[x + 1] THEN 4 WHEN i = r.o_n THEN 3 ELSE i - 1 END;
+    v_pay[x + 1] := v_pay[x + 1] - v_amt;
+    v_pay[v_ranks[1] + 1] := v_pay[v_ranks[1] + 1] + v_amt;
+  END LOOP;
+  RETURN jsonb_build_object('winners', jsonb_build_array(v_ranks[1]), 'draw', false, 'ranks', to_jsonb(v_ranks),
+    'scores', (SELECT jsonb_object_agg(s::text, v_pay[s + 1]) FROM generate_series(0, r.o_n - 1) s),
+    'points', (SELECT jsonb_object_agg(s::text, v_pts[s + 1]) FROM generate_series(0, r.o_n - 1) s WHERE NOT r.o_out[s + 1]));
+END;
+$$;
+
+REVOKE ALL ON FUNCTION public.game_phom_int(jsonb) FROM PUBLIC, anon, authenticated;
+REVOKE ALL ON FUNCTION public.game_phom_meld(int[]) FROM PUBLIC, anon, authenticated;
+REVOKE ALL ON FUNCTION public.game_phom_cover(int[], int[]) FROM PUBLIC, anon, authenticated;
+REVOKE ALL ON FUNCTION public.game_phom_khan(int[]) FROM PUBLIC, anon, authenticated;
+REVOKE ALL ON FUNCTION public.game_phom_melds(jsonb) FROM PUBLIC, anon, authenticated;
+REVOKE ALL ON FUNCTION public.game_phom_cards(jsonb) FROM PUBLIC, anon, authenticated;
+REVOKE ALL ON FUNCTION public.game_phom_next(int, boolean[], int[], int[], int) FROM PUBLIC, anon, authenticated;
 REVOKE ALL ON FUNCTION public.game_phom_deal(uuid) FROM PUBLIC, anon, authenticated;
-REVOKE ALL ON FUNCTION public.game_phom_run(uuid, int, jsonb) FROM PUBLIC, anon, authenticated;
-REVOKE ALL ON FUNCTION public.game_phom_check(uuid, int, jsonb) FROM PUBLIC, anon, authenticated;
+REVOKE ALL ON FUNCTION public.game_phom_run(uuid) FROM PUBLIC, anon, authenticated;
+REVOKE ALL ON FUNCTION public.game_phom_fill(uuid, integer, jsonb) FROM PUBLIC, anon, authenticated;
 REVOKE ALL ON FUNCTION public.game_phom_result(uuid) FROM PUBLIC, anon, authenticated;
-REVOKE ALL ON FUNCTION public.game_phom_fill(uuid, int, jsonb) FROM PUBLIC, anon, authenticated;
 
 COMMIT;

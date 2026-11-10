@@ -1,4 +1,4 @@
--- 0089_games_xidach.sql — Xì dách (docs/GAMES.md §5.2, §12). Chạy sau 0078. Chỉ thêm hàm, không đụng bảng / data.
+-- 0098_games_xidach.sql — Xì dách (docs/GAMES.md §5.2, §12). Chạy sau 0078. Chỉ thêm hàm, không đụng bảng / data.
 --
 -- Bài ván đang chơi ở game_hands ghế ≥ 0 (RLS: chỉ chủ bài đọc), nọc ở ghế -1 (không ai đọc). Mỗi ván chia lại, ghi đè.
 -- game_xidach_deal   — game_start gọi: chia ván đầu (cái = ghế 0), ghi nước 1 { deal }.

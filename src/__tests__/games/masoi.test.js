@@ -4,7 +4,7 @@
 
 import assert from 'node:assert/strict'
 import { readFileSync } from 'node:fs'
-import ms, { complete, CUPID, deadlineOf, NIGHT_SEC, CURSED, GUARD, HUNTER, optsOf, rowOf, SEER, tableOf, tallyOf, VILLAGER, WITCH, WOLF } from '#lib/games/masoi.js'
+import ms, { complete, CUPID, CURSED, deadlineOf, deckOf, ELDER, GUARD, HUNTER, minPlayersOf, NIGHT_SEC, optsOf, rolesOf, rowOf, SEER, tableOf, tallyOf, VILLAGER, WITCH, WOLF } from '#lib/games/masoi.js'
 import { replay } from '#lib/games/registry.js'
 
 const begin = (n, options) => ms.apply(ms.setup({ options }), 0, { deal: { n } })
@@ -26,9 +26,9 @@ const count = (t, r) => t.filter((x) => x === r).length
   assert.deepEqual([tableOf(8)[0], count(tableOf(8), WOLF)], [CURSED, 1], '8 người: 1 Sói nguyền + 1 Sói')
   assert.equal(count(tableOf(12), WOLF) + count(tableOf(12), CURSED), 3)
   assert.ok(tableOf(11).includes(CUPID) && !tableOf(10).includes(CUPID), 'Thần tình yêu từ 11 người')
-  assert.equal(optsOf({}).reveal, 'all')
-  assert.equal(optsOf({ reveal: 'none' }).reveal, 'none')
-  assert.equal(optsOf({ reveal: 'x' }).reveal, 'all')
+  assert.deepEqual(optsOf({}), { reveal: 'all', time: 120, roles: null })
+  assert.deepEqual(optsOf({ reveal: 'none' }), { reveal: 'none', time: 120, roles: null })
+  assert.deepEqual(optsOf({ reveal: 'x' }), { reveal: 'all', time: 120, roles: null })
   assert.deepEqual(rowOf([1, 1, 0, 0, 1, 3, 0]), { role: 1, facts: [[1, 0, 0], [1, 3, 0]] })
   assert.equal(rowOf([]), null)
 }
@@ -167,7 +167,7 @@ const count = (t, r) => t.filter((x) => x === r).length
 {
   const T0 = Date.parse('2026-11-08T10:00:00Z')
   const at = (ms) => ({ at: new Date(T0 + ms).toISOString() })
-  assert.deepEqual(optsOf({}), { reveal: 'all', time: 120 })
+  assert.equal(optsOf({}).time, 120)
   assert.deepEqual(optsOf({ time: 45 }).time, 120, 'số lạ về mặc định — khớp 0084')
   let s = ms.apply(ms.setup({ options: { time: 60 } }), 0, { deal: { n: 5 } }, at(0))
   assert.equal(deadlineOf(s) - T0, NIGHT_SEC * 1000)
@@ -186,6 +186,38 @@ const count = (t, r) => t.filter((x) => x === r).length
   const sql = readFileSync(new URL('../../../supabase/migrations/0084_games_masoi.sql', import.meta.url), 'utf8')
   assert.ok(sql.includes('IN (0, 60, 120, 180, 300)') && sql.includes('ELSE 120 END'), 'bảng giờ + mặc định khớp DAY_TIMES')
   assert.ok(sql.includes('ELSE ' + NIGHT_SEC * 1000 + ' END'), 'giờ đêm khớp NIGHT_SEC')
+}
+
+// Chủ phòng tự chọn bộ vai (0087): chọn vai + số Sói, ai dư là Dân làng; server xáo rồi chia ngẫu nhiên.
+{
+  assert.deepEqual(rolesOf([SEER, WOLF, WOLF]), [WOLF, WOLF, SEER], 'Sói thường lặp được, thứ tự không quan trọng')
+  for (const bad of [[], [SEER, SEER], [VILLAGER, WOLF], [WOLF, 9], [WOLF, 1.5], 'wolf', Array(13).fill(WOLF)]) {
+    assert.equal(rolesOf(bad), null, JSON.stringify(bad) + ': sai dạng thì về Tự động — server đọc y vậy, lệch là hai bên chia khác bộ')
+  }
+  const opts = optsOf({ roles: [WOLF, WOLF, SEER, WITCH] })
+  assert.deepEqual(deckOf(opts, 6).deck, [WOLF, WOLF, SEER, WITCH, VILLAGER, VILLAGER], 'thiếu vai thì bù Dân làng cho đủ người')
+  assert.deepEqual(deckOf(optsOf({}), 7).deck, tableOf(7), 'không tự chọn thì như cũ')
+  assert.equal(deckOf(optsOf({ roles: [SEER, GUARD] }), 6).err, 'games.err.noWolf')
+  assert.equal(deckOf(opts, 3).err, 'games.err.tooManyRoles')
+  assert.equal(deckOf(optsOf({ roles: [WOLF, WOLF, CURSED] }), 6).err, 'games.err.tooManyWolves', '3 Sói / 6 người: vừa chia đã thắng')
+  assert.equal(deckOf(optsOf({ roles: [WOLF, WOLF, CURSED] }), 7).err, undefined)
+  assert.equal(minPlayersOf([WOLF, WOLF, CURSED]), 7)
+  assert.equal(minPlayersOf([WOLF, SEER, GUARD, WITCH, HUNTER, ELDER, CUPID]), 7)
+  assert.equal(minPlayersOf([WOLF]), 5)
+  assert.equal(ms.lobby({ roles: [WOLF, WOLF, CURSED] }, 6).block, true, 'phòng chờ chặn Bắt đầu khi bộ vai không hợp số người')
+  assert.equal(ms.lobby({}, 4), null)
+  assert.match(ms.lobby({ roles: [WOLF, WOLF, SEER] }, 6).params.list, /^2 .+, .+, 3 /)
+  // Máy khách đếm vai trên bàn theo bộ đã chọn, không theo bảng tự động.
+  assert.equal(begin(6, { roles: [WOLF, SEER, WITCH, HUNTER] }).opts.roles.length, 4)
+}
+
+// 0087: server đọc cùng luật bộ vai, cùng mã lỗi; bước Phù thủy theo bộ vai thật chứ không theo bảng tự động.
+{
+  const sql = readFileSync(new URL('../../../supabase/migrations/0087_games_masoi_roles.sql', import.meta.url), 'utf8')
+  for (const k of ['noWolf', 'tooManyRoles', 'tooManyWolves']) assert.ok(sql.includes("'games.err." + k + "'"), '0087 phải dùng mã lỗi ' + k)
+  assert.ok(sql.includes('5 = ANY(game_masoi_deck('), 'bước Phù thủy theo bộ vai thật')
+  assert.ok(!/game_masoi_table\(r\.o_n\)/.test(sql), 'không còn tra bảng tự động ở bước Phù thủy')
+  assert.ok(sql.includes('2 * v_w >= p_n') && sql.includes('BETWEEN 1 AND 8'), 'luật số Sói + dạng vai khớp deckOf / rolesOf')
 }
 
 // SQL 0084 dùng cùng bảng vai, cùng mã lỗi.

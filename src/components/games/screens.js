@@ -22,5 +22,7 @@ export const SCREENS = {
   baucua: lazy(() => import('#components/games/BauCuaBoard.jsx')),
   loto: lazy(() => import('#components/games/LoToBoard.jsx')),
   xidach: lazy(() => import('#components/games/XiDachBoard.jsx')),
+  covay: lazy(() => import('#components/games/CoVayBoard.jsx')),
   phom: lazy(() => import('#components/games/PhomBoard.jsx')),
+  bacay: lazy(() => import('#components/games/BaCayBoard.jsx')),
 }

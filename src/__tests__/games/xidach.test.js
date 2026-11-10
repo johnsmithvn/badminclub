@@ -94,12 +94,12 @@ assert.deepEqual(optsOf({ time: 7, laps: 5 }), { time: 30, laps: 1 })
   assert.deepEqual(xd.result(s), { winners: [1], draw: false, scores: { 0: -2, 1: 2 } })
 }
 
-// SQL 0089 chép cùng ngưỡng / bảng xếp hạng.
+// SQL 0098 chép cùng ngưỡng / bảng xếp hạng.
 {
-  const sql = readFileSync('supabase/migrations/0089_games_xidach.sql', 'utf8')
+  const sql = readFileSync('supabase/migrations/0098_games_xidach.sql', 'utf8')
   for (const f of ['IN (0, 20, 30, 45)', 'ELSE 30 END', 'IN (1, 2, 3)', "THEN 15 ELSE 16 END", "ARRAY['quac', 'du', 'ngulinh', 'xidach', 'xiban']",
     "IN ('ngulinh', 'xidach', 'xiban') THEN 2 ELSE 1", 'IF j > 0 AND n > 2', "'games.err.notEnough'", "'games.err.notYet'"]) {
-    assert.ok(sql.includes(f), '0089 thiếu ' + f)
+    assert.ok(sql.includes(f), '0098 thiếu ' + f)
   }
 }
 

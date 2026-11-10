@@ -1,4 +1,4 @@
--- 0088_games_loto.sql — Lô tô (docs/GAMES.md §5.2, §12). Chạy sau 0078. Chỉ thêm hàm, không đụng bảng / data.
+-- 0097_games_loto.sql — Lô tô (docs/GAMES.md §5.2, §12). Chạy sau 0078. Chỉ thêm hàm, không đụng bảng / data.
 --
 -- game_loto_deal   — game_start gọi: chia mỗi người một tờ dò 9 hàng × 5 số (cột c: số c*10..c*10+9, cột 0 là 1–9,
 --                    cột 8 là 80–90; cả tờ không trùng số), ghi nước 1 { deal: { tickets } } — tờ công khai.

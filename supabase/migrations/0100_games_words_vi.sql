@@ -1,6 +1,6 @@
--- 0092_games_words_vi.sql — dữ liệu từ điển Nối từ (bảng game_words_vi, tạo ở 0091).
+-- 0100_games_words_vi.sql — dữ liệu từ điển Nối từ (bảng game_words_vi, tạo ở 0099).
 --
--- CHẠY SAU 0091. CHỈ THÊM DÒNG (ON CONFLICT DO NOTHING) — chạy lại được, không xoá gì.
+-- CHẠY SAU 0099. CHỈ THÊM DÒNG (ON CONFLICT DO NOTHING) — chạy lại được, không xoá gì.
 -- Nguồn: UTS_Dictionary (undertheseanlp, Apache-2.0, https://huggingface.co/datasets/undertheseanlp/UTS_Dictionary).
 -- Lọc: chỉ từ viết thường (bỏ tên riêng), đúng 2 âm tiết, khớp mẫu chữ của noitu.js; dấu oa / oe / uy đưa về kiểu cũ
 -- ("hoà" → "hòa", "thuỷ" → "thủy") như normWord — máy khách chuẩn hoá y vậy trước khi gửi.

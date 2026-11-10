@@ -60,11 +60,11 @@ const step = (s, seat, move) => {
   assert.equal(cu.validate(s, 1, { from: at(3, 0), to: at(4, 0) }), 'games.err.notYourTurn')
 }
 
-// SQL 0086 xáo đúng bàn xuất phát và điền theo ô.
+// SQL 0095 xáo đúng bàn xuất phát và điền theo ô.
 {
-  const sql = readFileSync('supabase/migrations/0086_games_coup.sql', 'utf8')
-  assert.ok(sql.includes("'" + START + "'"), '0086 phải dùng đúng START của cotuong.js')
-  for (const f of ["'AEHRCP'", "jsonb_build_object('flip'", "jsonb_build_object('took'", "NOT IN ('.', 'K', 'k')"]) assert.ok(sql.includes(f), '0086 thiếu ' + f)
+  const sql = readFileSync('supabase/migrations/0095_games_coup.sql', 'utf8')
+  assert.ok(sql.includes("'" + START + "'"), '0095 phải dùng đúng START của cotuong.js')
+  for (const f of ["'AEHRCP'", "jsonb_build_object('flip'", "jsonb_build_object('took'", "NOT IN ('.', 'K', 'k')"]) assert.ok(sql.includes(f), '0095 thiếu ' + f)
 }
 
 console.log('coup check: OK')

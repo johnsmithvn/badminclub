@@ -1,7 +1,7 @@
--- 0085_games_tienlen_bac.sql — Tiến lên MIỀN BẮC: tuỳ chọn phòng options.variant = 'bac' (docs/GAMES.md §12). Chạy sau 0078.
+-- 0094_games_tienlen_bac.sql — Tiến lên MIỀN BẮC: tuỳ chọn phòng options.variant = 'bac' (docs/GAMES.md §12). Chạy sau 0078.
 --
 -- THÊM: game_tienlen_bac_combo / _bac_beats / _bac_thoi.
--- SỬA (chép nguyên bản 0078, thêm đúng phần ghi chú "0085"): game_tienlen_run, game_tienlen_deal.
+-- SỬA (chép nguyên bản 0078, thêm đúng phần ghi chú "0094"): game_tienlen_run, game_tienlen_deal.
 -- Phòng không có variant (mọi phòng cũ) → miền Nam y như trước. Chỉ thay hàm, không đụng bảng / data.
 -- Tuỳ chọn options.lead = 'free' (cả hai miền): người cầm lá nhỏ nhất vẫn đi trước nhưng nước đầu đánh tự do —
 --   game_tienlen_deal ghi low = null, game_tienlen_run chỉ bắt mustLow khi low khác null.
@@ -114,7 +114,7 @@ DECLARE
   d         jsonb;
   i         int;
 BEGIN
-  -- 0085: miền Bắc theo options.variant (sai dạng → miền Nam, như variantOf của JS).
+  -- 0094: miền Bắc theo options.variant (sai dạng → miền Nam, như variantOf của JS).
   SELECT COALESCE(options ->> 'variant' = 'bac', false) INTO v_bac FROM game_rooms WHERE id = p_room;
   SELECT jsonb_object_agg(seat::text, to_jsonb(cards)) INTO v_hands FROM game_hands WHERE room_id = p_room AND seat >= 0;
 
@@ -228,7 +228,7 @@ BEGIN
       v_low := NULL;
       v_turn := m.seat;
       v_passed[m.seat + 1] := false;
-      -- 0085 miền Bắc: về bằng nước có heo / tứ quý → về chót (ra khỏi ván, xếp dưới người còn bài), không có cóng.
+      -- 0094 miền Bắc: về bằng nước có heo / tứ quý → về chót (ra khỏi ván, xếp dưới người còn bài), không có cóng.
       IF v_counts[m.seat + 1] <= 0 AND v_bac AND (v_k ->> 'kind' = 'quad' OR EXISTS (SELECT 1 FROM unnest(v_play) x WHERE x >> 2 = 12)) THEN
         v_out[m.seat + 1] := true;
         v_chot := v_chot || m.seat;
@@ -365,11 +365,11 @@ BEGIN
       FROM game_hands h CROSS JOIN LATERAL (SELECT min(x) AS lo FROM unnest(h.cards) x) q
      WHERE h.room_id = p_room AND h.seat >= 0 ORDER BY q.lo LIMIT 1;
   END IF;
-  -- 0085: phòng chọn lead = 'free' thì nước đầu không buộc có lá nhỏ nhất.
+  -- 0094: phòng chọn lead = 'free' thì nước đầu không buộc có lá nhỏ nhất.
   IF (SELECT options ->> 'lead' FROM game_rooms WHERE id = p_room) = 'free' THEN
     v_low := NULL;
   END IF;
-  -- 0085: miền Bắc không có tới trắng.
+  -- 0094: miền Bắc không có tới trắng.
   IF COALESCE((SELECT options ->> 'variant' = 'bac' FROM game_rooms WHERE id = p_room), false) IS NOT TRUE THEN
     SELECT seat INTO v_white FROM game_hands WHERE room_id = p_room AND seat >= 0 AND game_tienlen_white(cards) ORDER BY seat LIMIT 1;
   END IF;

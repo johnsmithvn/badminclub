@@ -19,10 +19,12 @@ import coup from '#lib/games/coup.js'
 import baucua from '#lib/games/baucua.js'
 import loto from '#lib/games/loto.js'
 import xidach from '#lib/games/xidach.js'
+import covay from '#lib/games/covay.js'
 import phom from '#lib/games/phom.js'
+import bacay from '#lib/games/bacay.js'
 
 export const GAMES = { caro, oanquan, coganh, colat, chamo, tienlen, covua, cotuong, cangua, bantau, domino, baibip, noitu, masoi,
-  coup, baucua, loto, xidach, phom }
+  coup, baucua, loto, xidach, covay, phom, bacay }
 
 export const GAME_IDS = Object.keys(GAMES)
 
@@ -81,16 +83,85 @@ export function statsOf(finished) {
   return out
 }
 
+/* ---------- Xu ảo (0093) — server giữ luật, ở đây chỉ để vẽ form / nhãn. Số phải khớp SQL (coins.test.js gác). ---------- */
+
+/** Ví ban đầu của mỗi người, cộng dồn mãi. */
+export const COIN_START = 1000
+/** Mức cược chủ phòng chọn được; 0 = không cược. */
+export const STAKES = [0, 10, 50, 100]
+/** Game kết quả do máy khách báo (chưa có bản chấm server) — không cho cược. */
+export const NO_STAKE = ['covua', 'cotuong', 'cangua', 'coup']
+/** Mức cược của phòng — như game_stake ở SQL: ngoài danh sách là 0. */
+export const stakeOf = (options) => (STAKES.includes(options?.stake) ? options.stake : 0)
+
+/**
+ * Game mà tổng điểm cộng dồn qua các ván có nghĩa (điểm ăn thua giữa người chơi) → BXH xếp theo điểm, và phòng có cược
+ * trả xu = điểm × mức cược (0093).
+ */
+export const BOARD_POINTS = ['phom', 'tienlen', 'bacay']
+
+const cmpKeys = (a, b) => {
+  for (let i = 0; i < a.length; i++) if (a[i] !== b[i]) return a[i] - b[i]
+  return 0
+}
+
+/**
+ * Bảng xếp hạng game. `rows` = dòng của game_board (0091): { game, memberId, played, won, drawn, lost, points }.
+ * `game` null = tất cả game: cộng dồn mọi game theo người, bỏ game không còn trong GAMES.
+ * Xếp: game có điểm (BOARD_POINTS) theo điểm → thắng → ít ván hơn; còn lại theo thắng → ít ván hơn (cùng số thắng
+ * thì ít ván hơn chính là tỉ lệ thắng cao hơn — không cần tiêu chí tỉ lệ riêng). Bằng hết thì cùng hạng (1, 2, 2, 4).
+ */
+export function boardOf(rows, game = null) {
+  const by = new Map()
+  for (const r of rows || []) {
+    if (game ? r.game !== game : !GAMES[r.game]) continue
+    const o = by.get(r.memberId) || { memberId: r.memberId, played: 0, won: 0, drawn: 0, lost: 0, points: 0 }
+    o.played += r.played; o.won += r.won; o.drawn += r.drawn; o.lost += r.lost; o.points += r.points
+    by.set(r.memberId, o)
+  }
+  const byPoints = BOARD_POINTS.includes(game)
+  const key = (o) => (byPoints ? [o.points, o.won, -o.played] : [o.won, -o.played])
+  const list = [...by.values()].filter((o) => o.played > 0)
+    .map((o) => ({ ...o, rate: Math.round((o.won * 100) / o.played) }))
+    .sort((a, b) => cmpKeys(key(b), key(a)) || String(a.memberId).localeCompare(String(b.memberId)))
+  list.forEach((o, i) => { o.rank = i > 0 && cmpKeys(key(o), key(list[i - 1])) === 0 ? list[i - 1].rank : i + 1 })
+  return { byPoints, rows: list }
+}
+
+/**
+ * Ghế mà ván đang chờ đi nước: người tới lượt (`state.turn`), hoặc game tự khai `waiting(state)` cho bước cả bàn cùng
+ * đi (Ma sói: người còn sống chưa bấm · Bắn tàu: người chưa chốt tàu). Mất kết nối chỉ xử những ghế này — người đang
+ * chờ đối thủ nghĩ mà khoá máy không làm ván đứng (docs/GAMES.md §5.1b).
+ */
+export function waitingOf(game, state) {
+  if (!game || !state) return []
+  if (game.waiting) return game.waiting(state)
+  return state.turn == null ? [] : [state.turn]
+}
+
+/**
+ * Lúc ván bắt đầu chờ nước tiếp theo, theo giờ server: giờ ghi nước gần nhất, chưa có nước thì lúc bắt đầu ván.
+ * game_claim (0085) đo y vậy. null = nước gần nhất là nước máy mình vừa hiện trước, server chưa trả giờ — chưa tính.
+ */
+export function waitSinceOf(room, moves) {
+  if (!moves?.length) return room?.startedAt || null
+  return moves[moves.length - 1].at || null
+}
+
 /**
  * Người ngồi ghế còn kết nối không, theo nhịp gần nhất (`seenAt`, server ghi qua game_ping / game_move).
  *   offline: quá `offlineSec` giây không thấy nhịp — hiện "mất kết nối"
- *   leftSec: còn bao nhiêu giây nữa thì đối thủ đòi xử thắng được (≤ 0 = được đòi ngay)
+ *   leftSec: chỉ tính khi ván đang chờ người này (`since` = waitSinceOf). Còn bao nhiêu giây nữa thì được đòi xử thua
+ *            (≤ 0 = được đòi ngay), đếm từ lúc muộn hơn giữa nhịp cuối và lúc ván bắt đầu chờ: khoá máy từ trước
+ *            thì khi tới lượt vẫn còn đủ `graceSec`. null = ván không chờ người này, không bị xử.
  * Đồng hồ máy khách có thể lệch server; lệch thì server từ chối game_claim và máy thử lại sau.
  */
-export function idleOf(player, now, { offlineSec, graceSec }) {
+export function idleOf(player, now, { offlineSec, graceSec }, since = null) {
   const seen = player?.seenAt ? new Date(player.seenAt).getTime() : now
-  const gone = (now - seen) / 1000
-  return { offline: gone > offlineSec, leftSec: Math.ceil(graceSec - gone) }
+  const offline = (now - seen) / 1000 > offlineSec
+  if (since == null) return { offline, leftSec: null }
+  const from = Math.max(seen, new Date(since).getTime())
+  return { offline, leftSec: Math.ceil(graceSec - (now - from) / 1000) }
 }
 
 /** Phòng đang chờ quá `hours` giờ thì coi như bỏ — sảnh ẩn đi. */

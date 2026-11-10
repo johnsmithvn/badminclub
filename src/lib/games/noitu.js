@@ -4,7 +4,7 @@
 //   - Từ bị bác không gửi lại được; từ đã nhận được nhận lại tối đa `repeat` lần (0 / 1 / 2, tuỳ phòng).
 //     Tuỳ phòng cấm đảo từ vừa dùng (`flip` = false: "học sinh" → "sinh học"). Thứ tự lượt server xáo mỗi ván.
 //   - Mỗi lượt có hạn giờ (tuỳ phòng). Bấm Chịu hoặc hết giờ là bị loại; người kế tiếp bắt đầu lại bằng từ tự do.
-//   - Kiểm từ (`dict`, chỉ tiếng Việt — từ điển ở bảng game_words_vi, 0091/0092, chỉ server đọc):
+//   - Kiểm từ (`dict`, chỉ tiếng Việt — từ điển ở bảng game_words_vi, 0099/0100, chỉ server đọc):
 //       'vote' — cả bàn duyệt mỗi từ trong 8 giây (đồng hồ của người gửi dừng lại). Không ai phản đối là được; bị bác
 //                khi phiếu bác nhiều hơn phiếu chấp nhận. Bị bác thì được cộng 3 giây; mỗi lượt gửi tối đa 2 từ.
 //       'mix'  — từ có trong từ điển được nhận ngay (server ghi kèm { ok: true }), từ lạ thì cả bàn duyệt như trên.
@@ -37,11 +37,11 @@ const WORD = { vi: new RegExp(`^[${VI}]{1,10} [${VI}]{1,10}$`), en: /^[a-z]{2,24
 const TONE = /(^|[^q])([ou])([aey])([\u0300\u0301\u0303\u0309\u0323])(?=\s|$)/g
 
 /** Chuẩn hoá chữ gõ vào (máy khách gọi trước khi gửi): NFC, chữ thường, một dấu cách, dấu oa / oe / uy kiểu cũ
- *  (từ điển 0092 cũng chuẩn hoá y vậy — hai người gõ hai kiểu vẫn ra cùng một từ). */
+ *  (từ điển 0100 cũng chuẩn hoá y vậy — hai người gõ hai kiểu vẫn ra cùng một từ). */
 export const normWord = (w) => String(w ?? '').toLowerCase().trim().replace(/\s+/g, ' ')
   .normalize('NFD').replace(TONE, '$1$2$4$3').normalize('NFC')
 
-/** Tuỳ chọn phòng — số / chữ lạ thì về mặc định (phòng cũ: bỏ phiếu, cho đảo, không lặp). PHẢI khớp 0091. */
+/** Tuỳ chọn phòng — số / chữ lạ thì về mặc định (phòng cũ: bỏ phiếu, cho đảo, không lặp). PHẢI khớp 0099. */
 export function optsOf(o) {
   const vi = o?.lang !== 'en'
   const dict = vi && DICTS.includes(o?.dict) ? o.dict : 'vote'

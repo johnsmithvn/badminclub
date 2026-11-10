@@ -6,7 +6,7 @@ import { colOf, deadlineOf, marksOf, MAX, rowsOf } from '#lib/games/loto.js'
 
 /**
  * Bàn Lô tô: số vừa xướng, tờ dò của mình (tự đánh dấu số đã xướng, hàng đủ / hàng chờ tô màu), nút Kinh, ai đang chờ,
- * bảng 90 số. Tới nhịp thì máy bất kỳ gửi { call } — server bốc số và chỉ nhận khi đúng là đã tới nhịp (0088).
+ * bảng 90 số. Tới nhịp thì máy bất kỳ gửi { call } — server bốc số và chỉ nhận khi đúng là đã tới nhịp (0097).
  * Luật: lib/games/loto.js.
  */
 const side = (seat) => t('games.loto.mark' + seat)

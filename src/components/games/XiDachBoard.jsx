@@ -8,7 +8,7 @@ import xd, { deadlineOf, kindOf, MAX_CARDS, pointsOf, standMin } from '#lib/game
 /**
  * Bàn Xì dách: ghế (điểm, cái, ai đang rút / đã dằn / có xì, số lá úp), bài trên tay mình + điểm, Rút / Dằn.
  * Lật bài thì hiện bài cả bàn, loại bài và được / mất từng con. Hết ván máy bất kỳ xin chia ván mới sau vài giây.
- * Bài trên tay nạp riêng từ game_hands (RLS chỉ trả tay mình); server kiểm dằn đủ tuổi (0089). Luật: lib/games/xidach.js.
+ * Bài trên tay nạp riêng từ game_hands (RLS chỉ trả tay mình); server kiểm dằn đủ tuổi (0098). Luật: lib/games/xidach.js.
  */
 const side = (seat) => t('games.xidach.mark' + seat)
 const signed = (n) => (n > 0 ? '+' + n : String(n))

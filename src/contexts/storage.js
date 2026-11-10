@@ -747,13 +747,15 @@ const ROOM_SEL = '*, game_room_players(*)'
 /**
  * Sảnh: phòng đang chờ / đang chơi của CLB (mới trước) + các ván đã xong mình từng ngồi (để đếm
  * thắng thua). Phòng riêng (`private`) vẫn trả về — sảnh tự ẩn, trừ phòng mình đang ngồi.
+ * `withStats` false → bỏ truy vấn ván đã xong (nặng nhất, tới statsLimit dòng), `finished` = null:
+ * sảnh hỏi lại mỗi lobbyPollMs chỉ cần danh sách phòng, thống kê nạp một lần lúc mở trang.
  */
-export async function loadGameLobby(clubId, memberId) {
+export async function loadGameLobby(clubId, memberId, withStats = true) {
   if (!supabase) throw new Error('Chưa cấu hình Supabase')
   const [open, mine] = await Promise.all([
     supabase.from('game_rooms').select(ROOM_SEL).eq('club_id', clubId).in('status', ['waiting', 'playing'])
       .order('created_at', { ascending: false }).limit(cfg.games.lobbyLimit),
-    memberId
+    memberId && withStats
       ? supabase.from('game_rooms').select('id, game, result, game_room_players!inner(member_id, seat)')
         .eq('club_id', clubId).eq('status', 'finished').eq('game_room_players.member_id', memberId)
         .order('ended_at', { ascending: false }).limit(cfg.games.statsLimit)
@@ -761,11 +763,44 @@ export async function loadGameLobby(clubId, memberId) {
   ])
   return {
     rooms: (unwrap(open) || []).map(toGameRoom),
-    finished: (unwrap(mine) || []).map((r) => ({ game: r.game, result: r.result, seat: num0(r.game_room_players?.[0]?.seat) })),
+    finished: withStats
+      ? (unwrap(mine) || []).map((r) => ({ game: r.game, result: r.result, seat: num0(r.game_room_players?.[0]?.seat) }))
+      : null,
   }
 }
 
 const num0 = (v) => (v == null ? null : Number(v))
+
+/**
+ * Bảng xếp hạng game (0091 game_board): mỗi (game, thành viên) một dòng đã cộng dồn trên server.
+ * month 'YYYY-MM' theo giờ VN, null = từ trước tới nay. Xếp hạng ở lib/games/registry.js boardOf.
+ */
+/** Ví xu cả CLB (0093 game_wallets): chỉ người đã chơi phòng có cược. Người chưa có dòng = COIN_START. */
+export async function loadGameWallets(clubId) {
+  if (!supabase) throw new Error('Chưa cấu hình Supabase')
+  const rows = unwrap(await supabase.rpc('game_wallets', { p_club: clubId })) || []
+  return rows.map((r) => ({
+    memberId: r.member_id, balance: Number(r.balance) || 0,
+    played: Number(r.played) || 0, won: Number(r.won) || 0, lost: Number(r.lost) || 0,
+  }))
+}
+
+/** Xu ăn thua của một phòng đã xong → { [memberId]: delta }. Phòng không cược / chưa xong → {}. */
+export async function loadRoomCoins(roomId) {
+  if (!supabase) throw new Error('Chưa cấu hình Supabase')
+  const rows = unwrap(await supabase.from('game_coins').select('member_id, delta').eq('room_id', roomId)) || []
+  return Object.fromEntries(rows.map((r) => [r.member_id, Number(r.delta) || 0]))
+}
+
+export async function loadGameBoard(clubId, month) {
+  if (!supabase) throw new Error('Chưa cấu hình Supabase')
+  const rows = unwrap(await supabase.rpc('game_board', { p_club: clubId, p_month: month || null })) || []
+  return rows.map((r) => ({
+    game: r.game, memberId: r.member_id,
+    played: Number(r.played) || 0, won: Number(r.won) || 0, drawn: Number(r.drawn) || 0, lost: Number(r.lost) || 0,
+    points: Number(r.points) || 0,
+  }))
+}
 
 /** Một phòng + ghế + toàn bộ log nước đi theo seq. Không thấy (khác CLB / sai id) → room null. */
 export async function loadGameRoom(roomId) {

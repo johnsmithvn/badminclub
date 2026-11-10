@@ -12,7 +12,7 @@
 //   Hết số ván → người còn ngồi nhiều điểm nhất thắng (bằng nhau cùng thắng).
 //   Cái rời bàn giữa ván: ván đó bỏ. Con rời bàn: không tính ván đó.
 //
-// Bài trên tay KHÔNG nằm trong log (docs/GAMES.md §5.2): server chia (0089 game_hands ghế ≥ 0 của ván đang chơi, nọc ở
+// Bài trên tay KHÔNG nằm trong log (docs/GAMES.md §5.2): server chia (0098 game_hands ghế ≥ 0 của ván đang chơi, nọc ở
 // ghế -1), log chỉ ghi { draw: true }. Bài con có xì ghi công khai trong { deal } (`xi`); lúc lật bài server ghi cả bàn
 // vào nước cuối (`show`). Server kiểm điều kiện dằn (cần biết điểm) — ở đây chỉ chặn sai lượt.
 // Đồng hồ lượt (opts.time giây, 0 = tắt) tính theo server từ created_at của nước trước: hết giờ máy bất kỳ gửi

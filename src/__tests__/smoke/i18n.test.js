@@ -202,10 +202,9 @@ BOT_LEVELS.forEach((v) => need('games.bot.levelOpt.' + v))
 BAUCUA_SYMS.forEach((k) => need('games.baucua.sym.' + k))
 ;['xiban', 'xidach', 'ngulinh', 'quac', 'du'].forEach((k) => need('games.xidach.kind.' + k)) // = xidach kindOf()
 ;['mate', 'stalemate', 'quiet', 'repetition', 'material'].forEach((k) => need('games.coup.reason.' + k))
-;['take', 'lay', 'discard'].forEach((k) => need('games.phom.step.' + k))
 // Tuỳ chọn giờ / số vòng ở form tạo phòng (pages/Games.jsx TIME_OPTS / LAP_OPTS).
-;['baucua', 'loto', 'xidach', 'phom'].forEach((id) => ['time', 'timeOpt'].forEach((f) => need('games.' + id + '.' + f)))
-;['xidach', 'phom'].forEach((id) => need('games.' + id + '.timeNone'))
+;['baucua', 'loto', 'xidach'].forEach((id) => ['time', 'timeOpt'].forEach((f) => need('games.' + id + '.' + f)))
+need('games.xidach.timeNone')
 ;['baucua', 'xidach'].forEach((id) => ['laps', 'lapsOpt'].forEach((f) => need('games.' + id + '.' + f)))
 ;['wolf', 'seer', 'guard', 'cupid', 'vote', 'shoot'].forEach((m) => { need('games.masoi.act.' + m); need('games.masoi.do.' + m) })
 ;['Night', 'Witch', 'Day', 'Hunter', 'Settle'].forEach((k) => need('games.masoi.status' + k))
@@ -213,10 +212,10 @@ BAUCUA_SYMS.forEach((k) => need('games.baucua.sym.' + k))
   'supabase/migrations/0078_games_tienlen.sql', 'supabase/migrations/0079_games_cangua.sql',
   'supabase/migrations/0080_games_bantau.sql', 'supabase/migrations/0081_games_domino.sql',
   'supabase/migrations/0082_games_baibip.sql', 'supabase/migrations/0083_games_noitu.sql',
-  'supabase/migrations/0084_games_masoi.sql', 'supabase/migrations/0085_games_tienlen_bac.sql',
-  'supabase/migrations/0086_games_coup.sql', 'supabase/migrations/0087_games_baucua.sql', 'supabase/migrations/0088_games_loto.sql',
-  'supabase/migrations/0089_games_xidach.sql', 'supabase/migrations/0090_games_phom.sql',
-  'supabase/migrations/0091_games_noitu_dict.sql']
+  'supabase/migrations/0084_games_masoi.sql', 'supabase/migrations/0094_games_tienlen_bac.sql',
+  'supabase/migrations/0095_games_coup.sql', 'supabase/migrations/0096_games_baucua.sql', 'supabase/migrations/0097_games_loto.sql',
+  'supabase/migrations/0098_games_xidach.sql', 'supabase/migrations/0090_games_phom.sql',
+  'supabase/migrations/0099_games_noitu_dict.sql']
   .forEach((p) => { for (const m of readFileSync(p, 'utf8').matchAll(/games\.err\.[A-Za-z]+/g)) need(m[0]) })
 ;['balanced', 'random'].forEach((m) => { need('tournament.pairing.mode.' + m); need('tournament.pairing.modeHint.' + m) })
 ;['ok', 'warn', 'bad', 'idle'].forEach((k) => need('tournament.pairing.tone.' + k))

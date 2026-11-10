@@ -87,6 +87,9 @@ export default {
   /** Xếp tàu và bắn đều cần server (cất tàu / tra trúng trượt) — màn chơi không hiện trước. */
   request: (s, seat, move) => move?.place !== undefined || (move?.fire !== undefined && move.hit === undefined),
 
+  /** Ghế đang được chờ (registry.waitingOf): lúc xếp tàu cả hai cùng xếp — chờ người chưa chốt; lúc bắn là người tới lượt. */
+  waiting: (s) => (s.over ? [] : s.phase === 'place' ? [0, 1].filter((x) => !s.placed[x]) : [s.turn]),
+
   apply(s0, seat, move) {
     if (move.place !== undefined) return s0 // chưa qua server — không có gì để áp
     if (move.placed) {

@@ -32,7 +32,7 @@
 //   last  = { seat, play | pass | out, chop? }
 // move  = { play: [lá] } · { pass: true } · { out: true } (server ghi khi người đó rời ván) · { deal } (server ghi)
 //
-// MIỀN BẮC (options.variant = 'bac', 0085): chặn phải ĐỒNG CHẤT — lẻ cùng chất, đôi / sám cùng bộ chất, sảnh phải cả
+// MIỀN BẮC (options.variant = 'bac', 0094): chặn phải ĐỒNG CHẤT — lẻ cùng chất, đôi / sám cùng bộ chất, sảnh phải cả
 // dây cùng một chất (sảnh lẫn chất không đánh được). Heo chặn được mọi lẻ / đôi không phải heo. Không có đôi thông,
 // không chặt ngoài lượt, không tới trắng, không cóng; tứ quý chặt heo, đôi heo, tứ quý nhỏ hơn. Về bằng nước có heo
 // hoặc tứ quý thì bị tính "về chót" (xếp dưới người còn bài). Thối chỉ tính heo + tứ quý.
@@ -41,7 +41,7 @@ export const TWO = 12
 export const HAND = 13
 export const VARIANTS = ['nam', 'bac']
 // Ván đầu ai cầm lá nhỏ nhất (đủ 4 người là 3♠) đi trước: 'must' = nước đầu phải có lá đó, 'free' = đánh tự do.
-// Server đọc tuỳ chọn lúc chia (0085 game_tienlen_deal): 'free' thì ghi low = null — luật ở đây theo `low` của nước chia.
+// Server đọc tuỳ chọn lúc chia (0094 game_tienlen_deal): 'free' thì ghi low = null — luật ở đây theo `low` của nước chia.
 export const LEADS = ['must', 'free']
 export const variantOf = (o) => (VARIANTS.includes(o?.variant) ? o.variant : 'nam')
 

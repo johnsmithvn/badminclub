@@ -7,7 +7,7 @@ import bc, { CAP, CHIPS, deadlineOf, SYMS, waitingOf } from '#lib/games/baucua.j
 /**
  * Bàn Bầu cua: ghế (điểm, ai làm cái, ai đã chốt), đồng hồ đặt, bát xúc xắc ván trước, chiếu sáu con.
  * Người đặt: chọn mức, chạm con muốn đặt, Chốt (đặt = chốt, không sửa được). Cả bàn chốt hoặc hết giờ thì máy bất kỳ
- * gửi { roll } — server lắc và chỉ nhận khi đúng là đã đủ / đã hết giờ (0087). Luật: lib/games/baucua.js.
+ * gửi { roll } — server lắc và chỉ nhận khi đúng là đã đủ / đã hết giờ (0096). Luật: lib/games/baucua.js.
  */
 const side = (seat) => t('games.baucua.mark' + seat)
 const sym = (k) => t('games.baucua.sym.' + SYMS[k])

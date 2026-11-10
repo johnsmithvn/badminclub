@@ -16,7 +16,7 @@ const step = (s, seat, move, ms) => {
   return nt.apply(s, seat, move, at(ms))
 }
 
-// Tuỳ chọn: lạ thì về mặc định — PHẢI khớp phần đọc options ở 0091. Phòng cũ (không có dict…) chạy y như 0083.
+// Tuỳ chọn: lạ thì về mặc định — PHẢI khớp phần đọc options ở 0099. Phòng cũ (không có dict…) chạy y như 0083.
 const OLD = { dict: 'vote', cut: false, flip: true, repeat: 0 }
 assert.deepEqual(optsOf({}), { lang: 'vi', link: 1, time: 20, ...OLD })
 assert.deepEqual(optsOf({ lang: 'en', link: 2, time: 15 }), { lang: 'en', link: 2, time: 15, ...OLD })
@@ -27,7 +27,7 @@ assert.deepEqual(optsOf({ lang: 'en', dict: 'mix', cut: true, flip: false }), { 
 assert.deepEqual(nt.defaultOptions, { lang: 'vi', link: 1, time: 20, dict: 'mix', cut: false, flip: true, repeat: 0 })
 assert.equal(normWord('  Học   SINH '), 'học sinh')
 assert.equal(normWord('học sinh'), 'học sinh', 'chữ có dấu tổ hợp phải về dạng dựng sẵn (NFC)')
-// Dấu oa / oe / uy cuối âm tiết về kiểu cũ — từ điển 0092 chuẩn hoá y vậy.
+// Dấu oa / oe / uy cuối âm tiết về kiểu cũ — từ điển 0100 chuẩn hoá y vậy.
 assert.equal(normWord('Hoà Bình'), 'hòa bình')
 assert.equal(normWord('thuỷ thủ'), 'thủy thủ')
 assert.equal(normWord('khoẻ mạnh'), 'khỏe mạnh')
@@ -186,8 +186,8 @@ assert.equal(normWord('huế thuệ'), 'huế thuệ')
   assert.deepEqual([s.chain.length, s.turn, s.deadline - T0, s.ply], [1, 0, 2000 + 15000, 3])
 }
 
-// SQL 0083 / 0091 dùng cùng bảng chữ, cùng hằng số, cùng mã lỗi; 0091 đọc tuỳ chọn như optsOf.
-for (const f of ['0083_games_noitu.sql', '0091_games_noitu_dict.sql']) {
+// SQL 0083 / 0099 dùng cùng bảng chữ, cùng hằng số, cùng mã lỗi; 0099 đọc tuỳ chọn như optsOf.
+for (const f of ['0083_games_noitu.sql', '0099_games_noitu_dict.sql']) {
   const sql = readFileSync(new URL('../../../supabase/migrations/' + f, import.meta.url), 'utf8')
   assert.ok(sql.includes('a-zàáảãạăằắẳẵặâầấẩẫậđèéẻẽẹêềếểễệìíỉĩịòóỏõọôồốổỗộơờớởỡợùúủũụưừứửữựỳýỷỹỵ]{1,10}'), 'bảng chữ tiếng Việt phải khớp JS')
   assert.ok(sql.includes(':= ' + VOTE_MS + ';') && sql.includes(':= ' + BONUS_MS + ';') && sql.includes(':= ' + ASKS + ';'))
@@ -196,15 +196,15 @@ for (const f of ['0083_games_noitu.sql', '0091_games_noitu_dict.sql']) {
   }
 }
 {
-  const sql = readFileSync(new URL('../../../supabase/migrations/0091_games_noitu_dict.sql', import.meta.url), 'utf8')
+  const sql = readFileSync(new URL('../../../supabase/migrations/0099_games_noitu_dict.sql', import.meta.url), 'utf8')
   for (const k of ['notInDict', 'deadEnd', 'flipWord']) assert.ok(sql.includes('games.err.' + k))
   for (const frag of ["v_opt ->> 'dict' IN ('mix', 'dict')", "r.options ->> 'dict' IN ('mix', 'dict')", "(v_opt ->> 'repeat')::numeric IN (1, 2)",
-    "OR mv ? 'ok' THEN", `p_move || '{"ok": true}'::jsonb`]) assert.ok(sql.includes(frag), '0091 thiếu: ' + frag)
-  const data = readFileSync(new URL('../../../supabase/migrations/0092_games_words_vi.sql', import.meta.url), 'utf8')
+    "OR mv ? 'ok' THEN", `p_move || '{"ok": true}'::jsonb`]) assert.ok(sql.includes(frag), '0099 thiếu: ' + frag)
+  const data = readFileSync(new URL('../../../supabase/migrations/0100_games_words_vi.sql', import.meta.url), 'utf8')
   const words = [...data.matchAll(/'([^'\n]+ [^'\n]+)'/g)].map((m) => m[1])
   assert.ok(words.length > 40000, 'từ điển phải có vài chục nghìn từ')
   const bad = words.filter((w) => wordErr(nt.setup({}), w) !== null || normWord(w) !== w)
-  assert.deepEqual(bad.slice(0, 5), [], 'mọi từ trong 0092 phải đúng mẫu và đã chuẩn hoá như normWord')
+  assert.deepEqual(bad.slice(0, 5), [], 'mọi từ trong 0100 phải đúng mẫu và đã chuẩn hoá như normWord')
   for (const w of ['học sinh', 'sinh viên', 'hòa bình']) assert.ok(words.includes(w), 'thiếu ' + w)
 }
 

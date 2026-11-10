@@ -6,8 +6,8 @@
 //   Hết số ván (mỗi người làm cái `laps` lượt) → ai nhiều điểm nhất thắng (bằng nhau thì cùng thắng).
 //   Cái rời bàn giữa ván: ván đó bỏ, chuyển cái. Người đặt rời bàn: điểm đặt ván đó bỏ.
 //
-// Xúc xắc do server lắc lúc ghi nước (0087 game_baucua_fill): client gửi { roll: true }, log ghi { roll: true, dice }.
-// Giờ đặt tính theo server: từ created_at của nước mở ván (chia / mở bát trước) + opts.time giây; 0087 chỉ nhận mở bát
+// Xúc xắc do server lắc lúc ghi nước (0096 game_baucua_fill): client gửi { roll: true }, log ghi { roll: true, dice }.
+// Giờ đặt tính theo server: từ created_at của nước mở ván (chia / mở bát trước) + opts.time giây; 0096 chỉ nhận mở bát
 // khi cả bàn đã Xong hoặc đã hết giờ (sớm → games.err.notYet, máy khách im lặng thử lại). Ở đây nhận mọi { roll } server
 // đã ghi — server đã kiểm.
 //

@@ -2,7 +2,7 @@ import { useCallback, useEffect, useMemo, useRef, useState } from 'react'
 import { useApp } from '#contexts/AppContext.jsx'
 import { gameErr } from '#contexts/gameActions.js'
 import { myMember } from '#lib/money.js'
-import { gameOf, idleOf, inGameOf, isContiguous, nextSeq, replay, seatedOf } from '#lib/games/registry.js'
+import { gameOf, idleOf, inGameOf, isContiguous, nextSeq, replay, seatedOf, waitSinceOf, waitingOf } from '#lib/games/registry.js'
 import cfg from '#config/app.js'
 
 const IDLE = { offlineSec: cfg.games.offlineSec, graceSec: cfg.games.reconnectGraceSec }
@@ -34,7 +34,13 @@ export function useGameRoom(roomId) {
       const d = dataRef.current
       if (ev.type === 'resync' || !d?.room || d.forId !== roomId) { reload(); return }
       if (ev.type === 'move') {
-        if (d.moves.some((m) => m.seq === ev.move.seq)) return
+        const i = d.moves.findIndex((m) => m.seq === ev.move.seq)
+        // Nước máy mình vừa hiện trước (chưa có giờ server) → thay bằng bản server ghi: cần giờ đó để biết ván bắt
+        // đầu chờ đối thủ từ lúc nào (waitSinceOf).
+        if (i >= 0) {
+          if (!d.moves[i].at) put({ ...d, moves: d.moves.map((m, k) => (k === i ? ev.move : m)) })
+          return
+        }
         if (ev.move.seq !== nextSeq(d.moves)) { reload(); return }
         put({ ...d, moves: [...d.moves, ev.move] })
       } else if (ev.type === 'room') {
@@ -94,7 +100,7 @@ export function useGameRoom(roomId) {
   }, [a, game, state, mySeat, reload, put])
 
   // Nhịp kết nối: người ngồi ghế báo "vẫn ở đây" mỗi games.pingSec giây khi tab đang mở.
-  // Tab ẩn (khoá máy) là ngừng báo — quá reconnectGraceSec thì đối thủ được xử thắng.
+  // Tab ẩn (khoá máy) là ngừng báo — ván đang chờ mình mà quá reconnectGraceSec thì bị xử (xem `idle` bên dưới).
   const status = room?.status
   const seatedHere = mySeat != null
   useEffect(() => {
@@ -106,6 +112,30 @@ export function useGameRoom(roomId) {
     return () => { clearInterval(timer); document.removeEventListener('visibilitychange', beat) }
   }, [a, roomId, seatedHere, status])
 
+  // Giữ màn hình sáng khi đang ngồi chơi: máy tự khoá màn hình là tab ẩn, ngừng nhịp ở trên. Trình duyệt tự nhả khi
+  // tab ẩn → hiện lại thì xin lại. Không hỗ trợ / bị từ chối (pin yếu) thì thôi, hạn xử thua vẫn như dưới.
+  useEffect(() => {
+    if (!seatedHere || status !== 'playing' || !navigator.wakeLock) return undefined
+    let lock = null
+    let asking = false
+    let done = false
+    const hold = () => {
+      if (done || asking || document.hidden || (lock && !lock.released)) return
+      asking = true
+      navigator.wakeLock.request('screen')
+        .then((l) => { if (done) l.release(); else lock = l })
+        .catch(() => {})
+        .finally(() => { asking = false })
+    }
+    hold()
+    document.addEventListener('visibilitychange', hold)
+    return () => {
+      done = true
+      document.removeEventListener('visibilitychange', hold)
+      lock?.release().catch(() => {})
+    }
+  }, [seatedHere, status])
+
   // Đồng hồ cho "mất kết nối · còn 1:23". Chỉ chạy khi phòng còn mở.
   const [now, setNow] = useState(() => Date.now())
   useEffect(() => {
@@ -114,16 +144,24 @@ export function useGameRoom(roomId) {
     return () => clearInterval(timer)
   }, [status])
 
-  const idle = useMemo(() => Object.fromEntries(seated.map((p) => [p.memberId, idleOf(p, now, IDLE)])), [seated, now])
+  // Chỉ người ván đang chờ mới bị đếm giờ xử thua, đếm từ lúc ván bắt đầu chờ (docs/GAMES.md §5.1b). Người đang chờ
+  // đối thủ nghĩ mà khoá máy chỉ hiện "mất kết nối".
+  const waiting = useMemo(() => (status === 'playing' ? waitingOf(game, state) : []), [status, game, state])
+  const since = waitSinceOf(room, moves)
+  const idle = useMemo(() => Object.fromEntries(seated.map((p) => [
+    p.memberId, idleOf(p, now, IDLE, waiting.includes(p.seat) ? since : null),
+  ])), [seated, now, waiting, since])
 
-  // Đối thủ quá hạn → tự đòi xử thắng. Server tự đo bằng giờ của nó; từ chối thì thử lại sau claimRetrySec.
+  // Người ván đang chờ quá hạn → tự đòi xử, nêu đúng ghế đó. Server tự đo bằng giờ của nó (0085: chỉ xử ghế được nêu,
+  // ván phải đứng yên đủ hạn); từ chối thì thử lại sau claimRetrySec.
   const claimAt = useRef(0)
   useEffect(() => {
     if (status !== 'playing' || !seatedHere || result) return
-    const gone = seated.some((p) => p.memberId !== me && idle[p.memberId]?.leftSec <= 0)
-    if (!gone || now - claimAt.current < cfg.games.claimRetrySec * 1000) return
+    const due = (p) => idle[p.memberId]?.leftSec != null && idle[p.memberId].leftSec <= 0
+    const seats = seated.filter((p) => p.memberId !== me && due(p)).map((p) => p.seat)
+    if (!seats.length || now - claimAt.current < cfg.games.claimRetrySec * 1000) return
     claimAt.current = now
-    a.gameClaim(roomId).then((ok) => { if (ok) reload() })
+    a.gameClaim(roomId, seats).then((ok) => { if (ok) reload() })
   }, [a, roomId, status, seatedHere, result, seated, me, idle, now, reload])
 
   return { room, game, state, result, seated, inGame, mySeat, me, canMove, idle, moves: data?.moves || [], loading: !data && !err, err, reload, play }

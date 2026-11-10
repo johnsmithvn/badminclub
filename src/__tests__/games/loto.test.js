@@ -39,9 +39,9 @@ assert.deepEqual(optsOf({ time: 4 }), { time: 5 })
 }
 
 {
-  const sql = readFileSync('supabase/migrations/0088_games_loto.sql', 'utf8')
+  const sql = readFileSync('supabase/migrations/0097_games_loto.sql', 'utf8')
   for (const f of ['IN (3, 5, 8)', 'ELSE 5 END', "'games.err.noKinh'", "'games.err.notYet'", 'CASE WHEN c = 8 THEN 90', 'LIMIT 5'])
-    assert.ok(sql.includes(f), '0088 thiếu ' + f)
+    assert.ok(sql.includes(f), '0097 thiếu ' + f)
 }
 
 console.log('loto check: OK')

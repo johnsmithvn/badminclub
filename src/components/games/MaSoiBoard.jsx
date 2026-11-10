@@ -2,7 +2,7 @@ import { useEffect, useState } from 'react'
 import { Button } from '#ds'
 import { useApp } from '#contexts/AppContext.jsx'
 import { t } from '#i18n'
-import { complete, CUPID, CURSED, deadlineOf, ELDER, F, GUARD, HUNTER, isWolf, ROLE_IDS, rowOf, SEER, tableOf, tallyOf, VILLAGER, WITCH, WOLF } from '#lib/games/masoi.js'
+import { complete, CUPID, CURSED, deadlineOf, deckOf, ELDER, F, GUARD, HUNTER, isWolf, ROLE_IDS, rowOf, SEER, tableOf, tallyOf, VILLAGER, WITCH, WOLF } from '#lib/games/masoi.js'
 
 // Bàn Ma sói: bầu trời theo pha, lá vai của mình (game_hands — chỉ mình đọc được), bảng người chơi (bấm thẻ để
 // chọn người), khung việc cần làm theo vai, diễn biến. Cả bàn cùng đi: xong bước thì máy mình tự gửi { next } — máy
@@ -253,7 +253,7 @@ export default function MaSoiBoard({ state, mySeat, roomId, onMove, result, play
 
   const canPick = (seat) => {
     if (!state.alive[seat] || !mode || mode === 'sleep') return false
-    if (mode === 'wolf') return !mates.includes(seat) && seat !== mySeat
+    if (mode === 'wolf') return true // 0086: được cắn bất kỳ ai còn sống, kể cả đồng đội Sói và chính mình
     if (mode === 'guard') return seat !== guarded
     if (mode === 'cupid') return true
     if (mode === 'witch') return seat !== mySeat && potions?.[2] === 1
@@ -262,6 +262,8 @@ export default function MaSoiBoard({ state, mySeat, roomId, onMove, result, play
   const key = ph + ':' + state.night
   const cur = sel.key === key ? sel : { key, picks: [], curse: false }
   const picks = cur.picks.filter(canPick)
+  // Ô nguyền: Sói nguyền còn lượt và chưa chọn trúng Sói (mates gồm cả chính mình).
+  const curseOk = mode === 'wolf' && role === CURSED && curseLeft && !mates.includes(picks[0]) && picks[0] !== mySeat
   const toggle = (seat) => {
     const max = mode === 'cupid' ? 2 : 1
     const next = picks.includes(seat) ? picks.filter((x) => x !== seat) : picks.length < max ? [...picks, seat] : [...picks.slice(1), seat]
@@ -284,7 +286,8 @@ export default function MaSoiBoard({ state, mySeat, roomId, onMove, result, play
           : t('games.masoi.skyNight', { n: state.night })
 
   const counts = {}
-  if (state.n) tableOf(state.n).forEach((r) => { counts[r] = (counts[r] || 0) + 1 })
+  // Bộ vai của phòng (tự chọn hoặc bảng tự động — 0087), không phải ai còn sống.
+  if (state.n) (deckOf(state.opts, state.n).deck || tableOf(state.n)).forEach((r) => { counts[r] = (counts[r] || 0) + 1 })
 
   return (
     <div style={{ display: 'grid', gap: 12, gridTemplateColumns: 'minmax(0, 1fr)' }}>
@@ -345,7 +348,8 @@ export default function MaSoiBoard({ state, mySeat, roomId, onMove, result, play
               <span style={S.label}>{t('games.masoi.act.' + mode)}</span>
               {mode === 'shoot' && <span style={S.caption}>{t('games.masoi.hunterHint')}</span>}
               <span style={S.mono}>{picks.length ? picks.map(nameOf).join(' ♥ ') : t('games.masoi.pickHint')}</span>
-              {mode === 'wolf' && role === CURSED && curseLeft && (
+              {/* Đang chọn đồng đội / chính mình thì nguyền chắc chắn vô tác dụng (0086) — ẩn ô, không gửi curse. */}
+              {curseOk && (
                 <label style={{ ...S.caption, display: 'flex', gap: 6, alignItems: 'center' }}>
                   <input type="checkbox" checked={cur.curse} onChange={(e) => setSel({ ...cur, picks, curse: e.target.checked })} />
                   {t('games.masoi.useCurse')}
@@ -357,7 +361,7 @@ export default function MaSoiBoard({ state, mySeat, roomId, onMove, result, play
                     mode === 'vote' ? { vote: picks[0] }
                       : mode === 'shoot' ? { shoot: picks[0] }
                         : mode === 'cupid' ? { night: { pair: picks } }
-                          : { night: { target: picks[0], ...(mode === 'wolf' && cur.curse ? { curse: true } : {}) } },
+                          : { night: { target: picks[0], ...(curseOk && cur.curse ? { curse: true } : {}) } },
                   )}>
                   {t('games.masoi.do.' + mode)}
                 </Button>

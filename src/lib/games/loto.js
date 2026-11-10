@@ -4,9 +4,9 @@
 //   Hàng nào đủ cả 5 số đã xướng thì bấm "Kinh!" — ai kinh đúng trước thắng. Kinh sai (chưa đủ hàng) thì không tính.
 //   Hàng còn thiếu đúng một số là đang "chờ".
 //
-// Server chia tờ (0088 game_loto_deal ghi nước 1 { deal: { tickets } }, tờ công khai — trò không có gì để giấu) và bốc số
+// Server chia tờ (0097 game_loto_deal ghi nước 1 { deal: { tickets } }, tờ công khai — trò không có gì để giấu) và bốc số
 // (game_loto_fill: { call: true } → { call: số }) bằng random() — không ai biết trước số kế. Nhịp xướng opts.time giây tính
-// theo server từ created_at của số trước; 0088 từ chối gọi sớm (games.err.notYet, máy khách im lặng thử lại).
+// theo server từ created_at của số trước; 0097 từ chối gọi sớm (games.err.notYet, máy khách im lặng thử lại).
 //
 // state = { started, tickets[seat][45], called[], since, out[], over, winner, last, ply, opts }
 //   tickets: 9 hàng × 5 số liền nhau, mỗi hàng xếp theo cột (tăng dần)
