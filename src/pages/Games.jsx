@@ -1,6 +1,6 @@
 import { useCallback, useEffect, useState } from 'react'
 import { useNavigate } from 'react-router-dom'
-import { Alert, Button, Checkbox, Dialog, Input, Select, Skeleton, Switch } from '#ds'
+import { Alert, Avatar, Button, Checkbox, Dialog, Input, Select, Skeleton, Switch } from '#ds'
 import { Empty, TabBar } from '#ui'
 import { useApp } from '#contexts/AppContext.jsx'
 import { gameErr } from '#contexts/gameActions.js'
@@ -9,7 +9,7 @@ import { useTourPoll } from '#hooks/useTourPoll.js'
 import { GameArt, HowTo } from '#components/games/GameInfo.jsx'
 import GameBoard, { CoinBoard } from '#components/games/GameBoard.jsx'
 import { myMember } from '#lib/money.js'
-import { BOARD_POINTS, BOT_GAMES, BOT_PREFIX, COIN_START, GAMES, GAME_IDS, NO_STAKE, STAKES, buyinsOf, gameOf, isStaleRoom, seatedOf, stakeOf, statsOf } from '#lib/games/registry.js'
+import { BOARD_POINTS, BOT_GAMES, BOT_PREFIX, COIN_START, GAMES, GAME_IDS, NO_STAKE, STAKES, boardOf, buyinsOf, gameOf, isStaleRoom, seatedOf, stakeOf, statsOf } from '#lib/games/registry.js'
 import { DICTS as NOITU_DICTS, REPEATS as NOITU_REPEATS, TIMES as NOITU_TIMES } from '#lib/games/noitu.js'
 import { SIZES as COVAY_SIZES } from '#lib/games/covay.js'
 import { DAY_TIMES as MASOI_TIMES, REVEALS as MASOI_REVEALS, ROLE_IDS as MASOI_ROLE_IDS, SPECIALS as MASOI_SPECIALS, GUARD, SEER, WITCH, WOLF, isWolf, lineupOf, minPlayersOf } from '#lib/games/masoi.js'
@@ -22,6 +22,12 @@ import { LAPS as XIDACH_LAPS, TIMES as XIDACH_TIMES } from '#lib/games/xidach.js
 // Game có đồng hồ / số vòng chọn lúc tạo phòng: chữ ở games.<id>.time · timeOpt · timeNone (0 = tắt) · laps · lapsOpt.
 const TIME_OPTS = { baucua: BAUCUA_TIMES, loto: LOTO_TIMES, xidach: XIDACH_TIMES }
 const LAP_OPTS = { baucua: BAUCUA_LAPS, xidach: XIDACH_LAPS }
+// Nhóm game cho hàng lọc ở sảnh — chỉ để vẽ, không ảnh hưởng luật.
+const CAT = { caro: 'board', oanquan: 'board', coganh: 'board', colat: 'board', chamo: 'board', covua: 'board', cotuong: 'board',
+  bantau: 'board', coup: 'board', covay: 'board', tienlen: 'card', domino: 'card', baibip: 'card', xidach: 'card', phom: 'card',
+  bacay: 'card', cangua: 'party', masoi: 'party', baucua: 'party', loto: 'party', noitu: 'word' }
+const catLabels = () => ({ all: t('games.cat.all'), board: t('games.cat.board'), card: t('games.cat.card'), party: t('games.cat.party'), word: t('games.cat.word') })
+import { monthOf, todayISO } from '#utils/dates.js'
 import { pathOf } from '#routes'
 import { t } from '#i18n'
 import cfg from '#config/app.js'
@@ -39,6 +45,9 @@ export default function Games() {
   const [howto, setHowto] = useState(null) // id game đang mở luật chơi
   const [tab, setTab] = useState('play') // play | board | coins
   const [wallets, setWallets] = useState(null) // ví xu cả CLB (0093) — nạp lúc mở sảnh và khi mở tab Ví xu
+  const [cat, setCat] = useState('all')
+  const [q, setQ] = useState('')
+  const [top, setTop] = useState(null) // top 5 tháng này ở cột phải; null = đang nạp
 
   // Thống kê thắng thua (tới statsLimit ván) chỉ nạp lúc mở sảnh; nhịp hỏi lại chỉ lấy danh sách phòng.
   const refresh = useCallback((withStats = false) => a.gameLobby(withStats)
@@ -53,6 +62,13 @@ export default function Games() {
     return a.gameWallets().then(setWallets).catch(() => setWallets((w) => w || []))
   }, [a])
   useEffect(() => { refresh(true); loadWallets() }, [refresh, loadWallets, db.clubId])
+  useEffect(() => {
+    let live = true
+    a.gameBoard(monthOf(todayISO()))
+      .then((rows) => { if (live) setTop(boardOf(rows).rows.slice(0, 5)) })
+      .catch(() => { if (live) setTop([]) })
+    return () => { live = false }
+  }, [a, db.clubId])
   const coins = mine ?? wallets?.find((w) => w.memberId === me)?.balance ?? COIN_START
   // Đang xem BXH thì thôi hỏi lại danh sách phòng; quay lại tab Chơi thì hỏi ngay một lần.
   useTourPoll(tab === 'play', poll, cfg.games.lobbyPollMs)
@@ -74,6 +90,13 @@ export default function Games() {
   const rooms = (data?.rooms || []).filter((r) => gameOf(r.game)
     && !isStaleRoom(r, data.now, cfg.games.staleHours)
     && (!r.private || seatedOf(r.players).some((p) => p.memberId === me)))
+  // Ván của tôi (đang chơi trước, rồi đang chờ) nổi lên thẻ riêng; còn lại vào danh sách phòng.
+  const isMine = (r) => seatedOf(r.players).some((p) => p.memberId === me)
+  const current = rooms.find((r) => r.status === 'playing' && isMine(r)) || rooms.find((r) => r.status === 'waiting' && isMine(r)) || null
+  const others = rooms.filter((r) => r !== current)
+  const liveOf = rooms.reduce((o, r) => ({ ...o, [r.game]: (o[r.game] || 0) + 1 }), {})
+  const needle = q.trim().toLowerCase()
+  const shown = GAME_IDS.filter((id) => (cat === 'all' || CAT[id] === cat) && (!needle || t('games.' + id + '.name').toLowerCase().includes(needle)))
 
   return (
     <>
@@ -94,64 +117,129 @@ export default function Games() {
       {tab === 'play' && (<>
         {err && <Alert tone="danger">{err}</Alert>}
 
-        <section style={S.col}>
-          <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', gap: 8, flexWrap: 'wrap' }}>
-            <span style={S.h}>{t('games.pick')}</span>
-            {me && (
-              <span style={{ ...S.pill, font: '600 12px/1 var(--font-mono)', background: 'var(--surface-inset)', color: coins < 0 ? 'var(--status-incident-fg)' : 'var(--text-primary)' }}>
+        {/* Hàng đầu: ví + vào bằng mã. */}
+        <div style={{ display: 'flex', gap: 8, alignItems: 'center', flexWrap: 'wrap', justifyContent: 'space-between' }}>
+          {me
+            ? (
+              <span style={{ ...S.coin, color: coins < 0 ? 'var(--status-incident-fg)' : 'var(--status-delayed-fg)' }}>
+                <span style={{ width: 9, height: 9, borderRadius: 99, background: 'var(--status-delayed-fg)' }} />
                 {t('games.coins.mine', { n: coins.toLocaleString('vi-VN') })}
               </span>
-            )}
+            )
+            : <span />}
+          <div style={{ display: 'flex', gap: 8, alignItems: 'center', minWidth: 0, flex: isMobile ? '1 1 100%' : '0 1 auto' }}>
+            <Input
+              icon="hash"
+              value={code}
+              maxLength={6}
+              onChange={(e) => setCode(e.target.value.toUpperCase())}
+              onKeyDown={(e) => { if (e.key === 'Enter' && code.trim()) byCode() }}
+              placeholder={t('games.codePh')}
+              aria-label={t('games.codePh')}
+              containerStyle={{ flex: isMobile ? '1 1 0' : '0 0 200px', minWidth: 0 }}
+              style={{ fontFamily: 'var(--font-mono)', letterSpacing: '.12em' }}
+            />
+            <Button variant="secondary" disabled={code.trim().length < 6} onClick={byCode}>{t('games.joinByCode')}</Button>
           </div>
-          <div style={{ ...S.grid, gridTemplateColumns: isMobile ? 'minmax(0, 1fr)' : 'repeat(auto-fill, minmax(260px, 1fr))' }}>
-            {GAME_IDS.map((id) => {
-              const g = GAMES[id]
-              const s = stats[id]
-              return (
-                <div key={id} style={{ ...S.box, overflow: 'hidden', display: 'flex', flexDirection: 'column' }}>
-                  <GameArt id={id} />
-                  <div style={{ padding: 16, display: 'flex', flexDirection: 'column', gap: 8, minWidth: 0, flex: 1 }}>
-                    <span style={S.title}>{t('games.' + id + '.name')}</span>
-                    <span style={S.caption}>{t('games.' + id + '.desc')}</span>
-                    <span style={S.mono}>
-                      {t('games.playersRange', { min: g.minPlayers, max: g.maxPlayers })}
-                      {s ? ' · ' + t('games.record', s) : ''}
-                    </span>
-                    <div style={{ display: 'flex', gap: 8, flexWrap: 'wrap', marginTop: 'auto', paddingTop: 4 }}>
-                      <Button icon="plus" disabled={!me} onClick={() => setCreating(id)}>{t('games.create')}</Button>
-                      {BOT_GAMES.includes(id) && <Button variant="secondary" icon="bot" onClick={() => vsBot(id)}>{t('games.bot.play')}</Button>}
-                      <Button variant="ghost" icon="book-open" onClick={() => setHowto(id)}>{t('games.howto')}</Button>
+        </div>
+
+        <div style={{ display: 'grid', gap: 16, gridTemplateColumns: isMobile ? 'minmax(0, 1fr)' : 'minmax(0, 1fr) 300px', alignItems: 'start' }}>
+          <div style={S.col}>
+            {/* Ván đang dở + phòng đang chờ */}
+            <div style={{ ...S.grid, gridTemplateColumns: isMobile || !current ? 'minmax(0, 1fr)' : 'minmax(0, 1.1fr) minmax(0, 1fr)' }}>
+              {current && <ResumeCard room={current} me={me} members={db.members} onEnter={() => enter(current)} />}
+              <div style={{ ...S.box, padding: '14px 16px', display: 'grid', gap: 4, gridTemplateColumns: 'minmax(0, 1fr)' }}>
+                <span style={S.over}>{t('games.openRooms')}</span>
+                {!data && <Skeleton height={80} />}
+                {data && others.length === 0 && <Empty icon="gamepad-2" title={t('games.emptyTitle')} hint={t('games.emptyHint')} />}
+                <div style={{ display: 'grid', gridTemplateColumns: 'minmax(0, 1fr)', maxHeight: 260, overflowY: 'auto' }}>
+                  {others.map((r) => <RoomRow key={r.id} room={r} me={me} members={db.members} onEnter={() => enter(r)} />)}
+                </div>
+              </div>
+            </div>
+
+            {/* Lọc nhóm + tìm */}
+            <div style={{ display: 'flex', gap: 8, alignItems: 'center', flexWrap: 'wrap', justifyContent: 'space-between' }}>
+              <div style={{ display: 'flex', gap: 6, flexWrap: 'wrap', minWidth: 0 }}>
+                {Object.entries(catLabels()).map(([k, label]) => (
+                  <button key={k} type="button" onClick={() => setCat(k)} style={chip(cat === k)}>
+                    {label} <span style={{ font: '400 11px/1 var(--font-mono)', opacity: 0.6 }}>{k === 'all' ? GAME_IDS.length : GAME_IDS.filter((id) => CAT[id] === k).length}</span>
+                  </button>
+                ))}
+              </div>
+              <Input
+                icon="search"
+                value={q}
+                onChange={(e) => setQ(e.target.value)}
+                placeholder={t('games.lobby.search')}
+                aria-label={t('games.lobby.search')}
+                containerStyle={{ flex: isMobile ? '1 1 100%' : '0 0 220px', minWidth: 0 }}
+              />
+            </div>
+
+            {shown.length === 0 && <span style={S.caption}>{t('games.lobby.noMatch')}</span>}
+            <div style={{ ...S.grid, gridTemplateColumns: isMobile ? 'repeat(2, minmax(0, 1fr))' : 'repeat(auto-fill, minmax(210px, 1fr))' }}>
+              {shown.map((id) => {
+                const g = GAMES[id]
+                const s = stats[id]
+                const live = liveOf[id] || 0
+                const desc = t('games.' + id + '.desc')
+                return (
+                  <div key={id} style={{ ...S.box, overflow: 'hidden', display: 'flex', flexDirection: 'column' }}>
+                    <div style={{ position: 'relative' }}>
+                      <GameArt id={id} height={isMobile ? 84 : 110} />
+                      {live > 0 && (
+                        <span style={{ ...S.badge, left: 8, color: 'var(--status-transit-fg)' }}>
+                          <span style={{ width: 6, height: 6, borderRadius: 99, background: 'var(--status-transit-fg)' }} />
+                          {t('games.lobby.live', { n: live })}
+                        </span>
+                      )}
+                      <span style={{ ...S.badge, right: 8, font: '500 11px/1 var(--font-mono)' }}>{t('games.lobby.players', { min: g.minPlayers, max: g.maxPlayers })}</span>
+                    </div>
+                    <div style={{ padding: '10px 12px 12px', display: 'grid', gap: 8, gridTemplateColumns: 'minmax(0, 1fr)', flex: 1, alignContent: 'start' }}>
+                      <div style={{ display: 'grid', gap: 2, gridTemplateColumns: 'minmax(0, 1fr)' }}>
+                        <span style={S.title}>{t('games.' + id + '.name')}</span>
+                        <span style={{ ...S.caption, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }} title={desc}>{desc}</span>
+                        {s && <span style={S.mono}>{t('games.record', s)}</span>}
+                      </div>
+                      <div style={{ display: 'flex', gap: 6, marginTop: 'auto', minWidth: 0 }}>
+                        <Button size="sm" icon="plus" disabled={!me} onClick={() => setCreating(id)} style={{ flex: 1, minWidth: 0 }}>{t('games.create')}</Button>
+                        {BOT_GAMES.includes(id) && <Button size="sm" variant="secondary" icon="bot" aria-label={t('games.bot.play')} title={t('games.bot.play')} onClick={() => vsBot(id)} />}
+                        <Button size="sm" variant="ghost" icon="book-open" aria-label={t('games.howto')} title={t('games.howto')} onClick={() => setHowto(id)} />
+                      </div>
                     </div>
                   </div>
+                )
+              })}
+            </div>
+          </div>
+
+          {/* Cột phải: top tháng */}
+          <div style={{ ...S.box, padding: '14px 16px', display: 'grid', gap: 4, gridTemplateColumns: 'minmax(0, 1fr)' }}>
+            <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 6 }}>
+              <span style={S.over}>{t('games.lobby.topMonth')}</span>
+              <button type="button" onClick={() => setTab('board')} style={S.link}>{t('games.lobby.seeBoard')}</button>
+            </div>
+            {!top && <Skeleton height={140} />}
+            {top && top.length === 0 && <span style={S.caption}>{t('games.lobby.noTop')}</span>}
+            {top?.map((r) => {
+              const m = db.members.find((x) => x.id === r.memberId)
+              const name = m?.name || t('games.unknownPlayer')
+              const isMe = r.memberId === me
+              return (
+                <div key={r.memberId} style={{
+                  display: 'flex', alignItems: 'center', gap: 10, padding: '7px 8px', borderRadius: 9, minWidth: 0,
+                  background: isMe ? 'var(--surface-accent-soft)' : 'transparent', border: '1px solid ' + (isMe ? 'var(--border-focus-color)' : 'transparent'),
+                }}>
+                  <span style={{ width: 24, flexShrink: 0, font: '600 12px/1 var(--font-mono)', color: r.rank <= 3 ? 'var(--status-delayed-fg)' : 'var(--text-muted)' }}>#{r.rank}</span>
+                  <Avatar name={name} src={m?.avatarUrl} size={26} />
+                  <span style={{ ...S.label, flex: 1, minWidth: 0, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }} title={name}>{isMe ? t('games.board.you') : name}</span>
+                  <span style={{ ...S.mono, flexShrink: 0, color: 'var(--text-secondary)' }}>{t('games.lobby.wins', { n: r.won })}</span>
                 </div>
               )
             })}
           </div>
-        </section>
-
-        <div style={{ display: 'flex', gap: 8, alignItems: 'flex-end', flexWrap: 'wrap' }}>
-          <Input
-            icon="hash"
-            value={code}
-            maxLength={6}
-            onChange={(e) => setCode(e.target.value.toUpperCase())}
-            onKeyDown={(e) => { if (e.key === 'Enter' && code.trim()) byCode() }}
-            placeholder={t('games.codePh')}
-            aria-label={t('games.codePh')}
-            containerStyle={{ flex: isMobile ? '1 1 0' : '0 0 220px', minWidth: 0 }}
-            style={{ fontFamily: 'var(--font-mono)', letterSpacing: '.12em' }}
-          />
-          <Button variant="secondary" disabled={code.trim().length < 6} onClick={byCode}>{t('games.joinByCode')}</Button>
         </div>
-
-        <section style={S.col}>
-          <span style={S.h}>{t('games.openRooms')}</span>
-          {!data && <Skeleton height={120} />}
-          {data && rooms.length === 0 && (
-            <div style={S.box}><Empty icon="gamepad-2" title={t('games.emptyTitle')} hint={t('games.emptyHint')} /></div>
-          )}
-          {rooms.map((r) => <RoomRow key={r.id} room={r} me={me} members={db.members} onEnter={() => enter(r)} />)}
-        </section>
       </>)}
 
       {creating && <CreateRoom gameId={creating} coins={coins} onClose={() => setCreating(null)} onDone={(id) => { setCreating(null); open(id) }} />}
@@ -169,8 +257,8 @@ function RoomRow({ room, me, members, onEnter }) {
   const tone = room.status === 'waiting' ? 'scheduled' : 'transit'
   const stake = stakeOf(room.options)
   return (
-    <div style={{ ...S.box, padding: '10px 14px 10px 10px', display: 'flex', alignItems: 'center', gap: 12, minWidth: 0 }}>
-      <div style={{ width: 64, flexShrink: 0 }}><GameArt id={room.game} height={44} radius={8} /></div>
+    <div style={{ padding: '8px 0', borderTop: '1px solid var(--border-subtle)', display: 'flex', alignItems: 'center', gap: 10, minWidth: 0 }}>
+      <div style={{ width: 48, flexShrink: 0 }}><GameArt id={room.game} height={34} radius={6} /></div>
       <div style={{ display: 'grid', gap: 3, minWidth: 0, flex: 1, gridTemplateColumns: 'minmax(0, 1fr)' }}>
         <div style={{ display: 'flex', alignItems: 'center', gap: 8, minWidth: 0 }}>
           <span style={{ ...S.label, minWidth: 0, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }} title={host?.name}>
@@ -187,6 +275,40 @@ function RoomRow({ room, me, members, onEnter }) {
     </div>
   )
 }
+
+/** Thẻ "Ván đang dở": phòng của tôi đang chơi (hoặc đang chờ người) — một nút vào lại. */
+function ResumeCard({ room, me, members, onEnter }) {
+  const g = gameOf(room.game)
+  const seated = seatedOf(room.players)
+  const rivals = seated.filter((p) => p.memberId !== me).map((p) => members.find((m) => m.id === p.memberId)?.name || t('games.unknownPlayer'))
+  const stake = stakeOf(room.options)
+  const playing = room.status === 'playing'
+  const title = t('games.' + room.game + '.name') + (rivals.length ? ' · ' + rivals.join(', ') : '')
+  return (
+    <div style={{ ...S.box, padding: '14px 16px', display: 'grid', gap: 12, gridTemplateColumns: 'minmax(0, 1fr)', background: 'var(--surface-accent-soft)', borderColor: 'var(--border-focus-color)' }}>
+      <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', gap: 8 }}>
+        <span style={{ ...S.over, color: 'var(--status-transit-fg)' }}>{t('games.lobby.resume')}</span>
+        <span style={{ ...S.caption, color: 'var(--status-transit-fg)', flexShrink: 0 }}>{t(playing ? 'games.status.playing' : 'games.lobby.waiting')}</span>
+      </div>
+      <div style={{ display: 'flex', alignItems: 'center', gap: 12, minWidth: 0 }}>
+        <div style={{ width: 56, flexShrink: 0 }}><GameArt id={room.game} height={56} radius={10} /></div>
+        <div style={{ display: 'grid', gap: 3, minWidth: 0, flex: 1, gridTemplateColumns: 'minmax(0, 1fr)' }}>
+          <span style={{ ...S.title, fontSize: 16, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }} title={title}>{title}</span>
+          <span style={S.mono}>
+            {room.code} · {t('games.seats', { n: seated.length, max: g.maxPlayers })}{stake > 0 ? ' · ' + t('games.coins.stakePill', { n: stake }) : ''}
+          </span>
+        </div>
+        <Button onClick={onEnter}>{t('games.enter')}</Button>
+      </div>
+    </div>
+  )
+}
+
+const chip = (on) => ({
+  padding: '6px 12px', borderRadius: 99, cursor: 'pointer', whiteSpace: 'nowrap', font: '600 12.5px/1 var(--font-sans)',
+  background: on ? 'var(--surface-accent-soft)' : 'var(--surface-card)', color: on ? 'var(--status-transit-fg)' : 'var(--text-secondary)',
+  border: '1px solid ' + (on ? 'var(--border-focus-color)' : 'var(--border-subtle)'),
+})
 
 /** Bộ vai mặc định khi chủ phòng bật Tự chọn Ma sói — chỉ là điểm xuất phát để sửa. */
 const MASOI_CUSTOM = [WOLF, WOLF, SEER, GUARD, WITCH]
@@ -463,4 +585,14 @@ const S = {
   caption: { font: 'var(--type-caption)', color: 'var(--text-muted)' },
   mono: { font: '400 11.5px/1.3 var(--font-mono)', color: 'var(--text-muted)' },
   pill: { flexShrink: 0, padding: '4px 8px', borderRadius: 99, font: '600 10.5px/1 var(--font-sans)' },
+  over: { font: '600 11px/1 var(--font-mono)', letterSpacing: '.12em', textTransform: 'uppercase', color: 'var(--text-muted)' },
+  coin: {
+    display: 'inline-flex', alignItems: 'center', gap: 8, padding: '7px 14px', borderRadius: 99, font: '700 13px/1 var(--font-mono)',
+    background: 'var(--status-delayed-bg)', border: '1px solid var(--status-delayed-fg)',
+  },
+  badge: {
+    position: 'absolute', top: 8, display: 'inline-flex', alignItems: 'center', gap: 5, padding: '3px 8px', borderRadius: 99,
+    background: 'var(--surface-card)', color: 'var(--text-secondary)', font: '600 11px/1 var(--font-sans)', boxShadow: 'var(--shadow-xs)',
+  },
+  link: { border: 0, background: 'none', padding: 0, cursor: 'pointer', font: '600 12px/1 var(--font-sans)', color: 'var(--text-accent)' },
 }

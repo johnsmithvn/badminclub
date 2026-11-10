@@ -117,14 +117,18 @@ function RoomPage({ id }) {
 
       {g.err && <Alert tone="danger">{g.err}</Alert>}
 
-      <div style={{ display: 'flex', gap: 8, flexWrap: 'wrap' }}>
+      {/* Máy tính: bàn bên trái, cột phải là danh sách người chơi (bản 3a). Điện thoại: người chơi lên trên. */}
+      <div style={{ display: 'grid', gap: 16, alignItems: 'start', gridTemplateColumns: isMobile ? 'minmax(0, 1fr)' : 'minmax(0, 1fr) 300px' }}>
+      <div style={{ ...S.panel, order: isMobile ? 0 : 2 }}>
+        {!isMobile && <span style={S.over}>{t('games.room.players')} · {seated.length}/{game.maxPlayers}</span>}
+        <div style={{ display: 'flex', gap: 8, flexWrap: 'wrap', flexDirection: isMobile ? 'row' : 'column' }}>
         {/* Đang chơi: theo số ghế của người còn ngồi — ván 3–4 người có người rời thì số ghế không còn liền 0..n-1. */}
         {(room.status === 'waiting' ? Array.from({ length: game.maxPlayers }, (_, s) => s) : seated.map((x) => x.seat)).map((seat) => {
           const p = seated.find((x) => x.seat === seat)
           const on = p && state && !result && state.turn === seat
           const m = p && memberOf(p.memberId)
           return (
-            <div key={seat} style={{ ...S.seat, borderColor: on ? 'var(--border-focus-color)' : 'var(--border-subtle)', background: on ? 'var(--surface-accent-soft)' : 'var(--surface-card)' }}>
+            <div key={seat} style={{ ...S.seat, ...(isMobile ? null : { flex: 'none', maxWidth: 'none' }), borderColor: on ? 'var(--border-focus-color)' : 'var(--border-subtle)', background: on ? 'var(--surface-accent-soft)' : 'var(--surface-card)' }}>
               {p ? <Avatar name={m?.name || ''} src={m?.avatarUrl} size={28} /> : <span style={S.emptyDot} />}
               <div style={{ display: 'grid', gap: 2, minWidth: 0, gridTemplateColumns: 'minmax(0, 1fr)' }}>
                 <span style={S.name} title={p ? nameOf(p.memberId) : undefined}>{p ? nameOf(p.memberId) : t('games.emptySeat')}</span>
@@ -156,8 +160,10 @@ function RoomPage({ id }) {
             </div>
           )
         })}
+        </div>
       </div>
 
+      <div style={{ display: 'grid', gap: 14, gridTemplateColumns: 'minmax(0, 1fr)', order: 1, minWidth: 0 }}>
       {room.status === 'waiting' && (
         <div style={{ ...S.box, padding: 16, display: 'grid', gap: 12, gridTemplateColumns: 'minmax(0, 1fr)' }}>
           <span style={S.caption}>
@@ -221,6 +227,8 @@ function RoomPage({ id }) {
           <Button variant="secondary" onClick={back}>{t('games.back')}</Button>
         </div>
       )}
+      </div>
+      </div>
 
       {resigning && (
         <Dialog
@@ -280,6 +288,8 @@ const S = {
     display: 'flex', alignItems: 'center', gap: 10, padding: '8px 12px', borderRadius: 10, border: '1px solid',
     flex: '1 1 180px', minWidth: 0, maxWidth: 320,
   },
+  panel: { display: 'grid', gap: 10, gridTemplateColumns: 'minmax(0, 1fr)', minWidth: 0 },
+  over: { font: '600 11px/1 var(--font-mono)', letterSpacing: '.12em', textTransform: 'uppercase', color: 'var(--text-muted)' },
   emptyDot: { width: 28, height: 28, borderRadius: 99, border: '1px dashed var(--border-strong)', flexShrink: 0 },
   status: {
     display: 'flex', alignItems: 'center', justifyContent: 'space-between', gap: 10, padding: '10px 14px', borderRadius: 10,

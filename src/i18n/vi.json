@@ -6246,7 +6246,20 @@
       "points": "điểm",
       "you": "Bạn",
       "emptyTitle": "Chưa có ván nào xong",
-      "emptyHint": "Chơi xong ván đầu tiên là có tên trên bảng"
+      "emptyHint": "Chơi xong ván đầu tiên là có tên trên bảng",
+      "myPos": "Vị trí của bạn",
+      "chaseWins": "Thắng thêm {{n}} ván để vượt {{name}} lên #{{rank}}.",
+      "chasePoints": "Thêm {{n}} điểm để vượt {{name}} lên #{{rank}}.",
+      "lead": "Bạn đang đứng đầu bảng.",
+      "notRanked": "Bạn chưa có ván nào trong khoảng này.",
+      "kings": "Vua từng game",
+      "rankN": "Hạng {{n}}",
+      "colRank": "Hạng",
+      "colPlayer": "Người chơi",
+      "colRecord": "T · H · B",
+      "colRate": "Tỉ lệ thắng",
+      "colWins": "Thắng",
+      "colPoints": "Điểm"
     },
     "coins": {
       "tab": "Ví xu",
@@ -6352,7 +6365,14 @@
         "cotuong": "Cao thủ dùng engine Fairy-Stockfish — lần đầu tải khoảng 1,7 MB. Safari / iPhone chưa chạy được engine này, máy sẽ đánh ở mức Khó."
       },
       "engineOff": "Trình duyệt này không chạy được engine — máy đang đánh ở mức Khó.",
-      "notSupported": "Trò này chưa có chế độ chơi với máy."
+      "notSupported": "Trò này chưa có chế độ chơi với máy.",
+      "settings": "Cài đặt ván",
+      "apply": "Áp dụng · Ván mới",
+      "undo": "Đi lại",
+      "bot": "Máy",
+      "bots": "{{n}} máy",
+      "you": "Bạn",
+      "pill": "Luyện với máy · {{level}}"
     },
     "rematch": "Chơi lại",
     "nextRoom": "Vào ván mới",
@@ -7257,6 +7277,28 @@
       "noCoins": "Ví xu của bạn không đủ để ngồi bàn này",
       "noChips": "Bạn không còn đủ xu trên bàn để đặt mức này",
       "noCoinsSeat": "Có người trong phòng không còn đủ số xu đã chọn mang vào — mời họ chọn mức thấp hơn hoặc rời ghế rồi bắt đầu lại"
+    },
+    "cat": {
+      "all": "Tất cả",
+      "board": "Cờ bàn",
+      "card": "Bài",
+      "party": "Tiệc",
+      "word": "Chữ"
+    },
+    "lobby": {
+      "resume": "Ván đang dở",
+      "waiting": "Đang chờ người",
+      "search": "Tìm trò chơi…",
+      "topMonth": "Top tháng này",
+      "seeBoard": "Xem BXH",
+      "live": "{{n}} phòng mở",
+      "players": "{{min}}–{{max}}",
+      "noTop": "Tháng này chưa có ván nào xong.",
+      "noMatch": "Không có trò nào khớp.",
+      "wins": "{{n}}T"
+    },
+    "room": {
+      "players": "Người chơi"
     }
   }
 }
