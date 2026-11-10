@@ -8,7 +8,7 @@
 --   - Ngồi ghế (tạo phòng, vào, vào lại) phòng có cược: ví < mức cược → 'games.err.noCoins'. Bắt đầu ván: ai trong
 --     phòng đã tụt dưới mức cược (vừa thua phòng khác) → 'games.err.noCoinsSeat'.
 --   - Phòng chuyển sang 'finished' (game_finish / game_leave / game_claim — mọi đường) → trả xu một lần (PK chặn trùng):
---       · Phỏm / Tiến lên / Ba cây có result.scores: xu = điểm × mức cược.
+--       · Phỏm / Tiến lên / Ba cây / Bầu cua / Xì dách có result.scores: xu = điểm × mức cược.
 --       · Còn lại (và ván bỏ cuộc không có scores): mỗi người thua mất đúng mức cược, người thắng chia đều phần đó
 --         (chia nguyên, lẻ bỏ). Hoà / không ai thắng / không ai thua → không ai mất gì.
 --     Người của ván = như game_board (0091): còn ngồi hoặc rời SAU khi ván bắt đầu (người bỏ giữa ván thua cược).
@@ -159,7 +159,7 @@ BEGIN
   END IF;
 
   -- Game điểm có bảng điểm: xu = điểm × mức cược (bỏ ghế không có điểm dạng số).
-  IF r.game IN ('phom', 'tienlen', 'bacay') AND jsonb_typeof(r.result -> 'scores') = 'object' THEN
+  IF r.game IN ('phom', 'tienlen', 'bacay', 'baucua', 'xidach') AND jsonb_typeof(r.result -> 'scores') = 'object' THEN
     INSERT INTO game_coins (room_id, member_id, club_id, delta)
     SELECT p_room, p.member_id, r.club_id, round((r.result -> 'scores' ->> (p.seat::text))::numeric)::int * v_stake
       FROM game_room_players p

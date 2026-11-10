@@ -151,6 +151,9 @@ const C = (r, s) => r * 4 + s
     assert.ok(sql.includes("'games.err." + k + "'"), '0090 phải dùng mã lỗi ' + k)
   }
   void pendingOf
+  // game_move tự gọi game_phom_check nếu còn trên DB (bản Phỏm cũ trước khi gộp) → phải bị xoá, và bản này không tạo lại.
+  assert.match(sql, /DROP FUNCTION IF EXISTS public\.game_phom_check\(uuid, int, jsonb\);/, '0090 phải xoá game_phom_check cũ')
+  assert.doesNotMatch(sql, /CREATE OR REPLACE FUNCTION public\.game_phom_check\(/, 'Phỏm không dùng _check — kiểm nước nằm trong _fill')
 }
 
 console.log('phom check: OK')

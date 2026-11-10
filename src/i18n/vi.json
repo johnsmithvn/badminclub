@@ -6264,7 +6264,11 @@
       "boardHint": "Xu ảo, không dính tiền thật. Ai cũng bắt đầu với {{n}} xu, thắng thua cộng dồn mãi. Chỉ hiện người đã chơi phòng có cược.",
       "line": "{{n}} ván cược · {{w}} thắng · {{l}} thua · {{net}}",
       "emptyTitle": "Chưa ai chơi phòng có cược",
-      "emptyHint": "Tạo phòng, chọn Mức cược để bắt đầu"
+      "emptyHint": "Tạo phòng, chọn Mức cược để bắt đầu",
+      "profileTitle": "Xu trò chơi",
+      "profileSub": "Xu ảo trong mục Trò chơi, không phải tiền thật",
+      "profileNone": "Bạn chưa chơi phòng có cược nào — ví đang ở mức khởi đầu {{n}} xu.",
+      "openRoom": "Mở lại phòng này"
     },
     "emptyTitle": "Chưa có phòng nào đang mở",
     "emptyHint": "Tạo phòng rồi chép link mời gửi cho bạn cùng CLB",

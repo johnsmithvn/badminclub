@@ -2,13 +2,16 @@
 // Tách hẳn khỏi BXH cầu lông: không Elo, không điểm mùa.
 
 import { useEffect, useMemo, useState } from 'react'
-import { Alert, Avatar, Select, Skeleton } from '#ds'
+import { useNavigate } from 'react-router-dom'
+import { Alert, Avatar, Card, Select, Skeleton } from '#ds'
 import { Empty } from '#ui'
 import { useApp } from '#contexts/AppContext.jsx'
 import { gameErr } from '#contexts/gameActions.js'
 import RankMedalIcon from '#components/leaderboard/RankMedalIcon.jsx'
+import cfg from '#config/app.js'
 import { COIN_START, GAME_IDS, boardOf } from '#lib/games/registry.js'
-import { addMonth, monthOf, todayISO } from '#utils/dates.js'
+import { pathOf } from '#routes'
+import { addMonth, ddmy, isoOf, monthOf, todayISO } from '#utils/dates.js'
 import { t } from '#i18n'
 
 const PERIODS = ['this', 'last', 'all']
@@ -106,7 +109,7 @@ export function CoinBoard({ me, wallets }) {
   const { db } = useApp()
   const byId = useMemo(() => new Map(db.members.map((m) => [m.id, m])), [db.members])
   const rows = useMemo(() => {
-    const list = (wallets || []).slice().sort((x, y) => y.balance - x.balance || String(x.memberId).localeCompare(String(y.memberId)))
+    const list = (wallets || []).filter((w) => w.played > 0).sort((x, y) => y.balance - x.balance || String(x.memberId).localeCompare(String(y.memberId)))
     // Danh sách đã xếp: hạng = vị trí người đầu tiên có cùng số xu.
     return list.map((w) => ({ ...w, rank: list.findIndex((x) => x.balance === w.balance) + 1 }))
   }, [wallets])
@@ -150,6 +153,83 @@ export function CoinBoard({ me, wallets }) {
         </div>
       )}
     </section>
+  )
+}
+
+/**
+ * Thẻ "Xu trò chơi" ở Hồ sơ: ví của tôi + những dòng sổ gần nhất (0101 game_coin_tx: mở ví, mang vào bàn, nhận về,
+ * trả lại, cứu trợ…), dòng có phòng thì bấm → mở lại phòng đó. Số dư từ game_my_wallet (mở ví + cứu trợ như sảnh);
+ * số ván / thắng / thua từ game_wallets. Danh sách chỉ `cfg.games.coinHistory` dòng mới nhất.
+ * Profile tải lười thẻ này (lazy) — import thẳng sẽ kéo cả registry game vào gói chung của app.
+ */
+export function MyCoinsCard({ memberId }) {
+  const { db, a } = useApp()
+  const navigate = useNavigate()
+  const [data, setData] = useState(null) // { wallet, balance, rows }; null = đang nạp
+  const [err, setErr] = useState('')
+
+  useEffect(() => {
+    let live = true
+    Promise.all([a.gameMyWallet(), a.gameWallets(), a.gameMemberCoins(memberId, cfg.games.coinHistory)])
+      .then(([balance, ws, rows]) => {
+        if (live) { setData({ balance, wallet: ws.find((w) => w.memberId === memberId) || null, rows }); setErr('') }
+      })
+      .catch((e) => { if (live) { setErr(gameErr(e)); setData({ balance: null, wallet: null, rows: [] }) } })
+    return () => { live = false }
+  }, [a, memberId, db.clubId])
+
+  const w = data?.wallet
+  const balance = data?.balance ?? w?.balance ?? COIN_START
+  return (
+    <Card title={t('games.coins.profileTitle')} subtitle={t('games.coins.profileSub')} icon="wallet" padding="16px 18px">
+      <div style={S.col}>
+        {err && <Alert tone="danger">{err}</Alert>}
+        {!data && <Skeleton height={120} />}
+        {data && (
+          <>
+            <div style={{ display: 'flex', alignItems: 'baseline', gap: 6, flexWrap: 'wrap' }}>
+              <span style={{ font: '700 28px/1 var(--font-mono)', color: balance < 0 ? 'var(--status-incident-fg)' : 'var(--text-primary)' }}>
+                {balance.toLocaleString('vi-VN')}
+              </span>
+              <span style={S.unit}>{t('games.coins.unit')}</span>
+            </div>
+            <span style={S.mono}>
+              {w && w.played > 0
+                ? t('games.coins.line', { n: w.played, w: w.won, l: w.lost, net: signed(balance - COIN_START) })
+                : t('games.coins.profileNone', { n: COIN_START.toLocaleString('vi-VN') })}
+            </span>
+            {data.rows.length > 0 && (
+              <div style={{ ...S.box, display: 'grid', gridTemplateColumns: 'minmax(0, 1fr)' }}>
+                {data.rows.map((r, i) => {
+                  const kind = t('games.coins.kind.' + r.kind)
+                  const name = r.roomId ? (GAME_IDS.includes(r.game) ? t('games.' + r.game + '.name') : r.game || '—') + ' · ' + kind : kind
+                  return (
+                    <button
+                      key={r.id}
+                      type="button"
+                      disabled={!r.roomId}
+                      onClick={() => r.roomId && navigate(pathOf('gameRoom', r.roomId))}
+                      title={r.roomId ? t('games.coins.openRoom') : undefined}
+                      style={{
+                        display: 'grid', gridTemplateColumns: 'minmax(0, 1fr) auto auto', alignItems: 'center', gap: 10,
+                        padding: '9px 12px', border: 0, borderTop: i ? '1px solid var(--border-subtle)' : 'none',
+                        background: 'transparent', cursor: r.roomId ? 'pointer' : 'default', textAlign: 'left', minWidth: 0, color: 'inherit',
+                      }}
+                    >
+                      <span style={{ ...S.label, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>{name}</span>
+                      <span style={S.mono}>{r.at ? ddmy(isoOf(new Date(r.at))) : ''}</span>
+                      <span style={{ font: '600 13px/1 var(--font-mono)', color: signColor(r.delta), minWidth: 64, textAlign: 'right' }}>
+                        {t('games.coins.delta', { n: signed(r.delta) })}
+                      </span>
+                    </button>
+                  )
+                })}
+              </div>
+            )}
+          </>
+        )}
+      </div>
+    </Card>
   )
 }
 

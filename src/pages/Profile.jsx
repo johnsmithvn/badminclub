@@ -10,7 +10,7 @@
 //   · `phone` chủ CLB dùng để đối chiếu chuyển khoản và gợi ý ghép tài khoản → cũng phải duyệt.
 //   · `role` không nằm trong tầm tay chủ nhân bản ghi, không bao giờ.
 
-import { useState, useMemo } from 'react'
+import { Suspense, lazy, useState, useMemo } from 'react'
 import { useNavigate } from 'react-router-dom'
 import { Button, Card, Icon, IconButton, Input, Select } from '#ds'
 import { AvatarUpload, Empty, LevelChip, Mono, Overline } from '#ui'
@@ -23,6 +23,9 @@ import { getPlayerRating, rankTierOf, confidenceProgress, MIN_RATING } from '#li
 import { ddmy } from '#utils/dates.js'
 import { PUBLIC_PATHS } from '#routes'
 import { t } from '#i18n'
+
+// Thẻ xu trò chơi tải lười: nằm cùng file với BXH game, import thẳng sẽ kéo cả code game vào gói chung.
+const MyCoinsCard = lazy(() => import('#components/games/GameBoard.jsx').then((m) => ({ default: m.MyCoinsCard })))
 
 export default function Profile() {
   const { db, a } = useApp()
@@ -175,6 +178,7 @@ export default function Profile() {
       <div style={{ display: 'grid', gap: 16 }}>
         <MeCard me={me} myGroups={myGroups} pending={pending} db={db} a={a} profile={profile} />
         <AccountCard myClubs={myClubs} setActiveClub={setActiveClub} db={db} navigate={navigate} />
+        {me && <Suspense fallback={null}><MyCoinsCard memberId={me.id} /></Suspense>}
       </div>
 
       {/* Cột phải: Phong độ Elo, Thống kê đối đầu và Tiến trình */}

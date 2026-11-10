@@ -98,7 +98,48 @@ export const stakeOf = (options) => (STAKES.includes(options?.stake) ? options.s
  * Game mà tổng điểm cộng dồn qua các ván có nghĩa (điểm ăn thua giữa người chơi) → BXH xếp theo điểm, và phòng có cược
  * trả xu = điểm × mức cược (0093).
  */
-export const BOARD_POINTS = ['phom', 'tienlen', 'bacay']
+export const BOARD_POINTS = ['phom', 'tienlen', 'bacay', 'baucua', 'xidach']
+
+/* ---------- Ví + mang xu vào bàn (0101) — server giữ luật; bản JS để vẽ form và test khớp SQL (coins.test.js). ---------- */
+
+/** Ví dưới mức này thì mỗi ngày (giờ VN) được nạp lại cho đủ — chỉ khi không còn xu nằm trên bàn đang chơi. */
+export const COIN_RELIEF = 100
+/** Game điểm: mang vào bàn một trong các mức (× giá 1 điểm = mức cược). Game thắng / thua: góp đúng mức cược. */
+export const BUYIN_MULT = [10, 20, 50]
+/** Các mức mang vào bàn của phòng — như game_buyins ở SQL. Mức đầu là mặc định. Không cược → []. */
+export const buyinsOf = (game, stake) => (stake > 0 ? (BOARD_POINTS.includes(game) ? BUYIN_MULT.map((k) => k * stake) : [stake]) : [])
+/** Xu đang có trên bàn để vẽ: mang vào + điểm ăn thua × giá điểm (không âm — server không bắt trả quá số mang vào). */
+export const chipsOf = (buyin, score, stake) => Math.max(0, (buyin || 0) + (score || 0) * stake)
+
+// Như round() của Postgres với numeric: nửa thì làm tròn ra xa số 0.
+const roundAway = (x) => Math.sign(x) * Math.round(Math.abs(x))
+
+/**
+ * Chia xu khi ván xong — PHẢI khớp game_coin_split của 0101 (coins.test chạy cùng bộ mẫu với file kiểm 0101).
+ * `seats` / `caps` cùng thứ tự; cap = xu người đó đã mang vào bàn (mất tối đa chừng ấy). Trả net từng người (+ được, − mất).
+ *   - Game điểm có `result.scores`: muốn = điểm × stake. Người thua mất min(muốn, cap). Người thắng nhận đủ nếu số xu
+ *     thu được đủ trả; không đủ thì chia theo tỷ lệ phần muốn, làm tròn xuống (phần lẻ bỏ).
+ *   - Còn lại (game thắng / thua, ván bỏ cuộc không có scores): người thua mất cả cap, người thắng chia đều (lẻ bỏ).
+ *     Hoà / không ai thắng / ai cũng thắng → không ai mất.
+ */
+export function splitOf(game, stake, result, seats, caps) {
+  const zero = seats.map(() => 0)
+  if (!(stake > 0) || !result || !seats.length) return zero
+  const sc = result.scores
+  if (BOARD_POINTS.includes(game) && sc && typeof sc === 'object' && !Array.isArray(sc)) {
+    const raw = seats.map((s) => (typeof sc[s] === 'number' ? roundAway(sc[s]) * stake : 0))
+    const loss = raw.map((r, i) => (r < 0 ? Math.min(-r, caps[i]) : 0))
+    const pot = loss.reduce((a, b) => a + b, 0)
+    const want = raw.reduce((a, r) => a + (r > 0 ? r : 0), 0)
+    return raw.map((r, i) => (r > 0 ? (want <= pot ? r : Math.floor((r * pot) / want)) : 0) - loss[i])
+  }
+  if (result.draw === true) return zero
+  const win = seats.map((s) => Array.isArray(result.winners) && result.winners.includes(s))
+  const w = win.filter(Boolean).length
+  if (!w || w === seats.length) return zero
+  const pot = caps.reduce((a, c, i) => a + (win[i] ? 0 : c), 0)
+  return win.map((x, i) => (x ? Math.floor(pot / w) : -caps[i]))
+}
 
 const cmpKeys = (a, b) => {
   for (let i = 0; i < a.length; i++) if (a[i] !== b[i]) return a[i] - b[i]

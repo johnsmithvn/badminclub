@@ -788,8 +788,28 @@ export async function loadGameWallets(clubId) {
 /** Xu ăn thua của một phòng đã xong → { [memberId]: delta }. Phòng không cược / chưa xong → {}. */
 export async function loadRoomCoins(roomId) {
   if (!supabase) throw new Error('Chưa cấu hình Supabase')
-  const rows = unwrap(await supabase.from('game_coins').select('member_id, delta').eq('room_id', roomId)) || []
-  return Object.fromEntries(rows.map((r) => [r.member_id, Number(r.delta) || 0]))
+  // 0101: sổ game_coin_tx — mang vào (−) + nhận về (+) của phòng cộng lại = ăn thua của ván.
+  const rows = unwrap(await supabase.from('game_coin_tx').select('member_id, delta').eq('room_id', roomId)) || []
+  const out = {}
+  for (const r of rows) out[r.member_id] = (out[r.member_id] || 0) + (Number(r.delta) || 0)
+  return out
+}
+
+/** Sổ xu của một người (0101 game_coin_tx), mới nhất trước → [{ id, roomId, game, kind, delta, balance, at }]. */
+export async function loadMemberCoins(memberId, limit) {
+  if (!supabase) throw new Error('Chưa cấu hình Supabase')
+  const rows = unwrap(await supabase.from('game_coin_tx').select('id, room_id, kind, delta, balance, created_at, game_rooms(game)')
+    .eq('member_id', memberId).order('id', { ascending: false }).limit(limit)) || []
+  return rows.map((r) => ({
+    id: r.id, roomId: r.room_id || null, game: r.game_rooms?.game || null, kind: r.kind,
+    delta: Number(r.delta) || 0, balance: Number(r.balance) || 0, at: r.created_at || null,
+  }))
+}
+
+/** Ví của tôi trong CLB (0101 game_my_wallet: mở ví lần đầu + cứu trợ nếu đủ điều kiện) → số dư. */
+export async function loadMyWallet(clubId) {
+  if (!supabase) throw new Error('Chưa cấu hình Supabase')
+  return Number(unwrap(await supabase.rpc('game_my_wallet', { p_club: clubId }))) || 0
 }
 
 export async function loadGameBoard(clubId, month) {

@@ -3,7 +3,7 @@
 // Như Thư viện / Giải đấu: dữ liệu KHÔNG nằm trong `db`, KHÔNG qua diff()/save(). Trang tự nạp,
 // mỗi lần ghi chờ DB xong mới báo. Luật quyền nằm ở RPC của 0074; luật game ở lib/games/*.
 
-import { findGameRoom, gameRpc, loadGameBoard, loadGameHand, loadGameLobby, loadGameRoom, loadGameWallets, loadRoomCoins, subscribeGameRoom } from '#contexts/storage.js'
+import { findGameRoom, gameRpc, loadGameBoard, loadGameHand, loadGameLobby, loadGameRoom, loadGameWallets, loadMemberCoins, loadMyWallet, loadRoomCoins, subscribeGameRoom } from '#contexts/storage.js'
 import { gameOf } from '#lib/games/registry.js'
 import { myMember } from '#lib/money.js'
 import { t } from '#i18n'
@@ -42,6 +42,10 @@ export function makeGameActions({ dbRef, toast }) {
     /** Xu ảo (0093): ví cả CLB · xu ăn thua của một phòng. */
     gameWallets: () => loadGameWallets(db().clubId),
     gameRoomCoins: (id) => loadRoomCoins(id),
+    gameMemberCoins: (memberId, limit) => loadMemberCoins(memberId, limit),
+    gameMyWallet: () => loadMyWallet(db().clubId),
+    /** Đổi số xu mang vào bàn (0101) — chỉ lúc phòng chờ; ví thiếu / mức lạ → server từ chối, toast. */
+    gameBuyin: (roomId, amount) => run(() => gameRpc('game_buyin', { p_room: roomId, p_amount: amount })),
     gameRoom: (id) => loadGameRoom(id),
     gameSubscribe: (id, on) => subscribeGameRoom(id, on),
     gameHand: (id) => loadGameHand(id),

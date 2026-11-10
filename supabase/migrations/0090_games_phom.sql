@@ -14,6 +14,18 @@
 
 BEGIN;
 
+-- Dọn bản Phỏm cũ (nhánh feat/games trước khi gộp, cùng số 0090): nếu DB đã chạy bản đó thì còn các hàm dưới đây.
+-- game_move (0078) tự gọi game_<id>_check nếu hàm tồn tại → game_phom_check cũ sẽ kiểm nước của bản này bằng luật cũ
+-- và chặn sai. Bản này không có _check / _run / … nên xoá hẳn. deal / fill / result cùng chữ ký → CREATE OR REPLACE đè.
+-- DB chưa từng chạy bản cũ: IF EXISTS bỏ qua. Chỉ xoá hàm, không đụng data.
+DROP FUNCTION IF EXISTS public.game_phom_check(uuid, int, jsonb);
+DROP FUNCTION IF EXISTS public.game_phom_run(uuid, int, jsonb);
+DROP FUNCTION IF EXISTS public.game_phom_groups_ok(jsonb, int[], jsonb, int);
+DROP FUNCTION IF EXISTS public.game_phom_locks(uuid, int);
+DROP FUNCTION IF EXISTS public.game_phom_ints(jsonb);
+DROP FUNCTION IF EXISTS public.game_phom_ok(int[]);
+DROP FUNCTION IF EXISTS public.game_phom_val(int);
+
 /* ---------- Tiện ích thuần ---------- */
 
 -- Số nguyên trong jsonb (kể cả viết 5.0), khác → NULL.

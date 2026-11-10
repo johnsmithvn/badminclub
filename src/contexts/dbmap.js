@@ -1336,6 +1336,7 @@ export const toGamePlayer = (r) => ({
   joinedAt: r.joined_at || null,
   leftAt: r.left_at || null,
   seenAt: r.seen_at || null,
+  buyin: r.buyin == null ? null : num(r.buyin), // xu mang vào bàn (0101) — chỉ phòng có cược
 })
 
 export const toGameMove = (r) => ({ seq: num(r.seq), seat: num(r.seat), move: r.move || {}, at: r.created_at || null })

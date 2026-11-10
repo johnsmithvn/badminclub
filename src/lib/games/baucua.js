@@ -21,6 +21,11 @@ export const TIMES = [15, 20, 30]
 export const LAPS = [1, 2, 3]
 export const optsOf = (o) => ({ time: TIMES.includes(o?.time) ? o.time : 20, laps: LAPS.includes(o?.laps) ? o.laps : 1 })
 export const deadlineOf = (s) => (s.started && !s.over && s.since != null ? s.since + s.opts.time * 1000 : null)
+/**
+ * Phòng có cược (0101): mỗi ván đặt tổng không quá số điểm còn trên bàn = xu mang vào ÷ giá 1 điểm (làm tròn xuống)
+ * + điểm đã ăn thua. Chỉ server chặn (game_baucua_run, nước đang xin ghi) — ở đây để form tắt chip quá tay.
+ */
+export const budgetOf = (buyin, stake, score) => Math.floor(buyin / stake) + score
 
 const isN = (x, lo, hi) => Number.isInteger(x) && x >= lo && x <= hi
 const zero = () => SYMS.map(() => 0)

@@ -83,7 +83,8 @@ assert.deepEqual(boardOf([row('caro', 'a', 0, 0, 0, 0)], 'caro').rows, [])
 
 /* ---------- Game xếp theo điểm phải là game thật và server chấm có trả `scores` ---------- */
 // Kết quả lưu vào game_rooms.result do hàm SQL game_<id>_result dựng (Phỏm phía client chỉ trả pending).
-const SCORED_BY = { tienlen: '0078_games_tienlen.sql', phom: '0090_games_phom.sql', bacay: '0092_games_bacay.sql' }
+const SCORED_BY = { tienlen: '0078_games_tienlen.sql', phom: '0090_games_phom.sql', bacay: '0092_games_bacay.sql',
+  baucua: '0096_games_baucua.sql', xidach: '0098_games_xidach.sql' }
 for (const id of BOARD_POINTS) {
   assert.ok(GAMES[id], 'BOARD_POINTS có game không tồn tại: ' + id)
   assert.ok(SCORED_BY[id], 'game mới trong BOARD_POINTS — thêm file SQL chấm điểm của nó vào SCORED_BY')

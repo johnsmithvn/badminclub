@@ -9,7 +9,7 @@ import { useTourPoll } from '#hooks/useTourPoll.js'
 import { GameArt, HowTo } from '#components/games/GameInfo.jsx'
 import GameBoard, { CoinBoard } from '#components/games/GameBoard.jsx'
 import { myMember } from '#lib/money.js'
-import { BOARD_POINTS, BOT_GAMES, BOT_PREFIX, COIN_START, GAMES, GAME_IDS, NO_STAKE, STAKES, gameOf, isStaleRoom, seatedOf, stakeOf, statsOf } from '#lib/games/registry.js'
+import { BOARD_POINTS, BOT_GAMES, BOT_PREFIX, COIN_START, GAMES, GAME_IDS, NO_STAKE, STAKES, buyinsOf, gameOf, isStaleRoom, seatedOf, stakeOf, statsOf } from '#lib/games/registry.js'
 import { DICTS as NOITU_DICTS, REPEATS as NOITU_REPEATS, TIMES as NOITU_TIMES } from '#lib/games/noitu.js'
 import { SIZES as COVAY_SIZES } from '#lib/games/covay.js'
 import { DAY_TIMES as MASOI_TIMES, REVEALS as MASOI_REVEALS, ROLE_IDS as MASOI_ROLE_IDS, SPECIALS as MASOI_SPECIALS, GUARD, SEER, WITCH, WOLF, isWolf, lineupOf, minPlayersOf } from '#lib/games/masoi.js'
@@ -46,9 +46,14 @@ export default function Games() {
     .catch((e) => { setErr(gameErr(e)); setData((d) => d || { rooms: [], finished: [], now: Date.now() }) }), [a])
   const poll = useCallback(() => refresh(false), [refresh])
 
-  const loadWallets = useCallback(() => a.gameWallets().then(setWallets).catch(() => setWallets((w) => w || [])), [a])
+  // Ví của tôi qua game_my_wallet (0101): mở ví lần đầu + cứu trợ nếu đủ điều kiện — số trên viên ví luôn là số server dùng.
+  const [mine, setMine] = useState(null)
+  const loadWallets = useCallback(() => {
+    a.gameMyWallet().then(setMine).catch(() => {})
+    return a.gameWallets().then(setWallets).catch(() => setWallets((w) => w || []))
+  }, [a])
   useEffect(() => { refresh(true); loadWallets() }, [refresh, loadWallets, db.clubId])
-  const coins = wallets?.find((w) => w.memberId === me)?.balance ?? COIN_START
+  const coins = mine ?? wallets?.find((w) => w.memberId === me)?.balance ?? COIN_START
   // Đang xem BXH thì thôi hỏi lại danh sách phòng; quay lại tab Chơi thì hỏi ngay một lần.
   useTourPoll(tab === 'play', poll, cfg.games.lobbyPollMs)
 
@@ -204,9 +209,12 @@ function CreateRoom({ gameId, coins, onClose, onDone }) {
   const specials = roles ? roles.filter((r) => r !== WOLF) : []
   const setRoles = (w, sp) => setOpts({ ...opts, roles: [...Array(w).fill(WOLF), ...sp].sort((x, y) => x - y) })
   const noWolf = !!roles && !roles.some(isWolf)
-  // Xu ảo (0093): game kết quả do máy khách báo thì không cược; ví ít hơn mức cược thì server cũng chặn.
+  // Xu ảo (0093 / 0101): game kết quả do máy khách báo thì không cược. Ví ít hơn mức mang vào bàn thấp nhất thì không
+  // ngồi được — server cũng chặn. Game điểm: mức cược = giá 1 điểm.
   const stake = stakeOf(opts)
-  const broke = stake > coins
+  const ins = buyinsOf(gameId, stake)
+  const points = BOARD_POINTS.includes(gameId)
+  const broke = ins.length > 0 && ins[0] > coins
 
   const submit = async () => {
     setBusy(true)
@@ -420,15 +428,16 @@ function CreateRoom({ gameId, coins, onClose, onDone }) {
         {!NO_STAKE.includes(gameId) && (
           <>
             <Select
-              label={t('games.coins.stake')}
+              label={t(points ? 'games.coins.pointValue' : 'games.coins.stake')}
               value={String(stake)}
               onChange={(e) => setOpts({ ...opts, stake: Number(e.target.value) })}
               options={STAKES.map((n) => ({ value: String(n), label: n ? t('games.coins.stakeOpt', { n }) : t('games.coins.noStake') }))}
             />
             {stake > 0 && (
               <span style={{ ...S.caption, color: broke ? 'var(--status-incident-fg)' : undefined }}>
-                {broke ? t('games.coins.broke', { n: coins.toLocaleString('vi-VN') })
-                  : t(BOARD_POINTS.includes(gameId) ? 'games.coins.hintPoints' : 'games.coins.hintWin', { n: stake })}
+                {broke ? t('games.coins.broke', { n: coins.toLocaleString('vi-VN'), min: ins[0].toLocaleString('vi-VN') })
+                  : points ? t('games.coins.hintPoints', { n: stake, min: ins[0].toLocaleString('vi-VN'), max: ins[ins.length - 1].toLocaleString('vi-VN') })
+                    : t('games.coins.hintWin', { n: stake })}
               </span>
             )}
           </>

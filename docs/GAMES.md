@@ -183,7 +183,7 @@ Xu ảo cho vui, **không dính tiền thật**, không đụng Elo / điểm m�
   `games.err.noCoins`; bấm Bắt đầu mà có người đã tụt dưới mức → `games.err.noCoinsSeat`. Ván điểm vẫn có thể làm ví
   âm (thua nhiều điểm hơn số xu còn lại) — khi đó người đó chỉ chơi được phòng không cược. Chưa có cách "cứu trợ".
 - **Trả xu** khi phòng sang `finished` bằng bất kỳ đường nào (game_finish / game_leave / game_claim):
-  - Phỏm / Tiến lên / Ba cây có `result.scores`: xu = điểm × mức cược. (Tiến lên có cóng ×2 nên tổng xu cả bàn có
+  - Phỏm / Tiến lên / Ba cây / Bầu cua / Xì dách có `result.scores`: xu = điểm × mức cược (mức cược = giá 1 điểm). (Tiến lên có cóng ×2 nên tổng xu cả bàn có
     thể lệch khỏi 0 — chấp nhận, xu ảo.)
   - Còn lại, và ván bỏ cuộc không có `scores`: mỗi người thua mất đúng mức cược, người thắng chia đều (chia nguyên,
     lẻ bỏ). Hoà / không ai thắng / không ai thua → không ai mất.
@@ -194,7 +194,9 @@ Xu ảo cho vui, **không dính tiền thật**, không đụng Elo / điểm m�
   → `game_coins_settle`, `ON CONFLICT DO NOTHING` nên trả đúng một lần).
 - **Giao diện:** sảnh hiện "Ví: N xu", form tạo phòng có ô Mức cược (ẩn với 3 game không cược; ví thiếu thì tắt nút
   Tạo), dòng phòng có nhãn "Cược N"; phòng hiện nhãn cược, hết ván hiện ±xu dưới tên từng người (`game_coins` của
-  phòng); tab "Ví xu" trong sảnh xếp theo số xu (`game_wallets`, chỉ người đã chơi phòng có cược).
+  phòng); tab "Ví xu" trong sảnh xếp theo số xu (`game_wallets`, chỉ người đã chơi phòng có cược). Hồ sơ có thẻ
+  "Xu trò chơi" (`MyCoinsCard` trong `GameBoard.jsx`, Profile tải lười): số dư + `cfg.games.coinHistory` lần cộng /
+  trừ gần nhất đọc thẳng từ `game_coins`, bấm một dòng mở lại phòng đó.
 
 ## 5. Ai giữ "sự thật" của ván
 

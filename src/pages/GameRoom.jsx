@@ -1,13 +1,13 @@
 import { lazy, Suspense, useEffect, useState } from 'react'
 import { useNavigate, useParams } from 'react-router-dom'
-import { Alert, Avatar, Button, Dialog, Skeleton } from '#ds'
+import { Alert, Avatar, Button, Dialog, Select, Skeleton } from '#ds'
 import { Empty } from '#ui'
 import { useApp } from '#contexts/AppContext.jsx'
 import { useMobile } from '#hooks/useMobile.js'
 import { useGameRoom } from '#components/games/useGameRoom.js'
 import { SCREENS } from '#components/games/screens.js'
 import { HowTo } from '#components/games/GameInfo.jsx'
-import { BOT_PREFIX, stakeOf } from '#lib/games/registry.js'
+import { BOARD_POINTS, BOT_PREFIX, buyinsOf, chipsOf, stakeOf } from '#lib/games/registry.js'
 import { pathOf } from '#routes'
 import { t } from '#i18n'
 
@@ -46,6 +46,11 @@ function RoomPage({ id }) {
     return () => { live = false }
   }, [a, done, stake, room?.id])
   const coinOf = (memberId) => (coins?.roomId === room?.id ? coins.map[memberId] : undefined)
+  // Mang xu vào bàn (0101): game điểm chọn mức, game thắng / thua góp đúng mức cược. Đang chơi game điểm có bảng điểm
+  // theo ván (Bầu cua, Xì dách) thì hiện xu còn trên bàn = mang vào + điểm × giá điểm.
+  const ins = buyinsOf(room?.game, stake)
+  const points = BOARD_POINTS.includes(room?.game)
+  const liveScores = points && room?.status === 'playing' && Array.isArray(state?.scores) ? state.scores : null
 
   const nameOf = (memberId) => db.members.find((m) => m.id === memberId)?.name || t('games.unknownPlayer')
   const memberOf = (memberId) => db.members.find((m) => m.id === memberId)
@@ -127,6 +132,13 @@ function RoomPage({ id }) {
                   {room.status === 'waiting' ? t('games.seatN', { n: seat + 1 }) : t('games.' + room.game + '.mark' + seat)}
                   {p && p.memberId === room.hostId ? ' · ' + t('games.host') : ''}
                 </span>
+                {p && stake > 0 && p.buyin != null && coinOf(p.memberId) == null && (
+                  <span style={S.mono}>
+                    {liveScores
+                      ? t('games.coins.onTable', { n: chipsOf(p.buyin, liveScores[p.seat], stake).toLocaleString('vi-VN') })
+                      : t('games.coins.buyinPill', { n: p.buyin.toLocaleString('vi-VN') })}
+                  </span>
+                )}
                 {p && coinOf(p.memberId) != null && (
                   <span style={{ ...S.mono, fontWeight: 600, color: coinOf(p.memberId) > 0 ? 'var(--status-delivered-fg)' : coinOf(p.memberId) < 0 ? 'var(--status-incident-fg)' : undefined }}>
                     {t('games.coins.delta', { n: (coinOf(p.memberId) > 0 ? '+' : '') + coinOf(p.memberId) })}
@@ -152,7 +164,24 @@ function RoomPage({ id }) {
             {!enough ? t('games.needPlayers', { n: game.minPlayers }) : isHost ? t('games.readyHost') : t('games.waitHost')}
           </span>
           {lobby && <span style={{ ...S.caption, color: lobby.block ? 'var(--status-delayed-fg)' : undefined }}>{t(lobby.key, lobby.params)}</span>}
-          {stake > 0 && <span style={S.caption}>{t('games.coins.roomHint', { n: stake })}</span>}
+          {stake > 0 && (
+            <span style={S.caption}>
+              {points
+                ? t('games.coins.roomHintPoints', { n: stake, min: ins[0].toLocaleString('vi-VN'), max: ins[ins.length - 1].toLocaleString('vi-VN') })
+                : t('games.coins.roomHint', { n: stake })}
+            </span>
+          )}
+          {stake > 0 && mySeat != null && ins.length > 1 && (
+            <div style={{ maxWidth: 240 }}>
+              <Select
+                label={t('games.coins.buyin')}
+                value={String(seated.find((x) => x.memberId === g.me)?.buyin ?? ins[0])}
+                disabled={busy}
+                onChange={(e) => act(() => a.gameBuyin(room.id, Number(e.target.value)))}
+                options={ins.map((n) => ({ value: String(n), label: t('games.coins.stakeOpt', { n: n.toLocaleString('vi-VN') }) }))}
+              />
+            </div>
+          )}
           <div style={{ display: 'flex', gap: 8, flexWrap: 'wrap' }}>
             {mySeat == null && g.me && !full && <Button disabled={busy} onClick={() => act(() => a.gameJoin(room))}>{t('games.join')}</Button>}
             {isHost && <Button icon="play" disabled={busy || !enough || !!lobby?.block} onClick={() => act(() => a.gameStart(room))}>{t('games.start')}</Button>}
@@ -172,7 +201,7 @@ function RoomPage({ id }) {
             <span style={S.mono}>{t('games.moves', { n: g.moves.length })}</span>
           </div>
           <Suspense fallback={<Skeleton height={320} />}>
-            <Screen state={game.view(state, mySeat)} mySeat={mySeat} canMove={canMove} onMove={g.play} roomId={room.id} result={room.result} players={inGame} />
+            <Screen state={game.view(state, mySeat)} mySeat={mySeat} canMove={canMove} onMove={g.play} roomId={room.id} result={room.result} players={inGame} stake={stake} />
           </Suspense>
         </>
       )}

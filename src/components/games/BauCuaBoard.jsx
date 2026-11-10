@@ -2,12 +2,15 @@ import { useEffect, useState } from 'react'
 import { Button } from '#ds'
 import { t } from '#i18n'
 import { BauCuaIcon } from '#components/games/BauCuaIcons.jsx'
-import bc, { CAP, CHIPS, deadlineOf, SYMS, waitingOf } from '#lib/games/baucua.js'
+import bc, { budgetOf, CAP, CHIPS, deadlineOf, SYMS, waitingOf } from '#lib/games/baucua.js'
+import { chipsOf } from '#lib/games/registry.js'
 
 /**
  * Bàn Bầu cua: ghế (điểm, ai làm cái, ai đã chốt), đồng hồ đặt, bát xúc xắc ván trước, chiếu sáu con.
  * Người đặt: chọn mức, chạm con muốn đặt, Chốt (đặt = chốt, không sửa được). Cả bàn chốt hoặc hết giờ thì máy bất kỳ
  * gửi { roll } — server lắc và chỉ nhận khi đúng là đã đủ / đã hết giờ (0096). Luật: lib/games/baucua.js.
+ * Phòng có cược (0101): mỗi điểm = `stake` xu, ghế hiện xu còn trên bàn; tổng đặt mỗi ván không quá số điểm còn trên
+ * bàn (budgetOf — server chặn bằng games.err.noChips, ở đây chỉ tắt chip quá tay).
  */
 const side = (seat) => t('games.baucua.mark' + seat)
 const sym = (k) => t('games.baucua.sym.' + SYMS[k])
@@ -25,7 +28,7 @@ function useNow(on) {
   return now
 }
 
-export default function BauCuaBoard({ state, mySeat, onMove, result }) {
+export default function BauCuaBoard({ state, mySeat, onMove, result, players = [], stake = 0 }) {
   const [chip, setChip] = useState(CHIPS[0])
   // Bản nháp theo ván: sang ván mới là tự bỏ nháp cũ.
   const [draft, setDraft] = useState({ round: -1, bet: zero() })
@@ -36,7 +39,11 @@ export default function BauCuaBoard({ state, mySeat, onMove, result }) {
   const seated = mySeat != null && started && !state.out[mySeat]
   const live = started && !over && !result
   const canBet = live && seated && mySeat !== banker && !state.ready[mySeat]
-  const add = (k) => { if (canBet && total + chip <= CAP) setDraft({ round: state.round, bet: bet.map((v, i) => (i === k ? v + chip : v)) }) }
+  // Phòng cược: mức đặt tối đa = số điểm còn trên bàn (ghế chưa có buyin — phòng trước 0101 — thì chỉ theo CAP).
+  const buyinOf = (seat) => players.find((p) => p.seat === seat)?.buyin ?? null
+  const myBuyin = stake > 0 && mySeat != null ? buyinOf(mySeat) : null
+  const limit = myBuyin != null ? Math.max(0, Math.min(CAP, budgetOf(myBuyin, stake, state.scores[mySeat] || 0))) : CAP
+  const add = (k) => { if (canBet && total + chip <= limit) setDraft({ round: state.round, bet: bet.map((v, i) => (i === k ? v + chip : v)) }) }
 
   // Mở bát: cả bàn chốt thì gửi ngay, không thì chờ hết giờ. Cái gửi trước, người khác chờ thêm (phòng máy cái đã tắt).
   // Server đo bằng giờ của nó; sớm thì im lặng, mỗi 4 giây thử lại.
@@ -94,6 +101,9 @@ export default function BauCuaBoard({ state, mySeat, onMove, result }) {
               <span style={{ ...S.mono, color: sc > 0 ? 'var(--status-delivered-fg)' : sc < 0 ? 'var(--status-incident-fg)' : S.mono.color }}>
                 {t('games.baucua.points', { n: signed(sc) })}{statusOf(seat) ? ' · ' + statusOf(seat) : ''}
               </span>
+              {stake > 0 && buyinOf(seat) != null && (
+                <span style={S.mono}>{t('games.coins.onTable', { n: chipsOf(buyinOf(seat), sc, stake).toLocaleString('vi-VN') })}</span>
+              )}
             </div>
           )
         })}
@@ -145,10 +155,17 @@ export default function BauCuaBoard({ state, mySeat, onMove, result }) {
             ? <span style={{ ...S.caption, textAlign: 'center' }}>{t('games.baucua.locked')}</span>
             : (
               <div style={{ display: 'grid', gap: 8, justifyItems: 'center' }}>
-                <span style={S.caption}>{t('games.baucua.pickHint', { n: CAP - total })}</span>
+                <span style={S.caption}>{t('games.baucua.pickHint', { n: limit - total })}</span>
+                {stake > 0 && (
+                  <span style={{ ...S.caption, color: limit === 0 ? 'var(--status-incident-fg)' : undefined }}>
+                    {limit === 0 ? t('games.baucua.broke') : t('games.baucua.pointValue', { n: stake, total: (total * stake).toLocaleString('vi-VN') })}
+                  </span>
+                )}
                 <div role="group" aria-label={t('games.baucua.chip')} style={{ display: 'flex', gap: 6 }}>
                   {CHIPS.map((c) => (
-                    <Button key={c} size="sm" variant={chip === c ? 'primary' : 'secondary'} onClick={() => setChip(c)}>{'+' + c}</Button>
+                    <Button key={c} size="sm" variant={chip === c ? 'primary' : 'secondary'} disabled={c > limit} onClick={() => setChip(c)}>
+                      {stake > 0 ? '+' + (c * stake).toLocaleString('vi-VN') : '+' + c}
+                    </Button>
                   ))}
                 </div>
                 <div style={{ display: 'flex', gap: 8, flexWrap: 'wrap', justifyContent: 'center' }}>
