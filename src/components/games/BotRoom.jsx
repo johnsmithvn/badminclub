@@ -6,7 +6,7 @@ import { useMobile } from '#hooks/useMobile.js'
 import { SCREENS } from '#components/games/screens.js'
 import { HowTo } from '#components/games/GameInfo.jsx'
 import { BOT_GAMES, BOT_PREFIX, gameOf } from '#lib/games/registry.js'
-import { botToMove, fillLocal, flatFleet, levelsOf } from '#lib/games/bots/index.js'
+import { botToMove, fillLocal, flatFleet, levelsOf, think } from '#lib/games/bots/index.js'
 import { engineMove } from '#lib/games/bots/engine.js'
 import { pathOf } from '#routes'
 import { t } from '#i18n'
@@ -29,20 +29,45 @@ function savePrefs(id, p) {
   try { localStorage.setItem(KEY + id, JSON.stringify(p)) } catch { /* trình duyệt chặn lưu — bỏ qua */ }
 }
 
-/** Máy nghĩ trong Worker (một Worker cho cả trang). Trả hàm ask(gameId, state, seat, level) → Promise<move>. */
+/** Nghĩ ngay trên luồng chính (màn hình đứng trong lúc nghĩ) — nhường một nhịp cho dòng "Máy đang nghĩ" kịp hiện. */
+const thinkHere = (gameId, state, seat, level) => new Promise((ok) => {
+  setTimeout(() => {
+    let move = null
+    try { move = think(gameId, state, seat, level) } catch (err) { console.warn('[bot]', err) }
+    ok(move)
+  }, 30)
+})
+
+/**
+ * Máy nghĩ trong Worker (một Worker cho cả trang). Trả hàm ask(gameId, state, seat, level) → Promise<move>.
+ * Worker không chạy được (trang cách ly COEP mà file Worker thiếu header — vercel.json / vite.config.js; hoặc máy quá
+ * cũ) thì KHÔNG được im lặng: trước đây không bắt onerror nên máy "đang nghĩ" mãi mãi. Giờ lùi về nghĩ trên luồng chính.
+ */
 function useWorker() {
   const ref = useRef(null)
-  useEffect(() => () => ref.current?.w.terminate(), [])
+  useEffect(() => () => ref.current?.w?.terminate(), [])
   return useCallback((gameId, state, seat, level) => {
     if (!ref.current) {
-      const w = new Worker(new URL('../../lib/games/bots/worker.js', import.meta.url), { type: 'module' })
-      const wait = new Map()
-      w.onmessage = (e) => { wait.get(e.data.id)?.(e.data.move); wait.delete(e.data.id) }
-      ref.current = { w, wait, n: 0 }
+      const cur = { w: null, wait: new Map(), n: 0, dead: false }
+      const fail = (e) => {
+        console.warn('[bot] worker', e?.message || e)
+        cur.dead = true
+        cur.w?.terminate()
+        for (const [, job] of cur.wait) thinkHere(...job.args).then(job.ok)
+        cur.wait.clear()
+      }
+      try {
+        cur.w = new Worker(new URL('../../lib/games/bots/worker.js', import.meta.url), { type: 'module' })
+        cur.w.onmessage = (e) => { cur.wait.get(e.data.id)?.ok(e.data.move); cur.wait.delete(e.data.id) }
+        cur.w.onerror = fail
+      } catch (e) { fail(e) }
+      ref.current = cur
     }
-    const { w, wait } = ref.current
-    const id = ++ref.current.n
-    return new Promise((ok) => { wait.set(id, ok); w.postMessage({ id, gameId, state, seat, level }) })
+    const cur = ref.current
+    const args = [gameId, state, seat, level]
+    if (cur.dead) return thinkHere(...args)
+    const id = ++cur.n
+    return new Promise((ok) => { cur.wait.set(id, { ok, args }); cur.w.postMessage({ id, gameId, state, seat, level }) })
   }, [])
 }
 

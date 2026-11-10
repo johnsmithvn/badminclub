@@ -2,25 +2,26 @@ import { useId, useState } from 'react'
 import { Button } from '#ds'
 import { t } from '#i18n'
 import { colorOf, movesFrom, PROMOS, typeOf } from '#lib/games/covua.js'
+import { F } from '#components/games/fantasyTone.js'
+import { FantasyDefs, FantasyFrame, FantasyGloss } from '#components/games/FantasyFrame.jsx'
 
-// Bàn Cờ vua bằng SVG: ô gỗ sáng / tối, toạ độ a–h / 1–8, quân là ký hiệu cờ chuẩn (Unicode) tô hai màu có viền.
+// Bàn Cờ vua bằng SVG, kiểu fantasy (fantasyTone.js): khung tím đêm viền vàng đính ngọc, ô đá mặt trăng / thạch anh
+// tím, toạ độ a–h / 1–8 chữ vàng. Quân là ký hiệu cờ chuẩn (Unicode) tô chuyển màu: trắng ngà-vàng viền tím sẫm, đen
+// hắc diện thạch viền bạc tím — bên nào cũng đọc được trên cả ô sáng lẫn ô tối. Màu giữ nguyên ở hai chế độ sáng / tối.
 // Ghế 1 (quân đen) thấy bàn xoay 180° để quân mình luôn ở dưới. Chạm quân → chấm ô đi được → chạm ô.
 // Tốt lên hàng cuối thì hiện hàng nút chọn quân phong. Quân vừa đi trượt tới (effects.css: gameSlide).
 // Luật: lib/games/covua.js.
 // ponytail: quân vẽ bằng ký hiệu Unicode (font hệ thống) — đổi sang SVG path riêng nếu máy nào hiện xấu.
 
 const Q = 60 // cạnh một ô
-const M = 22 // lề cho toạ độ
+const M = 30 // lề: khung + toạ độ
 const W = Q * 8 + M * 2
-const LIGHT = 'var(--status-delayed-bg)'
-const DARK = 'color-mix(in srgb, var(--status-delayed-fg) 46%, var(--status-delayed-bg))'
-const INK = 'var(--status-delayed-fg)'
+const FIELD = { x: M, y: M, w: Q * 8, h: Q * 8 }
 // ︎: ép hiện dạng chữ (không phải emoji) trên iOS / Android.
 const GLYPH = { K: '♚', Q: '♛', R: '♜', B: '♝', N: '♞', P: '♟' }
 const glyph = (p) => GLYPH[typeOf(p)] + '︎'
 const FONT = "'Segoe UI Symbol', 'DejaVu Sans', 'Noto Sans Symbols 2', 'Apple Symbols', sans-serif"
-const FILL = ['var(--gray-0)', 'var(--navy-950)']
-const EDGE = ['var(--navy-950)', 'var(--gray-0)']
+const EDGE = [F.whiteEdge, F.blackEdge]
 
 export default function CoVuaBoard({ state, mySeat, canMove, onMove }) {
   const uid = useId().replace(/[^a-zA-Z0-9]/g, '')
@@ -62,32 +63,37 @@ export default function CoVuaBoard({ state, mySeat, canMove, onMove }) {
         style={{ width: '100%', maxWidth: 560, display: 'block', margin: '0 auto', touchAction: 'manipulation', userSelect: 'none' }}
       >
         <defs>
-          <radialGradient id={uid + 'chk'}>
-            <stop offset="0%" style={{ stopColor: 'var(--status-incident)', stopOpacity: 0.9 }} />
-            <stop offset="100%" style={{ stopColor: 'var(--status-incident)', stopOpacity: 0 }} />
-          </radialGradient>
+          <FantasyDefs uid={uid} />
+          {[[F.white0, F.white1], [F.black0, F.black1]].map(([c0, c1], side) => (
+            <linearGradient key={side} id={uid + 'pc' + side} x1="0" y1="0" x2="0" y2="1">
+              <stop offset="0%" stopColor={c0} />
+              <stop offset="100%" stopColor={c1} />
+            </linearGradient>
+          ))}
         </defs>
-        <rect x={2} y={2} width={W - 4} height={W - 4} rx={14} fill={`color-mix(in srgb, ${INK} 22%, ${LIGHT})`} />
+
+        <FantasyFrame uid={uid} w={W} h={W} field={FIELD} />
         {state.board.map((_, i) => {
           const [x, y] = pos(i)
           const dark = ((i >> 3) + (i & 7)) % 2 === 1
           const hot = last && (i === last.from || i === last.to)
           return (
             <g key={'sq' + i}>
-              <rect x={x} y={y} width={Q} height={Q} fill={dark ? DARK : LIGHT} />
-              {hot && <rect x={x} y={y} width={Q} height={Q} fill="var(--text-accent)" opacity={0.22} />}
-              {sel === i && <rect x={x + 2} y={y + 2} width={Q - 4} height={Q - 4} fill="none" stroke="var(--border-focus-color)" strokeWidth={4} />}
-              {state.check === i && <circle cx={x + Q / 2} cy={y + Q / 2} r={Q * 0.48} fill={`url(#${uid}chk)`} />}
+              <rect x={x} y={y} width={Q} height={Q} fill={dark ? F.sqDark : F.sqLight} />
+              {hot && <rect x={x} y={y} width={Q} height={Q} fill={F.glow} opacity={0.32} />}
+              {sel === i && <rect x={x + 2} y={y + 2} width={Q - 4} height={Q - 4} fill={F.pick} fillOpacity={0.22} stroke={F.pick} strokeWidth={3.5} />}
+              {state.check === i && <circle cx={x + Q / 2} cy={y + Q / 2} r={Q * 0.5} fill={`url(#${uid}chk)`} />}
             </g>
           )
         })}
+        <FantasyGloss uid={uid} field={FIELD} />
         {Array.from({ length: 8 }, (_, k) => {
           const col = flip ? 7 - k : k
           const rank = flip ? k + 1 : 8 - k
           return (
-            <g key={'lbl' + k} fill={`color-mix(in srgb, ${INK} 75%, transparent)`} style={{ font: '600 12px var(--font-mono)' }}>
-              <text x={M + k * Q + Q / 2} y={W - 6} textAnchor="middle">{files[col]}</text>
-              <text x={8} y={M + k * Q + Q / 2 + 4} textAnchor="middle">{rank}</text>
+            <g key={'lbl' + k} fill={F.gold0} fillOpacity={0.85} style={{ font: '600 12px var(--font-mono)' }}>
+              <text x={M + k * Q + Q / 2} y={W - 11} textAnchor="middle">{files[col]}</text>
+              <text x={15} y={M + k * Q + Q / 2 + 4} textAnchor="middle">{rank}</text>
             </g>
           )
         })}
@@ -103,10 +109,14 @@ export default function CoVuaBoard({ state, mySeat, canMove, onMove }) {
           }
           return (
             <g key={i + p} transform={`translate(${x + Q / 2} ${y + Q / 2})`} pointerEvents="none">
-              <text style={{ ...fx, font: `400 46px/1 ${FONT}` }} textAnchor="middle" dominantBaseline="central" y={2}
-                fill={FILL[side]} stroke={EDGE[side]} strokeWidth={side ? 0.9 : 1.6} paintOrder="stroke">
-                {glyph(p)}
-              </text>
+              <g style={fx}>
+                {/* Bóng đổ dưới chân quân — quân như đứng trên mặt đá. */}
+                <ellipse cy={21} rx={16} ry={4.5} fill={F.shade} opacity={0.38} />
+                <text style={{ font: `400 46px/1 ${FONT}` }} textAnchor="middle" dominantBaseline="central" y={2}
+                  fill={`url(#${uid}pc${side})`} stroke={EDGE[side]} strokeWidth={side ? 1.1 : 1.6} strokeLinejoin="round" paintOrder="stroke">
+                  {glyph(p)}
+                </text>
+              </g>
             </g>
           )
         })}
@@ -114,8 +124,13 @@ export default function CoVuaBoard({ state, mySeat, canMove, onMove }) {
         {targets.map((i) => {
           const [x, y] = pos(i)
           return state.board[i] != null
-            ? <circle key={'t' + i} cx={x + Q / 2} cy={y + Q / 2} r={Q / 2 - 4} fill="none" stroke="var(--text-accent)" strokeWidth={4} opacity={0.8} pointerEvents="none" />
-            : <circle key={'t' + i} cx={x + Q / 2} cy={y + Q / 2} r={9} fill="var(--text-accent)" opacity={0.75} pointerEvents="none" />
+            ? <circle key={'t' + i} cx={x + Q / 2} cy={y + Q / 2} r={Q / 2 - 4} fill="none" stroke={F.glow} strokeWidth={3.5} opacity={0.95} pointerEvents="none" />
+            : (
+              <g key={'t' + i} pointerEvents="none">
+                <circle cx={x + Q / 2} cy={y + Q / 2} r={14} fill={F.glow} opacity={0.25} />
+                <circle cx={x + Q / 2} cy={y + Q / 2} r={7.5} fill={F.glow} stroke={F.frame1} strokeOpacity={0.5} strokeWidth={1} />
+              </g>
+            )
         })}
 
         {canMove && state.board.map((_, i) => {
