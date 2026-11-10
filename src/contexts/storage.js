@@ -10,7 +10,7 @@
 // thì người ghi sau thắng. Chấp nhận được vì đơn vị ghi là từng dòng, không phải cả CLB.
 
 import { supabase, unwrap } from '#supabase'
-import { SLICE_TABLES, clubRow, diff, hasHalfWrittenMatch, mergeSessionSlice, toDb, toLibPost, toRows, toStanding, toTour, toTourMatch, toTourMatchEdit, videosRow } from '#contexts/dbmap.js'
+import { SLICE_TABLES, clubRow, diff, hasHalfWrittenMatch, mergeSessionSlice, toDb, toGameMove, toGamePlayer, toGameRoom, toLibPost, toRows, toStanding, toTour, toTourMatch, toTourMatchEdit, videosRow } from '#contexts/dbmap.js'
 import { monthOf, todayISO } from '#utils/dates.js'
 import { t } from '#i18n'
 import cfg from '#config/app.json' with { type: 'json' }
@@ -737,4 +737,142 @@ export async function loadSeasonStandings(clubId, seasonId) {
 export async function freezeSeason(clubId, seasonId, rows, seasons) {
   if (!supabase) throw new Error('Chưa cấu hình Supabase')
   return unwrap(await supabase.rpc('season_freeze', { p_club: clubId, p_season_id: seasonId, p_rows: rows, p_seasons: seasons }))
+}
+
+/* ================= MINI-GAME I/O (0074) ================= */
+// Không nằm trong `db`: trang tự nạp, mọi lượt ghi qua RPC game_*. Phòng đang mở nghe realtime.
+
+const ROOM_SEL = '*, game_room_players(*)'
+
+/**
+ * Sảnh: phòng đang chờ / đang chơi của CLB (mới trước) + các ván đã xong mình từng ngồi (để đếm
+ * thắng thua). Phòng riêng (`private`) vẫn trả về — sảnh tự ẩn, trừ phòng mình đang ngồi.
+ * `withStats` false → bỏ truy vấn ván đã xong (nặng nhất, tới statsLimit dòng), `finished` = null:
+ * sảnh hỏi lại mỗi lobbyPollMs chỉ cần danh sách phòng, thống kê nạp một lần lúc mở trang.
+ */
+export async function loadGameLobby(clubId, memberId, withStats = true) {
+  if (!supabase) throw new Error('Chưa cấu hình Supabase')
+  const [open, mine] = await Promise.all([
+    supabase.from('game_rooms').select(ROOM_SEL).eq('club_id', clubId).in('status', ['waiting', 'playing'])
+      .order('created_at', { ascending: false }).limit(cfg.games.lobbyLimit),
+    memberId && withStats
+      ? supabase.from('game_rooms').select('id, game, result, game_room_players!inner(member_id, seat)')
+        .eq('club_id', clubId).eq('status', 'finished').eq('game_room_players.member_id', memberId)
+        .order('ended_at', { ascending: false }).limit(cfg.games.statsLimit)
+      : { data: [], error: null },
+  ])
+  return {
+    rooms: (unwrap(open) || []).map(toGameRoom),
+    finished: withStats
+      ? (unwrap(mine) || []).map((r) => ({ game: r.game, result: r.result, seat: num0(r.game_room_players?.[0]?.seat) }))
+      : null,
+  }
+}
+
+const num0 = (v) => (v == null ? null : Number(v))
+
+/**
+ * Bảng xếp hạng game (0091 game_board): mỗi (game, thành viên) một dòng đã cộng dồn trên server.
+ * month 'YYYY-MM' theo giờ VN, null = từ trước tới nay. Xếp hạng ở lib/games/registry.js boardOf.
+ */
+/** Ví xu cả CLB (0093 game_wallets): chỉ người đã chơi phòng có cược. Người chưa có dòng = COIN_START. */
+export async function loadGameWallets(clubId) {
+  if (!supabase) throw new Error('Chưa cấu hình Supabase')
+  const rows = unwrap(await supabase.rpc('game_wallets', { p_club: clubId })) || []
+  return rows.map((r) => ({
+    memberId: r.member_id, balance: Number(r.balance) || 0,
+    played: Number(r.played) || 0, won: Number(r.won) || 0, lost: Number(r.lost) || 0,
+  }))
+}
+
+/** Xu ăn thua của một phòng đã xong → { [memberId]: delta }. Phòng không cược / chưa xong → {}. */
+export async function loadRoomCoins(roomId) {
+  if (!supabase) throw new Error('Chưa cấu hình Supabase')
+  // 0101: sổ game_coin_tx — mang vào (−) + nhận về (+) của phòng cộng lại = ăn thua của ván.
+  const rows = unwrap(await supabase.from('game_coin_tx').select('member_id, delta').eq('room_id', roomId)) || []
+  const out = {}
+  for (const r of rows) out[r.member_id] = (out[r.member_id] || 0) + (Number(r.delta) || 0)
+  return out
+}
+
+/** Sổ xu của một người (0101 game_coin_tx), mới nhất trước → [{ id, roomId, game, kind, delta, balance, at }]. */
+export async function loadMemberCoins(memberId, limit) {
+  if (!supabase) throw new Error('Chưa cấu hình Supabase')
+  const rows = unwrap(await supabase.from('game_coin_tx').select('id, room_id, kind, delta, balance, created_at, game_rooms(game)')
+    .eq('member_id', memberId).order('id', { ascending: false }).limit(limit)) || []
+  return rows.map((r) => ({
+    id: r.id, roomId: r.room_id || null, game: r.game_rooms?.game || null, kind: r.kind,
+    delta: Number(r.delta) || 0, balance: Number(r.balance) || 0, at: r.created_at || null,
+  }))
+}
+
+/** Ví của tôi trong CLB (0101 game_my_wallet: mở ví lần đầu + cứu trợ nếu đủ điều kiện) → số dư. */
+export async function loadMyWallet(clubId) {
+  if (!supabase) throw new Error('Chưa cấu hình Supabase')
+  return Number(unwrap(await supabase.rpc('game_my_wallet', { p_club: clubId }))) || 0
+}
+
+export async function loadGameBoard(clubId, month) {
+  if (!supabase) throw new Error('Chưa cấu hình Supabase')
+  const rows = unwrap(await supabase.rpc('game_board', { p_club: clubId, p_month: month || null })) || []
+  return rows.map((r) => ({
+    game: r.game, memberId: r.member_id,
+    played: Number(r.played) || 0, won: Number(r.won) || 0, drawn: Number(r.drawn) || 0, lost: Number(r.lost) || 0,
+    points: Number(r.points) || 0,
+  }))
+}
+
+/** Một phòng + ghế + toàn bộ log nước đi theo seq. Không thấy (khác CLB / sai id) → room null. */
+export async function loadGameRoom(roomId) {
+  if (!supabase) throw new Error('Chưa cấu hình Supabase')
+  const [room, moves] = await Promise.all([
+    supabase.from('game_rooms').select(ROOM_SEL).eq('id', roomId).maybeSingle(),
+    supabase.from('game_moves').select('seq, seat, move, created_at').eq('room_id', roomId).order('seq', { ascending: true }),
+  ])
+  const row = unwrap(room)
+  return { room: row ? toGameRoom(row) : null, moves: (unwrap(moves) || []).map(toGameMove) }
+}
+
+/**
+ * Bài chia trong phòng (game có bài úp, 0078) → { [seat]: cards }. RLS: đang chơi chỉ trả tay của người gọi
+ * ({} nếu là người xem); hết ván thì trả mọi tay để lật bài. Ghế -1 (nọc bài) không bao giờ trả.
+ */
+export async function loadGameHand(roomId) {
+  if (!supabase) throw new Error('Chưa cấu hình Supabase')
+  const res = await supabase.from('game_hands').select('seat, cards').eq('room_id', roomId)
+  return Object.fromEntries((unwrap(res) || []).map((h) => [h.seat, h.cards || []]))
+}
+
+/** Mã mời → id phòng của CLB, hoặc null. */
+export async function findGameRoom(clubId, code) {
+  if (!supabase) throw new Error('Chưa cấu hình Supabase')
+  const res = await supabase.from('game_rooms').select('id').eq('club_id', clubId).eq('code', code).maybeSingle()
+  return unwrap(res)?.id || null
+}
+
+export async function gameRpc(name, args) {
+  if (!supabase) throw new Error('Chưa cấu hình Supabase')
+  return unwrap(await supabase.rpc(name, args))
+}
+
+/**
+ * Nghe thay đổi của MỘT phòng. `on(ev)` nhận:
+ *   { type: 'move', move }      — một nước mới
+ *   { type: 'room', room }      — phòng đổi trạng thái (không kèm ghế)
+ *   { type: 'player', player }  — ghế đổi
+ *   { type: 'resync' }          — vừa nối (lại) xong: nạp lại cả phòng, có thể đã lỡ sự kiện lúc mất mạng
+ * Trả hàm huỷ nghe.
+ */
+export function subscribeGameRoom(roomId, on) {
+  if (!supabase) return () => {}
+  const filter = 'room_id=eq.' + roomId
+  const ch = supabase.channel('game:' + roomId)
+    .on('postgres_changes', { event: 'INSERT', schema: 'public', table: 'game_moves', filter },
+      (p) => on({ type: 'move', move: toGameMove(p.new) }))
+    .on('postgres_changes', { event: '*', schema: 'public', table: 'game_room_players', filter },
+      (p) => p.new && on({ type: 'player', player: toGamePlayer(p.new) }))
+    .on('postgres_changes', { event: 'UPDATE', schema: 'public', table: 'game_rooms', filter: 'id=eq.' + roomId },
+      (p) => on({ type: 'room', room: toGameRoom(p.new) }))
+    .subscribe((status) => { if (status === 'SUBSCRIBED') on({ type: 'resync' }) })
+  return () => { supabase.removeChannel(ch) }
 }

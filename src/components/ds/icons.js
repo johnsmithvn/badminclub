@@ -24,6 +24,8 @@ import {
   Filter, Table, Mic, GripVertical,
   Bell, Calendar, Swords, User,
   BookOpen, Bookmark, Pin,
+  Gamepad2, Hash, Flag, LogOut, Bot,
+  SkipForward,
 } from 'lucide-react'
 
 export const ICONS = {
@@ -36,6 +38,11 @@ export const ICONS = {
   banknote: Banknote,
   bell: Bell,
   'book-open': BookOpen,
+  bot: Bot,
+  'gamepad-2': Gamepad2,
+  hash: Hash,
+  flag: Flag,
+  'log-out': LogOut,
   bookmark: Bookmark,
   'building-2': Building2,
   calculator: Calculator,
@@ -114,6 +121,7 @@ export const ICONS = {
   shield: Shield,
   'shopping-cart': ShoppingCart,
   shuffle: Shuffle,
+  'skip-forward': SkipForward,
   split: Split,
   sun: Sun,
   swords: Swords,

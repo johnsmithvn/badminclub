@@ -22,12 +22,18 @@ import { MERGE_FIELDS } from '#lib/members.js'
 import { SCHEMA_GROUPS } from '#data/schema.js'
 import { EVENT_KINDS, EVENT_STATUSES, HUB_TABS, TOUR_STATUSES, hubChecklist } from '#lib/tournament/hub.js'
 import { RULE_PRESETS, TEMPLATES } from '#lib/tournament/format.js'
+import { GAMES, GAME_IDS } from '#lib/games/registry.js'
+import { REVEALS as MASOI_REVEALS, ROLE_IDS as MASOI_ROLES } from '#lib/games/masoi.js'
+import { LEADS as TIENLEN_LEADS, VARIANTS as TIENLEN_VARIANTS } from '#lib/games/tienlen.js'
+import { SYMS as BAUCUA_SYMS } from '#lib/games/baucua.js'
+import { DICTS as NOITU_DICTS, REPEATS as NOITU_REPEATS } from '#lib/games/noitu.js'
+import { LEVELS as BOT_LEVELS } from '#lib/games/bots/index.js'
 
 // Miền giá trị của các họ key ghép động mà file nguồn không export ra được.
 // Đổi ở nguồn thì phải đổi ở đây — cố ý, để test đòi key mới.
 // Đúng bộ mục sidebar trong Sidebar.jsx (KHÔNG phải toàn bộ route: 'session' không có ở sidebar).
 const NAV = ['home', 'calendar', 'sessions', 'matches', 'leaderboard', 'badges', 'members',
-  'debts', 'fund', 'profile', 'settings', 'theme', 'tournaments', 'library']
+  'debts', 'fund', 'profile', 'settings', 'theme', 'tournaments', 'library', 'games']
 const SECTIONS = ['ops', 'money', 'account']
 const SETUP_STEPS = ['court', 'group', 'member', 'schedule', 'price']
 const CHANGE_FIELDS = ['level', 'phone', 'gender', 'name']
@@ -176,6 +182,41 @@ hubChecklist({ events: [], registrations: [], entries: [], prizes: [] }).forEach
 // Thư viện: mã lỗi `library.err.*` tới màn hình qua t(biến) — từ lib (kiểm form) lẫn RAISE của RPC 0066.
 ;['src/lib/library.js', 'src/contexts/libraryActions.js', 'supabase/migrations/0066_library.sql']
   .forEach((p) => { for (const m of readFileSync(p, 'utf8').matchAll(/library\.err\.[A-Za-z]+/g)) need(m[0]) })
+// Mini-game: tên / mô tả / cách chơi / ký hiệu ghế ghép theo id game; mã lỗi `games.err.*` từ luật game lẫn RAISE của 0074/0075.
+GAME_IDS.forEach((id) => {
+  ['name', 'desc', 'howto'].forEach((f) => need('games.' + id + '.' + f))
+  for (let s = 0; s < GAMES[id].maxPlayers; s++) need('games.' + id + '.mark' + s)
+})
+;['waiting', 'playing', 'finished', 'abandoned'].forEach((s) => need('games.status.' + s))
+;['single', 'pair', 'triple', 'quad', 'straight', 'pairs'].forEach((k) => need('games.tienlen.kind.' + k)) // = comboOf().kind
+// Ma sói: vai, đội thắng (= team của 0084 game_masoi_after), kiểu lộ vai, việc theo vai (act.* / do.*), dòng trạng thái của masoi.status.
+MASOI_ROLES.forEach((r) => { need('games.masoi.role.' + r); need('games.masoi.roleDesc.' + r) })
+;['village', 'wolves', 'lovers'].forEach((k) => need('games.masoi.win.' + k))
+MASOI_REVEALS.forEach((v) => need('games.masoi.revealOpt.' + v))
+TIENLEN_VARIANTS.forEach((v) => need('games.tienlen.variantOpt.' + v))
+TIENLEN_LEADS.forEach((v) => need('games.tienlen.leadOpt.' + v))
+NOITU_DICTS.forEach((v) => need('games.noitu.dictOpt.' + v))
+NOITU_REPEATS.forEach((n) => need('games.noitu.repeatOpt.' + n))
+BOT_LEVELS.forEach((v) => need('games.bot.levelOpt.' + v))
+;['sideOpt0', 'sideOpt1', 'masterHint.covua', 'masterHint.cotuong'].forEach((k) => need('games.bot.' + k))
+BAUCUA_SYMS.forEach((k) => need('games.baucua.sym.' + k))
+;['xiban', 'xidach', 'ngulinh', 'quac', 'du'].forEach((k) => need('games.xidach.kind.' + k)) // = xidach kindOf()
+;['mate', 'stalemate', 'quiet', 'repetition', 'material'].forEach((k) => need('games.coup.reason.' + k))
+// Tuỳ chọn giờ / số vòng ở form tạo phòng (pages/Games.jsx TIME_OPTS / LAP_OPTS).
+;['baucua', 'loto', 'xidach'].forEach((id) => ['time', 'timeOpt'].forEach((f) => need('games.' + id + '.' + f)))
+need('games.xidach.timeNone')
+;['baucua', 'xidach'].forEach((id) => ['laps', 'lapsOpt'].forEach((f) => need('games.' + id + '.' + f)))
+;['wolf', 'seer', 'guard', 'cupid', 'vote', 'shoot'].forEach((m) => { need('games.masoi.act.' + m); need('games.masoi.do.' + m) })
+;['Night', 'Witch', 'Day', 'Hunter', 'Settle'].forEach((k) => need('games.masoi.status' + k))
+;[...files('src/lib/games'), 'src/contexts/gameActions.js', 'supabase/migrations/0074_games.sql', 'supabase/migrations/0075_games_results.sql',
+  'supabase/migrations/0078_games_tienlen.sql', 'supabase/migrations/0079_games_cangua.sql',
+  'supabase/migrations/0080_games_bantau.sql', 'supabase/migrations/0081_games_domino.sql',
+  'supabase/migrations/0082_games_baibip.sql', 'supabase/migrations/0083_games_noitu.sql',
+  'supabase/migrations/0084_games_masoi.sql', 'supabase/migrations/0094_games_tienlen_bac.sql',
+  'supabase/migrations/0095_games_coup.sql', 'supabase/migrations/0096_games_baucua.sql', 'supabase/migrations/0097_games_loto.sql',
+  'supabase/migrations/0098_games_xidach.sql', 'supabase/migrations/0090_games_phom.sql',
+  'supabase/migrations/0099_games_noitu_dict.sql']
+  .forEach((p) => { for (const m of readFileSync(p, 'utf8').matchAll(/games\.err\.[A-Za-z]+/g)) need(m[0]) })
 ;['balanced', 'random'].forEach((m) => { need('tournament.pairing.mode.' + m); need('tournament.pairing.modeHint.' + m) })
 ;['ok', 'warn', 'bad', 'idle'].forEach((k) => need('tournament.pairing.tone.' + k))
 Object.keys(RULE_PRESETS).forEach((k) => need('tournament.format.preset.' + k))

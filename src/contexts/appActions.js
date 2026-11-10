@@ -28,6 +28,7 @@ import { flushNow, freezeSeason as freezeSeasonIo, loadSeasonStandings as loadSe
 import { cleanVideoParts, matchVideosOf } from '#utils/videoUtils.js'
 import { makeTournamentActions } from '#contexts/tournamentActions.js'
 import { makeLibraryActions } from '#contexts/libraryActions.js'
+import { makeGameActions } from '#contexts/gameActions.js'
 import { detectMatchNarrative, notifyRecipients, notifiableMemberIds, resolveNotificationPayload } from '#lib/activity.js'
 
 /** Id của mọi bản ghi mới. Trùng kiểu uuid của Postgres nên client ghi thẳng được, khỏi map id. */
@@ -4862,6 +4863,7 @@ export function makeActions({ setDb, setUi, dbRef, uiRef, navRef, toast, reload,
   Object.assign(A, makeTournamentActions({ dbRef, tourRef, setTour, toast, uid }))
   // Thư viện bài tập: nạp riêng, ghi riêng — xem libraryActions.js.
   Object.assign(A, makeLibraryActions({ dbRef, toast, uid }))
+  Object.assign(A, makeGameActions({ dbRef, toast }))
 
   return A
 }

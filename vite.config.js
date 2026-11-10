@@ -24,8 +24,24 @@ function stripJsonImportAttributes() {
   }
 }
 
+/**
+ * Trang Cờ tướng với máy (/tro-choi/may-cotuong) cần "cách ly" (COOP + COEP) để engine Fairy-Stockfish chạy đa luồng
+ * (SharedArrayBuffer) — chỉ bật cho đúng trang đó, các trang khác (nhúng video…) không bị ảnh hưởng.
+ * Bản chạy thật: cùng header ở vercel.json. Xem src/lib/games/bots/engine.js.
+ */
+function isolateEnginePage() {
+  const use = (server) => server.middlewares.use((req, res, next) => {
+    if (req.url?.startsWith('/tro-choi/may-cotuong')) {
+      res.setHeader('Cross-Origin-Opener-Policy', 'same-origin')
+      res.setHeader('Cross-Origin-Embedder-Policy', 'credentialless')
+    }
+    next()
+  })
+  return { name: 'isolate-engine-page', configureServer: use, configurePreviewServer: use }
+}
+
 export default defineConfig({
-  plugins: [stripJsonImportAttributes(), react()],
+  plugins: [stripJsonImportAttributes(), isolateEnginePage(), react()],
   esbuild: {
     target: 'es2020',
   },
