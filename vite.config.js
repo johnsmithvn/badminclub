@@ -30,13 +30,22 @@ function stripJsonImportAttributes() {
  * Bản chạy thật: cùng header ở vercel.json. Xem src/lib/games/bots/engine.js.
  */
 function isolateEnginePage() {
-  const use = (server) => server.middlewares.use((req, res, next) => {
-    if (req.url?.startsWith('/tro-choi/may-cotuong')) {
-      res.setHeader('Cross-Origin-Opener-Policy', 'same-origin')
-      res.setHeader('Cross-Origin-Embedder-Policy', 'credentialless')
-    }
-    next()
-  })
+  // Thân hàm có ngoặc nhọn, KHÔNG trả về gì: Vite coi giá trị trả về của configureServer là hàm chạy sau, mà
+  // `middlewares.use()` trả về chính app connect → Vite gọi nó không tham số và dev server sập lúc khởi động.
+  const use = (server) => {
+    server.middlewares.use((req, res, next) => {
+      if (req.url?.startsWith('/tro-choi/may-cotuong')) {
+        res.setHeader('Cross-Origin-Opener-Policy', 'same-origin')
+        res.setHeader('Cross-Origin-Embedder-Policy', 'credentialless')
+      }
+      // Trang cách ly chỉ được tạo Worker khi chính file Worker cũng mang COEP — thiếu là trình duyệt chặn và máy
+      // chơi cờ (bots/worker.js) lẫn các luồng của engine không chạy. Header này trên file script vô hại với trang khác.
+      if (req.headers['sec-fetch-dest'] === 'worker' || req.url?.startsWith('/engines/')) {
+        res.setHeader('Cross-Origin-Embedder-Policy', 'credentialless')
+      }
+      next()
+    })
+  }
   return { name: 'isolate-engine-page', configureServer: use, configurePreviewServer: use }
 }
 

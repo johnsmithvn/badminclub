@@ -397,6 +397,11 @@ nút **Chơi với máy** → `/tro-choi/may-<game>`; `GameRoom.jsx` thấy ti�
     (`vercel.json`, dev: plugin `isolateEnginePage` trong `vite.config.js`). Sảnh mở trang này bằng tải trang mới (không
     chuyển kiểu SPA), rời trang bằng bất kỳ đường nào cũng tải lại (BotRoom) để trang khác (nhúng video) không bị cách ly. Safari / iPhone chưa hỗ
     trợ `credentialless` ⇒ không cách ly được ⇒ máy lùi về mức Khó và báo cho người chơi.
+  - **Trang cách ly chỉ tạo được Worker khi chính file Worker cũng mang header COEP** — thiếu là trình duyệt chặn
+    ngay lúc tạo. Trước 2026-11-10 chỉ trang có header nên trên trang Cờ tướng `bots/worker.js` (Dễ / Vừa / Khó) và
+    các luồng của engine đều bị chặn, mà BotRoom không bắt `onerror` ⇒ máy "đang nghĩ" mãi mãi. Giờ: `vercel.json` gửi
+    `COEP: credentialless` cho `/assets/*` và `/engines/*`; dev / preview gửi cho mọi request `Sec-Fetch-Dest: worker`
+    và `/engines/*`. Thêm chốt sau: Worker lỗi thì BotRoom nghĩ ngay trên luồng chính (`thinkHere`), không treo.
   - 10 nửa nước đầu xin engine 3 phương án (MultiPV), chọn ngẫu nhiên trong các nước kém nước tốt nhất ≤ 25 điểm —
     khai cuộc không lặp lại; sau đó nước tốt nhất. Engine lỗi / không tải được ⇒ lùi về mức Khó.
 - Test: `bots.test.js` — máy đấu máy mọi trò mọi mức không đi sai luật; mức Khó thắng mức Dễ đa số ván (Caro, Ô ăn quan,

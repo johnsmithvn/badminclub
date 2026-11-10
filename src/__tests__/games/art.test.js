@@ -38,4 +38,29 @@ SYMS.forEach((_, k) => assert.ok(html(BauCuaIcon, { sym: k }).includes('<svg'), 
   assert.deepEqual(pressed.filter((p) => p[0] === 'true').map((p) => p[1]), ['×1'], 'chưa chọn gì thì ×1 phải là nút đang bật')
 }
 
+// Bàn Cờ vua / Cờ tướng (khung fantasy dùng chung): dựng được ở cả hai ghế (ghế 1 xoay bàn), đủ quân lúc đầu ván,
+// và id gradient mà quân / khung trỏ tới đều có trong <defs> — trỏ hụt là quân vẽ ra trong suốt, bàn trống trơn.
+{
+  globalThis.window ||= {}
+  const boards = [
+    ['covua', '#components/games/CoVuaBoard.jsx', 32],
+    ['cotuong', '#components/games/CoTuongBoard.jsx', 32],
+  ]
+  for (const [id, file, pieces] of boards) {
+    const { default: game } = await import('#lib/games/' + id + '.js')
+    const { default: Board } = await load(file)
+    const s = game.setup({ options: game.defaultOptions, seats: [0, 1] })
+    for (const mySeat of [0, 1]) {
+      const out = html(Board, { state: s, mySeat, canMove: mySeat === s.turn, onMove() {} })
+      const defs = new Set([...out.matchAll(/\bid="([^"]+)"/g)].map((m) => m[1]))
+      const refs = [...out.matchAll(/url\(#([^)]+)\)/g)].map((m) => m[1])
+      assert.ok(refs.length > 0, id + ': bàn phải dùng gradient của khung')
+      for (const r of refs) assert.ok(defs.has(r), `${id}: trỏ tới gradient "${r}" không có trong <defs> — phần đó sẽ vẽ ra trong suốt`)
+      // Mỗi quân một <g> có translate: Cờ vua bọc text, Cờ tướng bọc đĩa tròn — đếm theo chữ trên quân.
+      const drawn = (out.match(/<text[^>]*dominant-baseline="central"/g) || []).length - (id === 'cotuong' ? 2 : 0) // trừ 2 chữ bên sông
+      assert.equal(drawn, pieces, `${id} ghế ${mySeat}: phải vẽ đủ ${pieces} quân lúc đầu ván`)
+    }
+  }
+}
+
 console.log('games art check: OK')

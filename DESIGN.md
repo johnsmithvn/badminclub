@@ -146,6 +146,17 @@ qua `components/badges/badgeTone.js`:
   Kèo + `ArenaChallengeCard` (`components/challenge/arenaTone.js`, `useArenaTone()`; khung bọc ngoài trong suốt ở cả
   hai chế độ, thẻ / khối cao dùng trắng mờ viết thẳng chứ không `var(--surface-card)` — luật kính + giới hạn GPU, §2.2).
 
+### 2.4 Bàn Cờ vua / Cờ tướng: bảng màu fantasy viết cứng
+
+Hai bàn cờ (`CoVuaBoard`, `CoTuongBoard`, kéo theo Cờ úp) vẽ kiểu fantasy theo yêu cầu chủ dự án (2026-11-10): khung
+tím đêm viền vàng đính ngọc, ánh ngọc lam cho nước đi. Màu nằm hết ở `components/games/fantasyTone.js` (`F`), khung
+dùng chung ở `FantasyFrame.jsx` (`FantasyDefs` / `FantasyFrame` / `FantasyGloss`).
+
+- **Giữ nguyên ở cả hai chế độ sáng / tối** — bàn cờ là một "vật" có màu riêng, không đổi theo token.
+- Chỉ phần TRONG `<svg>` của bàn dùng `F`; chữ gợi ý, nút, thông báo quanh bàn vẫn dùng token như mọi nơi.
+- Chỉ dùng gradient, **không** filter / blur (máy yếu). Thêm màu mới thì thêm vào `F`, không viết hex rải trong component.
+- Các bàn game khác (Ô ăn quan, Caro…) vẫn vẽ phẳng bằng token; muốn chuyển bàn nào sang kiểu này thì dùng lại `F` + khung.
+
 ## 3. Typography
 
 ```
