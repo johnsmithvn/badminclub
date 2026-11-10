@@ -460,7 +460,8 @@ function BauCuaArt() {
   return (
     <>
       <ellipse cx={80} cy={84} rx={64} ry={7} fill={mix('var(--status-delivered-fg)', 14)} />
-      {['bau', 'cua', 'ca'].map((sym, k) => (
+      {/* BauCuaIcon tra theo số thứ tự trong SYMS (bầu 0, cua 1, cá 3), không theo tên. */}
+      {[0, 1, 3].map((sym, k) => (
         <g key={sym}>
           <rect x={14 + k * 46} y={26 - (k % 2) * 8} width={40} height={40} rx={8} fill="var(--surface-card)" stroke="var(--border-default)" />
           <BauCuaIcon sym={sym} size={32} g x={18 + k * 46} y={30 - (k % 2) * 8} />
