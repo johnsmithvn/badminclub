@@ -1,5 +1,5 @@
-// Máy chơi bằng tìm kiếm (minimax + cắt tỉa alpha-beta, đào sâu dần trong hạn giờ) cho 4 trò cờ: Cờ vua, Cờ tướng,
-// Ô ăn quan, Cờ gánh. Dùng thẳng luật của game (validate / apply / result) nên máy không bao giờ đi sai luật.
+// Máy chơi bằng tìm kiếm (minimax + cắt tỉa alpha-beta, đào sâu dần trong hạn giờ) cho các trò cờ: Cờ vua, Cờ tướng,
+// Cờ úp, Ô ăn quan, Cờ gánh. Dùng thẳng luật của game (validate / apply / result) nên máy không bao giờ đi sai luật.
 // Thuần JS, không React — chạy trong Web Worker (worker.js) để màn hình không đứng lúc máy nghĩ.
 //
 // Đa dạng nước đi: các nước kém nước tốt nhất không quá `noise` điểm được chọn ngẫu nhiên — mức Dễ noise lớn
@@ -8,7 +8,8 @@
 // đủ cho mức Khó; muốn mạnh hơn thì mức Cao thủ dùng engine nhúng (engine.js).
 
 import covua, { legalMoves as chessMoves, typeOf as chessType, colorOf as chessColor } from '#lib/games/covua.js'
-import cotuong, { legalMoves as xqMoves, typeOf as xqType, colorOf as xqColor, COLS as XQ_COLS } from '#lib/games/cotuong.js'
+import cotuong, { legalMoves as xqMoves, typeOf as xqType, colorOf as xqColor, COLS as XQ_COLS, START as XQ_START } from '#lib/games/cotuong.js'
+import coup, { HIDDEN_SQUARES, isHidden, legalMoves as coupMoves } from '#lib/games/coup.js'
 import oanquan, { movesOf, sideOf } from '#lib/games/oanquan.js'
 import coganh, { NEIGHBORS, POINTS } from '#lib/games/coganh.js'
 
@@ -141,31 +142,70 @@ export const CHESS = {
 // ── Cờ tướng ────────────────────────────────────────────────────────────────────────────────────────────────────
 const XQ_VAL = { R: 900, C: 450, H: 400, E: 200, A: 200, P: 100, K: 0 }
 
+/** Giá trị một quân đã biết mặt ở điểm i: chất + chỗ đứng. */
+function xqPiece(p, i) {
+  const t = xqType(p)
+  const r = Math.floor(i / XQ_COLS)
+  const c = i % XQ_COLS
+  const fwd = xqColor(p) === 0 ? 9 - r : r // số hàng đã tiến
+  let x = XQ_VAL[t]
+  if (t === 'P' && fwd >= 5) x += 90 + (c >= 3 && c <= 5 ? 30 : 0) - (fwd === 9 ? 60 : 0) // qua sông; tới đáy là tốt chết
+  else if (t === 'H' || t === 'C') x += 6 * Math.min(fwd, 6) - 4 * Math.abs(c - 4)
+  else if (t === 'R') x += 4 * Math.min(fwd, 7)
+  return x
+}
+
 function xqEval(s, me) {
   let v = 0
   s.board.forEach((p, i) => {
-    if (p == null) return
-    const t = xqType(p)
-    const side = xqColor(p)
-    const r = Math.floor(i / XQ_COLS)
-    const c = i % XQ_COLS
-    const fwd = side === 0 ? 9 - r : r // số hàng đã tiến
-    let x = XQ_VAL[t]
-    if (t === 'P' && fwd >= 5) x += 90 + (c >= 3 && c <= 5 ? 30 : 0) - (fwd === 9 ? 60 : 0) // qua sông; tới đáy là tốt chết
-    else if (t === 'H' || t === 'C') x += 6 * Math.min(fwd, 6) - 4 * Math.abs(c - 4)
-    else if (t === 'R') x += 4 * Math.min(fwd, 7)
-    v += side === me ? x : -x
+    if (p != null) v += xqColor(p) === me ? xqPiece(p, i) : -xqPiece(p, i)
   })
   return v
 }
 
-const xqOrder = (s, ms) => ms.slice().sort((a, b) => (s.board[b.to] ? XQ_VAL[xqType(s.board[b.to])] + 1 : 0) - (s.board[a.to] ? XQ_VAL[xqType(s.board[a.to])] + 1 : 0))
+// Quân bị ăn đáng bao nhiêu để xếp nước ăn lên trước (quân úp của Cờ úp: cỡ trung bình 320).
+const capVal = (p) => (p == null ? 0 : (XQ_VAL[xqType(p)] ?? 320) + 1)
+const xqOrder = (s, ms) => ms.slice().sort((a, b) => capVal(s.board[b.to]) - capVal(s.board[a.to]))
 
 export const XIANGQI = {
   game: cotuong,
   moves: (s) => xqMoves(s),
   evaluate: xqEval,
   captures: (s) => xqOrder(s, xqMoves(s).filter((m) => s.board[m.to] != null)),
+  order: xqOrder,
+}
+
+// ── Cờ úp ───────────────────────────────────────────────────────────────────────────────────────────────────────
+// Máy KHÔNG thấy mặt thật quân úp: state chỉ có 'X' / 'x', mặt thật nằm ở server (phòng thật) hoặc fillLocal (phòng máy).
+// Quân úp = trung bình các quân bên đó còn có thể là nó: cả bộ 15 quân trừ quân đã lật đang trên bàn và quân đã lật bị
+// ăn (state.dead). Quân đã lật: như Cờ tướng.
+// ponytail: lúc tìm, quân úp đi xong vẫn để úp (chưa biết lật ra gì) và đi tiếp theo hình quân gốc ở ô mới — lệch trong
+// tầm nhìn vài nước; tới lượt thật máy thấy mặt đã lật. Muốn chuẩn hơn: nút may rủi (expectimax) ở nước lật.
+const COUP_N = HIDDEN_SQUARES.length / 2 // mỗi bên 15 quân, cùng một bộ
+const COUP_SUM = HIDDEN_SQUARES.reduce((a, i) => a + XQ_VAL[xqType(XQ_START[i])], 0) / 2
+
+function coupEval(s, me) {
+  const sum = [COUP_SUM, COUP_SUM]
+  const left = [COUP_N, COUP_N]
+  const up = [0, 0]
+  let v = 0
+  const known = (p) => { sum[xqColor(p)] -= XQ_VAL[xqType(p)]; left[xqColor(p)]-- }
+  for (const p of s.dead) if (!isHidden(p)) known(p)
+  s.board.forEach((p, i) => {
+    if (p == null) return
+    if (isHidden(p)) { up[xqColor(p)]++; return }
+    if (xqType(p) !== 'K') known(p)
+    v += xqColor(p) === me ? xqPiece(p, i) : -xqPiece(p, i)
+  })
+  for (const side of [0, 1]) if (up[side]) v += (side === me ? 1 : -1) * up[side] * (sum[side] / left[side])
+  return v
+}
+
+export const COUP = {
+  game: coup,
+  moves: (s) => coupMoves(s),
+  evaluate: coupEval,
+  captures: (s) => xqOrder(s, coupMoves(s).filter((m) => s.board[m.to] != null)),
   order: xqOrder,
 }
 

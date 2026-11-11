@@ -14,7 +14,8 @@
 // bỏ qua nước đó, nhưng server đã điền mặt thật ô `to` → dò được một quân úp. Thêm kiểm luật ở SQL nếu CLB đánh giải.
 //
 // Bàn: chữ hoa = đỏ, chữ thường = đen như Cờ tướng; 'X' / 'x' = quân úp của đỏ / đen.
-// state = { board[90], turn, quiet, reps, ply, check, over, winner, reason, last }
+// state = { board[90], turn, quiet, reps, ply, check, over, winner, reason, last, dead }
+//   dead = các quân đã bị ăn, theo thứ tự (đã lật: ai cũng thấy) — máy (bots/search.js) cần để biết quân úp còn có thể là gì
 //   last = { seat, from, to, captured, flip? } — captured: quân bị ăn (đã lật), flip: mặt vừa lật của quân đi
 // move  = { from, to } (client gửi) · { from, to, flip?, took? } (server ghi)
 
@@ -64,7 +65,7 @@ export default {
 
   setup() {
     const board = [...START].map((ch) => (ch === '.' ? null : typeOf(ch) === 'K' ? ch : colorOf(ch) === 0 ? 'X' : 'x'))
-    const s = { board, turn: 0, quiet: 0, reps: {}, ply: 0, check: null, over: false, winner: null, reason: null, last: null }
+    const s = { board, turn: 0, quiet: 0, reps: {}, ply: 0, check: null, over: false, winner: null, reason: null, last: null, dead: [] }
     return { ...s, reps: { [keyOf(s)]: 1 } }
   },
 
@@ -87,7 +88,8 @@ export default {
     const captured = prev == null ? null : isHidden(prev) && took ? cased(took, foe) : prev
     const board = play(s0.board, { from, to }, up)
     const quiet = captured ? 0 : s0.quiet + 1
-    const s = { ...s0, board, turn: foe, quiet, ply: s0.ply + 1, check: null, last: { seat, from, to, captured, ...(up ? { flip: up } : {}) } }
+    const dead = captured ? [...s0.dead, captured] : s0.dead
+    const s = { ...s0, board, turn: foe, quiet, ply: s0.ply + 1, check: null, dead, last: { seat, from, to, captured, ...(up ? { flip: up } : {}) } }
     const key = keyOf(s)
     s.reps = { ...(captured ? {} : s0.reps), [key]: ((captured ? 0 : s0.reps[key]) || 0) + 1 }
     const check = inCheck(board, foe)

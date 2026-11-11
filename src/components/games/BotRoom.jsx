@@ -25,9 +25,12 @@ const TIMES = [0, 15, 30] // đồng hồ mỗi nước (giây); 0 = không gi�
 // Cờ vua / Cờ tướng (bản thiết kế "Co Vua" / "Co Tuong"): bàn tự vẽ thanh người chơi (ChessStage), đồng hồ là đồng hồ
 // TỔNG mỗi bên (prefs.clock phút, luật ở chessClock.js — chạy từ nước đầu tiên), có cột Nước đi bên phải, chọn skin.
 const CHESS = ['covua', 'cotuong']
+// Bàn vẽ bằng ChessStage (thanh người chơi, nút, skin) — Cờ úp mượn bàn Cờ tướng nhưng không có đồng hồ tổng, không ký
+// hiệu nước (không có cột Nước đi). Như SKIN của GameRoom.jsx.
+const SKIN = { covua: 'covua', cotuong: 'cotuong', coup: 'cotuong' }
 const CLOCKS = [5, 10, 0] // phút mỗi bên; 0 = không giới hạn
 // Gợi ý vẽ mũi tên trên bàn (bạn vẫn tự đi); các trò khác máy đi hộ một nước.
-const ARROW = ['covua', 'cotuong', 'oanquan']
+const ARROW = ['covua', 'cotuong', 'coup', 'oanquan']
 /** Lùi về thế cũ: đồng hồ của thế đó tính tiếp từ bây giờ; còn dưới 30 giây thì cho lại 30 giây để kịp đi. */
 const rewind = (s) => (s?.clock?.since != null ? { ...s, clock: { left: s.clock.left.map((ms) => Math.max(ms, 30000)), since: Date.now() } } : s)
 const mmss = (sec) => Math.floor(sec / 60) + ':' + String(sec % 60).padStart(2, '0')
@@ -106,13 +109,15 @@ export default function BotRoom({ gameId }) {
   const [hinting, setHinting] = useState(false) // đang hỏi máy nước gợi ý
   const [tip, setTip] = useState(null) // { s, move } — nước gợi ý đang vẽ mũi tên, chỉ đúng với thế cờ `s`
   const chess = CHESS.includes(gameId)
+  const stage = !!SKIN[gameId]
   const multi = game?.maxPlayers > 2 && !game.players
   const nOf = (p) => seatsFor(gameId, p)
   const n = nOf(prefs)
   const human = multi || prefs.side >= n ? 0 : prefs.side
   const bots = useMemo(() => Array.from({ length: n }, (_, i) => i).filter((i) => i !== human), [n, human])
 
-  // Ván = thế cờ + tàu của từng bên (Bắn tàu — thay game_hands của server) + số ván (đổi là dựng lại màn chơi)
+  // Ván = thế cờ + tàu của từng bên (Bắn tàu) / mặt thật quân úp (Cờ úp, `faces`) — thay game_hands của server
+  // + số ván (đổi là dựng lại màn chơi)
   // + lỗi nước vừa đi (nằm chung để hàm cập nhật không phải gọi setState khác).
   // `past` = thế cờ ngay trước mỗi nước của người — nút Đi lại lùi về đó (bỏ luôn nước máy vừa đáp).
   // `timeout` = người để hết giờ của nước đang đi → thua (đồng hồ mỗi nước, prefs.time giây; 0 = tắt).
@@ -134,13 +139,14 @@ export default function BotRoom({ gameId }) {
       let s0 = cur.s
       // Đồng hồ tổng bắt đầu chạy từ nước đầu tiên của ván (phòng thật: server ghi { start } lúc bắt đầu).
       if (s0.clock && s0.clock.since == null && game.validate(s0, 0, { start: true }) == null) s0 = game.apply(s0, 0, { start: true }, meta)
-      const logged = fillLocal(gameId, s0, seat, move, { fleets })
+      const secret = { fleets, faces: cur.faces }
+      const logged = fillLocal(gameId, s0, seat, move, secret)
       const e = game.validate(s0, seat, logged)
       if (e) return { ...cur, err: t(e) }
       const next = game.apply(s0, seat, logged, meta)
       const text = game.notate?.(s0, logged, next)
       const past = seat === human && !logged?.timeout ? [...cur.past, cur.s] : cur.past
-      return { ...cur, s: next, fleets, err: '', info: seat === human ? '' : cur.info, past, log: text ? [...cur.log, text] : cur.log }
+      return { ...cur, s: next, fleets, faces: secret.faces, err: '', info: seat === human ? '' : cur.info, past, log: text ? [...cur.log, text] : cur.log }
     })
   }, [game, gameId, human])
 
@@ -156,7 +162,7 @@ export default function BotRoom({ gameId }) {
   const canMove = !!s && !result && botSeat == null && (gameId === 'bantau' && s.phase === 'place' ? false : s.turn === human)
 
   // Đồng hồ mỗi nước: chạy lại từ đầu mỗi khi tới lượt người (thế cờ đổi); hết giờ thì xử thua.
-  const limit = chess ? 0 : prefs.time || 0
+  const limit = stage ? 0 : prefs.time || 0
   // `clk` gắn với đúng thế cờ đang chờ người đi (đổi thế cờ = đồng hồ mới), cập nhật ngay lúc render như queueStates.
   const want = limit && canMove ? s : null
   const [clk, setClk] = useState(null) // { s, left }
@@ -251,8 +257,8 @@ export default function BotRoom({ gameId }) {
   const canUndo = gameId !== 'bantau' && g.past.length > 0
 
   // Ô ăn quan tự vẽ thẻ Máy / Bạn, đồng hồ và nút ngay trong khung sơn mài (bản 1c) — không lặp thẻ ở ngoài.
-  // Cờ vua / Cờ tướng cũng vậy (ChessStage) — thêm cột Nước đi bên phải, nút Ván mới nằm ở đó.
-  const inFrame = gameId === 'oanquan' || chess
+  // Cờ vua / Cờ tướng / Cờ úp cũng vậy (ChessStage). Cờ vua / Cờ tướng thêm cột Nước đi bên phải, nút Ván mới nằm ở đó.
+  const inFrame = gameId === 'oanquan' || stage
   const clock = limit ? { left: left ?? limit, limit, on: left != null } : null
   const actions = [
     { key: 'undo', icon: 'undo-2', label: t('games.bot.undo'), on: undo, off: !canUndo },
@@ -285,7 +291,7 @@ export default function BotRoom({ gameId }) {
           </span>
         )}
         <span style={{ flex: 1 }} />
-        {chess && <SkinPicker kind={gameId} />}
+        {stage && <SkinPicker kind={SKIN[gameId]} />}
         <button type="button" aria-label={t('games.howto')} title={t('games.howto')} onClick={() => setHowto(true)} style={S.sq(false)}>
           <Icon name="book-open" size={17} />
         </button>
@@ -320,7 +326,7 @@ export default function BotRoom({ gameId }) {
               })()}
               {chess
                 ? segRow(t('games.clock'), CLOCKS.map((k) => [k, k ? t('games.clockOpt', { n: k }) : t('games.bot.timeShortNone')]), draft.clock ?? 10, (v) => setDraft({ ...draft, clock: v }))
-                : segRow(t('games.bot.time'), [...TIMES.filter(Boolean), 0].map((k) => [k, k ? k + 's' : t('games.bot.timeShortNone')]), draft.time || 0, (v) => setDraft({ ...draft, time: v }))}
+                : !stage && segRow(t('games.bot.time'), [...TIMES.filter(Boolean), 0].map((k) => [k, k ? k + 's' : t('games.bot.timeShortNone')]), draft.time || 0, (v) => setDraft({ ...draft, time: v }))}
               {draft.level === 'master' && <span style={S.caption}>{t('games.bot.masterHint.' + gameId)}</span>}
               <button type="button" onClick={apply} style={btn('primary', { block: true })}>{t('games.bot.apply')}</button>
             </div>
@@ -341,7 +347,7 @@ export default function BotRoom({ gameId }) {
         <Suspense fallback={<Skeleton height={320} />}>
           <Screen key={g.round} state={game.view(s, human)} mySeat={human} canMove={canMove} onMove={(m) => play(human, m, g.round)}
             roomId={'bot-' + gameId} result={result} hands={fleets}
-            {...(chess ? {
+            {...(stage ? {
               names: { [human]: t('games.bot.you'), [bots[0]]: t('games.bot.bot') },
               tags: { [human]: '', [bots[0]]: '· ' + t('games.bot.levelLine', { level: levelLabel }) },
               actions, hint: tipMove,

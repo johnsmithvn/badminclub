@@ -1,14 +1,17 @@
 // Chơi với máy (luyện tập): chạy hẳn trong trình duyệt, không qua server, không ghi log, không tính thống kê.
 // `think(id, state, seat, level)` → nước đi của máy (đúng dạng move của game, qua được validate).
 // `fillLocal` thay phần server điền ở phòng thật: đổ xúc xắc (Cờ cá ngựa, 0079) và cất tàu / tra trúng trượt
-// (Bắn tàu, 0080) — bí mật (tàu của từng bên) nằm ở `secret` do màn chơi giữ, máy không đọc tàu người chơi.
+// (Bắn tàu, 0080), xáo + lật quân úp (Cờ úp, 0095) — bí mật (tàu của từng bên, mặt thật quân úp) nằm ở `secret` do màn
+// chơi giữ; máy chỉ nhận state nên không đọc được tàu người chơi hay mặt quân còn úp.
 //
 // Mức: easy / normal / hard tự viết (search.js, heuristics.js). master = engine nhúng (engine.js, chỉ Cờ vua /
 // Cờ tướng) — chạy ở luồng chính nên không nằm ở đây.
 
-import { CHESS, COGANH, OANQUAN, pick, XIANGQI } from '#lib/games/bots/search.js'
+import { CHESS, COGANH, COUP, OANQUAN, pick, shuffle, XIANGQI } from '#lib/games/bots/search.js'
 import { bantauBot, canguaBot, caroBot, chamoBot } from '#lib/games/bots/heuristics.js'
 import { SHIPS } from '#lib/games/bantau.js'
+import { HIDDEN_SQUARES, colorOf, typeOf } from '#lib/games/coup.js'
+import { START } from '#lib/games/cotuong.js'
 
 export const LEVELS = ['easy', 'normal', 'hard', 'master']
 
@@ -16,6 +19,7 @@ export const LEVELS = ['easy', 'normal', 'hard', 'master']
 const SEARCH = {
   covua: { rule: CHESS, easy: { depth: 1, noise: 180 }, normal: { depth: 2, ms: 800, noise: 35 }, hard: { depth: 4, ms: 2500, noise: 8 } },
   cotuong: { rule: XIANGQI, easy: { depth: 1, noise: 200 }, normal: { depth: 2, ms: 1000, noise: 40 }, hard: { depth: 4, ms: 3000, noise: 10 } },
+  coup: { rule: COUP, easy: { depth: 1, noise: 200 }, normal: { depth: 2, ms: 1000, noise: 40 }, hard: { depth: 4, ms: 3000, noise: 10 } },
   oanquan: { rule: OANQUAN, easy: { depth: 1, noise: 6 }, normal: { depth: 3, ms: 800, noise: 1.5 }, hard: { depth: 8, ms: 2000, noise: 0.3 } },
   coganh: { rule: COGANH, easy: { depth: 1, noise: 15 }, normal: { depth: 3, ms: 800, noise: 4 }, hard: { depth: 6, ms: 2000, noise: 1 } },
 }
@@ -52,9 +56,28 @@ export function botToMove(game, s, bots) {
   return bots.includes(s.turn) ? s.turn : null
 }
 
-/** Nước sẽ ghi vào "log" sau khi điền thay server. secret = { fleets: { [ghế]: [[ô…] × 5] } } — sửa tại chỗ. */
+/** Mặt thật quân úp theo ô xuất phát (như game_coup_deal của 0095): mỗi bên xáo bộ quân của mình vào ô của mình. */
+function coupFaces(rand) {
+  const faces = []
+  for (const side of [0, 1]) {
+    const sq = HIDDEN_SQUARES.filter((i) => colorOf(START[i]) === side)
+    shuffle(sq.map((i) => typeOf(START[i])), rand).forEach((k, j) => { faces[sq[j]] = k })
+  }
+  return faces
+}
+
+/**
+ * Nước sẽ ghi vào "log" sau khi điền thay server — sửa `secret` tại chỗ.
+ * secret = { fleets: { [ghế]: [[ô…] × 5] }, faces?: [90] mặt thật quân úp ('A'…'P' theo ô xuất phát, xáo lần đầu cần) }.
+ */
 export function fillLocal(id, s, seat, move, secret, rand = Math.random) {
   if (id === 'cangua' && move?.roll === true) return { roll: true, dice: 1 + Math.floor(rand() * 6) }
+  if (id === 'coup') {
+    // Như game_coup_fill: bỏ flip / took máy khách gửi, điền theo ô xuất phát (coup.apply chỉ dùng khi quân còn úp).
+    const faces = (secret.faces ??= coupFaces(rand))
+    const { from, to } = move || {}
+    return { from, to, ...(faces[from] ? { flip: faces[from] } : {}), ...(faces[to] ? { took: faces[to] } : {}) }
+  }
   if (id !== 'bantau') return move
   if (move?.place !== undefined) {
     secret.fleets[seat] = move.place

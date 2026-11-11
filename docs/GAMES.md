@@ -396,18 +396,27 @@ và **Chat phòng** (có tin hệ thống: vào / rời / sẵn sàng / đổi l
 
 ### 7b. Chơi với máy (luyện tập)
 
-8 trò: `BOT_GAMES` ở `registry.js` (Caro, Cờ vua, Cờ tướng, Ô ăn quan, Cờ gánh, Chấm ô, Cờ cá ngựa, Bắn tàu). Sảnh có
+9 trò: `BOT_GAMES` ở `registry.js` (Caro, Cờ vua, Cờ tướng, Cờ úp, Ô ăn quan, Cờ gánh, Chấm ô, Cờ cá ngựa, Bắn tàu). Sảnh có
 nút **Chơi với máy** → `/tro-choi/may-<game>`; `GameRoom.jsx` thấy tiền tố `may-` thì mở `BotRoom` (tải lười).
 - **Cài đặt ván (nút ⚙):** mức độ, bên đi / số người, **đồng hồ mỗi nước** (15 / 30 giây / không giới hạn, mặc định tắt —
   `prefs.time`). Đồng hồ chạy lại mỗi lần tới lượt người; hết giờ là thua ván luyện. Chỉ ở phòng máy: phòng thật chưa có
   (cần server chấm hết giờ). **Đi lại** lùi về trước nước vừa đi của người (không có ở Bắn tàu).
 - **Chạy hẳn trong trình duyệt:** luật `lib/games/<id>.js`, không gọi server, không lưu, không tính thống kê. Phần server
   điền ở phòng thật làm thay bằng `fillLocal` (`lib/games/bots/index.js`): đổ xúc xắc Cá ngựa, cất tàu / tra trúng trượt
-  Bắn tàu (tàu từng bên giữ trong state của BotRoom, máy chỉ đọc `state.shots`). Dùng lại đúng màn chơi `SCREENS`
-  (`BanTauBoard` nhận thêm `hands` thay cho `game_hands`).
+  Bắn tàu (tàu từng bên giữ trong state của BotRoom, máy chỉ đọc `state.shots`), xáo mặt thật quân úp Cờ úp ngay trên
+  máy (`g.faces` của BotRoom, như `game_coup_deal`) rồi điền `flip` / `took` theo ô xuất phát như `game_coup_fill` — nên
+  `coup.apply` chạy y phòng thật. Dùng lại đúng màn chơi `SCREENS` (`BanTauBoard` nhận thêm `hands` thay cho
+  `game_hands`). Cờ úp đi đường bàn ChessStage như Cờ tướng (skin Cờ tướng, mũi tên gợi ý) nhưng không có đồng hồ tổng,
+  không có cột Nước đi (coup.js không có `notate`), không có đồng hồ mỗi nước; mở từ sảnh kiểu SPA (không cần cách ly —
+  không có mức Cao thủ).
 - **Mức Dễ / Vừa / Khó** — tự viết, chạy trong Web Worker (`bots/worker.js`, màn hình không đứng):
   - `bots/search.js`: minimax + alpha-beta, đào sâu dần trong hạn giờ, tìm thêm nước ăn quân ở lá — Cờ vua, Cờ tướng,
-    Ô ăn quan, Cờ gánh. Gọi thẳng `game.apply` nên không bao giờ đi sai luật (đổi lại chậm hơn engine thật nhiều lần).
+    Cờ úp, Ô ăn quan, Cờ gánh. Gọi thẳng `game.apply` nên không bao giờ đi sai luật (đổi lại chậm hơn engine thật nhiều lần).
+  - **Cờ úp — máy không nhìn mặt thật:** Worker chỉ nhận state (quân úp là `X` / `x`), mặt thật nằm ở `g.faces`. Quân
+    còn úp tính bằng giá trị trung bình các quân bên đó còn có thể là nó = cả bộ 15 quân trừ quân đã lật trên bàn và quân
+    đã lật bị ăn (`state.dead` — coup.js ghi lại quân bị ăn để làm việc này). Quân đã lật: chấm như Cờ tướng. Lúc tìm,
+    quân úp đi xong vẫn để úp (chưa biết lật ra gì) — chỉ lệch trong tầm nhìn vài nước. Phòng máy cho Đi lại nên lật
+    rồi lùi để dò mặt quân được — chấp nhận, đây là ván luyện.
   - `bots/heuristics.js`: chấm điểm từng nước — Caro (đếm thế + cửa sổ 5 ô, nước bắt buộc trước), Chấm ô (ăn ô, tránh
     cạnh thứ 3, buộc phải cho thì cho ít nhất), Cá ngựa (đá, về chuồng, tránh đứng trong tầm 1–6 sau ngựa địch), Bắn
     tàu (Dễ: ngẫu nhiên · Vừa: săn / diệt · Khó: bản đồ xác suất).
@@ -429,7 +438,8 @@ nút **Chơi với máy** → `/tro-choi/may-<game>`; `GameRoom.jsx` thấy ti�
   - 10 nửa nước đầu xin engine 3 phương án (MultiPV), chọn ngẫu nhiên trong các nước kém nước tốt nhất ≤ 25 điểm —
     khai cuộc không lặp lại; sau đó nước tốt nhất. Engine lỗi / không tải được ⇒ lùi về mức Khó.
 - Test: `bots.test.js` — máy đấu máy mọi trò mọi mức không đi sai luật; mức Khó thắng mức Dễ đa số ván (Caro, Ô ăn quan,
-  Cờ gánh, Chấm ô, Bắn tàu); thấy nước chiếu hết; điền thay server của Bắn tàu / Cá ngựa; FEN / UCI của engine.
+  Cờ gánh, Chấm ô, Bắn tàu); thấy nước chiếu hết; điền thay server của Bắn tàu / Cá ngựa / Cờ úp; Cờ úp đánh tới hết ván
+  và đổi chỗ mặt các quân còn úp thì thế cờ + nước máy chọn y hệt (máy không đọc mặt thật); FEN / UCI của engine.
 - Nâng cấp engine: tải bản mới vào `public/engines/<tên>/` (kiểm mã băm với npm), sửa đường dẫn ở `ENGINES` (engine.js).
 
 ### Hình ảnh — nhẹ mà vẫn đẹp
@@ -519,7 +529,7 @@ chạy được trước 0085.
 | **5** | **Bảng xếp hạng game** (0091) · **Ba cây** 2–8 (0092) · **Xu ảo** (0093) — đã code | BXH cộng dồn trên server; Ba cây: bài úp, lật thì server điền lá vào log; xu: trigger trên bảng phòng (§4b) |
 | **6** | **Tiến lên miền Bắc** (tuỳ chọn phòng) · **Cờ úp** 2 · **Bầu cua** 2–10 · **Lô tô** 2–10 · **Xì dách** 2–8 — đã code (0094–0098) | cái xoay vòng nhiều ván trong một phòng, quân úp theo ô |
 | **7** | **Nối từ** có từ điển tiếng Việt + tuỳ chọn chặn từ cụt / đảo từ / lặp từ — đã code (0099–0100) | bảng dữ liệu chỉ server đọc, nước server đánh dấu `ok` |
-| **8** | **Chơi với máy** 8 trò, 3 mức tự viết + Cao thủ engine nhúng (Cờ vua, Cờ tướng) — đã code (§7b) | chạy luật ở trình duyệt, Web Worker, engine UCI |
+| **8** | **Chơi với máy** 9 trò, 3 mức tự viết + Cao thủ engine nhúng (Cờ vua, Cờ tướng) — đã code (§7b) | chạy luật ở trình duyệt, Web Worker, engine UCI |
 
 Tách repo / server game riêng chỉ khi: cần game hành động nhanh, mở cho người ngoài CLB,
 hoặc vượt quota Supabase.

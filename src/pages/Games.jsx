@@ -195,7 +195,7 @@ export default function Games() {
                         <button type="button" disabled={!me} onClick={() => setCreating(id)} style={{ ...btn('soft', { sm: true }), flex: isMobile ? '1 1 100%' : '1 0 auto', opacity: me ? 1 : 0.45 }}>{t('games.create')}</button>
                         {BOT_GAMES.includes(id) && (
                           <button type="button" title={t('games.bot.play')} aria-label={t('games.bot.play')} onClick={() => vsBot(id)} style={{ ...btn('ghost', { sm: true }), padding: '7px 9px', flex: isMobile ? 1 : 'none' }}>
-                            <Icon name="bot" size={15} />{!isMobile && t('games.lobby.vsBot')}
+                            <Icon name="bot" size={15} />
                           </button>
                         )}
                         <button type="button" title={t('games.howto')} aria-label={t('games.howto')} onClick={() => setHowto(id)} style={{ ...btn('ghost', { sm: true }), padding: '7px 9px', color: G.muted, flex: isMobile ? 1 : 'none' }}>
