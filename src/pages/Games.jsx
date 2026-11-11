@@ -100,7 +100,7 @@ export default function Games() {
             <div style={{ font: `800 ${isMobile ? 22 : 26}px/1.15 var(--font-display)`, letterSpacing: '-.01em' }}>{t('nav.games')}</div>
             <div style={{ font: '400 13px/1.3 var(--font-sans)', color: G.muted, marginTop: 4 }}>{t('games.lobby.tagline')}</div>
           </div>
-          <div role="tablist" style={{ display: 'flex', gap: 4, borderBottom: '1px solid ' + G.line, overflowX: 'auto' }}>
+          <div role="tablist" style={{ display: 'flex', flexWrap: 'wrap', gap: 4, borderBottom: '1px solid ' + G.line }}>
             {tabs.map(([k, label]) => (
               <button key={k} type="button" role="tab" aria-selected={tab === k} onClick={() => goTab(k)} style={tabStyle(tab === k)}>{label}</button>
             ))}
@@ -167,7 +167,7 @@ export default function Games() {
             </div>
 
             {shown.length === 0 && <span style={S.caption}>{t('games.lobby.noMatch')}</span>}
-            <div style={{ display: 'grid', gap: 14, gridTemplateColumns: isMobile ? 'repeat(2, minmax(0, 1fr))' : 'repeat(auto-fill, minmax(200px, 1fr))' }}>
+            <div style={{ display: 'grid', gap: 14, gridTemplateColumns: isMobile ? 'repeat(2, minmax(0, 1fr))' : 'repeat(auto-fill, minmax(250px, 1fr))' }}>
               {shown.map((id) => {
                 const g = GAMES[id]
                 const s = stats[id]
@@ -191,14 +191,14 @@ export default function Games() {
                         <span style={{ ...S.caption, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }} title={desc}>{desc}</span>
                         {s && <span style={{ ...mono, fontSize: 11 }}>{t('games.record', s)}</span>}
                       </div>
-                      <div style={{ display: 'flex', gap: 6, marginTop: 'auto', minWidth: 0 }}>
-                        <button type="button" disabled={!me} onClick={() => setCreating(id)} style={{ ...btn('soft', { sm: true }), flex: 1, opacity: me ? 1 : 0.45 }}>{t('games.create')}</button>
+                      <div style={{ display: 'flex', flexWrap: 'wrap', gap: 6, marginTop: 'auto', minWidth: 0 }}>
+                        <button type="button" disabled={!me} onClick={() => setCreating(id)} style={{ ...btn('soft', { sm: true }), flex: isMobile ? '1 1 100%' : '1 0 auto', opacity: me ? 1 : 0.45 }}>{t('games.create')}</button>
                         {BOT_GAMES.includes(id) && (
-                          <button type="button" title={t('games.bot.play')} aria-label={t('games.bot.play')} onClick={() => vsBot(id)} style={{ ...btn('ghost', { sm: true }), padding: '7px 9px' }}>
+                          <button type="button" title={t('games.bot.play')} aria-label={t('games.bot.play')} onClick={() => vsBot(id)} style={{ ...btn('ghost', { sm: true }), padding: '7px 9px', flex: isMobile ? 1 : 'none' }}>
                             <Icon name="bot" size={15} />{!isMobile && t('games.lobby.vsBot')}
                           </button>
                         )}
-                        <button type="button" title={t('games.howto')} aria-label={t('games.howto')} onClick={() => setHowto(id)} style={{ ...btn('ghost', { sm: true }), padding: '7px 9px', color: G.muted }}>
+                        <button type="button" title={t('games.howto')} aria-label={t('games.howto')} onClick={() => setHowto(id)} style={{ ...btn('ghost', { sm: true }), padding: '7px 9px', color: G.muted, flex: isMobile ? 1 : 'none' }}>
                           <Icon name="book-open" size={15} />
                         </button>
                       </div>

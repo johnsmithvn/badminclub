@@ -333,7 +333,7 @@ export default function BotRoom({ gameId }) {
       {g.info && <Alert tone="info">{g.info}</Alert>}
 
       <div style={chess ? { display: 'grid', gap: 18, alignItems: 'start', gridTemplateColumns: isMobile ? 'minmax(0, 1fr)' : 'minmax(0, 1fr) 320px' } : { display: 'grid', gridTemplateColumns: 'minmax(0, 1fr)' }}>
-      <div style={{ width: '100%', maxWidth: chess ? undefined : inFrame ? 960 : 600, justifySelf: 'center', display: 'grid', gap: 10, gridTemplateColumns: 'minmax(0, 1fr)', minWidth: 0 }}>
+      <div style={{ width: '100%', maxWidth: chess ? undefined : inFrame ? 1280 : 600, justifySelf: 'center', display: 'grid', gap: 10, gridTemplateColumns: 'minmax(0, 1fr)', minWidth: 0 }}>
         {!inFrame && (
           <PlayerCard mark="bot" name={multi ? t('games.bot.bots', { n: bots.length }) : t('games.bot.bot')} sub={t('games.bot.levelLine', { level: levelLabel })}
             line={botSeat != null ? t('games.bot.thinking') : ''} active={botSeat != null} clock={clock && { ...clock, on: false, left: limit }} />

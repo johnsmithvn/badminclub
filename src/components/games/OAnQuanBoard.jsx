@@ -276,7 +276,7 @@ function Board({ state, mySeat, canMove, onMove, animate, more, onDone, speed, o
         role="group"
         aria-label={t('games.oanquan.boardAria')}
         onClick={f ? () => setK(null) : undefined}
-        style={{ width: '100%', maxWidth: W, display: 'block', touchAction: 'manipulation', userSelect: 'none', cursor: f ? 'pointer' : 'default', overflow: 'visible' }}
+        style={{ width: '100%', maxWidth: Math.round(W * 1.45), display: 'block', touchAction: 'manipulation', userSelect: 'none', cursor: f ? 'pointer' : 'default', overflow: 'visible' }}
       >
         <defs>
           <linearGradient id={id('lac')} x1="0" y1="0" x2="1" y2="1">
