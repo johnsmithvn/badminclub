@@ -22,8 +22,8 @@ const BotRoom = lazy(() => import('#components/games/BotRoom.jsx'))
 
 // Game có "sân khấu" riêng (ChessStage): bàn tự vẽ thanh người chơi, trạng thái, nút Xin hoà / Xin thua, màn kết
 // thúc — khung phòng không lặp lại dải trạng thái và nút Đầu hàng. SKIN = game chọn được skin bàn (thanh người chơi
-// đã nằm trên bàn nên bỏ tab Người chơi; Tiến lên giữ tab đó để xem xu từng người).
-const STAGED = ['covua', 'cotuong', 'coup', 'tienlen']
+// đã nằm trên bàn nên bỏ tab Người chơi; Tiến lên, Bầu cua giữ tab đó để xem xu từng người).
+const STAGED = ['covua', 'cotuong', 'coup', 'tienlen', 'baucua']
 const SKIN = { covua: 'covua', cotuong: 'cotuong', coup: 'cotuong' }
 
 export default function GameRoom() {

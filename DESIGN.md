@@ -166,6 +166,10 @@ cân, hiệu ứng, màn kết thúc dùng chung ở `ChessStage.jsx` (`ChessSta
 - **Ô ăn quan kiểu sơn mài** (2026-11-10): cùng ngoại lệ, bảng màu riêng `L` trong `OAnQuanBoard.jsx` (đỏ son, viền vàng,
   sỏi suối, quan ngọc bích). Khung tối bọc quanh bàn cũng dùng `L`. Hiệu ứng `oaqRipple` / `oaqBurst` / `oaqFloat` ở `effects.css`.
   Hình học theo bản 1c (bàn 880 × 340, quan con nhộng, ô Ø96); viên thuốc người chơi + nút phòng nằm trong khung (prop `names` / `note` / `clock` / `actions`).
+- **Bàn Bầu cua kiểu chiếu trúc** (bản "Bầu Cua Tôm Cá", 2026-11-11): cùng ngoại lệ, bảng màu riêng `BC` / `COIN` trong
+  `BauCuaBoard.jsx` (chiếu trúc viền đỏ, giấy kem, đĩa + bát sứ men lam, xu đồng / bạc / vàng). Sáu linh vật ở
+  `BauCuaIcons.jsx` cũng viết cứng màu (dùng chung cho tranh sảnh). Ghế, thanh của mình, nút quanh chiếu vẫn dùng token.
+  Bát rung khi chờ mở dùng `bcShake`.
 - **Bàn Tiến lên kiểu chiếu nỉ** (bản "Tien Len", 2026-11-11): cùng ngoại lệ, bảng màu riêng `TL` trong `TienLenBoard.jsx`
   (nỉ xanh, viền gỗ). Bàn
   860 × 660 co bằng `useFit`; điện thoại dọc mà co dưới 0.6 thì phủ lớp "Xoay ngang điện thoại" (chặn bấm). Hiệu ứng

@@ -721,6 +721,10 @@ mọi máy bỏ qua nhưng dò được mặt một quân úp; thêm kiểm lu�
 **Bầu cua** (`baucua.js`, 0096): 2–10 người, cái xoay vòng theo ghế (`laps` vòng 1 / 2 / 3). Con đặt tối đa 10 điểm / ván
 (mức 1 / 2 / 5) rồi chốt (chốt 0 = bỏ ván). Cả bàn chốt hoặc hết giờ đặt (15 / 20 / 30 giây, mặc định 20) thì máy bất kỳ
 gửi `{ roll }`, server lắc 3 hột. Con ra k hột ăn k lần, không ra mất tiền đặt. Cái rời giữa ván → ván bỏ.
+Giao diện (bản thiết kế "Bầu Cua Tôm Cá", 2026-11-11, `BauCuaBoard.jsx`): ghế người khác ở trên, chiếu trúc + giấy sáu con
+(Nai · Bầu · Gà / Cá · Cua · Tôm) + đĩa và bát sứ + bảng trạng thái, thanh của mình ở đáy (xu 1 / 2 / 5 · Hoàn tác · Đặt lại ·
+Chốt). Cái có nút **Mở bát** khi cả bàn đã chốt (vẫn tự mở khi hết giờ). Mở bát xong bát nhấc lên 5 giây để xem hột
+(tính theo `since` của ván mới); dải "Ván trước" giữ 4 bát gần nhất trên máy này. Luật không đổi.
 
 **Lô tô** (`loto.js`, 0097): 2–10 người, server phát tờ 9 hàng × 5 số (cột 1–9, 10–19 … 80–90, không trùng — tờ công khai)
 và xướng số ngẫu nhiên theo nhịp 3 / 5 / 8 giây (mặc định 5). Hàng đủ 5 số đã xướng thì `{ kinh }`; kinh sai = `noKinh`.
