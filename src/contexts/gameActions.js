@@ -4,7 +4,7 @@
 // mỗi lần ghi chờ DB xong mới báo. Luật quyền nằm ở RPC của 0074; luật game ở lib/games/*.
 
 import { findGameRoom, gameRpc, loadGameBoard, loadGameHand, loadGameLobby, loadGameRoom, loadGameWallets, loadMemberCoins, loadMyWallet, loadRoomCoins, subscribeGameRoom } from '#contexts/storage.js'
-import { gameOf } from '#lib/games/registry.js'
+import { gameOf, seatRange } from '#lib/games/registry.js'
 import { myMember } from '#lib/money.js'
 import { t } from '#i18n'
 
@@ -38,7 +38,7 @@ export function makeGameActions({ dbRef, toast }) {
   return {
     gameLobby: (withStats) => loadGameLobby(db().clubId, me(), withStats),
     /** BXH game: month 'YYYY-MM' (giờ VN) hoặc null = từ trước tới nay. */
-    gameBoard: (month) => loadGameBoard(db().clubId, month),
+    gameBoard: (range) => loadGameBoard(db().clubId, range),
     /** Xu ảo (0093): ví cả CLB · xu ăn thua của một phòng. */
     gameWallets: () => loadGameWallets(db().clubId),
     gameRoomCoins: (id) => loadRoomCoins(id),
@@ -47,7 +47,7 @@ export function makeGameActions({ dbRef, toast }) {
     /** Đổi số xu mang vào bàn (0101) — chỉ lúc phòng chờ; ví thiếu / mức lạ → server từ chối, toast. */
     gameBuyin: (roomId, amount) => run(() => gameRpc('game_buyin', { p_room: roomId, p_amount: amount })),
     gameRoom: (id) => loadGameRoom(id),
-    gameSubscribe: (id, on) => subscribeGameRoom(id, on),
+    gameSubscribe: (id, on) => subscribeGameRoom(id, on, me()),
     gameHand: (id) => loadGameHand(id),
 
     /** Mã mời → id phòng. Không có → toast, trả null. */
@@ -65,11 +65,15 @@ export function makeGameActions({ dbRef, toast }) {
       }))
     },
 
-    gameJoin: (room) => run(() => gameRpc('game_join', { p_room: room.id, p_max: gameOf(room.game)?.maxPlayers || 2 })),
+    gameJoin: (room) => run(() => gameRpc('game_join', { p_room: room.id, p_max: seatRange(gameOf(room.game), room.options)[1] })),
     gameLeave: (roomId) => run(() => gameRpc('game_leave', { p_room: roomId })),
+    /** Phòng chờ (0105): bật / tắt Sẵn sàng · chủ phòng mời một người ra · chủ phòng đổi luật (giữ mức cược). */
+    gameReady: (roomId, ready) => run(() => gameRpc('game_ready', { p_room: roomId, p_ready: !!ready })),
+    gameKick: (roomId, memberId) => run(() => gameRpc('game_kick', { p_room: roomId, p_member: memberId })),
+    gameSetOptions: (roomId, options) => run(() => gameRpc('game_set_options', { p_room: roomId, p_options: options || {} })),
     gameStart: (room) => {
-      const g = gameOf(room.game)
-      return run(() => gameRpc('game_start', { p_room: room.id, p_min: g.minPlayers, p_max: g.maxPlayers }))
+      const [min, max] = seatRange(gameOf(room.game), room.options)
+      return run(() => gameRpc('game_start', { p_room: room.id, p_min: min, p_max: max }))
     },
 
     /** Ghi một nước. Trả 'ok' · 'stale' (phải nạp lại log, im lặng) · null (lỗi khác, đã toast). */

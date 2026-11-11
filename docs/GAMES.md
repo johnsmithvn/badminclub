@@ -225,8 +225,8 @@ Client tự kiểm luật, server giữ thứ tự (§4). Chống được: đi 
 
 **Server tự chấm.** Mỗi game có bản chấm `public.game_<id>_result(uuid)` viết bằng plpgsql: dựng lại log
 `game_moves` theo đúng luật của `lib/games/<id>.js`, nước sai bị bỏ qua y như `replay()`, trả
-`{winners, draw}` hoặc NULL (ván chưa xong). Hiện có `game_caro_result` (0074), `game_oanquan_result`,
-`game_coganh_result` (0075), `game_colat_result` (0076, kèm hàm phụ `game_colat_flips`). Các hàm đã REVOKE khỏi
+`{winners, draw}` hoặc NULL (ván chưa xong). Hiện có `game_caro_result` (0074), `game_oanquan_result`
+(0075; 0104 thay bằng bản đọc tuỳ chọn phòng qua `game_oanquan_run`), `game_coganh_result` (0075), `game_colat_result` (0076, kèm hàm phụ `game_colat_flips`). Các hàm đã REVOKE khỏi
 client — chỉ `game_finish` gọi. Cờ lật trả thêm `scores` (số quân mỗi bên) nên ván mẫu gác được cả việc lật đúng từng quân.
 
 `game_finish` (bản 0075) tra **động** `to_regprocedure('public.game_' || game || '_result(uuid)')`:
@@ -443,7 +443,8 @@ nút **Chơi với máy** → `/tro-choi/may-<game>`; `GameRoom.jsx` thấy ti�
 - `oanquan.test.js` — dừng ở ô quan (không bốc sỏi trong ô quan), bốc tiếp ô dân, ăn dây chuyền vòng qua
   đầu bàn kể cả ăn quan, quan non (§12), hai ô trống liền mất lượt, rải lại khi hết dân (đủ đúng 5 điểm vẫn
   được), hết quan thu dân về, hoà, `frames` cho hoạt ảnh; 300 ván ngẫu nhiên tất định luôn kết thúc và không
-  sinh / mất sỏi; hằng số + ván mẫu khớp SQL (§5.1).
+  sinh / mất sỏi; hằng số + ván mẫu khớp SQL (§5.1). Tuỳ chọn 0104: optsOf ↔ SQL, bàn 3 quan, nhón, 3 người cùng
+  điểm đầu, hết giờ ({ start } / { timeout }), ván ngẫu nhiên mọi biến thể.
 - `coganh.test.js` — xếp quân, đường kẻ (chéo chỉ ở điểm chẵn), gánh, chầu (gánh hai đường), vây một quân / cả nhóm / nhóm
   còn điểm thở, gánh xong mới vây, mở → bắt buộc gánh, hết quân, im 40 nước, trần 400 nước; 200 ván ngẫu
   nhiên luôn đủ 16 quân; hằng số + ván mẫu khớp SQL.
@@ -548,6 +549,13 @@ hết sỏi thì bốc ô kế (không bốc ô quan); gặp một ô trống r�
 liền hoặc trước mặt là ô quan thì mất lượt. **Quan non**: ô quan còn dưới 5 dân thì chưa được ăn (không có luật
 này ván hết sau 2 nước). Hết dân phía mình thì lấy 5 điểm rải lại (đủ đúng 5 vẫn được, thiếu thì thua). Hết
 cả hai quan thì mỗi bên thu dân phía mình.
+Tuỳ chọn phòng (0104, `optsOf`): **quans** 2 | 3 (= số người; 3 = bàn tam giác, quan ở ba đỉnh, lượt xoay vòng 0 → 1 → 2,
+hết dân của người sắp đi mà thiếu điểm là hết ván cho cả bàn; điểm cao nhất thắng, bằng nhau ở đầu thì cùng thắng, ai cũng
+bằng = hoà) · **rows** 5 | 6 | 7 ô dân mỗi hàng (rải lại cần đúng số ô một hàng) · **stones** 5 | 6 | 7 dân mỗi ô ·
+**nhon** (tự đặt, không tìm được nguồn): rải xong mà trước mặt là ô quan còn dân → nhón 1 dân rơi xuống ô ngay sau quan
+rồi xét tiếp như vừa rải xong ở đó (chỉ nhón dân, không bao giờ nhón quan; quan không còn dân thì dừng như luật thường) · **time** 0 | 20 | 30 | 50 giây mỗi nước theo giờ server (mẫu Bài bịp: phòng có đồng
+hồ được `game_oanquan_deal` ghi nước 1 `{ start }` lấy giờ; máy báo `{ timeout }`, server đi thay một ô ngẫu nhiên).
+Phòng máy: chọn kiểu bàn trong ⚙, bàn 3 quan = bạn + 2 máy. Thiếu người ở phòng thật **chưa** tự thêm máy.
 
 **Cờ gánh** (`coganh.js`): bàn 5×5, đường chéo chỉ qua điểm có hàng + cột chẵn, mỗi bên 8 quân. Đi một bước
 theo đường kẻ. **Gánh**: đi vào giữa hai quân địch thẳng hàng thì lật cả hai. **Vây**: nhóm quân địch không còn

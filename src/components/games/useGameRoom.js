@@ -5,6 +5,8 @@ import { myMember } from '#lib/money.js'
 import { gameOf, idleOf, inGameOf, isContiguous, nextSeq, replay, seatedOf, waitSinceOf, waitingOf } from '#lib/games/registry.js'
 import cfg from '#config/app.js'
 
+const CHAT_MAX = 60 // giữ bấy nhiêu tin gần nhất
+const CHAT_LEN = 200 // ký tự mỗi tin
 const IDLE = { offlineSec: cfg.games.offlineSec, graceSec: cfg.games.reconnectGraceSec }
 
 /**
@@ -22,6 +24,19 @@ export function useGameRoom(roomId) {
   const put = useCallback((d) => { dataRef.current = d; setData(d) }, [])
   // Sang phòng khác (Chơi lại) thì bản của phòng cũ coi như chưa nạp — khỏi xoá state trong effect.
   const data = raw?.forId === roomId ? raw : null
+  // Chat trong phòng: tin broadcast qua kênh realtime của phòng — chỉ ai đang mở phòng thấy, không lưu, tải lại là mất.
+  // ponytail: tên người gửi do máy gửi tự khai (không qua server); cần lịch sử / chống mạo danh thì làm bảng game_chat + RLS.
+  const [chatRaw, setChat] = useState({ forId: roomId, list: [] })
+  const chat = chatRaw.forId === roomId ? chatRaw.list : []
+  const sayRef = useRef(null)
+  // Ai đang mở phòng (presence) — ghế + người xem. Kênh đổi phòng thì danh sách cũ bỏ.
+  const [hereRaw, setHere] = useState({ forId: roomId, ids: [] })
+  const here = hereRaw.forId === roomId ? hereRaw.ids : []
+  // Đếm ngược 3-2-1 trước khi chủ phòng bắt đầu ván (bản Phòng chờ v2): giờ máy này nhận tín hiệu.
+  const [countRaw, setCount] = useState({ forId: roomId, at: 0 })
+  const countAt = countRaw.forId === roomId ? countRaw.at : 0
+  const countRef = useRef(null)
+  const addChat = useCallback((msg) => setChat((c) => ({ forId: roomId, list: [...(c.forId === roomId ? c.list : []), msg].slice(-CHAT_MAX) })), [roomId])
 
   const reload = useCallback(() => a.gameRoom(roomId)
     .then((d) => { put({ ...d, forId: roomId }); setErr('') })
@@ -32,6 +47,13 @@ export function useGameRoom(roomId) {
   useEffect(() => {
     const onEvent = (ev) => {
       const d = dataRef.current
+      if (ev.type === 'chat') {
+        const m = ev.msg
+        if (typeof m?.text === 'string' && typeof m.memberId === 'string' && m.text.trim()) addChat({ memberId: m.memberId, text: m.text.slice(0, CHAT_LEN), at: Date.now() })
+        return
+      }
+      if (ev.type === 'here') { setHere({ forId: roomId, ids: ev.ids || [] }); return }
+      if (ev.type === 'count') { setCount({ forId: roomId, at: Date.now() }); return }
       if (ev.type === 'resync' || !d?.room || d.forId !== roomId) { reload(); return }
       if (ev.type === 'move') {
         const i = d.moves.findIndex((m) => m.seq === ev.move.seq)
@@ -45,18 +67,33 @@ export function useGameRoom(roomId) {
         put({ ...d, moves: [...d.moves, ev.move] })
       } else if (ev.type === 'room') {
         // Bản tin phòng không kèm ghế: giữ ghế đang có.
+        if (d.room.status === 'waiting' && ev.room.status === 'waiting') {
+          if (JSON.stringify(d.room.options) !== JSON.stringify(ev.room.options)) addChat({ sys: 'games.wait.sysRules', at: Date.now() })
+          if (d.room.hostId !== ev.room.hostId) addChat({ sys: 'games.wait.sysHost', memberId: ev.room.hostId, at: Date.now() })
+        }
         put({ ...d, room: { ...ev.room, players: d.room.players } })
       } else if (ev.type === 'player') {
-        const rest = d.room.players.filter((p) => p.memberId !== ev.player.memberId)
-        put({ ...d, room: { ...d.room, players: [...rest, ev.player] } })
+        const old = d.room.players.find((p) => p.memberId === ev.player.memberId)
+        const p = ev.player
+        // Tin hệ thống trong chat phòng chờ (bản 2): vào / rời / bị mời ra / sẵn sàng. Nhịp game_ping chỉ đổi seen_at → bỏ qua.
+        if (d.room.status === 'waiting') {
+          const sys = !p.leftAt && (!old || old.leftAt) ? 'games.wait.sysJoin'
+            : p.leftAt && old && !old.leftAt ? (p.kicked ? 'games.wait.sysKick' : 'games.wait.sysLeave')
+              : !p.leftAt && old && p.ready !== old.ready ? (p.ready ? 'games.wait.sysReady' : 'games.wait.sysUnready') : null
+          if (sys) addChat({ sys, memberId: p.memberId, at: Date.now() })
+        }
+        const rest = d.room.players.filter((x) => x.memberId !== p.memberId)
+        put({ ...d, room: { ...d.room, players: [...rest, p] } })
       }
     }
     const off = a.gameSubscribe(roomId, onEvent)
+    sayRef.current = off.say || null
+    countRef.current = off.count || null
     // Điện thoại khoá màn hình có thể làm rớt kênh im lặng — mở lại tab là nạp lại cho chắc.
     const onShow = () => { if (!document.hidden) reload() }
     document.addEventListener('visibilitychange', onShow)
-    return () => { off(); document.removeEventListener('visibilitychange', onShow) }
-  }, [a, roomId, reload, put])
+    return () => { off(); sayRef.current = null; countRef.current = null; document.removeEventListener('visibilitychange', onShow) }
+  }, [a, roomId, reload, put, addChat])
 
   const room = data?.room || null
   const game = room ? gameOf(room.game) : null
@@ -164,5 +201,15 @@ export function useGameRoom(roomId) {
     a.gameClaim(roomId, seats).then((ok) => { if (ok) reload() })
   }, [a, roomId, status, seatedHere, result, seated, me, idle, now, reload])
 
-  return { room, game, state, result, seated, inGame, mySeat, me, canMove, idle, moves: data?.moves || [], loading: !data && !err, err, reload, play }
+  const say = useCallback((text) => {
+    const msg = { memberId: me, text: text.trim().slice(0, CHAT_LEN) }
+    if (!me || !msg.text) return
+    sayRef.current?.(msg)
+    addChat({ ...msg, at: Date.now() })
+  }, [me, addChat])
+
+  /** Chủ phòng: báo mọi máy đếm ngược (máy mình đếm luôn — kênh không gửi lại cho chính mình). */
+  const countdown = useCallback(() => { countRef.current?.(); setCount({ forId: roomId, at: Date.now() }) }, [roomId])
+
+  return { room, game, state, result, seated, inGame, mySeat, me, canMove, idle, moves: data?.moves || [], loading: !data && !err, err, reload, play, chat, say, here, countAt, countdown }
 }

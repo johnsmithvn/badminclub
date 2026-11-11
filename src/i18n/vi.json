@@ -6259,7 +6259,15 @@
       "colRecord": "T · H · B",
       "colRate": "Tỉ lệ thắng",
       "colWins": "Thắng",
-      "colPoints": "Điểm"
+      "colPoints": "Điểm",
+      "moreGames": "+{{n}} game",
+      "week": "Tuần này",
+      "season": "Mùa",
+      "colStreak": "Chuỗi",
+      "colCoins": "Xu",
+      "coinsLine": "{{n}} xu",
+      "streakWin": "T{{n}}",
+      "streakLose": "B{{n}}"
     },
     "coins": {
       "tab": "Ví xu",
@@ -6376,7 +6384,20 @@
       "time": "Thời gian mỗi nước",
       "timeOpt": "{{n}} giây",
       "timeNone": "Không giới hạn",
-      "timeoutLose": "Hết giờ — máy thắng"
+      "timeoutLose": "Hết giờ — máy thắng",
+      "resign": "Xin thua",
+      "levelShort": {
+        "easy": "Dễ",
+        "normal": "Vừa",
+        "hard": "Khó",
+        "master": "Cao thủ"
+      },
+      "timeShortNone": "Không",
+      "levelLine": "mức {{level}}",
+      "hint": "Gợi ý",
+      "drawOffer": "Xin hoà",
+      "drawNo": "Máy từ chối hoà — thế cờ đang có lợi cho máy.",
+      "sideOpt2": "Đi thứ ba"
     },
     "rematch": "Chơi lại",
     "nextRoom": "Vào ván mới",
@@ -6415,8 +6436,28 @@
       "speedOpt": "×{{n}}",
       "sowLeft": "Rải sang trái",
       "sowRight": "Rải sang phải",
-      "howto": "Bàn có 10 ô dân, mỗi ô 5 viên sỏi, và 2 ô quan ở hai đầu. Hàng dưới là của bạn.\nĐến lượt, chọn một ô dân bên mình còn sỏi và chọn chiều: bốc hết sỏi trong ô, rải vào mỗi ô kế tiếp một viên.\nRải hết mà ô kế tiếp là ô dân còn sỏi thì bốc ô đó rải tiếp. Gặp ô quan thì dừng.\nÔ kế tiếp trống thì ăn cả ô sau nó; sau đó cứ một ô trống rồi một ô có sỏi là ăn tiếp. Hai ô trống liền thì hết lượt.\nQuan non: ô quan còn dưới 5 dân thì chưa ăn được, gặp là mất lượt.\nĐến lượt mà hàng mình hết sỏi thì lấy 5 điểm của mình rải lại mỗi ô một viên; không đủ 5 điểm thì hết ván.\nHết cả hai quan thì sỏi còn bên nào về bên đó. Quan tính 10 điểm, mỗi viên dân 1 điểm, nhiều điểm hơn thì thắng.",
-      "lacquerSub": "Sơn mài đỏ son · sỏi suối · quan ngọc bích"
+      "howto": "Bàn thường có 10 ô dân, mỗi ô 5 viên sỏi, và 2 ô quan ở hai đầu. Hàng dưới là của bạn.\nĐến lượt, chọn một ô dân bên mình còn sỏi và chọn chiều: bốc hết sỏi trong ô, rải vào mỗi ô kế tiếp một viên.\nRải hết mà ô kế tiếp là ô dân còn sỏi thì bốc ô đó rải tiếp. Gặp ô quan thì dừng.\nÔ kế tiếp trống thì ăn cả ô sau nó; sau đó cứ một ô trống rồi một ô có sỏi là ăn tiếp. Hai ô trống liền thì hết lượt.\nQuan non: ô quan còn dưới 5 dân thì chưa ăn được, gặp là mất lượt.\nĐến lượt mà hàng mình hết sỏi thì lấy điểm của mình rải lại mỗi ô một viên (5 ô cần 5 điểm); không đủ thì hết ván.\nHết cả hai quan thì sỏi còn bên nào về bên đó. Quan tính 10 điểm, mỗi viên dân 1 điểm, nhiều điểm hơn thì thắng.\nTuỳ chọn khi tạo phòng: bàn 3 quan hình tam giác cho 3 người, 5–7 ô dân mỗi hàng, 5–7 dân mỗi ô, luật nhón (rải tới sát ô quan còn dân thì nhón 1 dân — không nhón quan — đẩy sang hàng kế bên rồi đi tiếp; ô quan không còn dân thì dừng), và đồng hồ mỗi nước — hết giờ thì máy đi thay một nước.",
+      "lacquerSub": "Sơn mài đỏ son · sỏi suối · quan ngọc bích",
+      "dirHint": "Bấm mũi tên vàng để chọn hướng rải",
+      "mark2": "Đi thứ ba",
+      "quans": "Kiểu bàn",
+      "quansOpt": {
+        "2": "2 quan · 2 người (bàn dài)",
+        "3": "3 quan · 3 người (bàn tam giác)"
+      },
+      "rows": "Số ô dân mỗi hàng",
+      "rowsOpt": "{{n}} ô",
+      "stones": "Số dân mỗi ô",
+      "stonesOpt": "{{n}} viên",
+      "nhon": "Luật nhón dân",
+      "nhonHint": "Rải tới sát ô quan mà ô quan còn dân thì nhón 1 dân (không nhón quan) đẩy sang hàng kế bên rồi đi tiếp. Ô quan không còn dân thì dừng như thường.",
+      "time": "Thời gian mỗi nước",
+      "timeOpt": "{{n}} giây",
+      "timeNone": "Không giới hạn",
+      "timeoutNote": "Hết giờ — máy đi thay",
+      "quansShort": "{{n}} quan",
+      "nhonOn": "Có",
+      "nhonOff": "Không"
     },
     "coganh": {
       "name": "Cờ gánh",
@@ -6554,9 +6595,13 @@
         "stalemate": "Hết nước đi mà không bị chiếu — hoà",
         "fifty": "50 nước liền không ăn quân, không đi tốt — hoà",
         "repetition": "Một thế cờ lặp lại 3 lần — hoà",
-        "material": "Không bên nào còn đủ quân để chiếu hết — hoà"
+        "material": "Không bên nào còn đủ quân để chiếu hết — hoà",
+        "time": "Hết giờ",
+        "agreed": "Hai bên đồng ý hoà"
       },
-      "howto": "Bàn 8 × 8, mỗi bên 16 quân: vua, hậu, 2 xe, 2 tượng, 2 mã, 8 tốt. Quân trắng đi trước.\nXe đi ngang / dọc, tượng đi chéo, hậu đi cả ngang dọc chéo, bao xa cũng được nếu không bị cản. Mã đi hình chữ L và nhảy qua được quân khác. Vua đi 1 ô mọi hướng.\nTốt tiến thẳng 1 ô (nước đầu được tiến 2 ô), ăn chéo 1 ô phía trước. Tốt đối phương vừa tiến 2 ô vượt qua cạnh tốt bạn thì nước ngay sau bạn được bắt nó như khi nó chỉ tiến 1 ô (bắt tốt qua đường).\nTốt lên tới hàng cuối thì phong thành hậu, xe, tượng hoặc mã — bạn chọn.\nNhập thành: vua đi 2 ô về phía xe, xe nhảy sang ô vua vừa đi qua. Chỉ được khi vua và xe đó chưa đi, giữa hai quân trống, vua không đang bị chiếu và không đi qua hay tới ô bị khống chế.\nKhông được đi nước để vua mình bị chiếu. Bị chiếu thì phải gỡ: chạy vua, chặn, hoặc ăn quân đang chiếu.\nChiếu mà đối phương không gỡ được là chiếu hết — thắng.\nHoà khi: đến lượt mà hết nước đi nhưng không bị chiếu; một thế cờ lặp lại 3 lần; 50 nước liền mỗi bên không ăn quân, không đi tốt; hoặc không bên nào còn đủ quân để chiếu hết."
+      "howto": "Bàn 8 × 8, mỗi bên 16 quân: vua, hậu, 2 xe, 2 tượng, 2 mã, 8 tốt. Quân trắng đi trước.\nXe đi ngang / dọc, tượng đi chéo, hậu đi cả ngang dọc chéo, bao xa cũng được nếu không bị cản. Mã đi hình chữ L và nhảy qua được quân khác. Vua đi 1 ô mọi hướng.\nTốt tiến thẳng 1 ô (nước đầu được tiến 2 ô), ăn chéo 1 ô phía trước. Tốt đối phương vừa tiến 2 ô vượt qua cạnh tốt bạn thì nước ngay sau bạn được bắt nó như khi nó chỉ tiến 1 ô (bắt tốt qua đường).\nTốt lên tới hàng cuối thì phong thành hậu, xe, tượng hoặc mã — bạn chọn.\nNhập thành: vua đi 2 ô về phía xe, xe nhảy sang ô vua vừa đi qua. Chỉ được khi vua và xe đó chưa đi, giữa hai quân trống, vua không đang bị chiếu và không đi qua hay tới ô bị khống chế.\nKhông được đi nước để vua mình bị chiếu. Bị chiếu thì phải gỡ: chạy vua, chặn, hoặc ăn quân đang chiếu.\nChiếu mà đối phương không gỡ được là chiếu hết — thắng.\nHoà khi: đến lượt mà hết nước đi nhưng không bị chiếu; một thế cờ lặp lại 3 lần; 50 nước liền mỗi bên không ăn quân, không đi tốt; hoặc không bên nào còn đủ quân để chiếu hết.",
+      "bannerCheck": "CHIẾU!",
+      "bannerMate": "CHIẾU HẾT!"
     },
     "cotuong": {
       "name": "Cờ tướng",
@@ -6577,9 +6622,13 @@
         "stalemate": "Hết nước đi — bên bị vây thua",
         "quiet": "120 nước liền không ai ăn quân — hoà",
         "repetition": "Một thế cờ lặp lại 3 lần — hoà",
-        "material": "Không bên nào còn xe, mã, pháo, tốt — hoà"
+        "material": "Không bên nào còn xe, mã, pháo, tốt — hoà",
+        "time": "Hết giờ",
+        "agreed": "Hai bên đồng ý hoà"
       },
-      "howto": "Bàn 9 cột × 10 hàng, quân đi trên giao điểm. Giữa bàn là sông, mỗi bên có cung 3 × 3 có đường chéo. Quân đỏ đi trước.\nTướng đi 1 bước ngang / dọc, không ra khỏi cung. Sĩ đi 1 bước chéo trong cung.\nTượng đi chéo 2 bước, không qua sông, bị cản nếu có quân ở điểm giữa (mắt tượng).\nMã đi 1 bước thẳng rồi 1 bước chéo ra ngoài, bị cản nếu có quân ở điểm thẳng kề bên (chân mã).\nXe đi ngang / dọc bao xa cũng được nếu không bị cản. Pháo đi như xe, nhưng muốn ăn phải nhảy qua đúng một quân ở giữa (ngòi).\nTốt tiến 1 bước. Qua sông rồi được đi ngang 1 bước, không bao giờ lùi.\nHai tướng không được đối mặt trên một cột mà giữa không có quân nào. Không được đi nước để tướng mình bị chiếu.\nĐến lượt mà không còn nước đi — bị chiếu bí hay bị vây kín — là thua.\nChống ván kéo dài: 120 nước liền không ai ăn quân, một thế lặp lại 3 lần, hoặc cả hai không còn quân sang sông được thì hoà."
+      "howto": "Bàn 9 cột × 10 hàng, quân đi trên giao điểm. Giữa bàn là sông, mỗi bên có cung 3 × 3 có đường chéo. Quân đỏ đi trước.\nTướng đi 1 bước ngang / dọc, không ra khỏi cung. Sĩ đi 1 bước chéo trong cung.\nTượng đi chéo 2 bước, không qua sông, bị cản nếu có quân ở điểm giữa (mắt tượng).\nMã đi 1 bước thẳng rồi 1 bước chéo ra ngoài, bị cản nếu có quân ở điểm thẳng kề bên (chân mã).\nXe đi ngang / dọc bao xa cũng được nếu không bị cản. Pháo đi như xe, nhưng muốn ăn phải nhảy qua đúng một quân ở giữa (ngòi).\nTốt tiến 1 bước. Qua sông rồi được đi ngang 1 bước, không bao giờ lùi.\nHai tướng không được đối mặt trên một cột mà giữa không có quân nào. Không được đi nước để tướng mình bị chiếu.\nĐến lượt mà không còn nước đi — bị chiếu bí hay bị vây kín — là thua.\nChống ván kéo dài: 120 nước liền không ai ăn quân, một thế lặp lại 3 lần, hoặc cả hai không còn quân sang sông được thì hoà.",
+      "bannerCheck": "CHIẾU TƯỚNG!",
+      "bannerMate": "HẾT CỜ!"
     },
     "cangua": {
       "name": "Cờ cá ngựa",
@@ -7281,7 +7330,9 @@
       "flipped": "Bạn đã lật bài rồi",
       "noCoins": "Ví xu của bạn không đủ để ngồi bàn này",
       "noChips": "Bạn không còn đủ xu trên bàn để đặt mức này",
-      "noCoinsSeat": "Có người trong phòng không còn đủ số xu đã chọn mang vào — mời họ chọn mức thấp hơn hoặc rời ghế rồi bắt đầu lại"
+      "noCoinsSeat": "Có người trong phòng không còn đủ số xu đã chọn mang vào — mời họ chọn mức thấp hơn hoặc rời ghế rồi bắt đầu lại",
+      "kicked": "Bạn đã bị chủ phòng mời ra — không vào lại phòng này được.",
+      "needReady": "Còn người chưa bấm Sẵn sàng."
     },
     "cat": {
       "all": "Tất cả",
@@ -7300,10 +7351,105 @@
       "players": "{{min}}–{{max}}",
       "noTop": "Tháng này chưa có ván nào xong.",
       "noMatch": "Không có trò nào khớp.",
-      "wins": "{{n}}T"
+      "wins": "{{n}}T",
+      "tagline": "Mở phòng, rủ đồng đội, ăn xu.",
+      "vsBot": "vs Máy"
     },
     "room": {
-      "players": "Người chơi"
+      "players": "Người chơi",
+      "chat": "Chat",
+      "moves": "Nước đi",
+      "chatPh": "Nhắn gì đó…",
+      "send": "Gửi",
+      "chatEmpty": "Chưa có tin nào. Tin chỉ hiện với người đang mở phòng, tải lại trang là mất.",
+      "quick1": "Hay quá!",
+      "quick2": "Nhanh lên nào",
+      "quick3": "GG",
+      "quick4": "Làm ván nữa không?",
+      "noMoves": "Chưa có nước nào.",
+      "timeoutMove": "hết giờ — máy chủ đi thay",
+      "watch": "Người xem",
+      "watching": "đang xem",
+      "noWatch": "Chưa có ai vào xem.",
+      "noMovesHint": "Chưa có nước nào. Chạm một quân của bạn để xem ô đi được."
+    },
+    "lobbyShort": "Sảnh",
+    "clock": "Thời gian mỗi bên",
+    "clockOpt": "{{n}} phút",
+    "clockNone": "Không giới hạn",
+    "clockHint": "Đồng hồ tổng của mỗi bên, mỗi nước đi được cộng thêm 5 giây. Hết giờ là thua.",
+    "clockPill": "{{n}} phút + {{inc}}s/nước",
+    "chess": {
+      "balance": "Cán cân lực lượng",
+      "viewBoard": "Xem bàn cờ",
+      "accept": "Đồng ý",
+      "decline": "Từ chối",
+      "offerSent": "Bạn đã xin hoà — chờ đối thủ trả lời (đối thủ đi nước khác là từ chối).",
+      "offerGot": "{{name}} xin hoà",
+      "thinking": "đang suy tính…",
+      "subResign": "Bạn đã xin thua",
+      "subIdle": "Đối thủ mất kết nối quá lâu",
+      "subForfeit": "Đối thủ đã rời ván",
+      "subAgreed": "Hai bên đồng ý hoà"
+    },
+    "skin": {
+      "label": "Kiểu bàn cờ",
+      "arcane": "Huyền bí",
+      "frost": "Băng giá",
+      "grove": "Rừng cổ",
+      "jade": "Ngọc bích",
+      "lacquer": "Sơn mài",
+      "ink": "Mực tàu"
+    },
+    "wait": {
+      "on": "Bật",
+      "off": "Tắt",
+      "you": "bạn",
+      "youTag": "(bạn)",
+      "roomOf": "Phòng của {{name}}",
+      "range": "{{range}} người",
+      "copy": "Chép",
+      "copyCode": "Chép mã phòng",
+      "codeCopied": "Đã chép mã phòng {{code}}",
+      "invite": "Mời bạn",
+      "players": "Người chơi",
+      "rules": "Luật bàn",
+      "editRules": "Sửa luật bàn",
+      "editHint": "Đổi luật thì mọi người phải bấm Sẵn sàng lại. Mức cược không đổi được sau khi tạo phòng.",
+      "chat": "Chat phòng",
+      "seatedN": "{{n}}/{{max}} người",
+      "readyWord": "sẵn sàng",
+      "readyPill": "Sẵn sàng",
+      "notReadyPill": "Chưa sẵn sàng",
+      "emptySeat": "Ghế {{n}} trống",
+      "kick": "Mời {{name}} ra khỏi phòng",
+      "needFoe": "Chờ đối thủ vào phòng",
+      "tooMany": "Luật bàn này chỉ chơi {{n}} người — bớt người hoặc sửa luật",
+      "allReadyHost": "Mọi người đã sẵn sàng — bấm Bắt đầu",
+      "allReady": "Đủ người! Chờ chủ phòng bắt đầu",
+      "waitN": "Chờ {{n}} người sẵn sàng",
+      "waitNames": "Chờ {{names}} sẵn sàng",
+      "start": "Bắt đầu ván",
+      "starting": "Đang bắt đầu…",
+      "startIn": "Ván sẽ bắt đầu sau {{n}}s",
+      "allReadyNote": "Tất cả đã sẵn sàng",
+      "needMore": "Cần thêm {{n}} người",
+      "ready": "Sẵn sàng",
+      "unready": "Huỷ sẵn sàng",
+      "readyNote": "✓ Bạn đã sẵn sàng",
+      "readyHint": "Bấm khi bạn đã sẵn sàng",
+      "readyHintCoins": "Bấm khi bạn đã chọn xu",
+      "joinHint": "Còn ghế trống — vào chơi cùng",
+      "full": "Phòng đã đủ người",
+      "lockedReady": "đã khoá khi sẵn sàng",
+      "hostPicks": "chủ phòng chọn",
+      "sysJoin": "{{name}} vào phòng",
+      "sysLeave": "{{name}} rời phòng",
+      "sysKick": "{{name}} đã bị mời ra",
+      "sysReady": "{{name}} đã sẵn sàng",
+      "sysUnready": "{{name}} huỷ sẵn sàng",
+      "sysRules": "Chủ phòng vừa đổi luật bàn — bấm Sẵn sàng lại",
+      "sysHost": "{{name}} là chủ phòng mới"
     }
   }
 }

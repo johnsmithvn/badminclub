@@ -32,10 +32,11 @@ export default function AppHeader({ route }) {
   // đổi giao diện, chuông) — bộ chọn tháng và nút buổi tập không dùng ở đây.
   // Thư viện: danh sách có PageHeader, màn đọc bài có thanh quay lại riêng (bộ chọn tháng không dùng ở đó).
   // Buổi tập: header trong suốt riêng — chọn tháng + lịch cố định nằm trong nút Cài đặt của màn.
+  // Trò chơi (sảnh + phòng): khung sân khấu tối tự có tiêu đề / nút quay lại (components/games/stage.js).
   if (route === 'session' || route === 'fund' || route === 'leaderboard' || route === 'matches' || route === 'home' ||
     route === 'tournaments' || route === 'tournament' || route === 'tournamentBracket' || route === 'tournamentFlow' ||
     route === 'library' || route === 'libraryPost' || route === 'sessions' ||
-    route === 'badges') {
+    route === 'badges' || route === 'games' || route === 'gameRoom') {
     return null
   }
 

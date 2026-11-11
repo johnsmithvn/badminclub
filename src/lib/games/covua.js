@@ -2,15 +2,19 @@
 // chiếu hết, hết nước (stalemate) hoà, 50 nước không ăn quân / không đi tốt hoà, lặp thế 3 lần hoà, không đủ quân
 // chiếu hết hoà (vua đơn, vua + 1 mã / 1 tượng, các tượng cùng màu ô).
 // Hợp đồng chung: docs/GAMES.md §3. Chưa có SQL chấm lại — game_finish tin kết quả client (như Giai đoạn 1 trước 0075).
-// ponytail: không có cầu hoà / đồng hồ — thêm khi CLB cần.
+// Đồng hồ tổng mỗi bên (options.clock) + xin hoà: chessClock.js (state.clock, state.offer; reason 'time' | 'agreed').
 //
 // Ô i = hàng * 8 + cột, hàng 0 = hàng 8 của bàn (phía quân đen), cột 0 = cột a.
 // Quân: chữ hoa = trắng, chữ thường = đen — K vua, Q hậu, R xe, B tượng, N mã, P tốt.
 // state = { board[64] (null | quân), turn, castle ('KQkq' còn quyền nào), ep (ô bắt qua đường | null), half (nước
 //           kể từ lần ăn quân / đi tốt gần nhất), reps { thế: số lần }, ply, check (ô vua bị chiếu | null),
-//           over, winner, reason ('mate' | 'stalemate' | 'fifty' | 'repetition' | 'material'), last }
+//           over, winner, reason ('mate' | 'stalemate' | 'fifty' | 'repetition' | 'material' | 'time' | 'agreed'), last,
+//           clock, offer }
 //   last = { seat, from, to, promo?, captured, castle? }
 // move  = { from, to, promo? } — promo 'q' | 'r' | 'b' | 'n', bắt buộc khi tốt lên hàng cuối.
+//         Nước đặc biệt { start } · { timeout } · { draw }: chessClock.js.
+
+import { applyExtra, newClock, tick, validateExtra } from '#lib/games/chessClock.js'
 
 export const START = 'rnbqkbnrpppppppp' + '.'.repeat(32) + 'PPPPPPPPRNBQKBNR'
 export const PROMOS = ['q', 'r', 'b', 'n']
@@ -139,6 +143,36 @@ function noMaterial(b) {
   return rest.every(([t, sq]) => t === 'B' && sq === rest[0][1])
 }
 
+const FILES = 'abcdefgh'
+const sqName = (i) => FILES[i & 7] + (8 - (i >> 3))
+
+/**
+ * Ký hiệu đại số chuẩn (SAN) của nước `move` đi từ thế `s0` ra thế `s1`: Nf3 · exd5 · O-O · e8=Q · Rad1 · Qh5+ · Qxf7#.
+ * Nước đặc biệt (start / timeout / draw) → null.
+ */
+export function san(s0, move, s1) {
+  if (move?.from == null || move.to == null || s1?.ply !== s0.ply + 1) return null
+  const { from, to } = move
+  const type = typeOf(s0.board[from])
+  let out
+  if (type === 'K' && Math.abs(to - from) === 2) out = to > from ? 'O-O' : 'O-O-O'
+  else {
+    const cap = s1.last.captured ? 'x' : ''
+    if (type === 'P') out = (cap ? FILES[from & 7] : '') + cap + sqName(to) + (move.promo ? '=' + move.promo.toUpperCase() : '')
+    else {
+      const twins = [...new Set(legalMoves(s0).filter((m) => m.to === to && m.from !== from && s0.board[m.from] === s0.board[from]).map((m) => m.from))]
+      let dis = ''
+      if (twins.length) {
+        if (twins.every((f) => (f & 7) !== (from & 7))) dis = FILES[from & 7]
+        else if (twins.every((f) => f >> 3 !== from >> 3)) dis = String(8 - (from >> 3))
+        else dis = sqName(from)
+      }
+      out = type + dis + cap + sqName(to)
+    }
+  }
+  return out + (s1.reason === 'mate' ? '#' : s1.check != null ? '+' : '')
+}
+
 const keyOf = (s) => s.board.map((p) => p ?? '.').join('') + s.turn + s.castle + (s.ep ?? '-')
 const isSq = (i) => Number.isInteger(i) && i >= 0 && i < 64
 const RIGHTS = { 60: 'KQ', 63: 'K', 56: 'Q', 4: 'kq', 7: 'k', 0: 'q' }
@@ -149,15 +183,17 @@ export default {
   maxPlayers: 2,
   defaultOptions: {},
 
-  setup() {
+  setup({ options } = {}) {
     const s = {
       board: [...START].map((ch) => (ch === '.' ? null : ch)), turn: 0, castle: 'KQkq', ep: null, half: 0, reps: {},
-      ply: 0, check: null, over: false, winner: null, reason: null, last: null,
+      ply: 0, check: null, over: false, winner: null, reason: null, last: null, clock: newClock(options), offer: null,
     }
     return { ...s, reps: { [keyOf(s)]: 1 } }
   },
 
   validate(s, seat, move) {
+    const x = validateExtra(s, seat, move)
+    if (x !== undefined) return x
     if (s.over) return 'games.err.over'
     if (seat !== s.turn) return 'games.err.notYourTurn'
     const { from, to, promo } = move || {}
@@ -169,7 +205,14 @@ export default {
     return promo == null ? null : 'games.err.badMove'
   },
 
-  apply(s0, seat, move) {
+  // Báo hết giờ: server phải xác nhận (0105 game_covua_check) — máy khách không hiện trước.
+  request: (s, seat, move) => move?.timeout === true,
+
+  apply(s0, seat, move, meta) {
+    const x = applyExtra(s0, seat, move, meta)
+    if (x) return x
+    const { clock, flagged } = tick(s0, seat, meta)
+    if (flagged) return { ...s0, over: true, winner: 1 - seat, reason: 'time', offer: null }
     const m = { from: move.from, to: move.to, ...(move.promo ? { promo: move.promo } : {}) }
     const piece = s0.board[m.from]
     const { board, captured, castle: castled } = play(s0.board, m, seat, s0.ep)
@@ -180,7 +223,7 @@ export default {
     const foe = 1 - seat
     const s = {
       ...s0, board, turn: foe, castle, ep: pawn && Math.abs(m.to - m.from) === 16 ? (m.from + m.to) / 2 : null, half,
-      ply: s0.ply + 1, check: null,
+      ply: s0.ply + 1, check: null, clock, offer: null,
       last: { seat, ...m, captured, ...(castled ? { castle: true } : {}) },
     }
     const key = keyOf(s)
@@ -197,6 +240,7 @@ export default {
   },
 
   view: (s) => s,
+  notate: (s0, move, s1) => san(s0, move, s1),
 
   result(s) {
     if (!s.over) return null

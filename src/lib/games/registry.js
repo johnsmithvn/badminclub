@@ -34,6 +34,9 @@ export const BOT_PREFIX = 'may-'
 
 export const gameOf = (id) => GAMES[id] || null
 
+/** [ít nhất, nhiều nhất] số người của một phòng: game có `players(options)` (Ô ăn quan: = số quan) thì theo tuỳ chọn phòng. */
+export const seatRange = (game, options) => game?.players?.(options) || [game?.minPlayers || 2, game?.maxPlayers || 2]
+
 /** Ghế ngồi theo thứ tự của những người CHƯA rời phòng. */
 export const seatedOf = (players) => (players || []).filter((p) => !p.leftAt).sort((x, y) => x.seat - y.seat)
 
@@ -59,6 +62,24 @@ export function replay(game, { options, seed, seats }, moves) {
     if (game.validate(s, m.seat, m.move) == null) s = game.apply(s, m.seat, m.move, m)
   }
   return s
+}
+
+/**
+ * Ký hiệu từng nước của ván (game có `notate` — Cờ vua, Cờ tướng): [{ seq, seat, text }], chỉ gồm nước đi quân hợp lệ.
+ * Dựng lại như `replay` nên nước sai trong log cũng bị bỏ qua.
+ */
+export function notesOf(game, { options, seed, seats }, moves) {
+  if (!game?.notate) return []
+  let s = game.setup({ options, seed, seats })
+  const out = []
+  for (const m of moves || []) {
+    if (game.validate(s, m.seat, m.move) != null) continue
+    const next = game.apply(s, m.seat, m.move, m)
+    const text = game.notate(s, m.move, next)
+    if (text) out.push({ seq: m.seq, seat: m.seat, text })
+    s = next
+  }
+  return out
 }
 
 /** seq của nước tiếp theo: liền sau nước cuối trong log (kể cả nước bị bỏ qua). */
@@ -154,12 +175,16 @@ const cmpKeys = (a, b) => {
  */
 export function boardOf(rows, game = null) {
   const by = new Map()
+  // Chuỗi (0103): xem một game → chuỗi của game đó; xem tất cả → dòng game '*' (chuỗi trên mọi game). null = DB chưa có.
+  const runs = new Map()
   for (const r of rows || []) {
+    if (r.game === (game || '*')) runs.set(r.memberId, r.streak ?? null)
     if (game ? r.game !== game : !GAMES[r.game]) continue
-    const o = by.get(r.memberId) || { memberId: r.memberId, played: 0, won: 0, drawn: 0, lost: 0, points: 0 }
-    o.played += r.played; o.won += r.won; o.drawn += r.drawn; o.lost += r.lost; o.points += r.points
+    const o = by.get(r.memberId) || { memberId: r.memberId, played: 0, won: 0, drawn: 0, lost: 0, points: 0, coins: 0 }
+    o.played += r.played; o.won += r.won; o.drawn += r.drawn; o.lost += r.lost; o.points += r.points; o.coins += r.coins || 0
     by.set(r.memberId, o)
   }
+  for (const o of by.values()) o.streak = runs.get(o.memberId) ?? null
   const byPoints = BOARD_POINTS.includes(game)
   const key = (o) => (byPoints ? [o.points, o.won, -o.played] : [o.won, -o.played])
   const list = [...by.values()].filter((o) => o.played > 0)

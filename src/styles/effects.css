@@ -406,10 +406,32 @@
 @keyframes gameFlip { from { transform: scaleX(0); } to { transform: scaleX(1); } }
 @keyframes gameFlipOut { from { transform: scaleX(1); } to { transform: scaleX(0); } }
 @keyframes gameLift { from { transform: scale(1); opacity: .9; } to { transform: scale(.7); opacity: 0; } }
+/* Thẻ game ở sảnh (stage.js): nhấc nhẹ + viền ngọc khi rê chuột. */
+.game-card { transition: transform .15s ease, border-color .15s ease; }
+.game-card:hover { transform: translateY(-2px); border-color: var(--action-accent-bg) !important; }
+@media (prefers-reduced-motion: reduce) { .game-card:hover { transform: none; } }
 /* Ô ăn quan sơn mài: gợn sóng vàng khi bốc / rơi sỏi · hạt vàng bung khi ăn (đặt --dx / --dy có px) · "+N" bay lên. */
 @keyframes oaqRipple { from { transform: scale(.35); opacity: 1; } to { transform: scale(1.9); opacity: 0; } }
 @keyframes oaqBurst { from { transform: translate(0, 0) scale(1); opacity: 1; } to { transform: translate(var(--dx, 0), var(--dy, 0)) scale(.2); opacity: 0; } }
 @keyframes oaqFloat { 0% { transform: translateY(6px) scale(.6); opacity: 0; } 20% { transform: translateY(-14px) scale(1.15); opacity: 1; } 100% { transform: translateY(-60px) scale(1); opacity: 0; } }
+/* Phòng chờ (WaitingRoom): số đếm ngược 3-2-1 bật ra rồi mờ · vòng tròn loang ra theo từng nhịp. */
+@keyframes gwPop { 0% { opacity: 0; transform: scale(2.4); } 22% { opacity: 1; transform: scale(1); } 80% { opacity: 1; } 100% { opacity: 0; transform: scale(.7); } }
+@keyframes gwRing { 0% { opacity: .9; transform: translate(-50%, -50%) scale(.6); } 100% { opacity: 0; transform: translate(-50%, -50%) scale(2.2); } }
+/* Cờ vua / Cờ tướng (ChessStage): quân trượt tới · gợn sóng ô đến · chớp + mảnh bung khi ăn · hồn quân bay lên ·
+   hào quang vua bị chiếu · vòng chọn quay · bụi sáng bay · chữ CHIẾU! · cột sáng phong cấp · vệt nước đi · mũi tên gợi ý · sông chảy. */
+@keyframes chSlide { from { transform: translate(var(--dx), var(--dy)) scale(1.18); } to { transform: translate(0, 0) scale(1); } }
+@keyframes chRipple { 0% { opacity: .95; transform: translate(-50%, -50%) scale(.3); } 100% { opacity: 0; transform: translate(-50%, -50%) scale(1.7); } }
+@keyframes chFlash { 0% { opacity: .95; transform: translate(-50%, -50%) scale(.4); } 100% { opacity: 0; transform: translate(-50%, -50%) scale(1.6); } }
+@keyframes chBurst { 0% { opacity: 1; transform: translate(-50%, -50%) scale(1); } 100% { opacity: 0; transform: translate(calc(-50% + var(--dx)), calc(-50% + var(--dy))) scale(.2) rotate(140deg); } }
+@keyframes chSoul { 0% { opacity: .9; transform: translateY(0) scale(1); filter: blur(0); } 100% { opacity: 0; transform: translateY(-90px) scale(1.7); filter: blur(7px); } }
+@keyframes chAura { 0%, 100% { opacity: .55; transform: translate(-50%, -50%) scale(.85); } 50% { opacity: 1; transform: translate(-50%, -50%) scale(1.1); } }
+@keyframes chSpin { to { transform: translate(-50%, -50%) rotate(360deg); } }
+@keyframes chMote { 0% { transform: translateY(0); opacity: 0; } 15% { opacity: .9; } 100% { transform: translateY(-160px); opacity: 0; } }
+@keyframes chBanner { 0% { opacity: 0; transform: translate(-50%, -50%) scale(.5); } 15% { opacity: 1; transform: translate(-50%, -50%) scale(1.12); } 30% { transform: translate(-50%, -50%) scale(1); } 80% { opacity: 1; } 100% { opacity: 0; transform: translate(-50%, -50%) scale(1.04); } }
+@keyframes chBeam { 0% { opacity: 0; transform: scaleY(.2); } 25% { opacity: 1; transform: scaleY(1); } 100% { opacity: 0; transform: scaleY(1); } }
+@keyframes chStreak { 0% { opacity: .85; } 100% { opacity: 0; } }
+@keyframes chHint { 0%, 100% { opacity: .5; } 50% { opacity: 1; } }
+@keyframes chRiver { from { background-position: 0 0; } to { background-position: 240px 0; } }
 @media (prefers-reduced-motion: reduce) {
   [data-game-fx] * { animation: none !important; }
 }

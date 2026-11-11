@@ -90,9 +90,9 @@ function block(game, fx, keys) {
 }
 
 // ---------- Ô ăn quan ----------
-const oqLegal = (s) => sideOf(s.turn).flatMap((cell) => [{ cell, dir: 1 }, { cell, dir: -1 }]).filter((m) => oq.validate(s, s.turn, m) == null)
+const oqLegal = (s) => sideOf(s, s.turn).flatMap((cell) => [{ cell, dir: 1 }, { cell, dir: -1 }]).filter((m) => oq.validate(s, s.turn, m) == null)
 const oqTrash = (s) => {
-  const t = s.turn, own = sideOf(t), opp = sideOf(1 - t)
+  const t = s.turn, own = sideOf(s, t), opp = sideOf(s, 1 - t)
   const list = [
     { seat: 1 - t, move: { cell: any(opp), dir: 1 } },
     { seat: t, move: { cell: any(opp), dir: -1 } },

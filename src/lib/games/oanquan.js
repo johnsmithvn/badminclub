@@ -1,43 +1,69 @@
-// Ô ăn quan (dân gian): 10 ô dân chia hai hàng, hai ô quan ở hai đầu. Đến lượt thì bốc hết sỏi
+// Ô ăn quan (dân gian): mỗi người một hàng ô dân, giữa hai hàng là ô quan. Đến lượt thì bốc hết sỏi
 // một ô dân bên mình, rải mỗi ô một viên theo một chiều; rải xong xem ô kế tiếp:
 //   - ô dân còn sỏi  → bốc tiếp ô đó, rải tiếp cùng chiều
-//   - ô quan còn quân → dừng, hết lượt (sỏi trong ô quan không được bốc)
+//   - ô quan còn quân → dừng, hết lượt (sỏi trong ô quan không được bốc) — trừ luật NHÓN (tuỳ chọn): ô quan có dân
+//     thì nhón 1 dân (chỉ dân, không nhón quan), đẩy sang ô ngay sau quan (hàng người kế) rồi xét tiếp như vừa rải
+//     xong ở đó; quan không còn dân thì không nhón được
 //   - ô trống         → ô sau nữa có sỏi thì ĂN cả ô đó; ăn xong gặp "trống rồi có sỏi" thì ăn tiếp
 //   - hai ô trống liền → hết lượt
 //   - quan non: ô quan còn quan mà dưới 5 dân thì CHƯA ăn được — gặp là mất lượt. Không có luật này thì
 //     nước đầu tiên đã ăn được quan, hai bên ăn hai quan là hết ván sau 2 nước.
-// Hết lượt mà cả 5 ô dân bên người sắp đi đều trống → người đó lấy 5 điểm của mình rải lại mỗi ô
-// một viên; không đủ 5 điểm thì ván kết thúc. Hết cả hai quan → ván kết thúc, sỏi còn bên nào về
-// bên đó ("hết quan, tàn dân, thu quân, kéo về"). Nhiều điểm hơn thì thắng.
-// Hợp đồng chung: docs/GAMES.md §3. Server chấm lại bằng SQL: 0075 game_oanquan_result — đổi luật ở đây
+// Hết lượt mà cả hàng dân của người sắp đi đều trống → người đó lấy (số ô một hàng) điểm rải lại mỗi ô
+// một viên; không đủ điểm thì ván kết thúc. Hết mọi quan → ván kết thúc, sỏi còn bên nào về bên đó
+// ("hết quan, tàn dân, thu quân, kéo về"). Nhiều điểm nhất thì thắng (bằng nhau ở đầu bảng thì cùng thắng; ai cũng bằng nhau = hoà).
+// Hợp đồng chung: docs/GAMES.md §3. Server chấm lại bằng SQL: 0104 game_oanquan_run — đổi luật ở đây
 // là phải đổi cả ở đó (oanquan.test.js chạy chung bộ ván mẫu với file kiểm 0075 để gác).
 //
-// Vòng ô (chiều +1):  0 = quan trái · 1..5 = dân của ghế 0 (hàng dưới, trái → phải) ·
-//                     6 = quan phải · 7..11 = dân của ghế 1 (hàng trên, phải → trái)
-// state = { stones[12], quan[12], score: [s0, s1], quanValue, turn, ply, over, winner, last }
-//   last = { seat, cell, dir, taken[], frames[] } — frames: từng bước của nước vừa đi để bàn diễn lại
-// move  = { cell, dir }  — cell là ô dân của mình, dir ∈ { 1, -1 }
+// Tuỳ chọn phòng (optsOf ↔ 0104): quans 2 | 3 (= số người; 3 = bàn tam giác) · rows 5 | 6 | 7 ô dân mỗi hàng ·
+// stones 5 | 6 | 7 dân mỗi ô · nhon · time 0 | 20 | 30 | 50 giây mỗi nước (0 = không giới hạn).
+// Mặc định (2 quan, 5 ô, 5 dân, không nhón) = luật cũ, ván cũ chấm ra y như trước.
+//
+// Vòng ô (chiều +1), R = rows, P = quans, N = P·(R+1):
+//   quan của "đoạn" k ở ô k·(R+1) · dân của ghế k là k·(R+1)+1 … k·(R+1)+R.
+//   2 quan, 5 ô: 0 = quan trái · 1..5 = ghế 0 (hàng dưới, trái → phải) · 6 = quan phải · 7..11 = ghế 1 (hàng trên).
+// state = { opts, stones[N], quan[N], score[P], quanValue, turn, ply, over, winners, last, since }
+//   last = { seat, cell, dir, taken[], frames[], timeout? } — frames: từng bước của nước vừa đi để bàn diễn lại
+//   since = giờ server (ms) của nước gần nhất — tính hạn lượt khi có đồng hồ.
+// move  = { cell, dir } — cell là ô dân của mình, dir ∈ { 1, -1 }
+//       · { timeout: true } (máy khách báo hết giờ) → server ghi { cell, dir, timeout: true } đi thay người tới lượt
+//       · { start: true } — server ghi lúc bắt đầu phòng có đồng hồ (0104 game_oanquan_deal), chỉ để lấy giờ.
 
-const N = 12
-const QUAN_CELLS = [0, 6]
-// Không có tuỳ chọn phòng: số cố định để server chấm (0075) không phải tin số client gửi.
+export const QUANS = [2, 3]
+export const ROWS = [5, 6, 7]
+export const STONES = [5, 6, 7]
+export const TIMES = [0, 20, 30, 50]
+export const optsOf = (o) => ({
+  quans: QUANS.includes(o?.quans) ? o.quans : 2,
+  rows: ROWS.includes(o?.rows) ? o.rows : 5,
+  stones: STONES.includes(o?.stones) ? o.stones : 5,
+  nhon: o?.nhon === true,
+  time: TIMES.includes(o?.time) ? o.time : 0,
+})
+// Không phải tuỳ chọn: số cố định để server chấm (0104) không phải tin số client gửi.
 export const QUAN_VALUE = 10
-export const START_STONES = 5
 export const QUAN_NON = 5
 // Chặn vòng lặp rải vô tận (về lý thuyết bốc-rải có thể quay vòng). Thực tế một lượt chỉ vài chục bước.
 export const MAX_STEPS = 2000
 // Diễn lại tối đa bấy nhiêu bước; dài hơn thì bàn nhảy thẳng tới kết quả.
 const MAX_FRAMES = 300
 
-const next = (i, dir) => (i + dir + N) % N
-export const sideOf = (seat) => (seat === 0 ? [1, 2, 3, 4, 5] : [7, 8, 9, 10, 11])
-const isQuanCell = (i) => i === 0 || i === 6
+const sizeOf = (s) => s.stones.length
+const next = (s, i, dir) => (i + dir + sizeOf(s)) % sizeOf(s)
+/** Các ô quan: 0, R+1, 2(R+1)… */
+export const quanCells = (s) => Array.from({ length: s.opts.quans }, (_, k) => k * (s.opts.rows + 1))
+/** Ô dân của ghế. */
+export const sideOf = (s, seat) => Array.from({ length: s.opts.rows }, (_, k) => seat * (s.opts.rows + 1) + 1 + k)
+export const isQuanCell = (s, i) => i % (s.opts.rows + 1) === 0
 const empty = (s, i) => s.stones[i] === 0 && !s.quan[i]
 /** Ô ăn được: dân còn sỏi, hoặc quan đã "già" (đủ QUAN_NON dân). */
 const eatable = (s, i) => (s.quan[i] ? s.stones[i] >= QUAN_NON : s.stones[i] > 0)
 const worth = (s, i) => s.stones[i] + (s.quan[i] ? s.quanValue : 0)
 /** Quan còn đó mà chưa đủ dân — bàn chơi vẽ mờ đi cho người chơi biết chưa ăn được. */
 export const isQuanNon = (s, i) => s.quan[i] && s.stones[i] < QUAN_NON
+/** Hạn lượt hiện tại (ms, giờ server) hoặc null. */
+export const deadlineOf = (s) => (s.opts.time && s.since != null && !s.over ? s.since + s.opts.time * 1000 : null)
+/** Nước hợp lệ của người tới lượt (bot, điền thay khi hết giờ). */
+export const movesOf = (s) => sideOf(s, s.turn).filter((c) => s.stones[c] > 0).flatMap((cell) => [{ cell, dir: 1 }, { cell, dir: -1 }])
 
 /**
  * Hàng chờ để bàn diễn lại: q[0] là thế đang hiện, phần sau chờ tới lượt. Nước mới KHÔNG cắt ngang nước đang diễn
@@ -54,37 +80,57 @@ export function queueStates(q, s) {
 
 /** Hết quan, tàn dân: sỏi còn bên nào về bên đó, ô quan (nếu còn sỏi lẻ) không của ai. */
 function sweep(s) {
-  for (const seat of [0, 1]) {
-    for (const i of sideOf(seat)) { s.score[seat] += s.stones[i]; s.stones[i] = 0 }
+  for (let seat = 0; seat < s.opts.quans; seat++) {
+    for (const i of sideOf(s, seat)) { s.score[seat] += s.stones[i]; s.stones[i] = 0 }
   }
   s.over = true
-  s.winner = s.score[0] === s.score[1] ? null : s.score[0] > s.score[1] ? 0 : 1
+  const top = Math.max(...s.score)
+  s.winners = s.score.every((x) => x === top) ? [] : s.score.flatMap((x, k) => (x === top ? [k] : []))
 }
 
-export default {
+const game = {
   id: 'oanquan',
   minPlayers: 2,
-  maxPlayers: 2,
-  defaultOptions: {},
+  maxPlayers: 3,
+  /** Số người đúng bằng số quan (bàn tam giác 3 người). */
+  players: (options) => [optsOf(options).quans, optsOf(options).quans],
+  defaultOptions: { quans: 2, rows: 5, stones: 5, nhon: false, time: 0 },
 
-  setup() {
-    const stones = Array(N).fill(START_STONES)
+  setup({ options } = {}) {
+    const opts = optsOf(options)
+    const N = opts.quans * (opts.rows + 1)
+    const stones = Array(N).fill(opts.stones)
     const quan = Array(N).fill(false)
-    for (const q of QUAN_CELLS) { stones[q] = 0; quan[q] = true }
-    return { stones, quan, score: [0, 0], quanValue: QUAN_VALUE, turn: 0, ply: 0, over: false, winner: null, last: null }
+    for (let k = 0; k < opts.quans; k++) { stones[k * (opts.rows + 1)] = 0; quan[k * (opts.rows + 1)] = true }
+    return { opts, stones, quan, score: Array(opts.quans).fill(0), quanValue: QUAN_VALUE, turn: 0, ply: 0, over: false, winners: null, last: null, since: null }
   },
 
   validate(s, seat, move) {
     if (s.over) return 'games.err.over'
+    if (move?.start === true) return s.ply === 0 && s.since == null ? null : 'games.err.badMove'
+    if (move?.timeout === true) {
+      // Máy khách báo hết giờ (chưa có ô): server mới biết giờ thật — sớm thì games.err.notYet, máy tự thử lại.
+      if (move.cell === undefined) return s.opts.time ? null : 'games.err.badMove'
+      seat = s.turn
+    }
     if (seat !== s.turn) return 'games.err.notYourTurn'
     const cell = move?.cell
-    if (!sideOf(seat).includes(cell)) return 'games.err.notYourCell'
+    if (!sideOf(s, seat).includes(cell)) return 'games.err.notYourCell'
     if (move.dir !== 1 && move.dir !== -1) return 'games.err.badMove'
     if (s.stones[cell] === 0) return 'games.err.emptyCell'
     return null
   },
 
-  apply(s0, seat, { cell, dir }) {
+  /** Báo hết giờ phải qua server (nó chọn nước đi thay) — màn chơi không áp trước. */
+  request: (s, seat, move) => move?.timeout === true,
+
+  apply(s0, seat0, move, meta) {
+    const at = Date.parse(meta?.at)
+    const stamp = (s) => (Number.isFinite(at) ? { ...s, since: at } : s)
+    if (move.start === true) return stamp(s0)
+    if (move.timeout === true && move.cell === undefined) return s0 // chưa qua server
+    const seat = move.timeout === true ? s0.turn : seat0
+    const { cell, dir } = move
     const s = { ...s0, stones: s0.stones.slice(), quan: s0.quan.slice(), score: s0.score.slice() }
     const taken = []
     const frames = []
@@ -99,48 +145,57 @@ export default {
     let steps = 0
 
     for (;;) {
-      while (hand > 0) { i = next(i, dir); s.stones[i] += 1; hand -= 1; steps += 1; snap('drop', i) }
-      let n = next(i, dir)
+      while (hand > 0) { i = next(s, i, dir); s.stones[i] += 1; hand -= 1; steps += 1; snap('drop', i) }
+      let n = next(s, i, dir)
       if (!empty(s, n)) {
-        if (isQuanCell(n) || steps > MAX_STEPS) break
+        if (steps > MAX_STEPS) break
+        if (isQuanCell(s, n)) {
+          // Nhón: ô quan có dân → lấy 1 DÂN (không bao giờ nhón quan), rơi xuống ô ngay sau quan, xét tiếp như vừa
+          // rải xong ở đó. Ô quan không còn dân (chỉ còn quan) → không nhón được, dừng như luật thường.
+          if (!s.opts.nhon || s.stones[n] === 0) break
+          s.stones[n] -= 1; hand = 1; i = n; snap('pick', i)
+          continue
+        }
         hand = s.stones[n]; s.stones[n] = 0; i = n; snap('pick', i)
         continue
       }
       // Ô kế tiếp trống: ăn ô sau nó, rồi cứ "trống – ăn được" là ăn tiếp. Gặp quan non thì dừng.
-      let m = next(n, dir)
+      let m = next(s, n, dir)
       while (empty(s, n) && eatable(s, m)) {
         s.score[seat] += worth(s, m)
         taken.push(m)
         s.stones[m] = 0
         s.quan[m] = false
         snap('eat', m)
-        n = next(m, dir)
-        m = next(n, dir)
+        n = next(s, m, dir)
+        m = next(s, n, dir)
       }
       break
     }
 
-    s.last = { seat, cell, dir, taken, frames }
-    s.turn = 1 - seat
+    s.last = { seat, cell, dir, taken, frames, ...(move.timeout === true ? { timeout: true } : {}) }
+    s.turn = (seat + 1) % s.opts.quans
     s.ply = s0.ply + 1
 
-    if (QUAN_CELLS.every((q) => empty(s, q))) { sweep(s); snap('sweep', null); return s }
+    if (quanCells(s).every((q) => empty(s, q))) { sweep(s); snap('sweep', null); return stamp(s) }
 
-    // Người sắp đi hết dân bên mình → rải lại 5 viên từ điểm của mình, không đủ thì hết ván.
-    const side = sideOf(s.turn)
+    // Người sắp đi hết dân bên mình → rải lại mỗi ô một viên từ điểm của mình, không đủ thì hết ván.
+    const side = sideOf(s, s.turn)
     if (side.every((k) => s.stones[k] === 0)) {
-      if (s.score[s.turn] < side.length) { sweep(s); snap('sweep', null); return s }
+      if (s.score[s.turn] < side.length) { sweep(s); snap('sweep', null); return stamp(s) }
       s.score[s.turn] -= side.length
       for (const k of side) s.stones[k] = 1
       snap('refill', s.turn)
     }
-    return s
+    return stamp(s)
   },
 
   view: (s) => s,
 
   result(s) {
     if (!s.over) return null
-    return s.winner == null ? { winners: [], draw: true } : { winners: [s.winner], draw: false }
+    return s.winners.length ? { winners: s.winners, draw: false } : { winners: [], draw: true }
   },
 }
+
+export default game

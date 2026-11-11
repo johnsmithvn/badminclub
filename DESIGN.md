@@ -158,6 +158,10 @@ dùng chung ở `FantasyFrame.jsx` (`FantasyDefs` / `FantasyFrame` / `FantasyGlo
 - Các bàn game khác (Caro…) vẫn vẽ phẳng bằng token; muốn chuyển bàn nào sang kiểu này thì dùng lại `F` + khung.
 - **Ô ăn quan kiểu sơn mài** (2026-11-10): cùng ngoại lệ, bảng màu riêng `L` trong `OAnQuanBoard.jsx` (đỏ son, viền vàng,
   sỏi suối, quan ngọc bích). Khung tối bọc quanh bàn cũng dùng `L`. Hiệu ứng `oaqRipple` / `oaqBurst` / `oaqFloat` ở `effects.css`.
+  Hình học theo bản 1c (bàn 880 × 340, quan con nhộng, ô Ø96); viên thuốc người chơi + nút phòng nằm trong khung (prop `names` / `note` / `clock` / `actions`).
+- **Mục Trò chơi (sảnh, BXH, phòng)** theo bản "Tro choi - Redesign" 1a / 1c / 3a: kiểu chung ở `components/games/stage.js`
+  (`G`, `card`, `chip`, `seg`, `btn`, `tab`, `over`…) — **dùng token**, nền là theme chung (sáng / tối / sky). Header app ẩn ở
+  `games` / `gameRoom`, trang tự có tiêu đề + tab gạch chân. Thẻ game ở sảnh rê chuột nhấc nhẹ (`.game-card` trong `effects.css`).
 
 ## 3. Typography
 

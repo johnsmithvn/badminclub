@@ -1,18 +1,29 @@
-import { lazy, Suspense, useEffect, useState } from 'react'
+import { lazy, Suspense, useEffect, useMemo, useState } from 'react'
 import { useNavigate, useParams } from 'react-router-dom'
-import { Alert, Avatar, Button, Dialog, Select, Skeleton } from '#ds'
+import { Alert, Avatar, Button, Dialog, Skeleton, Icon } from '#ds'
+import { G, btn, card, seg } from '#components/games/stage.js'
 import { Empty } from '#ui'
 import { useApp } from '#contexts/AppContext.jsx'
 import { useMobile } from '#hooks/useMobile.js'
 import { useGameRoom } from '#components/games/useGameRoom.js'
 import { SCREENS } from '#components/games/screens.js'
-import { HowTo } from '#components/games/GameInfo.jsx'
-import { BOARD_POINTS, BOT_PREFIX, buyinsOf, chipsOf, stakeOf } from '#lib/games/registry.js'
+import { GameArt, HowTo } from '#components/games/GameInfo.jsx'
+import WaitingRoom from '#components/games/WaitingRoom.jsx'
+import RoomChat from '#components/games/RoomChat.jsx'
+import MoveList from '#components/games/MoveList.jsx'
+import { SkinPicker } from '#components/games/ChessStage.jsx'
+import { BOARD_POINTS, BOT_PREFIX, chipsOf, notesOf, seatRange, stakeOf } from '#lib/games/registry.js'
+import { clockMins, INC_SEC } from '#lib/games/chessClock.js'
 import { pathOf } from '#routes'
 import { t } from '#i18n'
 
 // Chơi với máy (/tro-choi/may-<game>) dùng chung route với phòng thật, tải lười riêng.
 const BotRoom = lazy(() => import('#components/games/BotRoom.jsx'))
+
+// Game có "sân khấu" riêng (ChessStage): bàn tự vẽ thanh người chơi, trạng thái, nút Xin hoà / Xin thua, màn kết
+// thúc — khung phòng không lặp lại dải trạng thái và nút Đầu hàng. SKIN = game chọn được skin bàn.
+const STAGED = ['covua', 'cotuong', 'coup']
+const SKIN = { covua: 'covua', cotuong: 'cotuong', coup: 'cotuong' }
 
 export default function GameRoom() {
   const { id } = useParams()
@@ -23,7 +34,7 @@ export default function GameRoom() {
 }
 
 /**
- * Khung phòng chơi — dùng chung cho mọi game: ghế, chờ, bắt đầu, lượt, kết quả, chơi lại.
+ * Khung phòng chơi — dùng chung cho mọi game: phòng chờ (WaitingRoom), lượt, kết quả, chơi lại.
  * Màn chơi của từng game tải lười qua `SCREENS`. Đồng bộ: components/games/useGameRoom.js.
  */
 function RoomPage({ id }) {
@@ -34,6 +45,7 @@ function RoomPage({ id }) {
   const [resigning, setResigning] = useState(false)
   const [howto, setHowto] = useState(false)
   const [busy, setBusy] = useState(false)
+  const [ptab, setPtab] = useState(null) // cột phải: players | moves | chat | watch (null = tab đầu)
   const { room, game, state, result, seated, inGame, mySeat, canMove } = g
   // Xu ăn thua (0093): server trả lúc phòng chuyển sang 'finished' — nạp một lần khi thấy phòng xong.
   const [coins, setCoins] = useState(null) // { roomId, map: { [memberId]: delta } }
@@ -46,11 +58,14 @@ function RoomPage({ id }) {
     return () => { live = false }
   }, [a, done, stake, room?.id])
   const coinOf = (memberId) => (coins?.roomId === room?.id ? coins.map[memberId] : undefined)
-  // Mang xu vào bàn (0101): game điểm chọn mức, game thắng / thua góp đúng mức cược. Đang chơi game điểm có bảng điểm
-  // theo ván (Bầu cua, Xì dách) thì hiện xu còn trên bàn = mang vào + điểm × giá điểm.
-  const ins = buyinsOf(room?.game, stake)
+  // Đang chơi game điểm có bảng điểm theo ván (Bầu cua, Xì dách) thì hiện xu còn trên bàn = mang vào + điểm × giá điểm.
   const points = BOARD_POINTS.includes(room?.game)
   const liveScores = points && room?.status === 'playing' && Array.isArray(state?.scores) ? state.scores : null
+  // Ký hiệu nước đi (Cờ vua / Cờ tướng) cho tab Nước đi.
+  const moves = g.moves
+  const notes = useMemo(() => (game?.notate && room && room.status !== 'waiting'
+    ? notesOf(game, { options: room.options, seed: room.seed, seats: inGame.map((p) => p.seat) }, moves).map((x) => x.text)
+    : null), [game, room, inGame, moves])
 
   const nameOf = (memberId) => db.members.find((m) => m.id === memberId)?.name || t('games.unknownPlayer')
   const memberOf = (memberId) => db.members.find((m) => m.id === memberId)
@@ -71,23 +86,23 @@ function RoomPage({ id }) {
   }
 
   const Screen = SCREENS[room.game]
-  const isHost = room.hostId === g.me
-  const full = seated.length >= game.maxPlayers
-  const enough = seated.length >= game.minPlayers
-  // Game tự nói điều cần biết ở phòng chờ (Ma sói: bộ vai sẽ chia) — `block` thì chặn nút Bắt đầu.
-  const lobby = room.status === 'waiting' ? game.lobby?.(room.options, seated.length) ?? null : null
-  const copyLink = async () => {
-    const url = window.location.origin + pathOf('gameRoom', room.id) + '?club=' + room.clubId
+  const waiting = room.status === 'waiting'
+  const staged = STAGED.includes(room.game)
+  const [minP, maxP] = seatRange(game, room.options)
+  const copy = async (text, ok, fail) => {
     try {
-      await navigator.clipboard.writeText(url)
-      toast(t('games.toast.linkCopied', { code: room.code }))
+      await navigator.clipboard.writeText(text)
+      toast(ok)
     } catch {
-      toast(t('games.toast.linkCopyFailed', { code: room.code }))
+      toast(fail)
     }
   }
+  const copyLink = () => copy(window.location.origin + pathOf('gameRoom', room.id) + '?club=' + room.clubId,
+    t('games.toast.linkCopied', { code: room.code }), t('games.toast.linkCopyFailed', { code: room.code }))
+  const copyCode = () => copy(room.code, t('games.wait.codeCopied', { code: room.code }), t('games.toast.linkCopyFailed', { code: room.code }))
   const leave = async () => {
     setResigning(false)
-    if (await act(() => a.gameLeave(room.id)) != null && room.status === 'waiting') back()
+    if (await act(() => a.gameLeave(room.id)) != null && waiting) back()
   }
   const rematch = async () => {
     const next = await act(() => a.gameCreate(room.game, room.options, room.private, room.id))
@@ -97,138 +112,165 @@ function RoomPage({ id }) {
     const r = await a.gameJoin({ id: room.nextRoom, game: room.game })
     if (r != null) go(room.nextRoom)
   }
+  const wasPlayer = mySeat != null || room.players.some((p) => p.memberId === g.me)
+  const ended = room.status === 'finished' || room.status === 'abandoned'
 
   const turnName = state && state.turn != null && !result ? seated.find((p) => p.seat === state.turn)?.memberId : null
   // Game tự nói trạng thái khi cả bàn cùng đi (đêm Ma sói, duyệt từ Nối từ…) — `status(state, mySeat)` → { key, params }.
   const custom = state && !result ? game.status?.(state, mySeat) : null
+  const mins = clockMins(room.options)
+  const watchers = g.here.filter((mid) => !seated.some((p) => p.memberId === mid))
+  /** "1:05" — giây còn lại trước khi đối thủ được xử thắng. Âm thì hiện 0:00 (đang chờ server chốt). */
+  const offlineText = (p) => {
+    const idle = g.idle[p.memberId]
+    if (!idle?.offline || p.memberId === g.me || result) return null
+    // Đếm ngược chỉ khi ván đang chờ người này — người khác khoá máy lúc chờ thì không bị xử.
+    return room.status === 'playing' && idle.leftSec != null ? t('games.offlineLeft', { time: clock(idle.leftSec) }) : t('games.offline')
+  }
+
+  // Bàn có sân khấu riêng: nút nằm dưới bàn, màn kết thúc có nút chơi lại, đối thủ mất kết nối báo ngay trên thanh của họ.
+  const playing = room.status === 'playing' && mySeat != null && !result
+  const stageProps = staged ? {
+    actions: playing ? [
+      ...(game.notate ? [{ key: 'draw', icon: 'handshake', label: t('games.bot.drawOffer'), on: () => g.play({ draw: 'offer' }), off: busy || state?.offer != null || !(state?.ply > 0) }] : []),
+      { key: 'resign', icon: 'flag', label: t('games.bot.resign'), on: () => setResigning(true), off: busy, danger: true },
+    ] : null,
+    overActions: ended && (room.nextRoom || wasPlayer) ? [{ key: 'again', label: t(room.nextRoom ? 'games.nextRoom' : 'games.rematch'), on: room.nextRoom ? joinNext : rematch }] : null,
+    note: Object.fromEntries(inGame.map((p) => [p.seat, offlineText(p)]).filter(([, v]) => v)),
+  } : null
+
+  const tabs = waiting ? [] : [
+    ...(staged ? [] : [['players', t('games.room.players') + ' · ' + seated.length + '/' + maxP]]),
+    ['moves', t('games.room.moves') + (notes ? ' · ' + notes.length : '')],
+    ['chat', t('games.room.chat') + (g.chat.length ? ' · ' + g.chat.length : '')],
+    ['watch', t('games.room.watch') + (watchers.length ? ' · ' + watchers.length : '')],
+  ]
+  const tab = tabs.some(([k]) => k === ptab) ? ptab : tabs[0]?.[0]
 
   return (
-    <div style={{ display: 'grid', gap: 14, gridTemplateColumns: 'minmax(0, 1fr)' }}>
-      <div style={{ display: 'flex', alignItems: 'center', gap: 8, flexWrap: 'wrap', minWidth: 0 }}>
-        <Button size="sm" variant="ghost" icon="arrow-left" onClick={back}>{isMobile ? null : t('games.back')}</Button>
-        <span style={{ ...S.title, minWidth: 0, flex: 1, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>
-          {t('games.' + room.game + '.name')}
-        </span>
-        {stake > 0 && <span style={{ ...S.code, letterSpacing: 0, background: 'var(--status-delayed-bg)', color: 'var(--status-delayed-fg)' }}>{t('games.coins.stakePill', { n: stake })}</span>}
-        <span style={S.code}>{room.code}</span>
-        <Button size="sm" variant="ghost" icon="book-open" aria-label={t('games.howto')} onClick={() => setHowto(true)}>{isMobile ? null : t('games.howto')}</Button>
-        <Button size="sm" variant="secondary" icon="link" onClick={copyLink}>{isMobile ? null : t('games.copyLink')}</Button>
+    <div style={{ display: 'grid', gap: 16, gridTemplateColumns: 'minmax(0, 1fr)' }}>
+      {/* Đầu trang (bản Phòng chờ v2): ← Sảnh · ô game · tên + chủ phòng · cược · mã + Chép · skin · Cách chơi · Mời bạn. */}
+      <div style={{ display: 'flex', alignItems: 'center', gap: 10, flexWrap: 'wrap', minWidth: 0 }}>
+        <button type="button" onClick={back} style={btn('ghost', { sm: true })}><Icon name="arrow-left" size={15} />{!isMobile && t('games.lobbyShort')}</button>
+        {!isMobile && <div style={{ width: 46, height: 46, borderRadius: 12, overflow: 'hidden', flexShrink: 0, border: '1px solid ' + G.line }}><GameArt id={room.game} height={46} /></div>}
+        <div style={{ display: 'grid', gap: 2, minWidth: 0, flex: 1 }}>
+          <span style={{ font: `800 ${isMobile ? 17 : 21}px/1.2 var(--font-display)`, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>{t('games.' + room.game + '.name')}</span>
+          <span style={{ font: '400 12px/1.3 var(--font-sans)', color: G.muted, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>
+            {t('games.wait.roomOf', { name: nameOf(room.hostId) })} · {t('games.wait.range', { range: minP === maxP ? String(minP) : minP + '–' + maxP })}
+          </span>
+        </div>
+        {stake > 0 && <span style={S.badge}>{t('games.coins.stakePill', { n: stake })}</span>}
+        {mins > 0 && <span style={S.badge}>{t('games.clockPill', { n: mins, inc: INC_SEC })}</span>}
+        <button type="button" onClick={copyCode} title={t('games.wait.copyCode')} style={S.code}>
+          <span style={{ font: '700 14px/1 var(--font-mono)', letterSpacing: '.12em', color: G.text }}>{room.code}</span>
+          <span style={{ font: '400 12px/1 var(--font-sans)', color: G.muted }}>{t('games.wait.copy')}</span>
+        </button>
+        {SKIN[room.game] && !waiting && <SkinPicker kind={SKIN[room.game]} />}
+        <button type="button" aria-label={t('games.howto')} title={t('games.howto')} onClick={() => setHowto(true)} style={S.sq}><Icon name="book-open" size={17} /></button>
+        <button type="button" onClick={copyLink} title={t('games.copyLink')} style={btn('soft', { sm: true })}><Icon name="plus" size={14} />{t('games.wait.invite')}</button>
       </div>
 
       {g.err && <Alert tone="danger">{g.err}</Alert>}
 
-      {/* Máy tính: bàn bên trái, cột phải là danh sách người chơi (bản 3a). Điện thoại: người chơi lên trên. */}
-      <div style={{ display: 'grid', gap: 16, alignItems: 'start', gridTemplateColumns: isMobile ? 'minmax(0, 1fr)' : 'minmax(0, 1fr) 300px' }}>
-      <div style={{ ...S.panel, order: isMobile ? 0 : 2 }}>
-        {!isMobile && <span style={S.over}>{t('games.room.players')} · {seated.length}/{game.maxPlayers}</span>}
+      {waiting && <WaitingRoom g={g} act={act} busy={busy} nameOf={nameOf} memberOf={memberOf} onInvite={copyLink} onLeave={leave} />}
+
+      {/* Máy tính: bàn bên trái, cột phải là tab Người chơi / Nước đi / Chat / Người xem. Điện thoại: cột đó xuống dưới bàn. */}
+      {!waiting && (
+      <div style={{ display: 'grid', gap: 16, alignItems: 'start', gridTemplateColumns: isMobile ? 'minmax(0, 1fr)' : staged ? 'minmax(0, 1fr) 340px' : 'minmax(0, 1fr) 300px' }}>
+      <div style={{ display: 'grid', gap: 14, gridTemplateColumns: 'minmax(0, 1fr)', minWidth: 0 }}>
+      {state && Screen && (
+        <>
+          {!staged && (
+            <div style={{ ...S.status, ...(result ? S.statusDone : null) }} aria-live="polite">
+              {result
+                ? resultText(result, room.players, mySeat, nameOf)
+                : custom ? t(custom.key, custom.params)
+                  : mySeat == null ? t('games.spectating')
+                    : canMove ? t('games.yourTurn') : t('games.theirTurn', { name: turnName ? nameOf(turnName) : '' })}
+              <span style={S.mono}>{t('games.moves', { n: g.moves.length })}</span>
+            </div>
+          )}
+          <Suspense fallback={<Skeleton height={320} />}>
+            <Screen state={game.view(state, mySeat)} mySeat={mySeat} canMove={canMove} onMove={g.play} roomId={room.id} result={room.result} players={inGame} stake={stake}
+              names={Object.fromEntries(inGame.map((p) => [p.seat, nameOf(p.memberId)]))} {...stageProps} />
+          </Suspense>
+          {staged && mySeat == null && !result && <span style={{ ...S.caption, textAlign: 'center' }}>{t('games.spectating')}</span>}
+        </>
+      )}
+
+      {!staged && playing && (
+        <div><Button variant="secondary" icon="flag" disabled={busy} onClick={() => setResigning(true)}>{t('games.resign')}</Button></div>
+      )}
+
+      {ended && (
+        <div style={{ display: 'flex', gap: 8, flexWrap: 'wrap', justifyContent: staged ? 'center' : undefined }}>
+          {room.status === 'abandoned' && <span style={S.caption}>{t('games.abandoned')}</span>}
+          {room.nextRoom
+            ? <Button icon="play" onClick={joinNext}>{t('games.nextRoom')}</Button>
+            : wasPlayer ? <Button icon="repeat" disabled={busy} onClick={rematch}>{t('games.rematch')}</Button> : null}
+          <Button variant="secondary" onClick={back}>{t('games.back')}</Button>
+        </div>
+      )}
+      </div>
+
+      <div style={{ ...card, padding: '12px 14px', display: 'flex', flexDirection: 'column', gap: 10, minWidth: 0, ...(isMobile ? null : { maxHeight: staged ? 760 : undefined }) }}>
+        <div role="tablist" style={{ display: 'flex', gap: 4, paddingBottom: 10, borderBottom: '1px solid ' + G.line, overflowX: 'auto', flexShrink: 0 }}>
+          {tabs.map(([k, label]) => (
+            <button key={k} type="button" role="tab" aria-selected={tab === k} onClick={() => setPtab(k)} style={{ ...seg(tab === k), font: '700 13px/1 var(--font-sans)', padding: '7px 12px' }}>{label}</button>
+          ))}
+        </div>
+        {tab === 'chat' && <RoomChat g={g} nameOf={nameOf} />}
+        {tab === 'moves' && (notes ? <MoveList list={notes} /> : <Moves moves={g.moves} seated={room.players} nameOf={nameOf} />)}
+        {tab === 'watch' && (
+          <div style={{ display: 'grid', gap: 4 }}>
+            {watchers.length === 0 && <span style={{ ...S.caption, padding: '6px 0' }}>{t('games.room.noWatch')}</span>}
+            {watchers.map((mid) => (
+              <div key={mid} style={{ display: 'flex', alignItems: 'center', gap: 10, padding: '7px 4px' }}>
+                <Avatar name={nameOf(mid)} src={memberOf(mid)?.avatarUrl} size={28} />
+                <span style={{ ...S.name, flex: 1 }}>{nameOf(mid)}</span>
+                <span style={S.caption}>{t('games.room.watching')}</span>
+              </div>
+            ))}
+          </div>
+        )}
+        {tab === 'players' && (
         <div style={{ display: 'flex', gap: 8, flexWrap: 'wrap', flexDirection: isMobile ? 'row' : 'column' }}>
-        {/* Đang chơi: theo số ghế của người còn ngồi — ván 3–4 người có người rời thì số ghế không còn liền 0..n-1. */}
-        {(room.status === 'waiting' ? Array.from({ length: game.maxPlayers }, (_, s) => s) : seated.map((x) => x.seat)).map((seat) => {
-          const p = seated.find((x) => x.seat === seat)
-          const on = p && state && !result && state.turn === seat
-          const m = p && memberOf(p.memberId)
+        {/* Theo số ghế của người còn ngồi — ván 3–4 người có người rời thì số ghế không còn liền 0..n-1. */}
+        {seated.map((p) => {
+          const on = state && !result && state.turn === p.seat
+          const m = memberOf(p.memberId)
+          const off = offlineText(p)
           return (
-            <div key={seat} style={{ ...S.seat, ...(isMobile ? null : { flex: 'none', maxWidth: 'none' }), borderColor: on ? 'var(--border-focus-color)' : 'var(--border-subtle)', background: on ? 'var(--surface-accent-soft)' : 'var(--surface-card)' }}>
-              {p ? <Avatar name={m?.name || ''} src={m?.avatarUrl} size={28} /> : <span style={S.emptyDot} />}
+            <div key={p.seat} style={{ ...S.seat, ...(isMobile ? null : { flex: 'none', maxWidth: 'none' }), borderColor: on ? G.tealA(0.45) : G.line, background: on ? G.tealA(0.08) : G.card }}>
+              <Avatar name={m?.name || ''} src={m?.avatarUrl} size={28} />
               <div style={{ display: 'grid', gap: 2, minWidth: 0, gridTemplateColumns: 'minmax(0, 1fr)' }}>
-                <span style={S.name} title={p ? nameOf(p.memberId) : undefined}>{p ? nameOf(p.memberId) : t('games.emptySeat')}</span>
+                <span style={S.name} title={nameOf(p.memberId)}>{nameOf(p.memberId)}</span>
                 <span style={S.mono}>
-                  {room.status === 'waiting' ? t('games.seatN', { n: seat + 1 }) : t('games.' + room.game + '.mark' + seat)}
-                  {p && p.memberId === room.hostId ? ' · ' + t('games.host') : ''}
+                  {t('games.' + room.game + '.mark' + p.seat)}
+                  {p.memberId === room.hostId ? ' · ' + t('games.host') : ''}
                 </span>
-                {p && stake > 0 && p.buyin != null && coinOf(p.memberId) == null && (
+                {stake > 0 && p.buyin != null && coinOf(p.memberId) == null && (
                   <span style={S.mono}>
                     {liveScores
                       ? t('games.coins.onTable', { n: chipsOf(p.buyin, liveScores[p.seat], stake).toLocaleString('vi-VN') })
                       : t('games.coins.buyinPill', { n: p.buyin.toLocaleString('vi-VN') })}
                   </span>
                 )}
-                {p && coinOf(p.memberId) != null && (
+                {coinOf(p.memberId) != null && (
                   <span style={{ ...S.mono, fontWeight: 600, color: coinOf(p.memberId) > 0 ? 'var(--status-delivered-fg)' : coinOf(p.memberId) < 0 ? 'var(--status-incident-fg)' : undefined }}>
                     {t('games.coins.delta', { n: (coinOf(p.memberId) > 0 ? '+' : '') + coinOf(p.memberId) })}
                   </span>
                 )}
-                {p && p.memberId !== g.me && !result && g.idle[p.memberId]?.offline && (
-                  <span style={{ ...S.mono, color: 'var(--status-delayed-fg)' }}>
-                    {/* Đếm ngược chỉ khi ván đang chờ người này — người khác khoá máy lúc chờ thì không bị xử. */}
-                    {room.status === 'playing' && g.idle[p.memberId].leftSec != null
-                      ? t('games.offlineLeft', { time: clock(g.idle[p.memberId].leftSec) })
-                      : t('games.offline')}
-                  </span>
-                )}
+                {off && <span style={{ ...S.mono, color: 'var(--status-delayed-fg)' }}>{off}</span>}
               </div>
             </div>
           )
         })}
         </div>
-      </div>
-
-      <div style={{ display: 'grid', gap: 14, gridTemplateColumns: 'minmax(0, 1fr)', order: 1, minWidth: 0 }}>
-      {room.status === 'waiting' && (
-        <div style={{ ...S.box, padding: 16, display: 'grid', gap: 12, gridTemplateColumns: 'minmax(0, 1fr)' }}>
-          <span style={S.caption}>
-            {!enough ? t('games.needPlayers', { n: game.minPlayers }) : isHost ? t('games.readyHost') : t('games.waitHost')}
-          </span>
-          {lobby && <span style={{ ...S.caption, color: lobby.block ? 'var(--status-delayed-fg)' : undefined }}>{t(lobby.key, lobby.params)}</span>}
-          {stake > 0 && (
-            <span style={S.caption}>
-              {points
-                ? t('games.coins.roomHintPoints', { n: stake, min: ins[0].toLocaleString('vi-VN'), max: ins[ins.length - 1].toLocaleString('vi-VN') })
-                : t('games.coins.roomHint', { n: stake })}
-            </span>
-          )}
-          {stake > 0 && mySeat != null && ins.length > 1 && (
-            <div style={{ maxWidth: 240 }}>
-              <Select
-                label={t('games.coins.buyin')}
-                value={String(seated.find((x) => x.memberId === g.me)?.buyin ?? ins[0])}
-                disabled={busy}
-                onChange={(e) => act(() => a.gameBuyin(room.id, Number(e.target.value)))}
-                options={ins.map((n) => ({ value: String(n), label: t('games.coins.stakeOpt', { n: n.toLocaleString('vi-VN') }) }))}
-              />
-            </div>
-          )}
-          <div style={{ display: 'flex', gap: 8, flexWrap: 'wrap' }}>
-            {mySeat == null && g.me && !full && <Button disabled={busy} onClick={() => act(() => a.gameJoin(room))}>{t('games.join')}</Button>}
-            {isHost && <Button icon="play" disabled={busy || !enough || !!lobby?.block} onClick={() => act(() => a.gameStart(room))}>{t('games.start')}</Button>}
-            {mySeat != null && <Button variant="secondary" icon="log-out" disabled={busy} onClick={leave}>{t('games.leave')}</Button>}
-          </div>
-        </div>
-      )}
-
-      {state && Screen && (
-        <>
-          <div style={{ ...S.status, ...(result ? S.statusDone : null) }} aria-live="polite">
-            {result
-              ? resultText(result, room.players, mySeat, nameOf)
-              : custom ? t(custom.key, custom.params)
-              : mySeat == null ? t('games.spectating')
-                : canMove ? t('games.yourTurn') : t('games.theirTurn', { name: turnName ? nameOf(turnName) : '' })}
-            <span style={S.mono}>{t('games.moves', { n: g.moves.length })}</span>
-          </div>
-          <Suspense fallback={<Skeleton height={320} />}>
-            <Screen state={game.view(state, mySeat)} mySeat={mySeat} canMove={canMove} onMove={g.play} roomId={room.id} result={room.result} players={inGame} stake={stake} />
-          </Suspense>
-        </>
-      )}
-
-      {room.status === 'playing' && mySeat != null && !result && (
-        <div><Button variant="secondary" icon="flag" disabled={busy} onClick={() => setResigning(true)}>{t('games.resign')}</Button></div>
-      )}
-
-      {(room.status === 'finished' || room.status === 'abandoned') && (
-        <div style={{ display: 'flex', gap: 8, flexWrap: 'wrap' }}>
-          {room.status === 'abandoned' && <span style={S.caption}>{t('games.abandoned')}</span>}
-          {room.nextRoom
-            ? <Button icon="play" onClick={joinNext}>{t('games.nextRoom')}</Button>
-            : mySeat != null || room.players.some((p) => p.memberId === g.me)
-              ? <Button icon="repeat" disabled={busy} onClick={rematch}>{t('games.rematch')}</Button>
-              : null}
-          <Button variant="secondary" onClick={back}>{t('games.back')}</Button>
-        </div>
-      )}
+        )}
       </div>
       </div>
+      )}
 
       {resigning && (
         <Dialog
@@ -251,10 +293,34 @@ function RoomPage({ id }) {
   )
 }
 
-/** "1:05" — giây còn lại trước khi đối thủ được xử thắng. Âm thì hiện 0:00 (đang chờ server chốt). */
 const clock = (sec) => {
   const s = Math.max(0, sec)
   return Math.floor(s / 60) + ':' + String(s % 60).padStart(2, '0')
+}
+
+/** Một nước gọn: các trường của move (bỏ cờ true/false), mảng nối bằng dấu phẩy. Nước hết giờ ghi rõ. */
+const moveText = (m) => (m?.timeout ? t('games.room.timeoutMove')
+  : Object.entries(m || {}).filter(([, v]) => v != null && typeof v !== 'boolean')
+    .map(([k, v]) => k + ' ' + (Array.isArray(v) ? v.join(',') : typeof v === 'object' ? JSON.stringify(v) : v)).join(' · ').slice(0, 48))
+
+/** Tab Nước đi (game chưa có ký hiệu riêng): log ván theo thứ tự, mới nhất ở dưới. */
+function Moves({ moves, seated, nameOf }) {
+  const who = (seat) => {
+    const p = seated.find((x) => x.seat === seat && !x.leftAt) || seated.find((x) => x.seat === seat)
+    return p ? nameOf(p.memberId) : '#' + seat
+  }
+  if (!moves.length) return <span style={{ ...S.caption, padding: '6px 0' }}>{t('games.room.noMoves')}</span>
+  return (
+    <div style={{ display: 'grid', gridTemplateColumns: 'minmax(0, 1fr)', maxHeight: 420, overflowY: 'auto', font: '400 12.5px/1.3 var(--font-mono)' }}>
+      {moves.map((m) => (
+        <div key={m.seq} style={{ display: 'flex', gap: 10, padding: '6px 0', borderBottom: '1px solid ' + G.line, minWidth: 0 }}>
+          <span style={{ width: 28, flexShrink: 0, color: G.muted }}>{m.seq}</span>
+          <span style={{ width: 80, flexShrink: 0, fontWeight: 700, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap', color: G.tealHi }}>{who(m.seat)}</span>
+          <span style={{ minWidth: 0, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap', color: G.soft }} title={JSON.stringify(m.move)}>{moveText(m.move)}</span>
+        </div>
+      ))}
+    </div>
+  )
 }
 
 /**
@@ -279,8 +345,14 @@ function resultText(result, players, mySeat, nameOf) {
 
 const S = {
   box: { borderRadius: 12, background: 'var(--surface-card)', border: '1px solid var(--border-subtle)', boxShadow: 'var(--shadow-xs)', minWidth: 0 },
-  title: { font: '700 18px/1.2 var(--font-display)', color: 'var(--text-primary)' },
-  code: { font: '600 14px/1 var(--font-mono)', letterSpacing: '.12em', color: 'var(--text-primary)', padding: '6px 10px', borderRadius: 6, background: 'var(--surface-inset)', flexShrink: 0 },
+  code: {
+    display: 'flex', alignItems: 'center', gap: 8, padding: '8px 12px', borderRadius: 10, background: G.card, border: '1px solid ' + G.lineHi,
+    cursor: 'pointer', whiteSpace: 'nowrap', flexShrink: 0,
+  },
+  badge: {
+    padding: '8px 12px', borderRadius: 10, background: G.goldA(0.1), border: '1px solid ' + G.goldA(0.3), color: G.goldHi,
+    font: '500 13px/1 var(--font-sans)', whiteSpace: 'nowrap', flexShrink: 0,
+  },
   caption: { font: 'var(--type-caption)', color: 'var(--text-muted)' },
   mono: { font: '400 11.5px/1.3 var(--font-mono)', color: 'var(--text-muted)' },
   name: { font: 'var(--type-label)', color: 'var(--text-primary)', minWidth: 0, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' },
@@ -288,9 +360,10 @@ const S = {
     display: 'flex', alignItems: 'center', gap: 10, padding: '8px 12px', borderRadius: 10, border: '1px solid',
     flex: '1 1 180px', minWidth: 0, maxWidth: 320,
   },
-  panel: { display: 'grid', gap: 10, gridTemplateColumns: 'minmax(0, 1fr)', minWidth: 0 },
-  over: { font: '600 11px/1 var(--font-mono)', letterSpacing: '.12em', textTransform: 'uppercase', color: 'var(--text-muted)' },
-  emptyDot: { width: 28, height: 28, borderRadius: 99, border: '1px dashed var(--border-strong)', flexShrink: 0 },
+  sq: {
+    width: 38, height: 38, borderRadius: 10, display: 'grid', placeItems: 'center', cursor: 'pointer', flexShrink: 0,
+    background: 'transparent', color: G.soft, border: '1px solid ' + G.lineHi,
+  },
   status: {
     display: 'flex', alignItems: 'center', justifyContent: 'space-between', gap: 10, padding: '10px 14px', borderRadius: 10,
     background: 'var(--surface-inset)', font: 'var(--type-label)', color: 'var(--text-primary)',

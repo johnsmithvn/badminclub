@@ -33,6 +33,16 @@ export function think(id, s, seat, level, rand = Math.random, override) {
 }
 
 /**
+ * Người xin hoà: máy nhận khi thế cờ KHÔNG nghiêng về nó (điểm đánh giá ≤ 0). Chấm ô: so số ô đã chiếm.
+ * Trò không có cách chấm thế cờ (Caro, Cá ngựa, Bắn tàu) → máy không nhận.
+ */
+export function acceptsDraw(id, s, bot) {
+  if (SEARCH[id]) return SEARCH[id].rule.evaluate(s, bot) <= 0
+  if (id === 'chamo') return s.boxes.filter((v) => v === bot).length <= s.boxes.filter((v) => v === 1 - bot).length
+  return false
+}
+
+/**
  * Ghế nào máy phải đi bây giờ (null = chờ người). Bắn tàu: lúc xếp tàu máy xếp ngay, không chờ lượt.
  * `bots` = các ghế của máy. Hết ván (game.result khác null) → null.
  */

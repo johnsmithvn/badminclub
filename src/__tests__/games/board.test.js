@@ -74,7 +74,22 @@ const row = (game, memberId, played, won, drawn, lost, points = 0) => ({ game, m
   ], null)
   assert.equal(byPoints, false)
   assert.deepEqual(rows.map((r) => r.memberId), ['b', 'a'])
-  assert.deepEqual(rows[1], { memberId: 'a', played: 8, won: 3, drawn: 1, lost: 4, points: -7, rate: 38, rank: 2 })
+  assert.deepEqual(rows[1], { memberId: 'a', played: 8, won: 3, drawn: 1, lost: 4, points: -7, coins: 0, streak: null, rate: 38, rank: 2 })
+}
+
+/* ---------- 0103: xu cộng dồn; chuỗi lấy của game đang xem, xem tất cả thì lấy dòng '*' ---------- */
+{
+  const rs = [
+    { ...row('caro', 'a', 3, 2, 0, 1), streak: 2, coins: 40 },
+    { ...row('phom', 'a', 2, 0, 0, 2), streak: -2, coins: -70 },
+    { ...row('*', 'a', 0, 0, 0, 0), streak: -2, coins: 0 },
+  ]
+  const all = boardOf(rs, null).rows[0]
+  assert.equal(all.coins, -30)
+  assert.equal(all.played, 5) // dòng '*' không cộng vào số ván
+  assert.equal(all.streak, -2)
+  assert.equal(boardOf(rs, 'caro').rows[0].streak, 2)
+  assert.equal(boardOf(rs, 'caro').rows[0].coins, 40)
 }
 
 /* ---------- Rỗng / null ---------- */
@@ -109,6 +124,29 @@ assert.equal(phom.result({ over: false }), null)
   assert.match(sql, /REVOKE ALL ON FUNCTION public\.game_board\(uuid, text\) FROM PUBLIC, anon/)
   const check = readFileSync(new URL('../../../supabase/manual/0091_games_board_check.sql', import.meta.url), 'utf8')
   assert.match(check, /0091 CHECK OK/)
+}
+
+/* ---------- SQL 0103: khoảng ngày + chuỗi + xu, cùng luật lọc với 0091 ---------- */
+{
+  const sql = readFileSync(new URL('../../../supabase/migrations/0103_games_board_range.sql', import.meta.url), 'utf8')
+  const fn = sql.slice(sql.indexOf('CREATE OR REPLACE FUNCTION public.game_board_range'))
+  const has = (src, s, msg) => assert.ok(src.includes(s), msg || 'thiếu: ' + s)
+  has(fn, 'SECURITY INVOKER')
+  has(fn, "r.status = 'finished'")
+  has(fn, 'p.left_at IS NULL OR p.left_at >= r.started_at')
+  has(fn, "AT TIME ZONE 'Asia/Ho_Chi_Minh'")
+  has(fn, "bool_or(t.kind IN ('cashout', 'refund', 'legacy'))", 'xu chỉ tính phòng đã chốt, như game_wallets')
+  has(fn, "SELECT '*'", 'phải có dòng chuỗi trên mọi game')
+  has(sql, 'GRANT EXECUTE ON FUNCTION public.game_board_range(uuid, date, date) TO authenticated')
+}
+
+/* ---------- 0102: game_start không được đặt ghế ngoài 0..15 (CHECK của game_room_players) ---------- */
+{
+  const sql = readFileSync(new URL('../../../supabase/migrations/0102_games_start_seats.sql', import.meta.url), 'utf8')
+  const code = sql.split('\n').filter((l) => !l.trim().startsWith('--')).join('\n')
+  assert.ok(!code.includes('seat + 100'), 'game_start không được tạm đặt ghế 100+ (CHECK seat 0..15)')
+  assert.ok(code.includes('CREATE OR REPLACE FUNCTION public.game_start(p_room uuid, p_min int, p_max int)'))
+  assert.ok(code.includes('_deal'), 'vẫn phải chia bài như 0078')
 }
 
 console.log('games board check: OK')

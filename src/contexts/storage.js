@@ -11,7 +11,7 @@
 
 import { supabase, unwrap } from '#supabase'
 import { SLICE_TABLES, clubRow, diff, hasHalfWrittenMatch, mergeSessionSlice, toDb, toGameMove, toGamePlayer, toGameRoom, toLibPost, toRows, toStanding, toTour, toTourMatch, toTourMatchEdit, videosRow } from '#contexts/dbmap.js'
-import { monthOf, todayISO } from '#utils/dates.js'
+import { isoOf, monthOf, todayISO } from '#utils/dates.js'
 import { t } from '#i18n'
 import cfg from '#config/app.json' with { type: 'json' }
 
@@ -812,13 +812,27 @@ export async function loadMyWallet(clubId) {
   return Number(unwrap(await supabase.rpc('game_my_wallet', { p_club: clubId }))) || 0
 }
 
-export async function loadGameBoard(clubId, month) {
+/**
+ * BXH mini-game. `range` = 'YYYY-MM' (một tháng) | { from, to } (ngày ISO, null = không chặn) | null (từ trước tới nay).
+ * Dùng game_board_range (0103: thêm streak + coins, game '*' = chuỗi trên mọi game). DB chưa chạy 0103 thì lùi về
+ * game_board (0091) — chỉ được tháng trọn / tất cả, không có chuỗi và xu.
+ */
+export async function loadGameBoard(clubId, range) {
   if (!supabase) throw new Error('Chưa cấu hình Supabase')
-  const rows = unwrap(await supabase.rpc('game_board', { p_club: clubId, p_month: month || null })) || []
-  return rows.map((r) => ({
+  const month = typeof range === 'string' ? range : null
+  const from = month ? month + '-01' : range?.from || null
+  const to = month ? isoOf(new Date(Number(month.slice(0, 4)), Number(month.slice(5, 7)), 0)) : range?.to || null
+  const res = await supabase.rpc('game_board_range', { p_club: clubId, p_from: from, p_to: to })
+  let rows
+  if (res.error?.code === 'PGRST202') {
+    // Hàm 0103 chưa có trên DB: chỉ lùi được khi xem cả tháng hoặc tất cả.
+    if (!month && (from || to)) throw new Error('Cần chạy migration 0103_games_board_range.sql')
+    rows = unwrap(await supabase.rpc('game_board', { p_club: clubId, p_month: month }))
+  } else rows = unwrap(res)
+  return (rows || []).map((r) => ({
     game: r.game, memberId: r.member_id,
     played: Number(r.played) || 0, won: Number(r.won) || 0, drawn: Number(r.drawn) || 0, lost: Number(r.lost) || 0,
-    points: Number(r.points) || 0,
+    points: Number(r.points) || 0, streak: r.streak == null ? null : Number(r.streak), coins: Number(r.coins) || 0,
   }))
 }
 
@@ -861,18 +875,32 @@ export async function gameRpc(name, args) {
  *   { type: 'room', room }      — phòng đổi trạng thái (không kèm ghế)
  *   { type: 'player', player }  — ghế đổi
  *   { type: 'resync' }          — vừa nối (lại) xong: nạp lại cả phòng, có thể đã lỡ sự kiện lúc mất mạng
- * Trả hàm huỷ nghe.
+ *   { type: 'chat', msg }       — tin nhắn trong phòng (broadcast: chỉ ai đang mở phòng thấy, không lưu DB)
+ *   { type: 'here', ids }       — ai đang mở phòng (presence, gồm cả mình) — để đếm người xem
+ *   { type: 'count' }           — chủ phòng vừa bấm Bắt đầu: mọi máy đếm ngược 3-2-1 (broadcast, off.count() gửi)
+ * Trả hàm huỷ nghe; `off.say(msg)` gửi một tin chat lên kênh (kênh không gửi lại cho chính mình).
+ * `me` = member id của máy này (khai với presence; null = khách, không khai).
  */
-export function subscribeGameRoom(roomId, on) {
+export function subscribeGameRoom(roomId, on, me = null) {
   if (!supabase) return () => {}
   const filter = 'room_id=eq.' + roomId
-  const ch = supabase.channel('game:' + roomId)
+  const ch = supabase.channel('game:' + roomId, me ? { config: { presence: { key: me } } } : undefined)
     .on('postgres_changes', { event: 'INSERT', schema: 'public', table: 'game_moves', filter },
       (p) => on({ type: 'move', move: toGameMove(p.new) }))
     .on('postgres_changes', { event: '*', schema: 'public', table: 'game_room_players', filter },
       (p) => p.new && on({ type: 'player', player: toGamePlayer(p.new) }))
     .on('postgres_changes', { event: 'UPDATE', schema: 'public', table: 'game_rooms', filter: 'id=eq.' + roomId },
       (p) => on({ type: 'room', room: toGameRoom(p.new) }))
-    .subscribe((status) => { if (status === 'SUBSCRIBED') on({ type: 'resync' }) })
-  return () => { supabase.removeChannel(ch) }
+    .on('broadcast', { event: 'chat' }, (p) => p.payload && on({ type: 'chat', msg: p.payload }))
+    .on('broadcast', { event: 'count' }, () => on({ type: 'count' }))
+    .on('presence', { event: 'sync' }, () => on({ type: 'here', ids: Object.keys(ch.presenceState()) }))
+    .subscribe((status) => {
+      if (status !== 'SUBSCRIBED') return
+      on({ type: 'resync' })
+      if (me) ch.track({ at: Date.now() }).catch(() => {})
+    })
+  const off = () => { supabase.removeChannel(ch) }
+  off.say = (msg) => ch.send({ type: 'broadcast', event: 'chat', payload: msg })
+  off.count = () => ch.send({ type: 'broadcast', event: 'count', payload: {} })
+  return off
 }

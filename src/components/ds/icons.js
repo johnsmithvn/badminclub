@@ -25,7 +25,7 @@ import {
   Bell, Calendar, Swords, User,
   BookOpen, Bookmark, Pin,
   Gamepad2, Hash, Flag, LogOut, Bot,
-  SkipForward,
+  SkipForward, Lightbulb, Handshake, MessageCircle, ListOrdered,
 } from 'lucide-react'
 
 export const ICONS = {
@@ -89,6 +89,10 @@ export const ICONS = {
   'layout-grid': LayoutGrid,
   grid: LayoutGrid,
   link: Link,
+  lightbulb: Lightbulb,
+  handshake: Handshake,
+  'message-circle': MessageCircle,
+  'list-ordered': ListOrdered,
   list: List,
   'loader-circle': LoaderCircle,
   'map-pin': MapPin,

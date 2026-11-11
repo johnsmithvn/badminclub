@@ -5,7 +5,7 @@
 import assert from 'node:assert/strict'
 import { readFileSync } from 'node:fs'
 import { BOT_GAMES, GAMES } from '#lib/games/registry.js'
-import { botToMove, fillLocal, levelsOf, think } from '#lib/games/bots/index.js'
+import { acceptsDraw, botToMove, fillLocal, levelsOf, think } from '#lib/games/bots/index.js'
 import { chessFen, fromUci, xiangqiFen } from '#lib/games/bots/engine.js'
 import { pick, CHESS } from '#lib/games/bots/search.js'
 
@@ -114,6 +114,15 @@ for (const id of ['caro', 'oanquan', 'coganh', 'chamo', 'bantau']) {
   const h = vercel.headers?.find((x) => x.source.includes('may-cotuong'))
   assert.ok(h?.headers.some((x) => x.key === 'Cross-Origin-Embedder-Policy'), 'vercel.json thiếu COEP cho trang cờ tướng với máy')
   assert.ok(readFileSync(new URL('../../../vite.config.js', import.meta.url), 'utf8').includes('Cross-Origin-Embedder-Policy'))
+}
+
+// Xin hoà: máy nhận khi thế cờ không nghiêng về nó; trò không chấm được thế cờ thì không nhận.
+{
+  const o = GAMES.oanquan.setup()
+  assert.equal(acceptsDraw('oanquan', o, 1), true) // đầu ván: cân bằng
+  assert.equal(acceptsDraw('oanquan', { ...o, score: { 0: 0, 1: 10 } }, 1), false) // máy đang hơn 10 điểm
+  assert.equal(acceptsDraw('oanquan', { ...o, score: { 0: 10, 1: 0 } }, 1), true)
+  assert.equal(acceptsDraw('caro', GAMES.caro.setup({ options: GAMES.caro.defaultOptions, seats: [0, 1] }), 1), false)
 }
 
 console.log('bots check: OK')

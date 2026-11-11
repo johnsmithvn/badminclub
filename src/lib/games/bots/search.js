@@ -9,7 +9,7 @@
 
 import covua, { legalMoves as chessMoves, typeOf as chessType, colorOf as chessColor } from '#lib/games/covua.js'
 import cotuong, { legalMoves as xqMoves, typeOf as xqType, colorOf as xqColor, COLS as XQ_COLS } from '#lib/games/cotuong.js'
-import oanquan, { sideOf } from '#lib/games/oanquan.js'
+import oanquan, { movesOf, sideOf } from '#lib/games/oanquan.js'
 import coganh, { NEIGHBORS, POINTS } from '#lib/games/coganh.js'
 
 const WIN = 1e6
@@ -172,10 +172,16 @@ export const XIANGQI = {
 // ── Ô ăn quan ───────────────────────────────────────────────────────────────────────────────────────────────────
 export const OANQUAN = {
   game: oanquan,
-  moves: (s) => sideOf(s.turn).filter((c) => s.stones[c] > 0).flatMap((cell) => [{ cell, dir: 1 }, { cell, dir: -1 }]),
+  moves: movesOf,
   // Điểm đã ăn là chắc; dân còn bên mình thì cuối ván về mình nhưng cũng là mồi cho đối phương — tính nửa giá.
-  evaluate: (s, me) => s.score[me] - s.score[1 - me]
-    + 0.4 * (sideOf(me).reduce((a, c) => a + s.stones[c], 0) - sideOf(1 - me).reduce((a, c) => a + s.stones[c], 0)),
+  // 3 người: mình so với tổng hai người kia (tìm kiếm coi mọi lượt không phải của mình là của địch).
+  evaluate: (s, me) => {
+    let v = 0
+    for (let k = 0; k < s.opts.quans; k++) {
+      v += (k === me ? s.opts.quans - 1 : -1) * (s.score[k] + 0.4 * sideOf(s, k).reduce((a, c) => a + s.stones[c], 0))
+    }
+    return v
+  },
 }
 
 // ── Cờ gánh ─────────────────────────────────────────────────────────────────────────────────────────────────────

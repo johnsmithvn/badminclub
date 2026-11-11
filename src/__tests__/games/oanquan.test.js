@@ -3,20 +3,20 @@
 
 import assert from 'node:assert/strict'
 import { readFileSync } from 'node:fs'
-import oq, { isQuanNon, MAX_STEPS, QUAN_NON, QUAN_VALUE, queueStates, START_STONES } from '#lib/games/oanquan.js'
+import oq, { deadlineOf, isQuanNon, MAX_STEPS, optsOf, QUAN_NON, QUAN_VALUE, queueStates, sideOf } from '#lib/games/oanquan.js'
 import { replay } from '#lib/games/registry.js'
 
-const fresh = () => oq.setup({ options: oq.defaultOptions, seats: [0, 1] })
+const fresh = (options = oq.defaultOptions) => oq.setup({ options, seats: [0, 1] })
 /** Bàn tự đặt: stones theo map {ô: số sỏi}, quan theo danh sách ô còn quan. */
-const mk = (cells, { quan = [0, 6], score = [0, 0], turn = 0 } = {}) => {
-  const s = fresh()
+const mk = (cells, { quan = [0, 6], score = [0, 0], turn = 0, options } = {}) => {
+  const s = fresh(options)
   s.stones = Array(12).fill(0)
   for (const [k, v] of Object.entries(cells)) s.stones[k] = v
   s.quan = Array(12).fill(false)
   for (const q of quan) s.quan[q] = true
   return { ...s, score, turn }
 }
-const total = (s) => s.stones.reduce((a, b) => a + b, 0) + s.score[0] + s.score[1] + s.quan.filter(Boolean).length * s.quanValue
+const total = (s) => s.stones.reduce((a, b) => a + b, 0) + s.score.reduce((a, b) => a + b, 0) + s.quan.filter(Boolean).length * s.quanValue
 
 // Rải xong mà ô kế tiếp là ô quan → dừng, không ăn, hết lượt.
 {
@@ -154,16 +154,26 @@ const total = (s) => s.stones.reduce((a, b) => a + b, 0) + s.score[0] + s.score[
   }
 }
 
-// Server chấm lại bằng SQL (0075: game_oanquan_result). Không có Postgres trong test nên gác hai lớp:
+// Server chấm lại bằng SQL (0104: game_oanquan_run, thay luật cố định của 0075). Không có Postgres trong test nên gác hai lớp:
 //   1. Hằng số luật trong SQL = hằng số JS.
 //   2. Bộ ván mẫu nhúng trong file kiểm tay 0075 — JS chấm ở đây phải ra đúng kết quả ghi trong đó;
 //      file kiểm tay chạy trên DB thật bắt SQL chấm ra đúng kết quả đó. Hai đầu cùng một bộ ván.
 {
-  const sql = readFileSync('supabase/migrations/0075_games_results.sql', 'utf8')
-  const fn = sql.slice(sql.indexOf('FUNCTION public.game_oanquan_result'), sql.indexOf('FUNCTION public.game_finish'))
-  for (const [name, v] of [['c_quan', QUAN_VALUE], ['c_start', START_STONES], ['c_non', QUAN_NON], ['c_max', MAX_STEPS]]) {
-    assert.ok(new RegExp(name + ' +CONSTANT int := ' + v + ';').test(fn), name + ' trong 0075 phải = ' + v + ' như JS')
+  const sql = readFileSync('supabase/migrations/0104_games_oanquan_rules.sql', 'utf8')
+  const fn = sql.slice(sql.indexOf('FUNCTION public.game_oanquan_run'), sql.indexOf('FUNCTION public.game_oanquan_result'))
+  for (const [name, v] of [['c_quan', QUAN_VALUE], ['c_non', QUAN_NON], ['c_max', MAX_STEPS]]) {
+    assert.ok(new RegExp(name + ' +CONSTANT int := ' + v + ';').test(fn), name + ' trong 0104 phải = ' + v + ' như JS')
   }
+  // optsOf ↔ SQL: cùng tập giá trị, cùng mặc định.
+  const has = (x, msg) => assert.ok(fn.includes(x), msg || 'game_oanquan_run thiếu: ' + x)
+  assert.deepEqual(optsOf({}), { quans: 2, rows: 5, stones: 5, nhon: false, time: 0 })
+  has("CASE WHEN v_opt -> 'quans' = '3'::jsonb THEN 3 ELSE 2 END")
+  has("v_opt -> 'rows' IN ('6'::jsonb, '7'::jsonb)")
+  has("v_opt -> 'stones' IN ('6'::jsonb, '7'::jsonb)")
+  has("v_opt -> 'time' IN ('20'::jsonb, '30'::jsonb, '50'::jsonb)")
+  has("v_opt -> 'nhon' = 'true'::jsonb")
+  has("'games.err.notYet'", 'hết giờ phải do server xét giờ')
+  assert.ok(sql.includes("RAISE EXCEPTION 'games.err.badCount'"), 'bắt đầu phòng phải đủ đúng số người = số quan')
 
   const check = readFileSync('supabase/manual/0075_games_results_check.sql', 'utf8').split('$fx$')
   assert.equal(check.length, 3, 'file kiểm 0075 phải có đúng một khối ván mẫu')
@@ -192,6 +202,104 @@ const total = (s) => s.stones.reduce((a, b) => a + b, 0) + s.score[0] + s.score[
   assert.equal(q1b.length, 2, 'cùng ply, object mới (phòng nạp lại): thay chỗ, không xếp thêm — xếp thêm là diễn một nước hai lần')
   assert.equal(q1b[1], s1b)
   assert.deepEqual(queueStates([s1, s2], s0), [s0], 'ván mới (ply lùi về 0): bỏ cả hàng, không diễn tiếp ván cũ')
+}
+
+// ---------- Tuỳ chọn phòng (0104) ----------
+
+// optsOf: giá trị lạ về mặc định.
+{
+  assert.deepEqual(optsOf({ quans: 3, rows: 7, stones: 6, nhon: true, time: 50 }), { quans: 3, rows: 7, stones: 6, nhon: true, time: 50 })
+  assert.deepEqual(optsOf({ quans: 4, rows: '6', stones: 9, nhon: 'yes', time: 45 }), optsOf({}))
+  assert.deepEqual(optsOf(null), optsOf({}))
+}
+
+// Bàn tam giác 3 quan, 6 ô, 7 dân: quan ở 0 / 7 / 14, mỗi ghế một hàng giữa hai quan.
+{
+  const s = fresh({ quans: 3, rows: 6, stones: 7 })
+  assert.equal(s.stones.length, 21)
+  assert.deepEqual(s.quan.flatMap((q, i) => (q ? [i] : [])), [0, 7, 14])
+  assert.deepEqual(sideOf(s, 2), [15, 16, 17, 18, 19, 20])
+  assert.equal(s.stones[15], 7)
+  assert.deepEqual(s.score, [0, 0, 0])
+  assert.equal(oq.validate(s, 0, { cell: 7, dir: 1 }), 'games.err.notYourCell', 'ô quan không bốc được')
+  assert.equal(oq.apply(s, 0, { cell: 3, dir: 1 }).turn, 1)
+  assert.deepEqual(oq.players({ quans: 3 }), [3, 3])
+  assert.deepEqual(oq.players({}), [2, 2])
+}
+
+// Nhón: rải xong mà ô kế là quan có dân → lấy 1 dân đẩy sang ô sau quan, xét tiếp (ở đây: trống – ăn 9, trống – ăn 11).
+{
+  const cells = { 4: 1, 6: 2, 9: 3, 11: 1 }
+  const off = oq.apply(mk(cells), 0, { cell: 4, dir: 1 })
+  assert.equal(off.stones[6], 2, 'không bật nhón thì gặp quan là dừng')
+  assert.deepEqual(off.score, [0, 0])
+  const on = oq.apply(mk(cells, { options: { nhon: true } }), 0, { cell: 4, dir: 1 })
+  assert.equal(on.stones[6], 1, 'nhón đúng 1 dân')
+  assert.equal(on.quan[6], true, 'chỉ nhón dân, quan vẫn nằm nguyên trong ô')
+  assert.equal(on.stones[7], 1, 'dân nhón rơi xuống ô ngay sau quan')
+  assert.deepEqual(on.last.taken, [9, 11])
+  assert.deepEqual(on.score, [4, 0])
+  assert.deepEqual(on.last.frames.map((f) => f.kind).join(' '), 'pick drop pick drop eat eat')
+  // Ô quan chỉ còn quan, không còn dân → không được nhón (không bao giờ nhón quan) → dừng như luật thường.
+  const bare = oq.apply(mk({ 4: 1, 9: 3, 11: 1 }, { options: { nhon: true } }), 0, { cell: 4, dir: 1 })
+  assert.deepEqual(bare.score, [0, 0])
+  assert.equal(bare.stones[7], 0)
+  assert.equal(bare.quan[6], true, 'quan không bị nhón')
+  assert.equal(bare.turn, 1, 'không nhón được thì mất lượt')
+}
+
+// 3 người: hết ván thì điểm cao nhất thắng; bằng nhau ở đầu bảng thì cùng thắng; cả ba bằng = hoà.
+{
+  const end = (score) => {
+    const s = fresh({ quans: 3 })
+    s.stones = Array(18).fill(0); s.stones[4] = 1; s.stones[13] = 1
+    return oq.apply({ ...s, score }, 0, { cell: 4, dir: 1 }) // ghế 1 hết dân, thiếu điểm → hết ván; ghế 0 và 2 mỗi người thu về 1 dân
+  }
+  assert.deepEqual(oq.result(end([1, 0, 9])), { winners: [2], draw: false })
+  assert.deepEqual(oq.result(end([7, 0, 7])), { winners: [0, 2], draw: false })
+  assert.deepEqual(oq.result(end([0, 1, 0])), { winners: [], draw: true })
+}
+
+// Hết giờ: { timeout } trơn phải qua server; nước server ghi { cell, dir, timeout } áp cho người tới lượt.
+{
+  const plain = fresh()
+  assert.equal(oq.validate(plain, 1, { timeout: true }), 'games.err.badMove', 'phòng không đồng hồ thì không có hết giờ')
+  const timed = fresh({ time: 30 })
+  assert.equal(oq.request(timed, 1, { timeout: true }), true)
+  assert.equal(oq.validate(timed, 1, { timeout: true }), null)
+  assert.equal(oq.apply(timed, 1, { timeout: true }), timed, 'chưa qua server thì không đổi gì')
+  assert.equal(deadlineOf(timed), null)
+  const started = oq.apply(timed, 0, { start: true }, { at: '2026-11-11T10:00:00Z' })
+  assert.equal(deadlineOf(started), Date.parse('2026-11-11T10:00:30Z'))
+  assert.equal(oq.validate(started, 0, { start: true }), 'games.err.badMove', 'chỉ một nước start, đầu ván')
+  assert.equal(oq.validate(started, 1, { cell: 2, dir: 1, timeout: true }), null, 'máy ghế 1 báo, server đi thay ghế 0')
+  const s = oq.apply(started, 1, { cell: 2, dir: 1, timeout: true }, { at: '2026-11-11T10:00:31Z' })
+  assert.equal(s.last.seat, 0)
+  assert.equal(s.last.timeout, true)
+  assert.equal(s.turn, 1)
+  assert.equal(deadlineOf(s), Date.parse('2026-11-11T10:01:01Z'))
+}
+
+// Chơi ngẫu nhiên mọi biến thể: luôn kết thúc, tổng sỏi + điểm + quan không đổi, lượt xoay vòng.
+{
+  let seed = 777
+  const rand = (n) => { seed = (seed * 1103515245 + 12345) % 2147483648; return seed % n }
+  for (const options of [{ quans: 3 }, { quans: 3, rows: 7, stones: 7, nhon: true }, { rows: 6, stones: 6, nhon: true }, { rows: 7, nhon: true }]) {
+    for (let g = 0; g < 60; g++) {
+      let s = fresh(options)
+      const sum = total(s)
+      let turns = 0
+      while (!s.over) {
+        const moves = sideOf(s, s.turn).flatMap((cell) => [{ cell, dir: 1 }, { cell, dir: -1 }]).filter((m) => oq.validate(s, s.turn, m) == null)
+        assert.ok(moves.length > 0, 'chưa hết ván mà không còn nước nào đi được')
+        const was = s.turn
+        s = oq.apply(s, s.turn, moves[rand(moves.length)])
+        assert.equal(s.turn, (was + 1) % s.opts.quans)
+        assert.equal(total(s), sum, 'sỏi tự sinh ra hoặc biến mất')
+        assert.ok(++turns < 2000, 'ván không chịu kết thúc')
+      }
+    }
+  }
 }
 
 console.log('oanquan check: OK')

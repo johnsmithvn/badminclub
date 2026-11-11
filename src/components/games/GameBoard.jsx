@@ -1,21 +1,31 @@
-// Bảng xếp hạng mini-game (tab trong sảnh). Server cộng dồn sẵn (0091 game_board), xếp ở registry.boardOf.
+// Bảng xếp hạng mini-game (tab trong sảnh). Server cộng dồn sẵn (0103 game_board_range — lùi về 0091 game_board),
+// xếp ở registry.boardOf. Mốc: tuần này / tháng này / tháng trước / mùa (ngày đầu–cuối mùa cầu lông đang chạy) / tất cả.
 // Tách hẳn khỏi BXH cầu lông: không Elo, không điểm mùa.
 
 import { useEffect, useMemo, useState } from 'react'
 import { useNavigate } from 'react-router-dom'
-import { Alert, Avatar, Card, Skeleton } from '#ds'
+import { Alert, Avatar, Card, Icon, Skeleton } from '#ds'
 import { Empty } from '#ui'
 import { useApp } from '#contexts/AppContext.jsx'
 import { gameErr } from '#contexts/gameActions.js'
 import RankMedalIcon from '#components/leaderboard/RankMedalIcon.jsx'
 import { GameArt } from '#components/games/GameInfo.jsx'
+import { G, card, chip, field, over, rankColor, seg, segWrap } from '#components/games/stage.js'
 import cfg from '#config/app.js'
 import { COIN_RELIEF, COIN_START, GAME_IDS, boardOf } from '#lib/games/registry.js'
 import { pathOf } from '#routes'
 import { addMonth, ddmy, isoOf, monthOf, todayISO } from '#utils/dates.js'
+import { resolveSeason } from '#lib/season.js'
 import { t } from '#i18n'
 
-const PERIODS = ['this', 'last', 'all']
+const PERIODS = ['week', 'this', 'last', 'season', 'all']
+
+/** Thứ Hai của tuần chứa hôm nay (ISO). */
+function mondayISO() {
+  const d = new Date()
+  d.setDate(d.getDate() - ((d.getDay() + 6) % 7))
+  return isoOf(d)
+}
 
 export default function GameBoard({ me, isMobile }) {
   const { db, a } = useApp()
@@ -23,19 +33,29 @@ export default function GameBoard({ me, isMobile }) {
   const [game, setGame] = useState('')
   const [data, setData] = useState(null) // { month, rows } của lần nạp gần nhất
   const [err, setErr] = useState('')
+  const [pick, setPick] = useState(false) // bảng chọn "+N game"
+  const [pq, setPq] = useState('')
 
   const thisMonth = monthOf(todayISO())
-  const month = period === 'all' ? null : period === 'last' ? addMonth(thisMonth, -1) : thisMonth
+  const season = resolveSeason(db)
+  const periods = PERIODS.filter((x) => x !== 'season' || (season?.startDate && season?.endDate))
+  // Khoảng đang xem: chuỗi tháng | { from, to } | null — loadGameBoard nhận cả ba. key = để so lần nạp.
+  const range = period === 'all' ? null : period === 'last' ? addMonth(thisMonth, -1) : period === 'week' ? { from: mondayISO(), to: todayISO() }
+    : period === 'season' && season?.startDate ? { from: season.startDate, to: season.endDate } : thisMonth
+  const key = JSON.stringify(range)
 
   useEffect(() => {
     let live = true
-    a.gameBoard(month)
-      .then((rows) => { if (live) { setData({ month, rows }); setErr('') } })
-      .catch((e) => { if (live) { setErr(gameErr(e)); setData({ month, rows: [] }) } })
+    a.gameBoard(JSON.parse(key))
+      .then((rows) => { if (live) { setData({ key, rows }); setErr('') } })
+      .catch((e) => { if (live) { setErr(gameErr(e)); setData({ key, rows: [] }) } })
     return () => { live = false }
-  }, [a, month, db.clubId])
+  }, [a, key, db.clubId])
 
-  const loading = !data || data.month !== month
+  const loading = !data || data.key !== key
+  // Có cột Chuỗi / Xu khi DB đã chạy 0103 (dòng có streak) và có ai từng chơi phòng cược.
+  const hasStreak = board0(data).some((r) => r.streak != null)
+  const hasCoins = board0(data).some((r) => r.coins)
   const board = useMemo(() => boardOf(data?.rows, game || null), [data, game])
   const byId = useMemo(() => new Map(db.members.map((m) => [m.id, m])), [db.members])
   // Vua từng game: người đứng đầu bảng riêng của mỗi game có ván trong khoảng đang xem.
@@ -55,23 +75,51 @@ export default function GameBoard({ me, isMobile }) {
     ? Math.max(4, Math.min(100, Math.round(100 * (board.byPoints ? Math.max(0, mine.points) / Math.max(1, above.points) : mine.won / Math.max(1, above.won)))))
     : 100
 
+  // Chip nhanh: các game nhiều lượt chơi nhất trong khoảng đang xem (+ game đang chọn); còn lại vào bảng "+N game".
+  const plays = (id) => boardOf(data?.rows, id).rows.reduce((n, r) => n + r.played, 0)
+  const quick = useMemo(() => {
+    const ids = GAME_IDS.map((id) => [id, plays(id)]).filter(([, n]) => n > 0).sort((x, y) => y[1] - x[1]).slice(0, 5).map(([id]) => id)
+    return game && !ids.includes(game) ? [...ids, game] : ids
+  }, [data, game]) // eslint-disable-line react-hooks/exhaustive-deps
+  const more = GAME_IDS.length - quick.length
+  const pn = pq.trim().toLowerCase()
+  const choose = (id) => { setGame(id); setPick(false); setPq('') }
+
   const podium = board.rows.slice(0, 3)
   const rest = board.rows.slice(3)
-  const COLS = '48px minmax(0, 1.6fr) 110px minmax(0, 1.2fr) 80px'
+  const COLS = ['48px', 'minmax(0, 1.6fr)', '110px', 'minmax(0, 1.2fr)', hasStreak && '64px', hasCoins && '80px', '72px'].filter(Boolean).join(' ')
 
   return (
     <section style={S.col}>
       <div style={{ display: 'flex', gap: 10, alignItems: 'center', justifyContent: 'space-between', flexWrap: 'wrap' }}>
-        <div style={{ display: 'flex', gap: 6, overflowX: 'auto', minWidth: 0, flex: '1 1 0', paddingBottom: 2 }}>
-          {['', ...GAME_IDS].map((id) => (
-            <button key={id || 'all'} type="button" onClick={() => setGame(id)} style={chip(game === id)}>
+        <div style={{ display: 'flex', gap: 6, flexWrap: 'wrap', alignItems: 'center', minWidth: 0, flex: '1 1 0', position: 'relative' }}>
+          {['', ...quick].map((id) => (
+            <button key={id || 'all'} type="button" aria-pressed={game === id} onClick={() => choose(id)} style={chip(game === id)}>
               {id ? t('games.' + id + '.name') : t('games.board.allGames')}
             </button>
           ))}
+          {more > 0 && (
+            <button type="button" aria-expanded={pick} onClick={() => setPick((v) => !v)} style={{ ...chip(true), display: 'inline-flex', alignItems: 'center', gap: 4 }}>
+              {t('games.board.moreGames', { n: more })}<Icon name="chevron-down" size={13} />
+            </button>
+          )}
+          {pick && (
+            <div style={S.pop}>
+              <input autoFocus type="search" value={pq} onChange={(e) => setPq(e.target.value)} placeholder={t('games.lobby.search')} aria-label={t('games.lobby.search')} style={{ ...field, width: '100%' }} />
+              <div style={{ display: 'grid', gap: 2, gridTemplateColumns: isMobile ? 'repeat(2, minmax(0, 1fr))' : 'repeat(3, minmax(0, 1fr))' }}>
+                {GAME_IDS.filter((id) => !pn || t('games.' + id + '.name').toLowerCase().includes(pn)).map((id) => (
+                  <button key={id} type="button" onClick={() => choose(id)} style={{ ...S.pick, background: game === id ? G.tealA(0.14) : 'transparent', color: game === id ? G.tealHi : G.text }}>
+                    <span style={{ width: 22, flexShrink: 0 }}><GameArt id={id} height={22} radius={5} /></span>
+                    <span style={{ minWidth: 0, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>{t('games.' + id + '.name')}</span>
+                  </button>
+                ))}
+              </div>
+            </div>
+          )}
         </div>
-        <div style={S.seg} role="group" aria-label={t('games.board.period')}>
-          {PERIODS.map((p) => (
-            <button key={p} type="button" onClick={() => setPeriod(p)} style={segBtn(period === p)}>{t('games.board.' + p)}</button>
+        <div style={segWrap} role="group" aria-label={t('games.board.period')}>
+          {periods.map((p) => (
+            <button key={p} type="button" onClick={() => setPeriod(p)} style={seg(period === p)}>{t('games.board.' + p)}</button>
           ))}
         </div>
       </div>
@@ -80,10 +128,10 @@ export default function GameBoard({ me, isMobile }) {
       {err && <Alert tone="danger">{err}</Alert>}
       {loading && <Skeleton height={180} />}
       {!loading && board.rows.length === 0 && (
-        <div style={S.box}><Empty icon="trophy" title={t('games.board.emptyTitle')} hint={t('games.board.emptyHint')} /></div>
+        <div style={card}><Empty icon="trophy" title={t('games.board.emptyTitle')} hint={t('games.board.emptyHint')} /></div>
       )}
       {!loading && board.rows.length > 0 && (
-        <div style={{ display: 'grid', gap: 16, gridTemplateColumns: isMobile ? 'minmax(0, 1fr)' : 'minmax(0, 1fr) 300px', alignItems: 'start' }}>
+        <div style={{ display: 'grid', gap: 20, gridTemplateColumns: isMobile ? 'minmax(0, 1fr)' : 'minmax(0, 1fr) 320px', alignItems: 'start' }}>
           <div style={S.col}>
             {/* Bục: hạng 2 · 1 · 3 */}
             <div style={{ display: 'grid', gap: isMobile ? 8 : 14, alignItems: 'end', gridTemplateColumns: 'minmax(0, 1fr) minmax(0, 1.15fr) minmax(0, 1fr)' }}>
@@ -94,39 +142,45 @@ export default function GameBoard({ me, isMobile }) {
                 const m = byId.get(r.memberId)
                 return (
                   <div key={r.memberId} style={{
-                    ...S.box, padding: isMobile ? '12px 8px' : '18px 14px', display: 'grid', justifyItems: 'center', gap: 8,
-                    gridTemplateColumns: 'minmax(0, 1fr)', minHeight: isMobile ? (first ? 180 : 156) : (first ? 236 : 204),
-                    background: first ? 'var(--status-delayed-bg)' : 'var(--surface-card)', borderColor: first ? 'var(--status-delayed-fg)' : 'var(--border-subtle)',
-                    outline: r.memberId === me ? '2px solid var(--border-focus-color)' : 'none',
+                    ...card, padding: isMobile ? '12px 8px' : '20px 18px', display: 'grid', justifyItems: 'center', gap: 10,
+                    gridTemplateColumns: 'minmax(0, 1fr)', minHeight: isMobile ? (first ? 180 : 156) : (first ? 240 : 206),
+                    background: first ? `linear-gradient(180deg, ${G.goldA(0.16)}, ${G.card})` : G.card,
+                    borderColor: first ? G.goldA(0.45) : G.line,
+                    outline: r.memberId === me ? '2px solid ' + G.tealA(0.6) : 'none',
                   }}>
-                    <RankMedalIcon rank={r.rank} size={first ? 30 : 24} />
-                    <Avatar name={name} src={m?.avatarUrl} size={isMobile ? (first ? 48 : 40) : (first ? 68 : 54)} />
-                    <span style={{ ...S.label, fontWeight: 700, fontSize: isMobile ? 13 : 16, maxWidth: '100%', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }} title={name}>{name}</span>
+                    <span style={{ font: '700 12px/1 var(--font-mono)', letterSpacing: '.1em', color: rankColor(r.rank) }}>{t('games.board.rankN', { n: r.rank })}</span>
+                    <span style={{ borderRadius: 99, border: '2px solid ' + rankColor(r.rank), display: 'grid' }}>
+                      <Avatar name={name} src={m?.avatarUrl} size={isMobile ? (first ? 48 : 40) : (first ? 68 : 54)} />
+                    </span>
+                    <span style={{ ...S.label, fontWeight: 700, fontSize: isMobile ? 13 : 17, maxWidth: '100%', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }} title={name}>{name}</span>
                     <div style={{ display: 'flex', gap: 10, alignItems: 'baseline', flexWrap: 'wrap', justifyContent: 'center' }}>
                       <span><b style={{ ...S.big, color: board.byPoints ? signColor(r.points) : 'var(--text-primary)' }}>{value(r)}</b> <span style={S.unit}>{unit}</span></span>
                       {!isMobile && <span style={S.mono}>{r.rate}%</span>}
                     </div>
+                    {hasCoins && r.coins !== 0 && <span style={{ font: '600 12px/1 var(--font-mono)', color: r.coins < 0 ? G.red : G.goldHi }}>{t('games.board.coinsLine', { n: signed(r.coins) })}</span>}
                   </div>
                 )
               })}
             </div>
 
             {rest.length > 0 && (
-              <div style={{ ...S.box, display: 'grid', gridTemplateColumns: 'minmax(0, 1fr)' }}>
+              <div style={{ ...card, overflow: 'hidden', display: 'grid', gridTemplateColumns: 'minmax(0, 1fr)' }}>
                 {!isMobile && (
-                  <div style={{ display: 'grid', gridTemplateColumns: COLS, gap: 12, padding: '10px 16px', borderBottom: '1px solid var(--border-subtle)' }}>
-                    <span style={S.over}>{t('games.board.colRank')}</span>
-                    <span style={S.over}>{t('games.board.colPlayer')}</span>
-                    <span style={S.over}>{t('games.board.colRecord')}</span>
-                    <span style={S.over}>{t('games.board.colRate')}</span>
-                    <span style={{ ...S.over, textAlign: 'right' }}>{t(board.byPoints ? 'games.board.colPoints' : 'games.board.colWins')}</span>
+                  <div style={{ display: 'grid', gridTemplateColumns: COLS, gap: 12, padding: '12px 18px', borderBottom: '1px solid ' + G.line }}>
+                    <span style={over}>{t('games.board.colRank')}</span>
+                    <span style={over}>{t('games.board.colPlayer')}</span>
+                    <span style={over}>{t('games.board.colRecord')}</span>
+                    <span style={over}>{t('games.board.colRate')}</span>
+                    {hasStreak && <span style={over}>{t('games.board.colStreak')}</span>}
+                    {hasCoins && <span style={{ ...over, textAlign: 'right' }}>{t('games.board.colCoins')}</span>}
+                    <span style={{ ...over, textAlign: 'right' }}>{t(board.byPoints ? 'games.board.colPoints' : 'games.board.colWins')}</span>
                   </div>
                 )}
                 {rest.map((r, i) => {
                   const m = byId.get(r.memberId)
                   const name = nameOf(r.memberId)
                   const isMe = r.memberId === me
-                  const rowBg = { background: isMe ? 'var(--surface-accent-soft)' : 'transparent', boxShadow: isMe ? 'inset 3px 0 0 var(--border-focus-color)' : 'none' }
+                  const rowBg = { background: isMe ? G.tealA(0.08) : 'transparent', boxShadow: isMe ? 'inset 3px 0 0 ' + G.teal : 'none' }
                   const who = (
                     <div style={{ display: 'flex', alignItems: 'center', gap: 10, minWidth: 0, flex: 1 }}>
                       <Avatar name={name} src={m?.avatarUrl} size={28} />
@@ -151,16 +205,18 @@ export default function GameBoard({ me, isMobile }) {
                     )
                   }
                   return (
-                    <div key={r.memberId} style={{ display: 'grid', gridTemplateColumns: COLS, gap: 12, alignItems: 'center', padding: '10px 16px', borderTop: i ? '1px solid var(--border-subtle)' : 'none', ...rowBg }}>
+                    <div key={r.memberId} style={{ display: 'grid', gridTemplateColumns: COLS, gap: 12, alignItems: 'center', padding: '11px 18px', borderTop: i ? '1px solid var(--border-subtle)' : 'none', ...rowBg }}>
                       <span style={S.rank}>#{r.rank}</span>
                       {who}
                       <span style={{ font: '500 13px/1 var(--font-mono)' }}>
-                        <span style={{ color: 'var(--status-delivered-fg)' }}>{r.won}</span> · <span style={{ color: 'var(--text-muted)' }}>{r.drawn}</span> · <span style={{ color: 'var(--status-incident-fg)' }}>{r.lost}</span>
+                        <span style={{ color: G.tealHi }}>{r.won}</span> · <span style={{ color: G.muted }}>{r.drawn}</span> · <span style={{ color: G.red }}>{r.lost}</span>
                       </span>
                       <div style={{ display: 'flex', alignItems: 'center', gap: 10, minWidth: 0 }}>
-                        <div style={S.track}><div style={{ ...S.fill, width: r.rate + '%' }} /></div>
+                        <div style={S.track}><div style={{ ...S.fill, width: r.rate + '%', background: G.teal }} /></div>
                         <span style={{ ...S.mono, width: 36, textAlign: 'right', flexShrink: 0 }}>{r.rate}%</span>
                       </div>
+                      {hasStreak && <Streak n={r.streak} />}
+                      {hasCoins && <span style={{ font: '600 13px/1 var(--font-mono)', textAlign: 'right', color: r.coins < 0 ? G.red : G.goldHi }}>{signed(r.coins)}</span>}
                       <span style={{ ...S.big, fontSize: 15, textAlign: 'right', color: board.byPoints ? signColor(r.points) : 'var(--text-primary)' }}>{value(r)}</span>
                     </div>
                   )
@@ -171,37 +227,37 @@ export default function GameBoard({ me, isMobile }) {
 
           <div style={S.col}>
             {me && (
-              <div style={{ ...S.box, padding: 16, display: 'grid', gap: 10, gridTemplateColumns: 'minmax(0, 1fr)', background: 'var(--status-delayed-bg)', borderColor: 'var(--status-delayed-fg)' }}>
-                <span style={{ ...S.over, color: 'var(--status-delayed-fg)' }}>{t('games.board.myPos')}</span>
+              <div style={{ ...card, padding: 18, display: 'grid', gap: 10, gridTemplateColumns: 'minmax(0, 1fr)', background: `linear-gradient(135deg, ${G.goldA(0.12)}, ${G.card} 60%)`, borderColor: G.goldA(0.4) }}>
+                <span style={{ ...over, color: G.goldHi }}>{t('games.board.myPos')}</span>
                 {mine
                   ? (
                     <>
                       <div style={{ display: 'flex', alignItems: 'baseline', gap: 10, flexWrap: 'wrap' }}>
-                        <span style={{ font: '800 36px/1 var(--font-display)', color: 'var(--text-primary)' }}>#{mine.rank}</span>
+                        <span style={{ font: '800 40px/1 var(--font-display)', color: 'var(--text-primary)' }}>#{mine.rank}</span>
                         <span style={S.mono}>{t('games.board.line', { n: mine.played, w: mine.won, d: mine.drawn, l: mine.lost, rate: mine.rate })}</span>
                       </div>
-                      <span style={{ font: 'var(--type-body)', color: 'var(--text-primary)' }}>
+                      <span style={{ font: '400 13px/1.45 var(--font-sans)', color: G.sub }}>
                         {above
                           ? t(board.byPoints ? 'games.board.chasePoints' : 'games.board.chaseWins', { n: chase, name: nameOf(above.memberId), rank: above.rank })
                           : t('games.board.lead')}
                       </span>
-                      <div style={S.track}><div style={{ ...S.fill, width: pct + '%', background: 'var(--status-delayed-fg)' }} /></div>
+                      <div style={S.track}><div style={{ ...S.fill, width: pct + '%', background: G.gold }} /></div>
                     </>
                   )
                   : <span style={S.caption}>{t('games.board.notRanked')}</span>}
               </div>
             )}
             {!game && kings.length > 0 && (
-              <div style={{ ...S.box, padding: '14px 16px', display: 'grid', gap: 2, gridTemplateColumns: 'minmax(0, 1fr)' }}>
-                <span style={{ ...S.over, marginBottom: 6 }}>{t('games.board.kings')}</span>
+              <div style={{ ...card, padding: '16px 18px', display: 'grid', gap: 2, gridTemplateColumns: 'minmax(0, 1fr)' }}>
+                <span style={{ ...over, marginBottom: 6 }}>{t('games.board.kings')}</span>
                 {kings.map((k) => {
                   const name = nameOf(k.top.memberId)
                   return (
-                    <button key={k.id} type="button" onClick={() => setGame(k.id)} style={S.king}>
+                    <button key={k.id} type="button" onClick={() => choose(k.id)} style={S.king}>
                       <div style={{ width: 28, flexShrink: 0 }}><GameArt id={k.id} height={28} radius={7} /></div>
                       <span style={{ ...S.caption, flex: 1, minWidth: 0, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap', textAlign: 'left' }}>{t('games.' + k.id + '.name')}</span>
                       <span style={{ ...S.label, minWidth: 0, maxWidth: '45%', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }} title={name}>{name}</span>
-                      <span style={{ font: '600 12px/1 var(--font-mono)', color: 'var(--status-transit-fg)', flexShrink: 0, minWidth: 36, textAlign: 'right' }}>
+                      <span style={{ font: '600 12px/1 var(--font-mono)', color: G.tealHi, flexShrink: 0, minWidth: 36, textAlign: 'right' }}>
                         {k.byPoints ? signed(k.top.points) : t('games.lobby.wins', { n: k.top.won })}
                       </span>
                     </button>
@@ -215,16 +271,6 @@ export default function GameBoard({ me, isMobile }) {
     </section>
   )
 }
-
-const chip = (on) => ({
-  padding: '6px 12px', borderRadius: 99, cursor: 'pointer', whiteSpace: 'nowrap', flexShrink: 0, font: '600 12.5px/1 var(--font-sans)',
-  background: on ? 'var(--surface-accent-soft)' : 'var(--surface-card)', color: on ? 'var(--status-transit-fg)' : 'var(--text-secondary)',
-  border: '1px solid ' + (on ? 'var(--border-focus-color)' : 'var(--border-subtle)'),
-})
-const segBtn = (on) => ({
-  padding: '6px 12px', borderRadius: 7, border: 0, cursor: 'pointer', whiteSpace: 'nowrap', font: '600 12.5px/1 var(--font-sans)',
-  background: on ? 'var(--surface-accent-soft)' : 'transparent', color: on ? 'var(--status-transit-fg)' : 'var(--text-muted)',
-})
 
 /**
  * Ví xu (0093): ai đang giàu nhất. `wallets` = dòng game_wallets — chỉ người đã chơi phòng có cược; null = đang nạp.
@@ -244,10 +290,10 @@ export function CoinBoard({ me, wallets }) {
       <span style={S.caption}>{t('games.coins.boardHint', { n: COIN_START.toLocaleString('vi-VN'), relief: COIN_RELIEF })}</span>
       {!wallets && <Skeleton height={180} />}
       {wallets && rows.length === 0 && (
-        <div style={S.box}><Empty icon="wallet" title={t('games.coins.emptyTitle')} hint={t('games.coins.emptyHint')} /></div>
+        <div style={card}><Empty icon="wallet" title={t('games.coins.emptyTitle')} hint={t('games.coins.emptyHint')} /></div>
       )}
       {rows.length > 0 && (
-        <div style={{ ...S.box, display: 'grid', gridTemplateColumns: 'minmax(0, 1fr)' }}>
+        <div style={{ ...card, overflow: 'hidden', display: 'grid', gridTemplateColumns: 'minmax(0, 1fr)' }}>
           {rows.map((r, i) => {
             const m = byId.get(r.memberId)
             const name = m?.name || t('games.unknownPlayer')
@@ -359,6 +405,15 @@ export function MyCoinsCard({ memberId }) {
 }
 
 const signed = (n) => (n > 0 ? '+' + n : String(n))
+/** Dòng của mọi game (để biết DB có trả chuỗi / xu không). */
+const board0 = (data) => data?.rows || []
+
+/** Chuỗi hiện tại: T3 = thắng 3 liền (ngọc), B2 = thua 2 liền (đỏ), — = vừa hoà / chưa có. */
+function Streak({ n }) {
+  if (!n) return <span style={{ font: '600 12px/1 var(--font-mono)', color: G.muted }}>—</span>
+  return <span style={{ font: '700 12px/1 var(--font-mono)', color: n > 0 ? G.tealHi : G.red }}>{t(n > 0 ? 'games.board.streakWin' : 'games.board.streakLose', { n: Math.abs(n) })}</span>
+}
+
 const signColor = (n) => (n > 0 ? 'var(--status-delivered-fg)' : n < 0 ? 'var(--status-incident-fg)' : 'var(--text-muted)')
 
 const S = {
@@ -374,6 +429,14 @@ const S = {
   seg: { display: 'flex', gap: 4, padding: 4, borderRadius: 10, background: 'var(--surface-card)', border: '1px solid var(--border-subtle)', flexShrink: 0 },
   track: { flex: 1, height: 6, borderRadius: 3, background: 'var(--surface-sunken)', overflow: 'hidden', minWidth: 0 },
   fill: { height: '100%', borderRadius: 3, background: 'var(--status-transit-fg)' },
+  pop: {
+    position: 'absolute', top: 'calc(100% + 6px)', left: 0, zIndex: 20, width: 'min(460px, 100%)', padding: 10, borderRadius: 12,
+    display: 'grid', gap: 8, gridTemplateColumns: 'minmax(0, 1fr)', background: 'var(--surface-overlay)', border: '1px solid var(--border-default)', boxShadow: 'var(--shadow-lg)',
+  },
+  pick: {
+    display: 'flex', alignItems: 'center', gap: 8, padding: '7px 8px', borderRadius: 8, border: 0, cursor: 'pointer', minWidth: 0,
+    font: '600 13px/1.2 var(--font-sans)', textAlign: 'left',
+  },
   king: {
     display: 'flex', alignItems: 'center', gap: 10, padding: '7px 0', minWidth: 0, border: 0, borderTop: '1px solid var(--border-subtle)',
     background: 'transparent', cursor: 'pointer', color: 'inherit',
