@@ -144,6 +144,8 @@ game_moves (
   xếp theo điểm; Cờ vây / Chấm ô / Cờ lật có `scores` nhưng là số ô / quân của riêng ván, cộng dồn vô nghĩa → xếp theo thắng.
 - Xếp ở client (`registry.boardOf`): game có điểm → điểm, thắng, ít ván; còn lại và "Tất cả game" → thắng, ít ván (cùng số thắng thì ít ván = tỉ lệ cao hơn).
   Bằng hết tiêu chí thì cùng hạng.
+- 0105: `game_room_players.ready` / `kicked`, `game_ready` / `game_kick` / `game_set_options`, `game_start` đòi Sẵn sàng;
+  đồng hồ tổng Cờ vua / Cờ tướng (`game_chess_*`, `game_covua_check` / `_deal`, `game_cotuong_check` / `_deal`) — xem §7a, §12.
 - Cờ vua / Cờ tướng / Cá ngựa chưa có bản chấm server — kết quả do client báo vẫn được tính (CLB người quen, chủ dự án chấp nhận).
   Hàm đọc `result` phòng thủ (không ép kiểu) để một result bịa sai kiểu không làm hỏng cả bảng.
 - Giao diện: tab "Bảng xếp hạng" trong sảnh (`components/games/GameBoard.jsx`); đang ở tab này thì sảnh thôi hỏi lại danh sách phòng.
@@ -373,6 +375,25 @@ Sảnh ── Tạo phòng (chọn game + tuỳ chọn) ──┐
                          Phòng — KẾT QUẢ: ResultPanel, Chơi lại (tạo phòng mới cùng người)
 ```
 
+### 7a. Phòng chờ (0105, bản thiết kế "Phòng Chờ v2") — `components/games/WaitingRoom.jsx`
+
+Phòng `waiting` vẽ sân khấu: mặt bàn ở giữa, ghế xếp quanh bàn (mình luôn ở dưới), số người sẵn sàng giữa bàn; thanh đáy
+là cấu hình của mình (xu mang vào bàn) / của chủ phòng (thời gian Cờ vua / Cờ tướng) + nút lớn; cột phải là **Luật bàn**
+và **Chat phòng** (có tin hệ thống: vào / rời / sẵn sàng / đổi luật — `useGameRoom` tự suy từ thay đổi ghế, không lưu).
+
+- **Sẵn sàng** (`game_ready`): cột `game_room_players.ready`. Chủ phòng không cần bấm. `game_start` từ chối
+  (`games.err.needReady`) khi còn người chưa sẵn sàng. Vào lại ghế thì `ready` về false (trigger `game_players_rejoin_guard`).
+- **Mời ra** (`game_kick`): chỉ chủ phòng, chỉ lúc chờ. Đặt `left_at` + `kicked = true`; người bị mời ra **không vào lại
+  phòng đó được** (trigger chặn, `games.err.kicked`). Xu mang vào bàn chưa bị trừ lúc chờ (0101) nên không phải hoàn.
+- **Sửa luật** (`game_set_options`): chỉ chủ phòng, chỉ lúc chờ. **Mức cược (`stake`) giữ nguyên** — server bỏ `stake`
+  gửi lên, lấy lại của phòng. Đổi luật thì mọi người phải Sẵn sàng lại. Form là `RoomOptions.jsx` — **một nguồn** cho cả
+  Tạo phòng lẫn Sửa luật; danh sách trường ở `roomFields.js` (`fieldsOf` vẽ form, `rulesOf` đọc thành dòng Luật bàn).
+  Thêm tuỳ chọn mới cho game thì thêm vào `fieldsOf`.
+- **Đếm ngược 3-2-1**: chủ phòng bấm Bắt đầu → broadcast `count` trên kênh phòng → mọi máy đếm → máy chủ phòng gọi
+  `game_start` sau 3 giây. Chỉ là hình ảnh; server vẫn là nơi quyết (ai đó huỷ sẵn sàng lúc đếm thì `game_start` từ chối).
+- **Người xem**: presence trên kênh `game:<roomId>` (`subscribeGameRoom(…, me)` khai member id) → tab Người xem =
+  người đang mở phòng mà không ngồi ghế. Không lưu DB.
+
 ### 7b. Chơi với máy (luyện tập)
 
 8 trò: `BOT_GAMES` ở `registry.js` (Caro, Cờ vua, Cờ tướng, Ô ăn quan, Cờ gánh, Chấm ô, Cờ cá ngựa, Bắn tàu). Sảnh có
@@ -445,6 +466,9 @@ nút **Chơi với máy** → `/tro-choi/may-<game>`; `GameRoom.jsx` thấy ti�
   được), hết quan thu dân về, hoà, `frames` cho hoạt ảnh; 300 ván ngẫu nhiên tất định luôn kết thúc và không
   sinh / mất sỏi; hằng số + ván mẫu khớp SQL (§5.1). Tuỳ chọn 0104: optsOf ↔ SQL, bàn 3 quan, nhón, 3 người cùng
   điểm đầu, hết giờ ({ start } / { timeout }), ván ngẫu nhiên mọi biến thể.
+- `chessclock.test.js` — đồng hồ tổng Cờ vua / Cờ tướng (trừ giờ theo dòng log, cộng 5 giây, hết giờ, đi muộn), xin hoà
+  (không tự nhận, đi nước thường = từ chối), SAN cờ vua, ký hiệu Việt cờ tướng, gác 0105 chép đúng `INC_SEC` / phút /
+  `needReady` / giữ `stake`.
 - `coganh.test.js` — xếp quân, đường kẻ (chéo chỉ ở điểm chẵn), gánh, chầu (gánh hai đường), vây một quân / cả nhóm / nhóm
   còn điểm thở, gánh xong mới vây, mở → bắt buộc gánh, hết quân, im 40 nước, trần 400 nước; 200 ván ngẫu
   nhiên luôn đủ 16 quân; hằng số + ván mẫu khớp SQL.
@@ -590,6 +614,19 @@ nút "bỏ lượt" — state ghi `last.skipped`), cả hai không đi được 
   cùng bộ chất (`mask`); sảnh phải cả dây một chất. Heo chặn mọi lẻ / đôi không phải heo. Tứ quý chặt heo, đôi heo, tứ
   quý nhỏ hơn. Không có đôi thông, không chặt ngang, không tới trắng, không cóng. Về bằng nước có heo / tứ quý (**chốt**)
   thì xếp dưới người còn bài. Thối chỉ tính heo + tứ quý.
+
+**Đồng hồ tổng + xin hoà — Cờ vua / Cờ tướng** (`chessClock.js`, 0105): `options.clock` = 5 | 10 | 15 phút mỗi bên
+(khác = không đồng hồ), mỗi nước đã đi được cộng 5 giây (`INC_SEC`). `state.clock = { left: [ms, ms], since }` tính theo
+`created_at` của từng dòng log (`apply(…, meta)`), nên mọi máy dựng lại ra cùng đồng hồ. Server ghi nước 1 `{ start: true }`
+lúc bắt đầu (`game_<id>_deal`); hết giờ thì máy khách báo `{ timeout: true }`, `game_<id>_check` dựng lại đồng hồ
+(`game_chess_deadline`) và chỉ nhận khi `now()` đã qua hạn (`games.err.notYet`) → người tới lượt thua (`reason: 'time'`).
+Xin hoà: `{ draw: 'offer' | 'accept' | 'decline' }` — không đổi lượt; đi một nước thường = từ chối (`reason: 'agreed'`).
+Phòng máy dùng đúng luật này với giờ máy (`BotRoom` truyền `meta.at`), đồng hồ chạy từ nước đầu tiên.
+Ký hiệu nước đi cho tab Nước đi: `game.notate` — Cờ vua là SAN (`Nf3`, `exd5`, `O-O`, `Qxf7#`), Cờ tướng kiểu Việt
+(`P2-5`, `M8.7`, `X1/1`: quân + cột + `.` tấn / `-` bình / `/` thoái + số); `registry.notesOf` dựng cả ván.
+Giao diện: `ChessStage.jsx` (thanh người chơi có quân đã ăn + điểm hơn, cột cán cân, khung, hiệu ứng, màn kết thúc),
+3 skin mỗi loại ở `chessSkins.js` (chỉ là bảng màu, nhớ theo máy). Gợi ý ở phòng máy vẽ **mũi tên** (Cờ vua, Cờ tướng,
+Ô ăn quan) thay cho việc máy đi hộ.
 
 **Cờ vua** (`covua.js`, luật FIDE): đủ nhập thành, bắt tốt qua đường, phong cấp (chọn hậu / xe / tượng / mã), chiếu hết,
 hoà khi hết nước mà không bị chiếu / lặp thế 3 lần / 50 nước không ăn quân không đi tốt / thiếu quân chiếu hết. Gác bằng

@@ -146,16 +146,23 @@ qua `components/badges/badgeTone.js`:
   Kèo + `ArenaChallengeCard` (`components/challenge/arenaTone.js`, `useArenaTone()`; khung bọc ngoài trong suốt ở cả
   hai chế độ, thẻ / khối cao dùng trắng mờ viết thẳng chứ không `var(--surface-card)` — luật kính + giới hạn GPU, §2.2).
 
-### 2.4 Bàn Cờ vua / Cờ tướng: bảng màu fantasy viết cứng
+### 2.4 Bàn Cờ vua / Cờ tướng: skin viết cứng
 
-Hai bàn cờ (`CoVuaBoard`, `CoTuongBoard`, kéo theo Cờ úp) vẽ kiểu fantasy theo yêu cầu chủ dự án (2026-11-10): khung
-tím đêm viền vàng đính ngọc, ánh ngọc lam cho nước đi. Màu nằm hết ở `components/games/fantasyTone.js` (`F`), khung
-dùng chung ở `FantasyFrame.jsx` (`FantasyDefs` / `FantasyFrame` / `FantasyGloss`).
+Hai bàn cờ (`CoVuaBoard`, `CoTuongBoard`, kéo theo Cờ úp) vẽ theo bản thiết kế "Co Vua" / "Co Tuong" (2026-11-11): mỗi
+loại 3 skin chọn được — Cờ vua: Huyền bí / Băng giá / Rừng cổ; Cờ tướng: Ngọc bích / Sơn mài / Mực tàu. Bảng màu nằm hết
+ở `components/games/chessSkins.js` (`SKINS`, `useSkin` — nhớ theo máy bằng localStorage); khung, thanh người chơi, cột cán
+cân, hiệu ứng, màn kết thúc dùng chung ở `ChessStage.jsx` (`ChessStage`, `ChessFx`, `SkinPicker`).
 
 - **Giữ nguyên ở cả hai chế độ sáng / tối** — bàn cờ là một "vật" có màu riêng, không đổi theo token.
-- Chỉ phần TRONG `<svg>` của bàn dùng `F`; chữ gợi ý, nút, thông báo quanh bàn vẫn dùng token như mọi nơi.
-- Chỉ dùng gradient, **không** filter / blur (máy yếu). Thêm màu mới thì thêm vào `F`, không viết hex rải trong component.
-- Các bàn game khác (Caro…) vẫn vẽ phẳng bằng token; muốn chuyển bàn nào sang kiểu này thì dùng lại `F` + khung.
+- Chỉ mặt bàn, khung và lớp hiệu ứng dùng màu skin; **thanh người chơi, nút, cột Nước đi / Chat quanh bàn vẫn dùng token**.
+- Bàn vẽ ở cỡ thiết kế (Cờ vua ô 74px, Cờ tướng 560 × 620) rồi co bằng `transform: scale` cho vừa màn hình (`useFit`).
+- Hiệu ứng (`ch*` trong `effects.css`): quân trượt, vệt nước đi, gợn sóng, chớp + mảnh bung + hồn quân khi ăn, hào quang
+  quân bị chiếu, chữ CHIẾU!, cột sáng phong cấp, mũi tên gợi ý, sông chảy. Suy từ thế cờ, key theo số nước — không giữ state.
+  Bọc trong `data-game-fx` nên máy bật "giảm chuyển động" là tắt hết.
+- Thêm skin = thêm một mục vào `SKINS`; không viết hex rải trong component.
+- Bản cũ (`fantasyTone.js` + `FantasyFrame.jsx`, 2026-11-10) không còn bàn nào dùng.
+- **Phòng chờ** (`WaitingRoom.jsx`, bản "Phòng Chờ v2"): dùng token (`stage.js`) — ngọc lam = sẵn sàng / hành động, vàng =
+  chủ phòng / xu. Đếm ngược dùng `gwPop` / `gwRing`.
 - **Ô ăn quan kiểu sơn mài** (2026-11-10): cùng ngoại lệ, bảng màu riêng `L` trong `OAnQuanBoard.jsx` (đỏ son, viền vàng,
   sỏi suối, quan ngọc bích). Khung tối bọc quanh bàn cũng dùng `L`. Hiệu ứng `oaqRipple` / `oaqBurst` / `oaqFloat` ở `effects.css`.
   Hình học theo bản 1c (bàn 880 × 340, quan con nhộng, ô Ø96); viên thuốc người chơi + nút phòng nằm trong khung (prop `names` / `note` / `clock` / `actions`).
