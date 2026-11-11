@@ -21,8 +21,9 @@ import { t } from '#i18n'
 const BotRoom = lazy(() => import('#components/games/BotRoom.jsx'))
 
 // Game có "sân khấu" riêng (ChessStage): bàn tự vẽ thanh người chơi, trạng thái, nút Xin hoà / Xin thua, màn kết
-// thúc — khung phòng không lặp lại dải trạng thái và nút Đầu hàng. SKIN = game chọn được skin bàn.
-const STAGED = ['covua', 'cotuong', 'coup']
+// thúc — khung phòng không lặp lại dải trạng thái và nút Đầu hàng. SKIN = game chọn được skin bàn (thanh người chơi
+// đã nằm trên bàn nên bỏ tab Người chơi; Tiến lên giữ tab đó để xem xu từng người).
+const STAGED = ['covua', 'cotuong', 'coup', 'tienlen']
 const SKIN = { covua: 'covua', cotuong: 'cotuong', coup: 'cotuong' }
 
 export default function GameRoom() {
@@ -140,7 +141,7 @@ function RoomPage({ id }) {
   } : null
 
   const tabs = waiting ? [] : [
-    ...(staged ? [] : [['players', t('games.room.players') + ' · ' + seated.length + '/' + maxP]]),
+    ...(SKIN[room.game] ? [] : [['players', t('games.room.players') + ' · ' + seated.length + '/' + maxP]]),
     ['moves', t('games.room.moves') + (notes ? ' · ' + notes.length : '')],
     ['chat', t('games.room.chat') + (g.chat.length ? ' · ' + g.chat.length : '')],
     ['watch', t('games.room.watch') + (watchers.length ? ' · ' + watchers.length : '')],
@@ -214,13 +215,13 @@ function RoomPage({ id }) {
       </div>
 
       <div style={{ ...card, padding: '12px 14px', display: 'flex', flexDirection: 'column', gap: 10, minWidth: 0, ...(isMobile ? null : { maxHeight: staged ? 760 : undefined }) }}>
-        <div role="tablist" style={{ display: 'flex', gap: 4, paddingBottom: 10, borderBottom: '1px solid ' + G.line, overflowX: 'auto', flexShrink: 0 }}>
+        <div role="tablist" style={{ display: 'flex', gap: 4, paddingBottom: 10, borderBottom: '1px solid ' + G.line, flexWrap: 'wrap', flexShrink: 0 }}>
           {tabs.map(([k, label]) => (
             <button key={k} type="button" role="tab" aria-selected={tab === k} onClick={() => setPtab(k)} style={{ ...seg(tab === k), font: '700 13px/1 var(--font-sans)', padding: '7px 12px' }}>{label}</button>
           ))}
         </div>
         {tab === 'chat' && <RoomChat g={g} nameOf={nameOf} />}
-        {tab === 'moves' && (notes ? <MoveList list={notes} /> : <Moves moves={g.moves} seated={room.players} nameOf={nameOf} />)}
+        {tab === 'moves' && (notes ? <MoveList list={notes} /> : <Moves game={game} moves={g.moves} seated={room.players} nameOf={nameOf} />)}
         {tab === 'watch' && (
           <div style={{ display: 'grid', gap: 4 }}>
             {watchers.length === 0 && <span style={{ ...S.caption, padding: '6px 0' }}>{t('games.room.noWatch')}</span>}
@@ -304,7 +305,12 @@ const moveText = (m) => (m?.timeout ? t('games.room.timeoutMove')
     .map(([k, v]) => k + ' ' + (Array.isArray(v) ? v.join(',') : typeof v === 'object' ? JSON.stringify(v) : v)).join(' · ').slice(0, 48))
 
 /** Tab Nước đi (game chưa có ký hiệu riêng): log ván theo thứ tự, mới nhất ở dưới. */
-function Moves({ moves, seated, nameOf }) {
+function Moves({ game, moves, seated, nameOf }) {
+  // Game tự đọc nước của mình (`moveNote` → { key, params }) thì dùng, không thì in thô các trường.
+  const textOf = (move) => {
+    const n = game.moveNote?.(move)
+    return n ? t(n.key, n.params) : moveText(move)
+  }
   const who = (seat) => {
     const p = seated.find((x) => x.seat === seat && !x.leftAt) || seated.find((x) => x.seat === seat)
     return p ? nameOf(p.memberId) : '#' + seat
@@ -316,7 +322,7 @@ function Moves({ moves, seated, nameOf }) {
         <div key={m.seq} style={{ display: 'flex', gap: 10, padding: '6px 0', borderBottom: '1px solid ' + G.line, minWidth: 0 }}>
           <span style={{ width: 28, flexShrink: 0, color: G.muted }}>{m.seq}</span>
           <span style={{ width: 80, flexShrink: 0, fontWeight: 700, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap', color: G.tealHi }}>{who(m.seat)}</span>
-          <span style={{ minWidth: 0, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap', color: G.soft }} title={JSON.stringify(m.move)}>{moveText(m.move)}</span>
+          <span style={{ minWidth: 0, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap', color: G.soft }} title={JSON.stringify(m.move)}>{textOf(m.move)}</span>
         </div>
       ))}
     </div>

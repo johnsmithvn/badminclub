@@ -1,6 +1,7 @@
 import { useEffect, useRef, useState } from 'react'
 import { Button } from '#ds'
 import { useApp } from '#contexts/AppContext.jsx'
+import { CARD } from '#components/games/stage.js'
 import { t } from '#i18n'
 import bb, { deadlineOf, fits, KINDS, kindOf, mustCall, WIRES } from '#lib/games/baibip.js'
 
@@ -23,7 +24,8 @@ function useNow(on) {
 const kindName = (k) => t('games.baibip.kind' + KINDS[k])
 // Màu dây bom, theo thứ tự dây 0..5.
 const WIRE_INK = ['var(--status-incident)', 'var(--status-delayed)', 'var(--status-delivered)', 'var(--status-transit)', 'var(--status-scheduled)', 'var(--gray-0)']
-const KIND_INK = ['var(--status-transit-fg)', 'var(--status-delayed-fg)', 'var(--status-incident-fg)', 'var(--status-delivered-fg)']
+// Mực từng loại lá trên mặt ngà (CARD) — viết cứng như lá bài tây dùng chung, giữ nguyên ở sáng / tối.
+const KIND_INK = ['#1d4ed8', '#b45309', CARD.red, '#15803d']
 
 /** Mặt lá Q / K / A / Joker — vẽ tay: chữ lớn + hình (vương miện, sao). */
 function Face({ c, kind = kindOf(c), w = 46, on, bad, dim, onPick, label }) {
@@ -31,8 +33,8 @@ function Face({ c, kind = kindOf(c), w = 46, on, bad, dim, onPick, label }) {
   const ink = KIND_INK[kind]
   const svg = (
     <svg viewBox="0 0 46 66" width={w} height={h} aria-hidden="true" style={{ display: 'block' }}>
-      <rect x={0.75} y={0.75} width={44.5} height={64.5} rx={6} fill="var(--surface-card)"
-        stroke={bad ? 'var(--status-incident)' : on ? 'var(--border-focus-color)' : 'var(--border-default)'} strokeWidth={on || bad ? 2.5 : 1.2} />
+      <rect x={0.75} y={0.75} width={44.5} height={64.5} rx={6} fill={CARD.face}
+        stroke={bad ? 'var(--status-incident)' : on ? 'var(--border-focus-color)' : CARD.line} strokeWidth={on || bad ? 2.5 : 1.2} />
       <text x={5} y={13} fill={ink} style={{ font: '700 10px var(--font-mono)' }}>{kind === 3 ? '★' : KINDS[kind]}</text>
       {kind === 3
         ? (
@@ -63,14 +65,9 @@ function Face({ c, kind = kindOf(c), w = 46, on, bad, dim, onPick, label }) {
   )
 }
 
-/** Mặt lưng lá (úp). */
+/** Mặt lưng lá (úp) — cùng lưng sọc với lá bài tây dùng chung. */
 function Back({ w = 22, style }) {
-  return (
-    <svg viewBox="0 0 22 31" width={w} height={Math.round(w * 1.42)} aria-hidden="true" style={{ display: 'block', ...style }}>
-      <rect x={0.6} y={0.6} width={20.8} height={29.8} rx={3} fill="var(--navy-400)" stroke="var(--gray-0)" strokeWidth={1.2} />
-      <path d="M11 6 l5 9.5 -5 9.5 -5 -9.5z" fill="none" stroke="var(--gray-0)" strokeOpacity={0.6} />
-    </svg>
-  )
+  return <span aria-hidden="true" style={{ display: 'block', width: w, height: Math.round(w * 1.42), borderRadius: w >= 20 ? 3 : 2, background: CARD.back, border: '1px solid ' + CARD.backLine, boxSizing: 'border-box', ...style }} />
 }
 
 /**

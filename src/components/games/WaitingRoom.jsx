@@ -1,6 +1,6 @@
 import { useEffect, useState } from 'react'
 import { Avatar, Button, Dialog, Icon } from '#ds'
-import { G, card, mono, over } from '#components/games/stage.js'
+import { G, btn, card, mono, over } from '#components/games/stage.js'
 import RoomChat from '#components/games/RoomChat.jsx'
 import RoomOptions from '#components/games/RoomOptions.jsx'
 import { blockedOf, rulesOf } from '#components/games/roomFields.js'
@@ -106,11 +106,12 @@ export default function WaitingRoom({ g, act, busy, nameOf, memberOf, onInvite, 
 
   const n = maxP
   const ring = n > 4
-  const H = isMobile ? (n === 2 ? 260 : ring ? 420 : 340) : (n === 2 ? 340 : ring ? 540 : 440)
+  // Ghế trên / dưới căn giữa khối (ảnh + tên + nhãn ~125px) → khung phải đủ cao và mặt bàn đủ thấp để khối không bị cắt / đè bàn.
+  const H = isMobile ? (n === 2 ? 260 : ring ? 420 : 400) : (n === 2 ? 340 : ring ? 540 : 480)
   const rx = n === 2 ? 36 : ring ? 40 : 38
-  const ry = ring ? 40 : 37
+  const ry = ring ? 40 : 35
   const av = isMobile ? (n === 2 ? 64 : ring ? 36 : 48) : (n === 2 ? 88 : ring ? 50 : 72)
-  const plate = n === 2 ? { w: '44%', h: '62%', r: 28 } : ring ? { w: '54%', h: '48%', r: 999 } : { w: '50%', h: '48%', r: 120 }
+  const plate = n === 2 ? { w: '44%', h: '62%', r: 28 } : ring ? { w: '54%', h: '48%', r: 999 } : { w: '50%', h: '40%', r: 120 }
   const base = mySeat ?? 0
 
   const rules = [[t('games.wait.players'), minP === maxP ? String(minP) : minP + '–' + maxP], ...rulesOf(room.game, room.options)]
@@ -203,6 +204,7 @@ export default function WaitingRoom({ g, act, busy, nameOf, memberOf, onInvite, 
 
         {/* Thanh đáy: cấu hình + nút lớn. */}
         <div style={{ ...card, borderRadius: 18, padding: '16px 18px', display: 'flex', flexWrap: 'wrap', alignItems: 'center', justifyContent: 'space-between', gap: 16 }}>
+          {(groups.length > 0 || (lobby && !lobby.block)) && (
           <div style={{ display: 'flex', flexWrap: 'wrap', gap: 20, flex: '1 1 320px', minWidth: 0 }}>
             {groups.map((gr) => (
               <div key={gr.label} style={{ display: 'grid', gap: 9, opacity: gr.locked ? 0.55 : 1, minWidth: 0 }}>
@@ -223,11 +225,10 @@ export default function WaitingRoom({ g, act, busy, nameOf, memberOf, onInvite, 
             ))}
             {lobby && !lobby.block && <span style={{ font: '500 13px/1.4 var(--font-sans)', color: G.sub, alignSelf: 'center' }}>{t(lobby.key, lobby.params)}</span>}
           </div>
-          <div style={{ display: 'flex', alignItems: 'center', gap: 14, flexWrap: 'wrap', justifyContent: 'flex-end', marginLeft: 'auto' }}>
-            <div style={{ display: 'grid', justifyItems: 'end', gap: 4 }}>
-              <span style={{ font: '600 13px/1.3 var(--font-sans)', color: action.ok || (isHost && canStart) ? G.tealHi : action.warn ? G.goldHi : G.muted, textAlign: 'right', maxWidth: 260 }}>{action.note}</span>
-              {mySeat != null && <button type="button" onClick={onLeave} disabled={busy} style={{ border: 0, background: 'none', padding: 0, cursor: 'pointer', font: '500 12px/1 var(--font-sans)', color: G.muted }}>{t('games.leave')}</button>}
-            </div>
+          )}
+          <div style={{ display: 'flex', alignItems: 'center', gap: 12, flexWrap: 'wrap', justifyContent: 'flex-end', marginLeft: 'auto', flex: groups.length || lobby ? '0 1 auto' : '1 1 auto' }}>
+            <span style={{ flex: '1 1 160px', minWidth: 0, font: '600 13px/1.35 var(--font-sans)', color: action.ok || (isHost && canStart) ? G.tealHi : action.warn ? G.goldHi : G.muted, textAlign: groups.length || lobby ? 'right' : 'left' }}>{action.note}</span>
+            {mySeat != null && <button type="button" onClick={onLeave} disabled={busy} style={btn('ghost', { sm: true })}><Icon name="log-out" size={14} />{t('games.leave')}</button>}
             <button type="button" disabled={!action.run || action.on === false || busy || counting} onClick={action.run}
               style={{
                 minWidth: isMobile ? 150 : 190, padding: isMobile ? '13px 20px' : '15px 26px', borderRadius: 14, font: `800 ${isMobile ? 15 : 17}px/1 var(--font-sans)`, whiteSpace: 'nowrap', transition: 'all .25s',
@@ -250,9 +251,9 @@ export default function WaitingRoom({ g, act, busy, nameOf, memberOf, onInvite, 
             )}
           </div>
           {rules.map(([k, v]) => (
-            <div key={k} style={{ display: 'flex', justifyContent: 'space-between', gap: 12, font: '400 13px/1.35 var(--font-sans)' }}>
-              <span style={{ color: G.muted }}>{k}</span>
-              <span style={{ font: '500 12.5px/1.35 var(--font-mono)', color: G.text, textAlign: 'right' }}>{v}</span>
+            <div key={k} style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'baseline', gap: 12, font: '400 13px/1.4 var(--font-sans)' }}>
+              <span style={{ color: G.muted, flexShrink: 0, whiteSpace: 'nowrap' }}>{k}</span>
+              <span style={{ font: '600 13px/1.4 var(--font-sans)', color: G.text, textAlign: 'right', minWidth: 0 }}>{v}</span>
             </div>
           ))}
         </div>

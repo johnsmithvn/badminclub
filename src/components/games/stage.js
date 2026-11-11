@@ -68,3 +68,13 @@ export const tab = (on) => ({
 })
 /** Màu hạng 1 / 2 / 3 / còn lại. */
 export const rankColor = (r) => (r === 1 ? G.goldHi : r === 2 ? G.silver : r === 3 ? G.bronze : G.muted)
+
+// Lá bài (PlayingCard, Bài bịp): một "vật" nên viết cứng — mặt ngà, lưng sọc đỏ, giữ nguyên ở sáng / tối (DESIGN.md §2.4).
+export const CARD = {
+  face: '#fbf7ee',
+  line: '#d8cfbd',
+  red: '#c8283c',
+  black: '#18202e',
+  back: 'repeating-linear-gradient(45deg, #7a1d2a 0 3px, #5c1420 3px 6px)',
+  backLine: '#f3e6cc',
+}

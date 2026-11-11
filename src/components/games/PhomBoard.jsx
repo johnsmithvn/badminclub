@@ -3,7 +3,8 @@ import { Button } from '#ds'
 import { useApp } from '#contexts/AppContext.jsx'
 import { useMobile } from '#hooks/useMobile.js'
 import { t } from '#i18n'
-import ph, { bestLay, cover, faceOf, meldOk, pendingOf, pointsOf, RANK_FACES, rankOf, sendsFor, SUIT_MARKS, suitOf, uOf } from '#lib/games/phom.js'
+import PlayingCard from '#components/games/PlayingCard.jsx'
+import ph, { bestLay, cover, faceOf, meldOk, pendingOf, pointsOf, RANK_FACES, sendsFor, uOf } from '#lib/games/phom.js'
 
 /**
  * Bàn Phỏm: người khác (số lá, chồng bài đã đánh, lá đã ăn, phỏm đã hạ), lá vừa đánh + nọc ở giữa, bài trên tay mình.
@@ -14,41 +15,12 @@ import ph, { bestLay, cover, faceOf, meldOk, pendingOf, pointsOf, RANK_FACES, ra
  * Bài trên tay KHÔNG có trong state (docs/GAMES.md §5.2): nạp riêng từ game_hands (RLS: đang chơi chỉ trả tay mình, hết
  * ván trả mọi tay để lật bài) — nạp lại sau mỗi nước. Luật: lib/games/phom.js · server kiểm lại từng nước: 0090.
  */
-const RED = 'var(--status-incident-fg)'
 const byNum = (a, b) => a - b
 const ptsOf = (cards) => cards.reduce((a, c) => a + pointsOf(c), 0)
 
-function Card({ c, on, small, tiny, mark, dim, onPick }) {
-  const w = tiny ? 24 : small ? 32 : 44
-  return (
-    <button
-      type="button"
-      onClick={onPick}
-      disabled={!onPick}
-      aria-pressed={onPick ? !!on : undefined}
-      aria-label={faceOf(c) + (mark ? ' · ' + mark : '')}
-      style={{
-        position: 'relative', width: w, height: Math.round(w * 1.42), padding: 0, flexShrink: 0, borderRadius: tiny ? 4 : small ? 5 : 7,
-        display: 'grid', placeItems: 'center', alignContent: 'center', gap: 1,
-        background: 'var(--surface-card)', color: suitOf(c) >= 2 ? RED : 'var(--text-primary)',
-        border: '1.5px solid ' + (on ? 'var(--border-focus-color)' : mark ? 'var(--status-transit)' : 'var(--border-default)'),
-        boxShadow: on ? 'var(--shadow-md)' : 'var(--shadow-xs)', opacity: dim ? 0.45 : 1,
-        transform: on ? 'translateY(-10px)' : 'none', transition: 'transform var(--dur-fast) var(--ease-standard), opacity var(--dur-fast)',
-        font: (tiny ? '600 10px' : small ? '600 12px' : '600 15px') + '/1 var(--font-mono)', cursor: onPick ? 'pointer' : 'default',
-        touchAction: 'manipulation',
-      }}
-    >
-      <span>{RANK_FACES[rankOf(c)]}</span>
-      <span style={{ fontSize: tiny ? 10 : small ? 12 : 16 }}>{SUIT_MARKS[suitOf(c)]}</span>
-      {mark && !tiny && (
-        <span aria-hidden="true" style={{
-          position: 'absolute', top: -7, right: -7, padding: '2px 4px', borderRadius: 99, font: '600 9px/1 var(--font-sans)',
-          background: 'var(--status-transit-bg)', color: 'var(--status-transit-fg)', border: '1px solid var(--status-transit)',
-        }}>{mark}</span>
-      )}
-    </button>
-  )
-}
+const RED = 'var(--status-incident-fg)'
+// Lá dùng chung (PlayingCard); ba cỡ của bàn Phỏm.
+const Card = ({ tiny, small, ...p }) => <PlayingCard w={tiny ? 24 : small ? 32 : 44} faces={RANK_FACES} {...p} />
 
 const Row = ({ cards, ...p }) => (
   <div style={{ display: 'flex', gap: 3, flexWrap: 'wrap', minWidth: 0 }}>{cards.map((c) => <Card key={c} c={c} {...p} />)}</div>

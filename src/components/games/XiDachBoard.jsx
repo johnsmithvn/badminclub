@@ -113,8 +113,8 @@ export default function XiDachBoard({ state, mySeat, onMove, roomId, result }) {
               {state.counts[seat] > 0 && (
                 <div style={{ display: 'flex', gap: 3, flexWrap: 'wrap' }}>
                   {open
-                    ? open.map((c) => <Card key={c} c={c} small />)
-                    : Array.from({ length: state.counts[seat] }, (_, k) => <Card key={k} back small />)}
+                    ? open.map((c) => <Card key={c} c={c} w={30} />)
+                    : Array.from({ length: state.counts[seat] }, (_, k) => <Card key={k} back w={30} />)}
                 </div>
               )}
               {open && (

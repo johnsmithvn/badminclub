@@ -3,7 +3,8 @@ import { Button } from '#ds'
 import { useApp } from '#contexts/AppContext.jsx'
 import { useMobile } from '#hooks/useMobile.js'
 import { t } from '#i18n'
-import { RANK_FACES, SUIT_MARKS, faceOf, rankOf, suitOf } from '#lib/games/phom.js'
+import PlayingCard from '#components/games/PlayingCard.jsx'
+import { RANK_FACES } from '#lib/games/phom.js'
 import { nutOf, scoreOf } from '#lib/games/bacay.js'
 
 /**
@@ -12,32 +13,13 @@ import { nutOf, scoreOf } from '#lib/games/bacay.js'
  * Bài trên tay không có trong state trước khi lật (docs/GAMES.md §5.2): nạp riêng từ game_hands (RLS: đang chơi chỉ trả tay
  * mình, hết ván trả mọi tay). Lá đã lật nằm trong log. Luật: lib/games/bacay.js · server: 0092.
  */
+
 const RED = 'var(--status-incident-fg)'
 
-function Card({ c, size = 40, down, pop, onPick, label }) {
-  const h = Math.round(size * 1.42)
-  const base = {
-    width: size, height: h, padding: 0, flexShrink: 0, borderRadius: size >= 40 ? 7 : 5,
-    boxShadow: 'var(--shadow-xs)', touchAction: 'manipulation', cursor: onPick ? 'pointer' : 'default',
-    animation: pop ? 'gameFlip var(--dur-slow) var(--ease-standard) both' : 'none',
-  }
-  if (down || c == null) {
-    return (
-      <button type="button" onClick={onPick} disabled={!onPick} aria-label={label || t('games.bacay.cardDown')}
-        style={{ ...base, border: '2px solid var(--surface-card)', background: 'repeating-linear-gradient(45deg, var(--navy-700), var(--navy-700) 4px, var(--navy-600, var(--navy-700)) 4px, var(--navy-600, var(--navy-700)) 8px)' }} />
-    )
-  }
-  return (
-    <button type="button" onClick={onPick} disabled={!onPick} aria-label={faceOf(c)}
-      style={{
-        ...base, display: 'grid', placeItems: 'center', alignContent: 'center', gap: 1,
-        background: 'var(--surface-card)', border: '1.5px solid var(--border-default)', color: suitOf(c) >= 2 ? RED : 'var(--text-primary)',
-        font: (size >= 40 ? '600 15px' : '600 12px') + '/1 var(--font-mono)',
-      }}>
-      <span>{RANK_FACES[rankOf(c)]}</span>
-      <span style={{ fontSize: size >= 40 ? 16 : 12 }}>{SUIT_MARKS[suitOf(c)]}</span>
-    </button>
-  )
+// Lá dùng chung (PlayingCard); chưa biết lá (c == null) cũng vẽ úp.
+const Card = ({ size = 40, down, label, ...p }) => {
+  const back = down || p.c == null
+  return <PlayingCard w={size} faces={RANK_FACES} back={back} label={back ? label || t('games.bacay.cardDown') : undefined} {...p} />
 }
 
 const nutText = (cards) => (nutOf(cards) === 0 ? t('games.bacay.bu') : t('games.bacay.nut', { n: nutOf(cards) }))

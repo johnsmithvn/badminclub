@@ -3,7 +3,7 @@ import { DICTS as NOITU_DICTS, REPEATS as NOITU_REPEATS, TIMES as NOITU_TIMES } 
 import { SIZES as COVAY_SIZES } from '#lib/games/covay.js'
 import { DAY_TIMES as MASOI_TIMES, REVEALS as MASOI_REVEALS, GUARD, SEER, WITCH, WOLF, isWolf, lineupOf } from '#lib/games/masoi.js'
 import { TIMES as BAIBIP_TIMES } from '#lib/games/baibip.js'
-import { LEADS as TIENLEN_LEADS, VARIANTS as TIENLEN_VARIANTS } from '#lib/games/tienlen.js'
+import { LEADS as TIENLEN_LEADS, TIMES as TIENLEN_TIMES, VARIANTS as TIENLEN_VARIANTS } from '#lib/games/tienlen.js'
 import { LAPS as BAUCUA_LAPS, TIMES as BAUCUA_TIMES } from '#lib/games/baucua.js'
 import { TIMES as LOTO_TIMES } from '#lib/games/loto.js'
 import { LAPS as XIDACH_LAPS, TIMES as XIDACH_TIMES } from '#lib/games/xidach.js'
@@ -17,7 +17,7 @@ import cfg from '#config/app.js'
 // "nhãn — giá trị". Thêm tuỳ chọn mới cho game nào thì thêm ở đây là cả hai chỗ cùng thấy.
 
 // Game có đồng hồ / số vòng chọn lúc tạo phòng: chữ ở games.<id>.time · timeOpt · timeNone (0 = tắt) · laps · lapsOpt.
-const TIME_OPTS = { baucua: BAUCUA_TIMES, loto: LOTO_TIMES, xidach: XIDACH_TIMES, oanquan: OQ_TIMES }
+const TIME_OPTS = { baucua: BAUCUA_TIMES, loto: LOTO_TIMES, xidach: XIDACH_TIMES, oanquan: OQ_TIMES, tienlen: TIENLEN_TIMES }
 const LAP_OPTS = { baucua: BAUCUA_LAPS, xidach: XIDACH_LAPS }
 const MASOI_CUSTOM = [WOLF, WOLF, SEER, GUARD, WITCH]
 const CHESS = ['covua', 'cotuong']
@@ -82,7 +82,7 @@ export function fieldsOf(gameId, opts, set) {
     f.push(sel('time', t('games.baibip.time'), opts.time, nums(BAIBIP_TIMES, (n) => (n ? t('games.baibip.timeOpt', { n }) : t('games.baibip.timeNone'))), num('time')))
   }
   if (TIME_OPTS[gameId]) {
-    f.push(sel('time', t('games.' + gameId + '.time'), opts.time, nums(TIME_OPTS[gameId], (n) => (n ? t('games.' + gameId + '.timeOpt', { n }) : t('games.' + gameId + '.timeNone'))), num('time')))
+    f.push(sel('time', t('games.' + gameId + '.time'), opts.time ?? 0, nums(TIME_OPTS[gameId], (n) => (n ? t('games.' + gameId + '.timeOpt', { n }) : t('games.' + gameId + '.timeNone'))), num('time')))
   }
   if (LAP_OPTS[gameId]) {
     f.push(sel('laps', t('games.' + gameId + '.laps'), opts.laps, nums(LAP_OPTS[gameId], (n) => t('games.' + gameId + '.lapsOpt', { n })), num('laps')))

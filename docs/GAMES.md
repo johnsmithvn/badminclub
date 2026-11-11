@@ -477,7 +477,7 @@ nút **Chơi với máy** → `/tro-choi/may-<game>`; `GameRoom.jsx` thấy ti�
   cuối vẫn thua, hoà; 300 ván ngẫu nhiên chỉ đổi màu đúng các quân bị kẹp; xếp quân + ván mẫu khớp SQL.
 - `chamo.test.js` — đánh số nét / ô với mọi cỡ bàn, khép ô thì đi tiếp, một nét khép hai ô, hoà; 300 ván ngẫu nhiên;
   hằng số + ván mẫu khớp SQL 0077.
-- `tienlen.test.js` — kiểu bộ, chặn / chặt / chặt ngang, xếp hạng, cóng, thối, tới trắng, người rời; bộ mẫu chung với
+- `tienlen.test.js` — kiểu bộ, chặn / chặt / chặt ngang, xếp hạng, cóng, thối, tới trắng, người rời, gợi ý, đồng hồ lượt (gác 0106); bộ mẫu chung với
   `supabase/manual/0078_games_tienlen_check.sql`. `covua.test.js` / `cotuong.test.js` — perft chuẩn, chiếu hết, hoà.
   `cangua.test.js` — ra quân, không nhảy qua, đá ngựa, về chuồng, người rời ván 3 người vẫn đủ ghế. `bantau.test.js`,
   `domino.test.js`, `baibip.test.js`, `noitu.test.js`, `masoi.test.js`, `coup.test.js`, `baucua.test.js`, `loto.test.js`,
@@ -614,6 +614,12 @@ nút "bỏ lượt" — state ghi `last.skipped`), cả hai không đi được 
   cùng bộ chất (`mask`); sảnh phải cả dây một chất. Heo chặn mọi lẻ / đôi không phải heo. Tứ quý chặt heo, đôi heo, tứ
   quý nhỏ hơn. Không có đôi thông, không chặt ngang, không tới trắng, không cóng. Về bằng nước có heo / tứ quý (**chốt**)
   thì xếp dưới người còn bài. Thối chỉ tính heo + tứ quý.
+- **Đồng hồ lượt** (0106, giống Bài bịp): `options.time` = 15 | 20 | 30 giây (khác = không đồng hồ; phòng mới mặc định 20,
+  phòng cũ không có `time` thì không tính giờ). `since` = `created_at` nước trước. Hết giờ máy khách báo `{ timeout: true }`
+  (`request` → không áp lạc quan); `game_tienlen_fill` kiểm `now()` đã qua hạn (`games.err.notYet`) rồi ghi
+  `{ timeout, pass }` — hoặc mở vòng thì đánh lá nhỏ nhất của người tới lượt. Áp như nước của `s.turn`.
+- **Gợi ý** (`hintOf(s, hand)`, chỉ client): mở vòng → bộ dài nhất chứa lá bắt buộc, không mở bằng bom; chặn → bộ nhỏ nhất
+  chặn được, bom để sau cùng. Bàn (`TienLenBoard`) theo bản "Tien Len": ghế quanh chiếu, vòng giờ, nhãn nút theo bộ đang chọn.
 
 **Đồng hồ tổng + xin hoà — Cờ vua / Cờ tướng** (`chessClock.js`, 0105): `options.clock` = 5 | 10 | 15 phút mỗi bên
 (khác = không đồng hồ), mỗi nước đã đi được cộng 5 giây (`INC_SEC`). `state.clock = { left: [ms, ms], since }` tính theo

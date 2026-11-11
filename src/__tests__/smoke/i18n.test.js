@@ -188,7 +188,7 @@ GAME_IDS.forEach((id) => {
   for (let s = 0; s < GAMES[id].maxPlayers; s++) need('games.' + id + '.mark' + s)
 })
 ;['waiting', 'playing', 'finished', 'abandoned'].forEach((s) => need('games.status.' + s))
-;['single', 'pair', 'triple', 'quad', 'straight', 'pairs'].forEach((k) => need('games.tienlen.kind.' + k)) // = comboOf().kind
+;['pair', 'triple', 'quad'].forEach((k) => need('games.tienlen.combo.' + k)) // = comboOf().kind, TienLenBoard comboName
 // Ma sói: vai, đội thắng (= team của 0084 game_masoi_after), kiểu lộ vai, việc theo vai (act.* / do.*), dòng trạng thái của masoi.status.
 MASOI_ROLES.forEach((r) => { need('games.masoi.role.' + r); need('games.masoi.roleDesc.' + r) })
 ;['village', 'wolves', 'lovers'].forEach((k) => need('games.masoi.win.' + k))
@@ -203,8 +203,9 @@ BAUCUA_SYMS.forEach((k) => need('games.baucua.sym.' + k))
 ;['xiban', 'xidach', 'ngulinh', 'quac', 'du'].forEach((k) => need('games.xidach.kind.' + k)) // = xidach kindOf()
 ;['mate', 'stalemate', 'quiet', 'repetition', 'material'].forEach((k) => need('games.coup.reason.' + k))
 // Tuỳ chọn giờ / số vòng ở form tạo phòng (pages/Games.jsx TIME_OPTS / LAP_OPTS).
-;['baucua', 'loto', 'xidach'].forEach((id) => ['time', 'timeOpt'].forEach((f) => need('games.' + id + '.' + f)))
+;['baucua', 'loto', 'xidach', 'tienlen'].forEach((id) => ['time', 'timeOpt'].forEach((f) => need('games.' + id + '.' + f)))
 need('games.xidach.timeNone')
+need('games.tienlen.timeNone')
 ;['baucua', 'xidach'].forEach((id) => ['laps', 'lapsOpt'].forEach((f) => need('games.' + id + '.' + f)))
 ;['wolf', 'seer', 'guard', 'cupid', 'vote', 'shoot'].forEach((m) => { need('games.masoi.act.' + m); need('games.masoi.do.' + m) })
 ;['Night', 'Witch', 'Day', 'Hunter', 'Settle'].forEach((k) => need('games.masoi.status' + k))
@@ -212,7 +213,7 @@ need('games.xidach.timeNone')
   'supabase/migrations/0078_games_tienlen.sql', 'supabase/migrations/0079_games_cangua.sql',
   'supabase/migrations/0080_games_bantau.sql', 'supabase/migrations/0081_games_domino.sql',
   'supabase/migrations/0082_games_baibip.sql', 'supabase/migrations/0083_games_noitu.sql',
-  'supabase/migrations/0084_games_masoi.sql', 'supabase/migrations/0094_games_tienlen_bac.sql',
+  'supabase/migrations/0084_games_masoi.sql', 'supabase/migrations/0094_games_tienlen_bac.sql', 'supabase/migrations/0106_games_tienlen_time.sql',
   'supabase/migrations/0095_games_coup.sql', 'supabase/migrations/0096_games_baucua.sql', 'supabase/migrations/0097_games_loto.sql',
   'supabase/migrations/0098_games_xidach.sql', 'supabase/migrations/0090_games_phom.sql',
   'supabase/migrations/0099_games_noitu_dict.sql']

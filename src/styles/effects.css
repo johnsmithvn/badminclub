@@ -432,6 +432,12 @@
 @keyframes chStreak { 0% { opacity: .85; } 100% { opacity: 0; } }
 @keyframes chHint { 0%, 100% { opacity: .5; } 50% { opacity: 1; } }
 @keyframes chRiver { from { background-position: 0 0; } to { background-position: 240px 0; } }
+/* Tiến lên (TienLenBoard): lá chia bay từ giữa bàn về ghế (đặt --fx / --fy = giữa bàn trừ ghế, --r) · lá vừa đánh bay
+   từ ghế người đánh vào bàn (--fx / --fy = ghế trừ chỗ lá, --fr, --r; dừng ở trạng thái cuối nên giảm chuyển động vẫn thấy lá)
+   · chữ CHẶT đóng dấu. Chớp + mảnh bung dùng lại chFlash / chBurst. */
+@keyframes tlDeal { 0% { opacity: 0; transform: translate(calc(-50% + var(--fx)), calc(-50% + var(--fy))) scale(.6); } 15% { opacity: 1; } 85% { opacity: 1; } 100% { opacity: 0; transform: translate(-50%, -50%) rotate(var(--r)) scale(.9); } }
+@keyframes tlFly { from { opacity: .2; transform: translate(calc(-50% + var(--fx)), calc(-50% + var(--fy))) rotate(var(--fr)) scale(.8); } to { opacity: 1; transform: translate(-50%, -50%) rotate(var(--r)) scale(1); } }
+@keyframes tlStamp { 0% { opacity: 0; transform: translate(-50%, -50%) scale(2.8) rotate(-7deg); } 18% { opacity: 1; transform: translate(-50%, -50%) scale(1) rotate(-7deg); } 80% { opacity: 1; } 100% { opacity: 0; transform: translate(-50%, -50%) scale(1.08) rotate(-7deg); } }
 @media (prefers-reduced-motion: reduce) {
   [data-game-fx] * { animation: none !important; }
 }

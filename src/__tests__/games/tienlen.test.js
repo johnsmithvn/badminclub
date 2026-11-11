@@ -4,7 +4,7 @@
 
 import assert from 'node:assert/strict'
 import { readFileSync } from 'node:fs'
-import tl, { HAND, TWO, beats, comboOf, priceOf, thoiOf, variantOf, whiteOf } from '#lib/games/tienlen.js'
+import tl, { HAND, TIMES, TWO, beats, comboOf, deadlineOf, hintOf, priceOf, thoiOf, timeOf, variantOf, whiteOf } from '#lib/games/tienlen.js'
 import { replay } from '#lib/games/registry.js'
 
 /** Nước deal như server ghi (0078 game_tienlen_deal): ván chơi lại thì `first` đi trước, không thì ai cầm lá nhỏ nhất. */
@@ -215,7 +215,7 @@ function serverResult(s, hands) {
     assert.equal(tl.validate(free, 0, { play: [c(5, 1)] }), null, 'lead free: nước đầu không cần lá nhỏ nhất')
     const must = tl.apply(tl.setup(), 0, { deal: { first: 0, low: c(0, 0), n: [2, 2], white: null } })
     assert.equal(tl.validate(must, 0, { play: [c(5, 1)] }), 'games.err.mustLow', 'mặc định: nước đầu phải có lá nhỏ nhất')
-    assert.deepEqual(tl.defaultOptions, { variant: 'nam', lead: 'must' })
+    assert.deepEqual(tl.defaultOptions, { variant: 'nam', lead: 'must', time: 20 })
   }
   // SQL 0094 chép đúng các nhánh này.
   const sql = readFileSync('supabase/migrations/0094_games_tienlen_bac.sql', 'utf8')
@@ -224,5 +224,70 @@ function serverResult(s, hands) {
     assert.ok(sql.includes(frag), '0094 thiếu: ' + frag)
   }
 }
+
+// Gợi ý (hintOf): sai là nút Gợi ý chọn bộ không đánh được, hoặc phí heo / hàng khi bộ nhỏ đã đủ chặn.
+{
+  const c = (r, su) => r * 4 + su
+  // Mở vòng nước đầu: phải có lá `low`, ưu tiên bộ dài nhất chứa nó.
+  let s = start([[c(0, 0), c(1, 1), c(2, 2), c(9, 0)], [c(5, 0), c(6, 0), c(7, 1), c(8, 1)]])
+  assert.deepEqual(hintOf(s, [c(0, 0), c(1, 1), c(2, 2), c(9, 0)]), [c(0, 0), c(1, 1), c(2, 2)], 'mở vòng: sảnh dài nhất có 3♠')
+  // Chặn lẻ: lá nhỏ nhất to hơn, không phí heo.
+  s = step(s, 0, { play: [c(0, 0)] })
+  assert.deepEqual(hintOf(s, [c(5, 0), c(6, 0), c(7, 1), c(TWO, 3)]), [c(5, 0)], 'chặn lẻ bằng lá nhỏ nhất, giữ heo')
+  // Chỉ còn heo thì mới dùng heo.
+  assert.deepEqual(hintOf({ ...s, table: { cards: [c(11, 3)], ...comboOf([c(11, 3)]) } }, [c(3, 0), c(TWO, 0)]), [c(TWO, 0)])
+  // Heo trên bàn, không còn heo to hơn: 3 đôi thông chặt.
+  const pairs = [c(3, 0), c(3, 1), c(4, 0), c(4, 1), c(5, 0), c(5, 1)]
+  const heo = { ...s, table: { cards: [c(TWO, 3)], ...comboOf([c(TWO, 3)]), seat: 0 } }
+  assert.deepEqual(hintOf(heo, [...pairs, c(9, 0)]), pairs, '3 đôi thông chặt heo')
+  // Heo nhỏ trên bàn, có cả heo to hơn lẫn tứ quý: đánh heo, giữ tứ quý.
+  const quad3 = [c(0, 0), c(0, 1), c(0, 2), c(0, 3)]
+  assert.deepEqual(hintOf({ ...heo, table: { cards: [c(TWO, 0)], ...comboOf([c(TWO, 0)]), seat: 0 } }, [...quad3, c(TWO, 3)]), [c(TWO, 3)], 'không phí tứ quý')
+  // Mở vòng không mở bằng hàng: tứ quý 3 dài nhất nhưng phải giữ — đánh sám 3.
+  assert.deepEqual(hintOf({ ...heo, table: null }, [...quad3, c(5, 0)]), [c(0, 0), c(0, 1), c(0, 2)], 'mở vòng giữ tứ quý')
+  // Mở vòng phải có lá nhỏ nhất dù sám 8 dài hơn — không thì 3 lẻ ôm tới cuối ván.
+  assert.deepEqual(hintOf({ ...heo, table: null }, [c(0, 0), c(5, 0), c(5, 1), c(5, 2)]), [c(0, 0)])
+  // Không chặn được gì → null (nên bỏ lượt).
+  assert.equal(hintOf(heo, [c(9, 0), c(10, 1)]), null)
+  // Miền Bắc: lẻ phải cùng chất.
+  const b = { ...heo, bac: true, table: { cards: [c(4, 2)], ...comboOf([c(4, 2)], true), seat: 0 } }
+  assert.deepEqual(hintOf(b, [c(5, 0), c(6, 2)]), [c(6, 2)], 'miền Bắc chặn đồng chất')
+}
+
+// Đồng hồ lượt (0106): hạn = giờ server nước gần nhất + time; báo hết giờ chỉ server đi thay.
+{
+  assert.deepEqual(TIMES, [0, 15, 20, 30])
+  assert.equal(timeOf({}), 0, 'phòng cũ không có time = không giới hạn (không tự nhiên bị xử thua giữa ván)')
+  assert.equal(timeOf({ time: 7 }), 0)
+  const at = (ms) => ({ at: new Date(ms).toISOString() })
+  const hands = [[0, 40], [8, 44]]
+  const d = dealOf(hands)
+  let s = tl.apply(tl.setup({ options: { time: 20 } }), d.seat, d.move, at(1000))
+  assert.equal(deadlineOf(s), 21000, 'hạn tính từ giờ ghi nước chia')
+  assert.equal(tl.validate(s, 1, { timeout: true }), null, 'ghế khác cũng báo hết giờ được (máy người tới lượt có thể đã tắt)')
+  assert.equal(tl.request(s, 1, { timeout: true }), true)
+  assert.equal(tl.apply(s, 1, { timeout: true }, at(30000)), s, 'chưa qua server thì không áp')
+  assert.equal(tl.validate(tl.apply(tl.setup(), d.seat, d.move), 0, { timeout: true }), 'games.err.badMove', 'phòng không đồng hồ')
+  // Server đi thay: mở vòng → đánh lá nhỏ nhất (là lá low), áp như ghế tới lượt dù ghế báo là ghế 1.
+  assert.equal(tl.validate(s, 1, { timeout: true, play: [0] }), null)
+  s = tl.apply(s, 1, { timeout: true, play: [0] }, at(21500))
+  assert.deepEqual([s.counts, s.turn, s.last.seat, s.last.timeout, deadlineOf(s)], [[1, 2], 1, 0, true, 41500])
+  // Có bộ trên bàn → bỏ lượt thay.
+  assert.equal(tl.validate(s, 0, { timeout: true, play: [44] }), null, 'nước đi thay được kiểm như của ghế 1')
+  s = tl.apply(s, 0, { timeout: true, pass: true }, at(42000))
+  assert.deepEqual([s.table, s.turn, s.last.timeout], [null, 0, true], 'bỏ lượt hết vòng → ghế 0 mở vòng mới')
+  // SQL 0106 chép đúng: danh sách giây, mặc định 0, đi thay = bỏ lượt / lá nhỏ nhất, kiểm giờ bằng now().
+  const sql = readFileSync('supabase/migrations/0106_games_tienlen_time.sql', 'utf8')
+  for (const frag of ['IN (15, 20, 30)', "'games.err.notYet'", '"pass": true', 'min(x)', 'v_since + v_time', 'v_seat := v_turn',
+    'CREATE OR REPLACE FUNCTION public.game_tienlen_fill(p_room uuid, p_seat int, p_move jsonb)']) {
+    assert.ok(sql.includes(frag), '0106 thiếu: ' + frag)
+  }
+}
+
+// Tab Nước đi: đọc nước thành khoá i18n; lá xếp tăng dần; nước hết giờ để phòng tự ghi.
+assert.deepEqual(tl.moveNote({ play: [8, 0, 4] }), { key: 'games.tienlen.notePlay', params: { cards: '3♠ 4♠ 5♠' } })
+assert.deepEqual(tl.moveNote({ pass: true }), { key: 'games.tienlen.notePass' })
+assert.deepEqual(tl.moveNote({ deal: { n: [13, 13] } }), { key: 'games.tienlen.noteDeal' })
+assert.equal(tl.moveNote({ timeout: true, pass: true }), null)
 
 console.log('tienlen check: OK')
