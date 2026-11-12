@@ -19,6 +19,12 @@ import { t } from '#i18n'
 
 // Chơi với máy (/tro-choi/may-<game>) dùng chung route với phòng thật, tải lười riêng.
 const BotRoom = lazy(() => import('#components/games/BotRoom.jsx'))
+// Màn chơi riêng không qua BotRoom: Nối từ đấu máy (cách chơi khác phòng thật) và game chỉ chơi một mình (SOLO_GAMES).
+const SOLO_SCREENS = {
+  noitu: lazy(() => import('#components/games/NoiTuSolo.jsx')),
+  timso: lazy(() => import('#components/games/TimSoGame.jsx')),
+  keobuabao: lazy(() => import('#components/games/KeoBuaBaoGame.jsx')),
+}
 
 // Game có "sân khấu" riêng (ChessStage): bàn tự vẽ thanh người chơi, trạng thái, nút Xin hoà / Xin thua, màn kết
 // thúc — khung phòng không lặp lại dải trạng thái và nút Đầu hàng. SKIN = game chọn được skin bàn (thanh người chơi
@@ -28,6 +34,8 @@ const SKIN = { covua: 'covua', cotuong: 'cotuong', coup: 'cotuong' }
 
 export default function GameRoom() {
   const { id } = useParams()
+  const Solo = id?.startsWith(BOT_PREFIX) ? SOLO_SCREENS[id.slice(BOT_PREFIX.length)] : null
+  if (Solo) return <Suspense fallback={<Skeleton height={320} />}><Solo /></Suspense>
   if (id?.startsWith(BOT_PREFIX)) {
     return <Suspense fallback={<Skeleton height={320} />}><BotRoom key={id} gameId={id.slice(BOT_PREFIX.length)} /></Suspense>
   }

@@ -1,6 +1,6 @@
 import { useSyncExternalStore } from 'react'
 
-// Skin bàn Cờ vua / Cờ tướng (bản thiết kế "Co Vua" / "Co Tuong"). Bàn cờ là một "vật" có màu riêng nên màu VIẾT CỨNG
+// Skin bàn Cờ vua / Cờ tướng (bản thiết kế "Co Vua" / "Co Tuong") và vùng biển Bắn tàu (bản "Bắn tàu", 2026-11-12). Bàn cờ là một "vật" có màu riêng nên màu VIẾT CỨNG
 // và giữ nguyên ở chế độ sáng / tối (DESIGN.md §2.4) — khác phần chữ / thẻ quanh bàn vẫn theo token.
 // Skin chỉ là bảng màu: đổi skin không tải gì thêm, chỉ vẽ skin đang chọn. Lưu theo từng máy (localStorage).
 //   acc / rgb — màu nhấn (nước đi, gợi ý, đồng hồ đang chạy); frame / border — khung; page — quầng sáng sau bàn.
@@ -8,6 +8,12 @@ import { useSyncExternalStore } from 'react'
 //   wC / bC màu mảnh bung khi quân trắng / đen bị ăn · cL / cD màu chữ toạ độ trên ô sáng / tối.
 // Cờ tướng: board mặt bàn · line đường kẻ · river chữ Sở hà Hán giới · label toạ độ · rD / bD mặt quân đỏ / đen ·
 //   rI / bI chữ quân · rG / bG ánh chữ · dSh bóng quân · rC / bC mảnh bung · motes bụi sáng · blend kiểu hoà sáng.
+// Bắn tàu: sea mặt biển · grid đường kẻ · wave sóng trôi · sweep tia radar quét · paper kiểu giấy (trúng vẽ dấu X thay
+//   lửa, tàu chìm mờ đi thay vì cháy xám) · hull / deck / det / stroke thân / boong / chi tiết / viền tàu · miss / missBg
+//   vòng trượt · lab chữ toạ độ · frame viền biển khi không tới lượt.
+// Cờ cá ngựa: board mặt bàn · frame khung · cell ô đường · line viền ô · num chữ số / mũi tên · center ô giữa ·
+//   col / dark màu 4 phe (đỏ, xanh lá, vàng, xanh dương) sáng / tối · panel / slot lòng chuồng / chỗ ngựa · glow vòng sáng
+//   ngựa đi được · pawnHi nét sáng trên ngựa.
 
 export const SKINS = {
   covua: {
@@ -58,8 +64,42 @@ export const SKINS = {
       dSh: '0 3px 0 #6b4a25,0 8px 14px rgba(0,0,0,.35)', rC: ['#b3202a', '#e0484e', '#7a1218'], bC: ['#1c1714', '#3a322b', '#000000'], motes: false, blend: 'multiply',
     },
   },
+  bantau: {
+    ocean: {
+      sea: 'radial-gradient(120% 90% at 50% 0%,#1d6fa8 0%,#0f4a7d 45%,#0a2f55 100%)', grid: 'rgba(255,255,255,.13)', wave: true, sweep: false, paper: false,
+      hull: '#8d9aa8', deck: '#c3ccd6', det: '#4b5866', stroke: '#2a333d', miss: 'rgba(255,255,255,.9)', missBg: 'rgba(255,255,255,.18)', lab: '#A8B7CB',
+      frame: '#22304A', sw: 'linear-gradient(135deg,#0f4a7d 50%,#c3ccd6 50%)',
+    },
+    radar: {
+      sea: 'radial-gradient(circle at 50% 50%,#0a2c22 0%,#05170f 70%,#030d09 100%)', grid: 'rgba(80,255,170,.2)', wave: false, sweep: true, paper: false,
+      hull: 'rgba(60,255,160,.18)', deck: 'rgba(60,255,160,.32)', det: '#5dffb0', stroke: '#5dffb0', miss: '#5dffb0', missBg: 'rgba(93,255,176,.15)', lab: '#5dffb0',
+      frame: '#1c4b38', sw: 'linear-gradient(135deg,#05170f 50%,#5dffb0 50%)',
+    },
+    paper: {
+      sea: 'linear-gradient(#fbf8ef,#f6f1e2)', grid: 'rgba(70,120,200,.32)', wave: false, sweep: false, paper: true,
+      hull: 'rgba(60,70,90,.10)', deck: 'rgba(60,70,90,.06)', det: '#3c465a', stroke: '#3c465a', miss: '#2a3550', missBg: 'transparent', lab: '#8494AA',
+      frame: '#d9cfbb', sw: 'linear-gradient(135deg,#fbf8ef 50%,#3c465a 50%)',
+    },
+  },
+  cangua: {
+    classic: {
+      board: '#fbf7ee', frame: '#1b2540', cell: '#fffdf8', line: '#d9cfbb', num: '#5b4a33', center: '#fffdf8',
+      col: ['#e53935', '#2e9e57', '#f2b705', '#1e6fd9'], dark: ['#9c1f1c', '#1d6b3a', '#a77c00', '#134a94'], panel: '#fffdf8', slot: '#efe7d6',
+      glow: 'rgba(255,255,255,.9)', pawnHi: 'rgba(255,255,255,.75)', sw: 'linear-gradient(135deg,#fbf7ee 50%,#e53935 50%)',
+    },
+    night: {
+      board: '#0c1426', frame: '#22304A', cell: '#14203a', line: 'rgba(148,163,184,.22)', num: '#c9d6ea', center: '#0c1426',
+      col: ['#ff5d73', '#3ee08f', '#ffd25a', '#4da3ff'], dark: ['#b02a3e', '#1f9a5c', '#c79a1c', '#2367c4'], panel: '#0f192e', slot: '#1a2742',
+      glow: 'rgba(160,240,225,.9)', pawnHi: 'rgba(255,255,255,.6)', sw: 'linear-gradient(135deg,#0c1426 50%,#ff5d73 50%)',
+    },
+    lacquer: {
+      board: '#2a0f0b', frame: '#c9973f', cell: '#3b1611', line: 'rgba(201,151,63,.45)', num: '#f2d79a', center: '#2a0f0b',
+      col: ['#d23a2b', '#2f9e7a', '#e2b04a', '#3b6fd1'], dark: ['#8a1f15', '#1b6b50', '#9c7420', '#244a96'], panel: '#1d0a07', slot: '#3b1611',
+      glow: 'rgba(248,231,168,.95)', pawnHi: 'rgba(255,240,210,.7)', sw: 'linear-gradient(135deg,#2a0f0b 50%,#d23a2b 50%)',
+    },
+  },
 }
-const DEFAULT = { covua: 'arcane', cotuong: 'lacquer' }
+const DEFAULT = { covua: 'arcane', cotuong: 'lacquer', bantau: 'ocean', cangua: 'classic' }
 
 // Kho skin nhỏ: đọc / ghi localStorage, báo mọi chỗ đang dùng (nút chọn ở đầu trang + bàn cờ) cùng đổi.
 const KEY = 'gameskin:'
@@ -78,7 +118,7 @@ export function setSkin(kind, id) {
 const mem = {}
 const subscribe = (f) => { subs.add(f); return () => subs.delete(f) }
 
-/** Skin đang chọn của `kind` ('covua' | 'cotuong') → [id, palette]. */
+/** Skin đang chọn của `kind` ('covua' | 'cotuong' | 'bantau' | 'cangua') → [id, palette]. */
 export function useSkin(kind) {
   const id = useSyncExternalStore(subscribe, () => mem[kind] || read(kind), () => DEFAULT[kind])
   return [id, SKINS[kind][id]]

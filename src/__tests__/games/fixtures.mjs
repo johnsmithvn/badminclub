@@ -2,7 +2,8 @@
 // Sinh lại bộ ván mẫu trong file kiểm tay: 0075_games_results_check.sql (khối $fx$ = Ô ăn quan, $cg$ = Cờ gánh),
 // 0076_games_colat_check.sql (khối $cl$ = Cờ lật), 0077_games_chamo_check.sql (khối $ch$ = Chấm ô) và
 // 0089_games_covay_check.sql (khối $gv$ = Cờ vây), 0090_games_phom_check.sql (khối $ph$ = Phỏm — kịch bản đủ bài
-// từng tay, nước người chơi gửi, nước server phải ghi / mã lỗi phải báo, kết quả chấm).
+// từng tay, nước người chơi gửi, nước server phải ghi / mã lỗi phải báo, kết quả chấm), 0107_games_xo_check.sql
+// (khối $xo$ = Cờ X-O, đủ 3 chế độ).
 // Ván do chính luật JS chơi ngẫu nhiên (tất định theo seed), trộn nước rác; kết quả ghi kèm là JS chấm.
 // <game>.test.js chấm lại các ván này bằng JS; file kiểm chấm bằng SQL trên DB thật.
 // CHỈ chạy khi cố ý đổi luật — rồi phải sửa SQL trong migration cho khớp và chạy lại file kiểm trên DB.
@@ -14,6 +15,7 @@ import cl, { movesOf } from '../../lib/games/colat.js'
 import ch from '../../lib/games/chamo.js'
 import cv, { place as cvPlace } from '../../lib/games/covay.js'
 import ph, { bestLay, cover as phCover, dealMove, judge, meldOk, meldsIn, pendingOf, referee, sendsFor, uOf } from '../../lib/games/phom.js'
+import xo, { LINES as XO_LINES, moving as xoMoving } from '../../lib/games/xo.js'
 
 // ponytail: nhân số thực vượt 2^53 rồi lấy `% n` theo bit thấp → rút lệch hẳn về vài lựa chọn. Giữ nguyên để bộ ván
 // 0075 / 0076 không đổi; game mới đừng trông vào any() để phủ đủ loại nước rác — rút lần lượt như chTrash.
@@ -606,6 +608,63 @@ if (phHunt.size) throw new Error('bộ mẫu Phỏm còn thiếu mã lỗi: ' + 
 const phLine = (f) => JSON.stringify({ note: f.note, first: f.first, hands: f.hands, stock: f.stock, deal: f.deal, steps: f.steps, result: f.result })
 const phBlock = '[\n' + phFx.map(phLine).join(',\n') + '\n]'
 
+// ---------- Cờ X-O (0107) ----------
+const xoLegal = (s) => (xoMoving(s, s.turn)
+  ? s.q[s.turn].flatMap((from) => s.board.map((v, to) => (v == null ? { from, to } : null)).filter(Boolean))
+  : s.board.map((v, i) => (v == null ? { i } : null)).filter(Boolean))
+/** Nước không làm người đi thắng ngay — hai bên cùng "né" thì ván move / vanish chạy tới hết lượt (hoà). */
+const xoCalm = (s) => {
+  const all = xoLegal(s)
+  const calm = all.filter((m) => !XO_LINES.some((l) => l.every((x) => xo.apply(s, s.turn, m).board[x] === s.turn)))
+  return calm.length ? calm : all
+}
+// Rút lần lượt (không qua any() — xem ponytail ở đầu file) để phủ đủ loại nước rác.
+let xoNth = 0
+const xoTrash = (s) => {
+  const t = s.turn
+  const empty = s.board.findIndex((v) => v == null)
+  const taken = s.board.findIndex((v) => v != null)
+  const foe = s.board.findIndex((v) => v === 1 - t)
+  const list = [
+    { seat: 1 - t, move: { i: empty } },
+    { seat: t, move: { i: 9 } },
+    { seat: t, move: { i: -1 } },
+    { seat: t, move: { i: String(empty) } },
+    { seat: t, move: { i: 2.5 } },
+    { seat: t, move: {} },
+    { seat: t, move: null },
+    ...(taken >= 0 ? [{ seat: t, move: { i: taken } }] : []),
+    ...(xoMoving(s, t)
+      ? [
+        { seat: t, move: { i: empty } }, // phải di quân mà lại đặt quân
+        { seat: t, move: { from: s.q[t][0], to: s.q[t][1] } }, // sang ô có quân
+        { seat: t, move: { from: s.q[t][0], to: empty, i: empty } },
+        ...(foe >= 0 ? [{ seat: t, move: { from: foe, to: empty } }] : []), // nhấc quân đối phương
+      ]
+      : [{ seat: t, move: { from: 0, to: empty } }, { seat: t, move: { i: empty, from: null } }]),
+  ]
+  xoNth += 1
+  return [list[xoNth % list.length]]
+}
+const xoCfg = (mode, legal = xoLegal) => ({ legal, trash: xoTrash, options: mode === 'classic' ? {} : { mode } })
+const xoKind = (g) => (g.result.draw ? 'hoà' : g.result.winners[0] === 0 ? 'X thắng' : 'O thắng')
+const xoFx = []
+for (const [mode, half] of [['classic', 11], ['move', 12], ['vanish', 13]]) {
+  const opts = mode === 'classic' ? undefined : JSON.stringify({ mode })
+  const name = { classic: 'cổ điển', move: '3 quân di chuyển', vanish: 'quân cũ biến mất' }[mode]
+  for (const f of pick(xo, { ...xoCfg(mode), seeds: 400 }, xoKind, half)) xoFx.push({ ...f, note: name + ' · ' + f.note, options: opts })
+}
+// Hai bên cùng né thắng → move / vanish chạy hết 2 × CAP nước thì hoà.
+for (const mode of ['move', 'vanish']) {
+  const g = find(xo, xoCfg(mode, xoCalm), (x) => x.result.draw, 100)
+  xoFx.push({ ...g, note: mode + ' · hết lượt thì hoà · có nước rác', options: JSON.stringify({ mode }) })
+}
+// Chế độ lạ → cổ điển.
+{
+  const g = find(xo, xoCfg('classic'), () => true, 200)
+  xoFx.push({ ...g, note: 'chế độ lạ → cổ điển · ' + xoKind(g), options: '{"mode":"loco"}' })
+}
+
 const OUT = [
   ['supabase/manual/0075_games_results_check.sql', '$fx$', block(oq, oqFx, ['cell', 'dir'])],
   ['supabase/manual/0075_games_results_check.sql', '$cg$', block(cg, cgFx, ['from', 'to'])],
@@ -613,6 +672,7 @@ const OUT = [
   ['supabase/manual/0077_games_chamo_check.sql', '$ch$', block(ch, chFx, ['line'])],
   ['supabase/manual/0089_games_covay_check.sql', '$gv$', block(cv, cvFx, ['i'])],
   ['supabase/manual/0090_games_phom_check.sql', '$ph$', phBlock],
+  ['supabase/manual/0107_games_xo_check.sql', '$xo$', block(xo, xoFx, ['i'])],
 ]
 for (const [file, tag, text] of OUT) {
   const parts = readFileSync(file, 'utf8').split(tag)
@@ -621,6 +681,6 @@ for (const [file, tag, text] of OUT) {
 }
 console.log('Phỏm:\n' + phFx.map((f) => '  ' + f.note + ' — ' + f.steps.length + ' bước, lỗi: ' +
   [...new Set(f.steps.filter((x) => x.err).map((x) => x.err.replace('games.err.', '')))].join(' ') + ' — ' + JSON.stringify(f.result)).join('\n'))
-for (const [name, fx] of [['Ô ăn quan', oqFx], ['Cờ gánh', cgFx], ['Cờ lật', clFx], ['Chấm ô', chFx], ['Cờ vây', cvFx]]) {
+for (const [name, fx] of [['Ô ăn quan', oqFx], ['Cờ gánh', cgFx], ['Cờ lật', clFx], ['Chấm ô', chFx], ['Cờ vây', cvFx], ['Cờ X-O', xoFx]]) {
   console.log(name + ':\n' + fx.map((f) => '  ' + f.note + ' — ' + f.moves.length + ' nước, ' + JSON.stringify(f.result)).join('\n'))
 }

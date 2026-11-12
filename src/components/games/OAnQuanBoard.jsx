@@ -184,9 +184,9 @@ function Board({ state, mySeat, canMove, onMove, animate, more, onDone, speed, o
   const frames = animate && state.last?.frames?.length ? state.last.frames : null
   const [k, setK] = useState(frames ? 0 : null)
   const [picked, setPicked] = useState(null)
-  // Ở ×1 cả nước đi diễn trong ~4 giây dù dài hay ngắn; ×N thì nhịp chia N. Khung đầu (lúc bốc) đứng lâu gấp đôi;
-  // khung ăn đứng lâu gấp ba cho kịp thấy hạt vàng.
-  const tick = frames ? Math.round(Math.max(70, Math.min(240, 4200 / frames.length)) / (speed || 1)) : 0
+  // Ở ×1 cả nước đi diễn trong ~6 giây dù dài hay ngắn (2026-11-12: ~4 giây vẫn nhanh quá); ×N thì nhịp chia N. Khung
+  // đầu (lúc bốc) đứng lâu gấp đôi; khung ăn đứng lâu gấp ba cho kịp thấy hạt vàng.
+  const tick = frames ? Math.round(Math.max(110, Math.min(340, 6000 / frames.length)) / (speed || 1)) : 0
 
   useEffect(() => {
     if (k == null) return undefined

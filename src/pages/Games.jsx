@@ -11,11 +11,11 @@ import { blockedOf } from '#components/games/roomFields.js'
 import GameBoard, { CoinBoard } from '#components/games/GameBoard.jsx'
 import { G, btn, card, chip, field, mono, over, rankColor, stage, tab as tabStyle } from '#components/games/stage.js'
 import { myMember } from '#lib/money.js'
-import { BOARD_POINTS, BOT_GAMES, BOT_PREFIX, COIN_START, GAMES, GAME_IDS, NO_STAKE, STAKES, boardOf, gameOf, isStaleRoom, seatRange, seatedOf, stakeOf, statsOf } from '#lib/games/registry.js'
+import { BOARD_POINTS, BOT_GAMES, BOT_PREFIX, COIN_START, GAMES, LOBBY_IDS, NO_STAKE, SOLO_GAMES, STAKES, boardOf, gameOf, isStaleRoom, seatRange, seatedOf, stakeOf, statsOf } from '#lib/games/registry.js'
 // Nhóm game cho hàng lọc ở sảnh — chỉ để vẽ, không ảnh hưởng luật.
-const CAT = { caro: 'board', oanquan: 'board', coganh: 'board', colat: 'board', chamo: 'board', covua: 'board', cotuong: 'board',
+const CAT = { caro: 'board', xo: 'board', oanquan: 'board', coganh: 'board', colat: 'board', chamo: 'board', covua: 'board', cotuong: 'board',
   bantau: 'board', coup: 'board', covay: 'board', tienlen: 'card', domino: 'card', baibip: 'card', xidach: 'card', phom: 'card',
-  bacay: 'card', cangua: 'party', masoi: 'party', baucua: 'party', loto: 'party', noitu: 'word' }
+  bacay: 'card', cangua: 'party', masoi: 'party', baucua: 'party', loto: 'party', noitu: 'word', timso: 'party', keobuabao: 'party' }
 const catLabels = () => ({ all: t('games.cat.all'), board: t('games.cat.board'), card: t('games.cat.card'), party: t('games.cat.party'), word: t('games.cat.word') })
 import { monthOf, todayISO } from '#utils/dates.js'
 import { pathOf } from '#routes'
@@ -38,6 +38,8 @@ export default function Games() {
   const [cat, setCat] = useState('all')
   const [q, setQ] = useState('')
   const [top, setTop] = useState(null) // top 5 tháng này ở cột phải; null = đang nạp
+  const [codeOpen, setCodeOpen] = useState(false) // mobile: ô nhập mã phòng mở bằng nút
+  const [sheet, setSheet] = useState(null) // mobile: id game đang mở sheet hành động
 
   // Thống kê thắng thua (tới statsLimit ván) chỉ nạp lúc mở sảnh; nhịp hỏi lại chỉ lấy danh sách phòng.
   const refresh = useCallback((withStats = false) => a.gameLobby(withStats)
@@ -86,10 +88,144 @@ export default function Games() {
   const others = rooms.filter((r) => r !== current)
   const liveOf = rooms.reduce((o, r) => ({ ...o, [r.game]: (o[r.game] || 0) + 1 }), {})
   const needle = q.trim().toLowerCase()
-  const shown = GAME_IDS.filter((id) => (cat === 'all' || CAT[id] === cat) && (!needle || t('games.' + id + '.name').toLowerCase().includes(needle)))
+  // "2–4 người · có máy" dưới tên game trên thẻ mobile.
+  const metaOf = (id) => {
+    if (SOLO_GAMES.includes(id)) return t('games.lobby.solo')
+    const g = GAMES[id]
+    const n = g.minPlayers === g.maxPlayers ? t('games.lobby.playersOne', { n: g.minPlayers }) : t('games.lobby.playersN', { min: g.minPlayers, max: g.maxPlayers })
+    return BOT_GAMES.includes(id) ? n + ' · ' + t('games.lobby.hasBot') : n
+  }
+  const shown = LOBBY_IDS.filter((id) => (cat === 'all' || CAT[id] === cat) && (!needle || t('games.' + id + '.name').toLowerCase().includes(needle)))
 
   const tabs = [['play', t('games.board.tabPlay')], ['board', t('games.board.tabBoard')], ['coins', t('games.coins.tab')]]
   const goTab = (k) => { setTab(k); if (k === 'play') poll(); if (k === 'coins') loadWallets() }
+  const tabBar = (
+    <div role="tablist" style={{ display: 'flex', flexWrap: 'wrap', gap: 4, borderBottom: '1px solid ' + G.line }}>
+      {tabs.map(([k, label]) => (
+        <button key={k} type="button" role="tab" aria-selected={tab === k} onClick={() => goTab(k)} style={tabStyle(tab === k)}>{label}</button>
+      ))}
+    </div>
+  )
+  const codeForm = (<>
+    <input
+      value={code}
+      maxLength={6}
+      autoFocus={isMobile}
+      onChange={(e) => setCode(e.target.value.toUpperCase())}
+      onKeyDown={(e) => { if (e.key === 'Enter' && code.trim()) byCode() }}
+      placeholder={t('games.codePh')}
+      aria-label={t('games.codePh')}
+      style={{ ...field, flex: isMobile ? '1 1 0' : '0 0 170px', font: '600 13px/1.2 var(--font-mono)', letterSpacing: '.1em', minHeight: isMobile ? 44 : undefined }}
+    />
+    <button type="button" disabled={code.trim().length < 6} onClick={byCode} style={{ ...btn('primary'), opacity: code.trim().length < 6 ? 0.45 : 1, minHeight: isMobile ? 44 : undefined }}>{t('games.joinByCode')}</button>
+  </>)
+  const coinPill = me && (
+    <span style={isMobile ? { ...S.coin, height: 44, padding: '0 12px', borderRadius: 12, font: '700 13px/1 var(--font-mono)', flexShrink: 0 } : S.coin} title={t('games.coins.mine', { n: coins.toLocaleString('vi-VN') })}>
+      <span style={{ width: isMobile ? 9 : 10, height: isMobile ? 9 : 10, borderRadius: 99, background: G.gold }} />
+      <span style={{ color: coins < 0 ? G.red : G.goldHi }}>{isMobile ? coins.toLocaleString('vi-VN') : t('games.coins.mine', { n: coins.toLocaleString('vi-VN') })}</span>
+    </span>
+  )
+
+  if (isMobile) return (
+    <div style={stage({ mobile: true })}>
+      {/* Đầu sảnh mobile (bản "Sảnh · mobile"): tiêu đề | nút mã phòng + ví; ô nhập mã mở khi bấm nút; tab gạch chân. */}
+      <div style={{ display: 'grid', gap: 12, gridTemplateColumns: 'minmax(0, 1fr)' }}>
+        <div style={{ display: 'flex', alignItems: 'center', gap: 10, minWidth: 0 }}>
+          <div style={{ flex: 1, minWidth: 0 }}>
+            <div style={{ font: '800 24px/1.1 var(--font-display)', letterSpacing: '-.01em' }}>{t('nav.games')}</div>
+            <div style={{ ...S.caption, marginTop: 3, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>{t('games.lobby.tagline')}</div>
+          </div>
+          <button type="button" aria-label={t('games.joinByCode')} aria-expanded={codeOpen} onClick={() => setCodeOpen((v) => !v)} style={S.iconBtn(codeOpen)}>
+            <Icon name={codeOpen ? 'x' : 'qr-code'} size={20} />
+          </button>
+          {coinPill}
+        </div>
+        {codeOpen && <div style={{ display: 'flex', gap: 8, minWidth: 0 }}>{codeForm}</div>}
+        {tabBar}
+      </div>
+
+      {tab === 'board' && <GameBoard me={me} isMobile />}
+      {tab === 'coins' && <CoinBoard me={me} wallets={wallets} />}
+
+      {tab === 'play' && (<>
+        {err && <Alert tone="danger">{err}</Alert>}
+        {current && <ResumeCard compact room={current} me={me} members={db.members} onEnter={() => enter(current)} />}
+        {/* Phòng đang mở: bản thiết kế không vẽ, giữ lại nhưng chỉ hiện khi có phòng — số phòng từng game nằm luôn trên thẻ. */}
+        {others.length > 0 && (
+          <div style={{ ...card, padding: '12px 14px', display: 'grid', gap: 6, gridTemplateColumns: 'minmax(0, 1fr)' }}>
+            <span style={over}>{t('games.openRooms')}</span>
+            <div style={{ display: 'grid', gridTemplateColumns: 'minmax(0, 1fr)', maxHeight: 200, overflowY: 'auto' }}>
+              {others.map((r) => <RoomRow key={r.id} room={r} me={me} members={db.members} onEnter={() => enter(r)} />)}
+            </div>
+          </div>
+        )}
+
+        <div style={{ display: 'grid', gap: 10, gridTemplateColumns: 'minmax(0, 1fr)' }}>
+          <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'baseline', gap: 10 }}>
+            <span style={{ font: '700 16px/1.2 var(--font-sans)' }}>{t('games.lobby.allGames')}</span>
+            <span style={{ ...S.caption, flexShrink: 0 }}>{t('games.lobby.count', { n: shown.length })}</span>
+          </div>
+          <div style={{ display: 'flex', gap: 6, overflowX: 'auto', margin: '0 -14px', padding: '0 14px', scrollbarWidth: 'none' }}>
+            {Object.entries(catLabels()).map(([k, label]) => (
+              <button key={k} type="button" aria-pressed={cat === k} onClick={() => setCat(k)} style={{ ...chip(cat === k), minHeight: 36 }}>{label}</button>
+            ))}
+          </div>
+          <input
+            type="search"
+            value={q}
+            onChange={(e) => setQ(e.target.value)}
+            placeholder={t('games.lobby.search')}
+            aria-label={t('games.lobby.search')}
+            style={{ ...field, minHeight: 44, font: '400 16px/1.2 var(--font-sans)' }}
+          />
+        </div>
+
+        {shown.length === 0 && <span style={S.caption}>{t('games.lobby.noMatch')}</span>}
+        <div style={{ display: 'grid', gap: 10, gridTemplateColumns: 'repeat(2, minmax(0, 1fr))' }}>
+          {shown.map((id) => {
+            const name = t('games.' + id + '.name')
+            const live = liveOf[id] || 0
+            return (
+              <button key={id} type="button" className="game-card" onClick={() => setSheet(id)} aria-label={name} style={S.tile}>
+                <span style={{ width: 76, height: 46, borderRadius: 12, overflow: 'hidden', display: 'block' }}><GameArt id={id} height={46} /></span>
+                <span style={{ display: 'grid', gap: 2, gridTemplateColumns: 'minmax(0, 1fr)' }}>
+                  <span style={{ font: '700 15px/1.25 var(--font-sans)', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>{name}</span>
+                  <span style={{ ...S.caption, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>{metaOf(id)}</span>
+                  {stats[id] && <span style={{ ...mono, fontSize: 11, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>{t('games.record', stats[id])}</span>}
+                </span>
+                {live > 0 && (
+                  <span style={{ position: 'absolute', top: 12, right: 12, display: 'flex', alignItems: 'center', gap: 5, font: '600 11px/1 var(--font-sans)', color: G.tealHi }}>
+                    <span style={{ width: 6, height: 6, borderRadius: 99, background: G.teal }} />
+                    {t('games.lobby.liveShort', { n: live })}
+                  </span>
+                )}
+              </button>
+            )
+          })}
+        </div>
+
+        <TopMonth top={top} me={me} members={db.members} onSeeBoard={() => goTab('board')} />
+      </>)}
+
+      {sheet && (
+        <GameSheet
+          id={sheet}
+          me={me}
+          record={stats[sheet]}
+          meta={metaOf(sheet)}
+          rooms={others.filter((r) => r.game === sheet)}
+          members={db.members}
+          onEnter={enter}
+          onClose={() => setSheet(null)}
+          onCreate={() => { setSheet(null); setCreating(sheet) }}
+          onBot={() => { setSheet(null); vsBot(sheet) }}
+          onHowto={() => { setSheet(null); setHowto(sheet) }}
+        />
+      )}
+      {creating && <CreateRoom gameId={creating} coins={coins} onClose={() => setCreating(null)} onDone={(id) => { setCreating(null); open(id) }} />}
+      {howto && <HowTo gameId={howto} onClose={() => setHowto(null)} />}
+    </div>
+  )
 
   return (
     <div style={stage({ mobile: isMobile })}>
@@ -100,29 +236,11 @@ export default function Games() {
             <div style={{ font: `800 ${isMobile ? 22 : 26}px/1.15 var(--font-display)`, letterSpacing: '-.01em' }}>{t('nav.games')}</div>
             <div style={{ font: '400 13px/1.3 var(--font-sans)', color: G.muted, marginTop: 4 }}>{t('games.lobby.tagline')}</div>
           </div>
-          <div role="tablist" style={{ display: 'flex', flexWrap: 'wrap', gap: 4, borderBottom: '1px solid ' + G.line }}>
-            {tabs.map(([k, label]) => (
-              <button key={k} type="button" role="tab" aria-selected={tab === k} onClick={() => goTab(k)} style={tabStyle(tab === k)}>{label}</button>
-            ))}
-          </div>
+          {tabBar}
         </div>
-        <div style={{ display: 'flex', gap: 8, alignItems: 'center', flexWrap: 'wrap', minWidth: 0, flex: isMobile ? '1 1 100%' : '0 1 auto' }}>
-          {me && (
-            <span style={S.coin}>
-              <span style={{ width: 10, height: 10, borderRadius: 99, background: G.gold }} />
-              <span style={{ color: coins < 0 ? G.red : G.goldHi }}>{t('games.coins.mine', { n: coins.toLocaleString('vi-VN') })}</span>
-            </span>
-          )}
-          <input
-            value={code}
-            maxLength={6}
-            onChange={(e) => setCode(e.target.value.toUpperCase())}
-            onKeyDown={(e) => { if (e.key === 'Enter' && code.trim()) byCode() }}
-            placeholder={t('games.codePh')}
-            aria-label={t('games.codePh')}
-            style={{ ...field, flex: isMobile ? '1 1 0' : '0 0 170px', font: '600 13px/1.2 var(--font-mono)', letterSpacing: '.1em' }}
-          />
-          <button type="button" disabled={code.trim().length < 6} onClick={byCode} style={{ ...btn('primary'), opacity: code.trim().length < 6 ? 0.45 : 1 }}>{t('games.joinByCode')}</button>
+        <div style={{ display: 'flex', gap: 8, alignItems: 'center', flexWrap: 'wrap', minWidth: 0, flex: '0 1 auto' }}>
+          {coinPill}
+          {codeForm}
         </div>
       </div>
 
@@ -152,7 +270,7 @@ export default function Games() {
               <div style={{ display: 'flex', gap: 6, minWidth: 0, overflowX: 'auto', maxWidth: '100%' }}>
                 {Object.entries(catLabels()).map(([k, label]) => (
                   <button key={k} type="button" aria-pressed={cat === k} onClick={() => setCat(k)} style={chip(cat === k)}>
-                    {label} <span style={{ font: '400 12px/1 var(--font-mono)', opacity: 0.6, marginLeft: 4 }}>{k === 'all' ? GAME_IDS.length : GAME_IDS.filter((id) => CAT[id] === k).length}</span>
+                    {label} <span style={{ font: '400 12px/1 var(--font-mono)', opacity: 0.6, marginLeft: 4 }}>{k === 'all' ? LOBBY_IDS.length : LOBBY_IDS.filter((id) => CAT[id] === k).length}</span>
                   </button>
                 ))}
               </div>
@@ -170,6 +288,7 @@ export default function Games() {
             <div style={{ display: 'grid', gap: 14, gridTemplateColumns: isMobile ? 'repeat(2, minmax(0, 1fr))' : 'repeat(auto-fill, minmax(250px, 1fr))' }}>
               {shown.map((id) => {
                 const g = GAMES[id]
+                const solo = !g
                 const s = stats[id]
                 const live = liveOf[id] || 0
                 const desc = t('games.' + id + '.desc')
@@ -183,7 +302,9 @@ export default function Games() {
                           {t('games.lobby.live', { n: live })}
                         </span>
                       )}
-                      <span style={{ ...S.badge, right: 10, font: '500 11px/1 var(--font-mono)' }}>{t('games.lobby.players', { min: g.minPlayers, max: g.maxPlayers })}</span>
+                      <span style={{ ...S.badge, right: 10, font: '500 11px/1 var(--font-mono)' }}>
+                        {solo ? t('games.lobby.soloBadge') : t('games.lobby.players', { min: g.minPlayers, max: g.maxPlayers })}
+                      </span>
                     </div>
                     <div style={{ padding: isMobile ? '10px 10px 12px' : '12px 14px 14px', display: 'grid', gap: 10, gridTemplateColumns: 'minmax(0, 1fr)', flex: 1, alignContent: 'start' }}>
                       <div style={{ display: 'grid', gap: 2, gridTemplateColumns: 'minmax(0, 1fr)' }}>
@@ -192,7 +313,9 @@ export default function Games() {
                         {s && <span style={{ ...mono, fontSize: 11 }}>{t('games.record', s)}</span>}
                       </div>
                       <div style={{ display: 'flex', flexWrap: 'wrap', gap: 6, marginTop: 'auto', minWidth: 0 }}>
-                        <button type="button" disabled={!me} onClick={() => setCreating(id)} style={{ ...btn('soft', { sm: true }), flex: isMobile ? '1 1 100%' : '1 0 auto', opacity: me ? 1 : 0.45 }}>{t('games.create')}</button>
+                        {solo
+                          ? <button type="button" onClick={() => vsBot(id)} style={{ ...btn('soft', { sm: true }), flex: isMobile ? '1 1 100%' : '1 0 auto' }}><Icon name="play" size={14} />{t('games.lobby.play')}</button>
+                          : <button type="button" disabled={!me} onClick={() => setCreating(id)} style={{ ...btn('soft', { sm: true }), flex: isMobile ? '1 1 100%' : '1 0 auto', opacity: me ? 1 : 0.45 }}>{t('games.create')}</button>}
                         {BOT_GAMES.includes(id) && (
                           <button type="button" title={t('games.bot.play')} aria-label={t('games.bot.play')} onClick={() => vsBot(id)} style={{ ...btn('ghost', { sm: true }), padding: '7px 9px', flex: isMobile ? 1 : 'none' }}>
                             <Icon name="bot" size={15} />
@@ -210,36 +333,87 @@ export default function Games() {
           </div>
 
           {/* Cột phải: top tháng */}
-          <div style={{ ...card, padding: '16px 18px', display: 'grid', gap: 4, gridTemplateColumns: 'minmax(0, 1fr)' }}>
-            <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 6 }}>
-              <span style={over}>{t('games.lobby.topMonth')}</span>
-              <button type="button" onClick={() => goTab('board')} style={S.link}>{t('games.lobby.seeBoard')}</button>
-            </div>
-            {!top && <Skeleton height={140} />}
-            {top && top.length === 0 && <span style={S.caption}>{t('games.lobby.noTop')}</span>}
-            {top?.map((r) => {
-              const m = db.members.find((x) => x.id === r.memberId)
-              const name = m?.name || t('games.unknownPlayer')
-              const isMe = r.memberId === me
-              return (
-                <div key={r.memberId} style={{
-                  display: 'flex', alignItems: 'center', gap: 10, padding: '8px 10px', borderRadius: 9, minWidth: 0,
-                  background: isMe ? G.tealA(0.1) : 'transparent', border: '1px solid ' + (isMe ? G.tealA(0.35) : 'transparent'),
-                }}>
-                  <span style={{ width: 26, flexShrink: 0, font: '600 12px/1 var(--font-mono)', color: rankColor(r.rank) }}>#{r.rank}</span>
-                  <Avatar name={name} src={m?.avatarUrl} size={26} />
-                  <span style={{ font: '600 14px/1.2 var(--font-sans)', flex: 1, minWidth: 0, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }} title={name}>{isMe ? t('games.board.you') : name}</span>
-                  <span style={{ ...mono, flexShrink: 0, color: G.soft }}>{t('games.lobby.wins', { n: r.won })}</span>
-                </div>
-              )
-            })}
-          </div>
+          <TopMonth top={top} me={me} members={db.members} onSeeBoard={() => goTab('board')} />
         </div>
       </>)}
 
       {creating && <CreateRoom gameId={creating} coins={coins} onClose={() => setCreating(null)} onDone={(id) => { setCreating(null); open(id) }} />}
       {howto && <HowTo gameId={howto} onClose={() => setHowto(null)} />}
     </div>
+  )
+}
+
+/** Top 5 tháng này: cột phải ở desktop, cuối danh sách game ở mobile. */
+function TopMonth({ top, me, members, onSeeBoard }) {
+  return (
+    <div style={{ ...card, padding: '16px 18px', display: 'grid', gap: 4, gridTemplateColumns: 'minmax(0, 1fr)' }}>
+      <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 6 }}>
+        <span style={over}>{t('games.lobby.topMonth')}</span>
+        <button type="button" onClick={onSeeBoard} style={S.link}>{t('games.lobby.seeBoard')}</button>
+      </div>
+      {!top && <Skeleton height={140} />}
+      {top && top.length === 0 && <span style={S.caption}>{t('games.lobby.noTop')}</span>}
+      {top?.map((r) => {
+        const m = members.find((x) => x.id === r.memberId)
+        const name = m?.name || t('games.unknownPlayer')
+        const isMe = r.memberId === me
+        return (
+          <div key={r.memberId} style={{
+            display: 'flex', alignItems: 'center', gap: 10, padding: '8px 10px', borderRadius: 9, minWidth: 0,
+            background: isMe ? G.tealA(0.1) : 'transparent', border: '1px solid ' + (isMe ? G.tealA(0.35) : 'transparent'),
+          }}>
+            <span style={{ width: 26, flexShrink: 0, font: '600 12px/1 var(--font-mono)', color: rankColor(r.rank) }}>#{r.rank}</span>
+            <Avatar name={name} src={m?.avatarUrl} size={26} />
+            <span style={{ font: '600 14px/1.2 var(--font-sans)', flex: 1, minWidth: 0, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }} title={name}>{isMe ? t('games.board.you') : name}</span>
+            <span style={{ ...mono, flexShrink: 0, color: G.soft }}>{t('games.lobby.wins', { n: r.won })}</span>
+          </div>
+        )
+      })}
+    </div>
+  )
+}
+
+/** Sheet một game (mobile): chạm thẻ game mở ra — mô tả, thành tích, phòng đang mở của game đó, Cách chơi / Chơi với máy / Tạo phòng. */
+function GameSheet({ id, me, record, meta, rooms, members, onEnter, onClose, onCreate, onBot, onHowto }) {
+  const bot = BOT_GAMES.includes(id)
+  const solo = SOLO_GAMES.includes(id)
+  return (
+    <Dialog
+      open
+      sheet
+      title={t('games.' + id + '.name')}
+      onClose={onClose}
+      footer={(
+        <div style={{ display: 'flex', gap: 8, width: '100%', minWidth: 0 }}>
+          <button type="button" aria-label={t('games.howto')} title={t('games.howto')} onClick={onHowto} style={{ ...btn('ghost'), minHeight: 48, width: 48, padding: 0, flexShrink: 0, color: G.muted }}>
+            <Icon name="book-open" size={18} />
+          </button>
+          {bot && (
+            <button type="button" onClick={onBot} style={{ ...btn('ghost'), minHeight: 48, flex: 1 }}>
+              <Icon name="bot" size={16} />{t('games.bot.play')}
+            </button>
+          )}
+          {solo
+            ? <button type="button" onClick={onBot} style={{ ...btn('primary'), minHeight: 48, flex: 1 }}><Icon name="play" size={16} />{t('games.lobby.play')}</button>
+            : <button type="button" disabled={!me} onClick={onCreate} style={{ ...btn('primary'), minHeight: 48, flex: 1, opacity: me ? 1 : 0.45 }}>{t('games.create')}</button>}
+        </div>
+      )}
+    >
+      <div style={{ display: 'grid', gap: 12, gridTemplateColumns: 'minmax(0, 1fr)' }}>
+        <GameArt id={id} height={96} radius={12} />
+        <div style={{ display: 'grid', gap: 4, gridTemplateColumns: 'minmax(0, 1fr)' }}>
+          <span style={{ font: 'var(--type-body)', color: G.text }}>{t('games.' + id + '.desc')}</span>
+          <span style={S.caption}>{meta}</span>
+          {record && <span style={{ ...mono, fontSize: 12 }}>{t('games.record', record)}</span>}
+        </div>
+        {rooms.length > 0 && (
+          <div style={{ display: 'grid', gap: 4, gridTemplateColumns: 'minmax(0, 1fr)' }}>
+            <span style={over}>{t('games.openRooms')}</span>
+            {rooms.map((r) => <RoomRow key={r.id} room={r} me={me} members={members} onEnter={() => onEnter(r)} />)}
+          </div>
+        )}
+      </div>
+    </Dialog>
   )
 }
 
@@ -267,14 +441,31 @@ function RoomRow({ room, me, members, onEnter }) {
   )
 }
 
-/** Thẻ "Ván đang dở": phòng của tôi đang chơi (hoặc đang chờ người) — một nút vào lại. */
-function ResumeCard({ room, me, members, onEnter }) {
+/** Thẻ "Ván đang dở": phòng của tôi đang chơi (hoặc đang chờ người) — một nút vào lại. `compact`: dải một hàng ở mobile, chạm cả dải để vào. */
+function ResumeCard({ room, me, members, onEnter, compact }) {
   const g = gameOf(room.game)
   const seated = seatedOf(room.players)
   const rivals = seated.filter((p) => p.memberId !== me).map((p) => members.find((m) => m.id === p.memberId)?.name || t('games.unknownPlayer'))
   const stake = stakeOf(room.options)
   const playing = room.status === 'playing'
   const title = t('games.' + room.game + '.name') + (rivals.length ? ' · ' + rivals.join(', ') : '')
+  const meta = room.code + ' · ' + t('games.seats', { n: seated.length, max: seatRange(g, room.options)[1] }) + (stake > 0 ? ' · ' + t('games.coins.stakePill', { n: stake }) : '')
+  const ellipsis = { overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }
+  if (compact) return (
+    <button type="button" onClick={onEnter} style={{
+      display: 'flex', alignItems: 'center', gap: 12, padding: '12px 14px', borderRadius: 14, minWidth: 0, width: '100%',
+      textAlign: 'left', cursor: 'pointer', font: 'inherit', color: G.text,
+      background: `linear-gradient(135deg, ${G.tealA(0.18)}, ${G.card} 65%)`, border: '1px solid ' + G.tealA(0.4),
+    }}>
+      <span style={{ width: 56, height: 40, flexShrink: 0, borderRadius: 11, overflow: 'hidden', display: 'block' }}><GameArt id={room.game} height={40} /></span>
+      <span style={{ flex: 1, minWidth: 0, display: 'grid', gap: 3, gridTemplateColumns: 'minmax(0, 1fr)' }}>
+        <span style={{ ...over, color: G.tealHi, ...ellipsis }}>{t('games.lobby.resume')} · {t(playing ? 'games.status.playing' : 'games.lobby.waiting')}</span>
+        <span style={{ font: '700 15px/1.25 var(--font-sans)', ...ellipsis }} title={title}>{title}</span>
+        <span style={{ ...mono, ...ellipsis }}>{meta}</span>
+      </span>
+      <span style={{ ...btn('primary', { sm: true }), flexShrink: 0, padding: '9px 14px' }}>{t('games.enter')}</span>
+    </button>
+  )
   return (
     <div style={{
       padding: 18, borderRadius: 14, display: 'grid', gap: 14, gridTemplateColumns: 'minmax(0, 1fr)', minWidth: 0,
@@ -291,9 +482,7 @@ function ResumeCard({ room, me, members, onEnter }) {
         <div style={{ width: 64, flexShrink: 0 }}><GameArt id={room.game} height={64} radius={12} /></div>
         <div style={{ display: 'grid', gap: 3, minWidth: 0, flex: 1, gridTemplateColumns: 'minmax(0, 1fr)' }}>
           <span style={{ font: '700 18px/1.2 var(--font-display)', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }} title={title}>{title}</span>
-          <span style={{ ...mono, fontSize: 13 }}>
-            {room.code} · {t('games.seats', { n: seated.length, max: seatRange(g, room.options)[1] })}{stake > 0 ? ' · ' + t('games.coins.stakePill', { n: stake }) : ''}
-          </span>
+          <span style={{ ...mono, fontSize: 13 }}>{meta}</span>
         </div>
         <button type="button" onClick={onEnter} style={{ ...btn('primary'), padding: '10px 18px' }}>{t('games.enter')}</button>
       </div>
@@ -359,4 +548,14 @@ const S = {
     background: G.card, color: G.soft, boxShadow: 'var(--shadow-xs)', font: '600 11px/1 var(--font-sans)',
   },
   link: { border: 0, background: 'none', padding: 0, cursor: 'pointer', font: '600 12px/1 var(--font-sans)', color: G.tealHi },
+  // Mobile: nút vuông 44px ở đầu sảnh (mã phòng).
+  iconBtn: (on) => ({
+    width: 44, height: 44, flexShrink: 0, borderRadius: 12, display: 'grid', placeItems: 'center', cursor: 'pointer', padding: 0,
+    background: on ? G.tealA(0.16) : G.card, color: on ? G.tealHi : G.soft, border: '1px solid ' + (on ? G.tealA(0.45) : G.lineHi),
+  }),
+  // Mobile: thẻ game một chạm (mở sheet hành động).
+  tile: {
+    ...card, position: 'relative', minHeight: 124, padding: 14, borderRadius: 16, display: 'flex', flexDirection: 'column',
+    justifyContent: 'space-between', alignItems: 'stretch', gap: 10, textAlign: 'left', cursor: 'pointer', font: 'inherit', color: G.text,
+  },
 }

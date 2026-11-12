@@ -11,6 +11,7 @@ import { SkinPicker } from '#components/games/ChessStage.jsx'
 import { BOT_GAMES, BOT_PREFIX, gameOf, seatRange } from '#lib/games/registry.js'
 import { acceptsDraw, botToMove, fillLocal, flatFleet, levelsOf, think } from '#lib/games/bots/index.js'
 import { CARD_GAMES, dealResult, dealStart, handOf, handsView } from '#lib/games/bots/dealer.js'
+import { MODES as XO_MODES } from '#lib/games/xo.js'
 import { engineMove } from '#lib/games/bots/engine.js'
 import { pathOf } from '#routes'
 import { t } from '#i18n'
@@ -24,6 +25,7 @@ import { t } from '#i18n'
 const KEY = 'gamebot:'
 const MIN_THINK_MS = 450 // máy đi nhanh quá nhìn không kịp
 const CARD_THINK_MS = 900 // game bài: vài máy đi liền nhau — chậm hơn cho kịp nhìn lá máy đánh
+const CANGUA_THINK_MS = 1400 // Cá ngựa: chờ ngựa nhảy từng ô + xúc xắc tung xong (CaNguaBoard) rồi mới đi tiếp
 const ENGINE_MS = { covua: 1000, cotuong: 1500 }
 const TIMES = [0, 15, 30] // đồng hồ mỗi nước (giây); 0 = không giới hạn
 // Cờ vua / Cờ tướng (bản thiết kế "Co Vua" / "Co Tuong"): bàn tự vẽ thanh người chơi (ChessStage), đồng hồ là đồng hồ
@@ -43,8 +45,9 @@ const setupFor = (game, n, opts) => (game ? game.setup({ options: { ...game.defa
 // Ô ăn quan: chọn kiểu bàn ngay trong ⚙ (prefs.oq). Đồng hồ phòng máy là prefs.time (đếm ở đây), không dùng options.time.
 const OQ = { quans: [2, 3], rows: [5, 6, 7], stones: [5, 6, 7] }
 // Game bài: tắt đồng hồ lượt của phòng thật (cần server đi thay) — phòng máy dùng prefs.time.
+// Cờ X-O: chế độ chọn trong ⚙ (prefs.xo).
 const variantOf = (gameId, p) => (gameId === 'oanquan' ? { ...p.oq, time: 0 } : CHESS.includes(gameId) ? { clock: p.clock ?? 10 }
-  : CARD_GAMES.includes(gameId) ? { time: 0 } : undefined)
+  : CARD_GAMES.includes(gameId) ? { time: 0 } : gameId === 'xo' ? { mode: p.xo || 'classic' } : undefined)
 
 /** Ván mới: thế ban đầu; game bài thì nhà cái trong máy chia bài luôn (như server ghi nước chia lúc bắt đầu ván). */
 function freshGame(game, gameId, n, opts) {
@@ -228,7 +231,7 @@ export default function BotRoom({ gameId }) {
       }
       if (!move) move = await ask(gameId, s, botSeat, level, handOf(gameId, s, { cards: g.cards }, botSeat))
       if (off || !move) return
-      setTimeout(() => { if (!off) play(botSeat, move, g.round) }, Math.max(0, (card ? CARD_THINK_MS : MIN_THINK_MS) - (Date.now() - t0)))
+      setTimeout(() => { if (!off) play(botSeat, move, g.round) }, Math.max(0, (gameId === 'cangua' ? CANGUA_THINK_MS : card ? CARD_THINK_MS : MIN_THINK_MS) - (Date.now() - t0)))
     }
     go()
     return () => { off = true }
@@ -337,6 +340,7 @@ export default function BotRoom({ gameId }) {
               {multi
                 ? segRow(t('games.bot.players'), [2, 3, 4].map((k) => [k, String(k)]), draft.n, (v) => setDraft({ ...draft, n: v }))
                 : segRow(t('games.bot.side'), Array.from({ length: nOf(draft) }, (_, k) => [k, t('games.bot.sideOpt' + k)]), draft.side < nOf(draft) ? draft.side : 0, (v) => setDraft({ ...draft, side: v }))}
+              {gameId === 'xo' && segRow(t('games.xo.mode'), XO_MODES.map((v) => [v, t('games.xo.modeShort.' + v)]), draft.xo || 'classic', (v) => setDraft({ ...draft, xo: v }))}
               {gameId === 'oanquan' && (() => {
                 const oq = { ...game.defaultOptions, ...draft.oq }
                 const set = (k) => (v) => setDraft({ ...draft, oq: { ...oq, [k]: v } })

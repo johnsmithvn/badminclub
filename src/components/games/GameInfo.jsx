@@ -9,7 +9,7 @@ import { BauCuaIcon } from '#components/games/BauCuaIcons.jsx'
 // tranh minh hoạ từng game (SVG tự vẽ, màu theo token — tự đổi sáng / tối) và hộp thoại "Cách chơi".
 // Thêm game: thêm một tông màu ở TONE + một tranh ở ART; thiếu thì thẻ chỉ có nền màu, không lỗi.
 
-const TONE = { caro: 'scheduled', oanquan: 'delayed', coganh: 'transit', colat: 'delivered', chamo: 'idle', tienlen: 'incident',
+const TONE = { timso: 'delivered', keobuabao: 'scheduled', caro: 'scheduled', xo: 'incident', oanquan: 'delayed', coganh: 'transit', colat: 'delivered', chamo: 'idle', tienlen: 'incident',
   covua: 'scheduled', cotuong: 'delayed', cangua: 'delivered',
   bantau: 'transit', domino: 'idle', baibip: 'delayed', noitu: 'transit', masoi: 'incident',
   coup: 'scheduled', baucua: 'delivered', loto: 'delayed', xidach: 'idle', covay: 'delayed', phom: 'scheduled',
@@ -17,6 +17,65 @@ const TONE = { caro: 'scheduled', oanquan: 'delayed', coganh: 'transit', colat: 
 const mix = (c, pct) => `color-mix(in srgb, ${c} ${pct}%, transparent)`
 const RED = 'var(--status-incident)'
 const BLUE = 'var(--navy-400)'
+
+/** Tìm số: các số rải lệch trên bàn, vài số đã được khoanh. */
+function TimSoArt() {
+  const ink = 'var(--status-delivered-fg)'
+  const nums = [[1, 24, 30, -12, 1], [2, 62, 22, 8, 1], [3, 102, 34, -6, 1], [4, 138, 24, 14, 0], [5, 40, 66, 10, 0], [6, 82, 70, -14, 0], [7, 120, 64, 6, 0]]
+  return (
+    <>
+      {nums.map(([n, x, y, r, done]) => (
+        <g key={n} transform={`translate(${x} ${y}) rotate(${r})`}>
+          {done ? <circle r={11} fill={ink} opacity={0.85} /> : null}
+          <text textAnchor="middle" dominantBaseline="central" fill={done ? '#fff' : ink} style={{ font: '800 15px var(--font-display)' }}>{n}</text>
+        </g>
+      ))}
+    </>
+  )
+}
+
+/** Kéo búa bao: ba ký hiệu tay giản lược. */
+function KeoBuaBaoArt() {
+  const ink = 'var(--status-scheduled-fg)'
+  return (
+    <g fill="none" stroke={ink} strokeWidth={3.2} strokeLinecap="round" strokeLinejoin="round">
+      <rect x={24} y={34} width={30} height={30} rx={11} />
+      <path d="M30 44 h18" opacity={0.5} />
+      <path d="M68 66 v-26 M76 66 v-30 M84 66 v-28 M92 66 v-22" />
+      <path d="M64 66 h32" />
+      <path d="M116 66 l-6 -32 M124 66 l6 -32" />
+      <circle cx={120} cy={66} r={6} />
+    </g>
+  )
+}
+
+/** Cờ X-O: bàn 3 × 3, X thắng đường chéo. */
+function XoArt() {
+  const ink = 'var(--status-incident-fg)'
+  const at = (k) => [56 + (k % 3) * 24, 24 + Math.floor(k / 3) * 24]
+  const X = ({ k }) => {
+    const [x, y] = at(k)
+    return (
+      <g stroke={ink} strokeWidth={3.4} strokeLinecap="round">
+        <line x1={x - 6} y1={y - 6} x2={x + 6} y2={y + 6} />
+        <line x1={x + 6} y1={y - 6} x2={x - 6} y2={y + 6} />
+      </g>
+    )
+  }
+  return (
+    <>
+      <g stroke={mix(ink, 35)} strokeWidth={2.4} strokeLinecap="round">
+        <line x1={68} y1={14} x2={68} y2={82} />
+        <line x1={92} y1={14} x2={92} y2={82} />
+        <line x1={46} y1={36} x2={114} y2={36} />
+        <line x1={46} y1={60} x2={114} y2={60} />
+      </g>
+      {[0, 4, 8].map((k) => <X key={k} k={k} />)}
+      {[2, 3, 7].map((k) => <circle key={k} cx={at(k)[0]} cy={at(k)[1]} r={7} fill="none" stroke="var(--status-scheduled-fg)" strokeWidth={3.4} />)}
+      <line x1={50} y1={18} x2={110} y2={78} stroke="var(--status-delivered-fg)" strokeWidth={6} strokeLinecap="round" opacity={0.4} />
+    </>
+  )
+}
 
 function CaroArt() {
   const ink = 'var(--status-scheduled-fg)'
@@ -599,7 +658,7 @@ const ART = {
   bacay: BaCayArt,
   phom: PhomArt,
   covay: CoVayArt,
-  caro: CaroArt, oanquan: OAnQuanArt, coganh: CoGanhArt, colat: CoLatArt, chamo: ChamOArt, tienlen: TienLenArt,
+  caro: CaroArt, xo: XoArt, timso: TimSoArt, keobuabao: KeoBuaBaoArt, oanquan: OAnQuanArt, coganh: CoGanhArt, colat: CoLatArt, chamo: ChamOArt, tienlen: TienLenArt,
   covua: CoVuaArt, cotuong: CoTuongArt, cangua: CaNguaArt, bantau: BanTauArt, domino: DominoArt, baibip: BaiBipArt, noitu: NoiTuArt,
   masoi: MaSoiArt, coup: CoUpArt, baucua: BauCuaArt, loto: LoToArt, xidach: XiDachArt,
 }

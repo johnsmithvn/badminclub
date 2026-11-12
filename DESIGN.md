@@ -174,6 +174,16 @@ cân, hiệu ứng, màn kết thúc dùng chung ở `ChessStage.jsx` (`ChessSta
   (nỉ xanh, viền gỗ). Bàn
   860 × 660 co bằng `useFit`; điện thoại dọc mà co dưới 0.6 thì phủ lớp "Xoay ngang điện thoại" (chặn bấm). Hiệu ứng
   `tlDeal` / `tlFly` / `tlStamp` ở `effects.css` + `chFlash` / `chBurst` khi chặt.
+- **Bàn Bắn tàu** (bản "Bắn tàu", 2026-11-12): cùng ngoại lệ — vùng biển 3 skin chọn được (Hải chiến / Radar / Giấy kẻ ô)
+  ở `chessSkins.js` (`SKINS.bantau`, `useSkin('bantau')`, nút `SkinPicker kind="bantau"` nằm trên bàn), tàu 5 loại vẽ SVG
+  theo màu skin, nhấn phía mình ngọc `#00B2A9` / phía đối phương cam `#ff7a1a` (hằng `ME` / `FOE` trong `BanTauBoard.jsx`).
+  Thẻ hạm đội, thanh trạng thái, nút quanh biển vẫn dùng token. Hai bố cục theo **bề rộng khung** (`useFit(800)`, không
+  theo màn hình): rộng — biển đối phương 460 + biển mình 300 + hạm đội; hẹp — một biển + tab Bên kia / Bên mình, chạm ô
+  chọn rồi bấm Bắn. Hiệu ứng `bt*` ở `effects.css`, cỡ theo `cqw` của biển (`container-type: inline-size`).
+- **Bàn Cờ cá ngựa** (bản "Cờ cá ngựa", 2026-11-12): cùng ngoại lệ — bàn chữ thập 15 × 15 (ô 40px, bàn 600 co bằng
+  `useFit`), 3 skin (Cổ điển / Đêm sao / Sơn mài) ở `chessSkins.js` (`SKINS.cangua`, nút `SkinPicker kind="cangua"` trên bàn),
+  4 màu phe theo skin. Xúc xắc 3D (CSS `preserve-3d`), quân ngựa SVG. Thẻ người chơi, dòng gợi ý, nút Đổ xúc xắc quanh bàn
+  dùng token. Bàn xoay cho màu mình ở góc dưới trái. Hiệu ứng `cn*` ở `effects.css`.
 - **Lá bài dùng chung** (`PlayingCard.jsx`, theo bản "Tien Len"): mặt ngà + lưng sọc đỏ, bảng màu `CARD` (`stage.js`) viết cứng, giữ
   nguyên ở sáng / tối. Tiến lên, Xì dách, Phỏm, Ba cây dùng chung `Card` (cỡ `w`; ≥ 56px in góc, nhỏ hơn in giữa) / `CardFace`;
   Phỏm, Ba cây truyền `faces` = `RANK_FACES` của `phom.js` (hạng 0 là A). Bài bịp (bộ Q/K/A/Joker) vẽ riêng nhưng dùng `CARD`.
@@ -181,6 +191,9 @@ cân, hiệu ứng, màn kết thúc dùng chung ở `ChessStage.jsx` (`ChessSta
 - **Mục Trò chơi (sảnh, BXH, phòng)** theo bản "Tro choi - Redesign" 1a / 1c / 3a: kiểu chung ở `components/games/stage.js`
   (`G`, `card`, `chip`, `seg`, `btn`, `tab`, `over`…) — **dùng token**, nền là theme chung (sáng / tối / sky). Header app ẩn ở
   `games` / `gameRoom`, trang tự có tiêu đề + tab gạch chân. Thẻ game ở sảnh rê chuột nhấc nhẹ (`.game-card` trong `effects.css`).
+  Sảnh **mobile** theo bản "Sảnh · mobile" (2026-11-12): đầu trang = tiêu đề | nút mã phòng 44px (bấm mới hiện ô nhập) + viên ví;
+  dải "Ván đang dở" một hàng; thẻ game 2 cột một chạm → sheet `GameSheet` (mô tả, thành tích, phòng đang mở của game đó,
+  Cách chơi / Chơi với máy / Tạo phòng). Những phần bản thiết kế không vẽ vẫn giữ: 3 tab, ô tìm, Phòng đang mở (chỉ khi có phòng), Top tháng.
 
 ## 3. Typography
 

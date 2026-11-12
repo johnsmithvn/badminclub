@@ -5,6 +5,7 @@ import { lazy } from 'react'
 
 export const SCREENS = {
   caro: lazy(() => import('#components/games/CaroBoard.jsx')),
+  xo: lazy(() => import('#components/games/XoBoard.jsx')),
   oanquan: lazy(() => import('#components/games/OAnQuanBoard.jsx')),
   coganh: lazy(() => import('#components/games/CoGanhBoard.jsx')),
   colat: lazy(() => import('#components/games/CoLatBoard.jsx')),

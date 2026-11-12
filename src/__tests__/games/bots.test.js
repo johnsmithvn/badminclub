@@ -57,8 +57,8 @@ function duel(id, lv0, lv1, seed, { maxPly = 400, override, seats = 2, out } = {
 
 const winner = (id, s) => GAMES[id].result(s)?.winners?.[0] ?? null
 
-// Mọi trò, mọi mức: đánh được, không kẹt, không sai luật.
-for (const id of BOT_GAMES) {
+// Mọi trò, mọi mức: đánh được, không kẹt, không sai luật. Nối từ đấu máy có luật / màn riêng (noituSolo.test.js).
+for (const id of BOT_GAMES.filter((x) => x !== 'noitu')) {
   assert.ok(levelsOf(id).length >= 3)
   const fast = { ms: 40, depth: 2 }
   for (const [a, b] of [['easy', 'normal'], ['hard', 'easy']]) {
@@ -68,7 +68,7 @@ for (const id of BOT_GAMES) {
 }
 
 // Mức Khó hơn mức Dễ: thắng đa số ván (đổi bên cho công bằng).
-for (const id of ['caro', 'oanquan', 'coganh', 'chamo', 'bantau']) {
+for (const id of ['caro', 'xo', 'oanquan', 'coganh', 'chamo', 'bantau']) {
   let won = 0
   for (let k = 0; k < 6; k++) {
     const hardFirst = k % 2 === 0

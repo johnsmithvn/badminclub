@@ -2,6 +2,7 @@
 // Thêm game = thêm file theo hợp đồng ở docs/GAMES.md §3 rồi thêm một dòng vào GAMES.
 
 import caro from '#lib/games/caro.js'
+import xo from '#lib/games/xo.js'
 import oanquan from '#lib/games/oanquan.js'
 import coganh from '#lib/games/coganh.js'
 import colat from '#lib/games/colat.js'
@@ -23,13 +24,20 @@ import covay from '#lib/games/covay.js'
 import phom from '#lib/games/phom.js'
 import bacay from '#lib/games/bacay.js'
 
-export const GAMES = { caro, oanquan, coganh, colat, chamo, tienlen, covua, cotuong, cangua, bantau, domino, baibip, noitu, masoi,
+export const GAMES = { caro, xo, oanquan, coganh, colat, chamo, tienlen, covua, cotuong, cangua, bantau, domino, baibip, noitu, masoi,
   coup, baucua, loto, xidach, covay, phom, bacay }
 
 export const GAME_IDS = Object.keys(GAMES)
+/**
+ * Game chơi một mình / với máy, KHÔNG có phòng (không luật phòng, không server, không BXH): sảnh hiện thẻ chỉ có nút
+ * Chơi → /tro-choi/may-<id> (GameRoom.jsx mở màn riêng). Thêm vào đây + một màn trong GameRoom (SOLO_SCREENS).
+ */
+export const SOLO_GAMES = ['timso', 'keobuabao']
+/** Mọi thẻ game ở sảnh: game có phòng rồi game chơi một mình. */
+export const LOBBY_IDS = [...GAME_IDS, ...SOLO_GAMES]
 
-/** Trò có chế độ chơi với máy (lib/games/bots) — vào bằng /tro-choi/may-<id> (GameRoom.jsx tách sang BotRoom). */
-export const BOT_GAMES = ['caro', 'covua', 'cotuong', 'coup', 'oanquan', 'coganh', 'chamo', 'cangua', 'bantau', 'tienlen', 'phom', 'baibip', 'xidach']
+/** Trò có chế độ chơi với máy (lib/games/bots) — vào bằng /tro-choi/may-<id> (GameRoom.jsx tách sang BotRoom; Nối từ → NoiTuSolo). */
+export const BOT_GAMES = ['caro', 'xo', 'covua', 'cotuong', 'coup', 'oanquan', 'coganh', 'chamo', 'cangua', 'bantau', 'tienlen', 'phom', 'baibip', 'xidach', 'noitu']
 export const BOT_PREFIX = 'may-'
 
 export const gameOf = (id) => GAMES[id] || null

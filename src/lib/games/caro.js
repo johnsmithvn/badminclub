@@ -1,7 +1,10 @@
 // Caro (gomoku dân gian): hai người thay phiên đặt quân lên bàn vuông, ai có `win` quân liền
 // nhau theo hàng ngang / dọc / chéo trước là thắng. Hợp đồng chung: docs/GAMES.md §3.
+// Tuỳ chọn: chặn hai đầu (`blockedEnds`), đúng `win` quân (`exact` — 0107: 6 quân liền trở lên không tính).
+// Bàn 3 × 3 đã tách thành Cờ X-O (xo.js, 0107); luật ở đây vẫn chấm được phòng 3 × 3 cũ.
+// Server chấm lại y luật này (game_caro_result, bản mới nhất 0107).
 //
-// state = { size, win, blockedEnds, board, turn, moves, winner, line, last }
+// state = { size, win, blockedEnds, exact, board, turn, moves, winner, line, last }
 //   board: mảng phẳng size*size, mỗi ô là số ghế (0 | 1) hoặc null
 //   line:  các ô của đường thắng (để tô), null khi chưa có
 // move  = { i } — chỉ số ô trong `board`
@@ -32,7 +35,7 @@ function winLine(s, i, seat) {
     const a = ray(s, r, c, -dr, -dc, seat)
     const b = ray(s, r, c, dr, dc, seat)
     const line = [...a.cells.reverse(), i, ...b.cells]
-    if (line.length < s.win) continue
+    if (line.length < s.win || (s.exact && line.length > s.win)) continue
     // Luật chặn hai đầu: đủ quân nhưng hai đầu đều bị đối phương chặn thì chưa thắng.
     if (s.blockedEnds && a.blocked && b.blocked) continue
     return line
@@ -42,7 +45,7 @@ function winLine(s, i, seat) {
 
 const full = (s) => s.moves >= s.size * s.size
 
-const DEFAULTS = { size: 15, win: 5, blockedEnds: false }
+const DEFAULTS = { size: 15, win: 5, blockedEnds: false, exact: false }
 
 export default {
   id: 'caro',
@@ -53,7 +56,7 @@ export default {
   setup({ options }) {
     const o = { ...DEFAULTS, ...options }
     return {
-      size: o.size, win: o.win, blockedEnds: !!o.blockedEnds,
+      size: o.size, win: o.win, blockedEnds: !!o.blockedEnds, exact: !!o.exact,
       board: Array(o.size * o.size).fill(null),
       turn: 0, moves: 0, winner: null, line: null, last: null,
     }

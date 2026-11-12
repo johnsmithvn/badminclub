@@ -10,7 +10,7 @@
 // Mức: easy / normal / hard tự viết (search.js, heuristics.js, cards.js). master = engine nhúng (engine.js, chỉ Cờ vua /
 // Cờ tướng) — chạy ở luồng chính nên không nằm ở đây.
 
-import { CHESS, COGANH, COUP, OANQUAN, pick, shuffle, XIANGQI } from '#lib/games/bots/search.js'
+import { CHESS, COGANH, COUP, OANQUAN, pick, shuffle, XIANGQI, XO } from '#lib/games/bots/search.js'
 import { bantauBot, canguaBot, caroBot, chamoBot } from '#lib/games/bots/heuristics.js'
 import { baibipBot, phomBot, tienlenBot, xidachBot } from '#lib/games/bots/cards.js'
 import { CARD_GAMES, dealFill } from '#lib/games/bots/dealer.js'
@@ -27,6 +27,8 @@ const SEARCH = {
   coup: { rule: COUP, easy: { depth: 1, noise: 200 }, normal: { depth: 2, ms: 1000, noise: 40 }, hard: { depth: 4, ms: 3000, noise: 10 } },
   oanquan: { rule: OANQUAN, easy: { depth: 1, noise: 6 }, normal: { depth: 3, ms: 800, noise: 1.5 }, hard: { depth: 8, ms: 2000, noise: 0.3 } },
   coganh: { rule: COGANH, easy: { depth: 1, noise: 15 }, normal: { depth: 3, ms: 800, noise: 4 }, hard: { depth: 6, ms: 2000, noise: 1 } },
+  // Bàn 3 × 3: mức Khó tìm hết ván cổ điển (9 nước); chế độ move / vanish tìm sâu 9 nửa nước trong hạn giờ.
+  xo: { rule: XO, easy: { depth: 1, noise: 4 }, normal: { depth: 3, ms: 600, noise: 1 }, hard: { depth: 9, ms: 1500, noise: 0 } },
 }
 const HEUR = { caro: caroBot, chamo: chamoBot, cangua: canguaBot, bantau: bantauBot }
 const CARDS = { tienlen: tienlenBot, phom: phomBot, baibip: baibipBot, xidach: xidachBot }

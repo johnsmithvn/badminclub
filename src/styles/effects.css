@@ -440,6 +440,79 @@
 @keyframes tlStamp { 0% { opacity: 0; transform: translate(-50%, -50%) scale(2.8) rotate(-7deg); } 18% { opacity: 1; transform: translate(-50%, -50%) scale(1) rotate(-7deg); } 80% { opacity: 1; } 100% { opacity: 0; transform: translate(-50%, -50%) scale(1.08) rotate(-7deg); } }
 /* Bầu cua (BauCuaBoard): đĩa + bát rung khi đang chờ mở bát. Hột / ×k bung ra dùng lại gamePop. */
 @keyframes bcShake { 0%, 100% { transform: translate(0, 0) rotate(0); } 15% { transform: translate(-6px, 4px) rotate(-4deg); } 35% { transform: translate(7px, -5px) rotate(4deg); } 55% { transform: translate(-6px, -3px) rotate(-3deg); } 75% { transform: translate(5px, 4px) rotate(3deg); } }
+/* Bắn tàu (BanTauBoard, bản "Bắn tàu" 2026-11-12). Cỡ theo `em` = cỡ ô (font-size của lớp hiệu ứng).
+   btLock khoá mục tiêu + btShell đạn rơi · btFlash chớp · btSmoke khói · btRing / btRingBig vòng loang (chìm tàu to hơn) ·
+   btPart mảnh bung (--dx / --dy, đơn vị em) · btText chữ Trượt / Trúng / Chìm nổi lên · btBanner Khai hoả / Lượt của bạn ·
+   btShakeA / btShakeB rung biển khi trúng (đổi tên mỗi phát cho chạy lại, khỏi dựng lại cả biển) · btSel ô đang chọn ·
+   btWave sóng trôi · btSweep tia radar · btFlicker / btFlame lửa cháy ở ô trúng · btDrop dấu trượt / X rơi xuống · btWin. */
+@keyframes btLock { 0% { transform: translate(-50%, -50%) scale(2.2) rotate(-90deg); opacity: 0; } 40% { transform: translate(-50%, -50%) scale(1) rotate(0); opacity: 1; } 85% { transform: translate(-50%, -50%) scale(.8); opacity: 1; } 100% { transform: translate(-50%, -50%) scale(.6); opacity: 0; } }
+@keyframes btLockWait { 0%, 100% { transform: translate(-50%, -50%) scale(1); opacity: 1; } 50% { transform: translate(-50%, -50%) scale(.82); opacity: .75; } }
+@keyframes btShell { 0% { transform: translate(-50%, -600%) scale(1.6); opacity: 0; } 35% { opacity: 1; } 100% { transform: translate(-50%, -40%) scale(.7); opacity: 1; } }
+@keyframes btFlash { 0% { transform: scale(.3); opacity: 1; } 100% { transform: scale(1.6); opacity: 0; } }
+@keyframes btSmoke { 0% { transform: translateY(0) scale(.6); opacity: .9; } 100% { transform: translateY(-1.4em) scale(2.4); opacity: 0; } }
+@keyframes btRing { 0% { transform: translate(-50%, -50%) scale(.15); opacity: 1; } 100% { transform: translate(-50%, -50%) scale(1); opacity: 0; } }
+@keyframes btRingBig { 0% { transform: translate(-50%, -50%) scale(.1); opacity: 1; border-width: 7px; } 100% { transform: translate(-50%, -50%) scale(1.3); opacity: 0; border-width: 1px; } }
+@keyframes btPart { 0% { transform: translate(0, 0) scale(1); opacity: 1; } 100% { transform: translate(var(--dx), var(--dy)) scale(.2); opacity: 0; } }
+@keyframes btText { 0% { transform: translate(-50%, -50%) scale(.3); opacity: 0; } 18% { transform: translate(-50%, -110%) scale(1.15); opacity: 1; } 72% { transform: translate(-50%, -150%) scale(1); opacity: 1; } 100% { transform: translate(-50%, -200%); opacity: 0; } }
+@keyframes btBanner { 0% { transform: translate(-50%, -50%) scale(.5); opacity: 0; } 15% { transform: translate(-50%, -50%) scale(1.1); opacity: 1; } 80% { transform: translate(-50%, -50%) scale(1); opacity: 1; } 100% { transform: translate(-50%, -50%) scale(.92); opacity: 0; } }
+@keyframes btShakeA { 0%, 100% { transform: translate(0, 0); } 20% { transform: translate(-5px, 3px); } 40% { transform: translate(5px, -3px); } 60% { transform: translate(-3px, 2px); } 80% { transform: translate(2px, -1px); } }
+@keyframes btShakeB { 0%, 100% { transform: translate(0, 0); } 20% { transform: translate(-5px, 3px); } 40% { transform: translate(5px, -3px); } 60% { transform: translate(-3px, 2px); } 80% { transform: translate(2px, -1px); } }
+@keyframes btSel { 0%, 100% { transform: scale(.88); } 50% { transform: scale(1); } }
+@keyframes btWave { 0% { transform: translate(0, 0); } 100% { transform: translate(60px, 22px); } }
+@keyframes btSweep { to { transform: rotate(360deg); } }
+@keyframes btFlicker { 0% { transform: translate(-50%, -50%) scale(.9); filter: brightness(1); } 100% { transform: translate(-50%, -50%) scale(1.08); filter: brightness(1.25); } }
+@keyframes btFlame { 0% { transform: translateX(-50%) scaleY(.85) skewX(-4deg); } 100% { transform: translateX(-50%) scaleY(1.12) skewX(5deg); } }
+@keyframes btDrop { 0% { transform: scale(1.8); opacity: 0; } 100% { transform: scale(1); opacity: 1; } }
+@keyframes btWin { 0% { transform: translate(-50%, -50%) scale(.5); opacity: 0; } 100% { transform: translate(-50%, -50%) scale(1); opacity: 1; } }
+/* Cờ cá ngựa (CaNguaBoard, bản "Cờ cá ngựa" 2026-11-12). Cỡ theo `em` = cỡ hiệu ứng (font-size của lớp hiệu ứng).
+   cnRoll lắc xúc xắc lúc chờ số · cnToss / cnShad xúc xắc tung lên + bóng · cnPulse viền xúc xắc khi tới lượt đổ ·
+   cnGlow vòng sáng dưới ngựa đi được · cnBob ngựa đi được nhún · cnHopA / cnHopB nhảy từng ô (đổi tên mỗi ô) · cnSpin ngựa
+   bị đá bay về chuồng · cnRing / cnRingBig vòng loang · cnPart mảnh bung / sao (--dx / --dy, đơn vị em) · cnText chữ nổi ·
+   cnBanner Lượt của bạn · cnShake bàn rung khi đá · cnTarget ô đích nhấp nháy · cnFall pháo giấy · cnWin · cnBreath chuồng
+   phe tới lượt sáng nhè nhẹ. */
+@keyframes cnRoll { 0% { transform: rotate(0) scale(1); } 25% { transform: rotate(14deg) scale(.94); } 50% { transform: rotate(-10deg) scale(1.04); } 75% { transform: rotate(8deg) scale(.96); } 100% { transform: rotate(0) scale(1); } }
+@keyframes cnToss { 0% { transform: translateY(0) scale(1); } 35% { transform: translateY(-70%) scale(1.18); } 62% { transform: translateY(0) scale(1); } 78% { transform: translateY(-16%); } 100% { transform: translateY(0); } }
+@keyframes cnShad { 0%, 62%, 100% { transform: scale(1); opacity: .45; } 35% { transform: scale(.55); opacity: .2; } }
+@keyframes cnPulse { 0%, 100% { box-shadow: 0 0 0 0 rgba(0, 178, 169, .7), 0 6px 12px rgba(0, 0, 0, .35); } 50% { box-shadow: 0 0 0 10px rgba(0, 178, 169, 0), 0 6px 12px rgba(0, 0, 0, .35); } }
+@keyframes cnGlow { 0%, 100% { transform: scale(.9); opacity: .55; } 50% { transform: scale(1.15); opacity: 1; } }
+@keyframes cnBob { 0%, 100% { transform: translateY(0); } 50% { transform: translateY(-14%); } }
+@keyframes cnHopA { 0% { transform: translateY(0) scaleY(.92); } 45% { transform: translateY(-38%) scaleY(1.04); } 100% { transform: translateY(0) scaleY(.94); } }
+@keyframes cnHopB { 0% { transform: translateY(0) scaleY(.92); } 45% { transform: translateY(-38%) scaleY(1.04); } 100% { transform: translateY(0) scaleY(.94); } }
+@keyframes cnSpin { 0% { transform: rotate(0) scale(1); } 50% { transform: rotate(200deg) scale(1.25); } 100% { transform: rotate(360deg) scale(1); } }
+@keyframes cnRing { 0% { transform: translate(-50%, -50%) scale(.2); opacity: 1; } 100% { transform: translate(-50%, -50%) scale(1); opacity: 0; } }
+@keyframes cnRingBig { 0% { transform: translate(-50%, -50%) scale(.1); opacity: 1; border-width: 6px; } 100% { transform: translate(-50%, -50%) scale(1.2); opacity: 0; border-width: 1px; } }
+@keyframes cnPart { 0% { transform: translate(0, 0) scale(1); opacity: 1; } 100% { transform: translate(var(--dx), var(--dy)) scale(.25); opacity: 0; } }
+@keyframes cnText { 0% { transform: translate(-50%, -50%) scale(.3); opacity: 0; } 18% { transform: translate(-50%, -90%) scale(1.15); opacity: 1; } 70% { transform: translate(-50%, -140%) scale(1); opacity: 1; } 100% { transform: translate(-50%, -190%) scale(.95); opacity: 0; } }
+@keyframes cnBanner { 0% { transform: translate(-50%, -50%) scale(.6); opacity: 0; } 15% { transform: translate(-50%, -50%) scale(1.08); opacity: 1; } 80% { transform: translate(-50%, -50%) scale(1); opacity: 1; } 100% { transform: translate(-50%, -50%) scale(.9); opacity: 0; } }
+@keyframes cnShakeA { 0%, 100% { transform: translate(0, 0); } 20% { transform: translate(-6px, 3px); } 40% { transform: translate(5px, -4px); } 60% { transform: translate(-4px, 2px); } 80% { transform: translate(3px, -1px); } }
+@keyframes cnShakeB { 0%, 100% { transform: translate(0, 0); } 20% { transform: translate(-6px, 3px); } 40% { transform: translate(5px, -4px); } 60% { transform: translate(-4px, 2px); } 80% { transform: translate(3px, -1px); } }
+@keyframes cnTarget { 0%, 100% { transform: scale(.82); opacity: .7; } 50% { transform: scale(1); opacity: 1; } }
+@keyframes cnFall { 0% { transform: translateY(0) rotate(0); } 100% { transform: translateY(1.1em) rotate(720deg); } }
+@keyframes cnWin { 0% { transform: translate(-50%, -50%) scale(.4); opacity: 0; } 100% { transform: translate(-50%, -50%) scale(1); opacity: 1; } }
+@keyframes cnBreath { 0%, 100% { filter: brightness(1); } 50% { filter: brightness(1.18); } }
+/* Tìm số (TimSoGame): tsPop số vừa ăn bật lên · tsNoA / tsNoB lắc khi chạm nhầm (đổi tên mỗi lần cho chạy lại) · tsHint
+   số cần tìm phát sáng gợi ý · tsFloat chữ +1 nổi lên · tsIn bảng kết thúc. */
+@keyframes tsPop { 0% { transform: translate(-50%, -50%) scale(.6); } 100% { transform: translate(-50%, -50%) scale(1); } }
+@keyframes tsNoA { 0%, 100% { margin-left: 0; } 25% { margin-left: -6px; } 75% { margin-left: 6px; } }
+@keyframes tsNoB { 0%, 100% { margin-left: 0; } 25% { margin-left: -6px; } 75% { margin-left: 6px; } }
+@keyframes tsHint { 0%, 100% { box-shadow: 0 0 0 0 rgba(240, 183, 92, 0); } 50% { box-shadow: 0 0 0 6px rgba(240, 183, 92, .55); } }
+@keyframes tsFloat { 0% { transform: translate(-50%, 0) scale(.6); opacity: 0; } 20% { transform: translate(-50%, -10px) scale(1.15); opacity: 1; } 100% { transform: translate(-50%, -46px) scale(1); opacity: 0; } }
+@keyframes tsIn { 0% { transform: translate(-50%, -50%) scale(.6); opacity: 0; } 100% { transform: translate(-50%, -50%) scale(1); opacity: 1; } }
+/* Kéo búa bao (KeoBuaBaoGame): kbIdle tay đung đưa chờ · kbShakeA / kbShakeB tay lắc "Kéo… Búa… Bao!" · kbWin / kbLose /
+   kbDraw tay thắng nổi lên, tay thua xám đi, hoà lắc ngang · kbWordA / kbWordB chữ giữa sân bật ra · kbFall pháo giấy ·
+   kbIn bảng kết thúc. */
+@keyframes kbIdle { 0%, 100% { transform: translateY(0) rotate(0); } 50% { transform: translateY(-6px) rotate(-2deg); } }
+@keyframes kbShakeA { 0%, 100% { transform: translateY(0) rotate(0); } 45% { transform: translateY(-34px) rotate(-10deg); } }
+@keyframes kbShakeB { 0%, 100% { transform: translateY(0) rotate(0); } 45% { transform: translateY(-34px) rotate(-10deg); } }
+@keyframes kbWin { 0% { transform: scale(1); } 60% { transform: scale(1.18) translateY(-10px); } 100% { transform: scale(1.1) translateY(-6px); } }
+@keyframes kbLose { 0% { transform: scale(1); filter: none; } 100% { transform: scale(.86) translateY(8px); filter: grayscale(.7) brightness(.7); } }
+@keyframes kbDraw { 0%, 100% { transform: translateX(0); } 30% { transform: translateX(-8px); } 70% { transform: translateX(8px); } }
+@keyframes kbWordA { 0% { transform: scale(.4); opacity: 0; } 100% { transform: scale(1); opacity: 1; } }
+@keyframes kbWordB { 0% { transform: scale(.4); opacity: 0; } 100% { transform: scale(1); opacity: 1; } }
+@keyframes kbFall { 0% { transform: translateY(0) rotate(0); } 100% { transform: translateY(620px) rotate(600deg); } }
+@keyframes kbIn { 0% { transform: translate(-50%, -50%) scale(.5); opacity: 0; } 100% { transform: translate(-50%, -50%) scale(1); opacity: 1; } }
+.kb-pick:hover:not(:disabled) { border-color: #00B2A9 !important; transform: translateY(-4px) !important; }
+.bt-cell:hover:not(:disabled) { background: rgba(255, 255, 255, .14) !important; box-shadow: inset 0 0 0 2px rgba(255, 255, 255, .55); }
 @media (prefers-reduced-motion: reduce) {
   [data-game-fx] * { animation: none !important; }
 }

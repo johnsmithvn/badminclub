@@ -85,6 +85,18 @@ for (const line of [
   assert.equal(edge.winner, 0, 'mép bàn không tính là bị chặn')
 }
 
+// Đúng 5 quân (0107): 6 quân liền không tính thắng; đúng 5 thì vẫn thắng; tắt luật thì 6 quân vẫn thắng.
+{
+  // X hàng 7 cột 0, 1, 2, 4, 5 rồi lấp cột 3 → 6 quân liền (y ván ở bước 6 của file kiểm 0107).
+  const six = [[7, 0], [0, 0], [7, 1], [0, 2], [7, 2], [0, 4], [7, 4], [0, 6], [7, 5], [0, 8], [7, 3]]
+  assert.equal(play(fresh({ exact: true }), six).winner, null, 'đúng 5 quân: 6 quân liền chưa thắng')
+  assert.equal(play(fresh(), six).winner, 0, 'tắt luật đúng 5 quân thì 6 quân liền vẫn thắng')
+  const five = [[7, 0], [0, 0], [7, 1], [0, 2], [7, 2], [0, 4], [7, 3], [0, 6], [7, 4]]
+  assert.equal(play(fresh({ exact: true }), five).winner, 0, 'đúng 5 quân thì thắng')
+  const check = readFileSync('supabase/manual/0107_games_xo_check.sql', 'utf8')
+  assert.ok(check.includes('{"seat":0,"move":{"i":110}},{"seat":1,"move":{"i":8}},{"seat":0,"move":{"i":108}}'), 'bước 6 file kiểm 0107 phải là ván 6 quân này')
+}
+
 // Hoà khi đầy bàn mà không ai thắng (bàn 3x3, cần 3 quân).
 {
   // X O X / X O O / O X X — không có 3 quân liền.
@@ -95,17 +107,18 @@ for (const line of [
   assert.equal(caro.validate(s, s.turn, { i: 0 }), 'games.err.over')
 }
 
-// Server chấm lại Caro bằng SQL (0074: game_caro_result) — mặc định cỡ bàn / số quân phải khớp JS,
+// Server chấm lại Caro bằng SQL (game_caro_result, bản mới nhất 0107) — mặc định cỡ bàn / số quân phải khớp JS,
 // không thì phòng tạo không kèm tuỳ chọn sẽ bị server chấm theo luật khác với luật đang hiện trên màn hình.
 {
-  const sql = readFileSync('supabase/migrations/0074_games.sql', 'utf8')
-  const fn = sql.slice(sql.indexOf('FUNCTION public.game_caro_result'), sql.indexOf('FUNCTION public.game_finish'))
+  const sql = readFileSync('supabase/migrations/0107_games_xo.sql', 'utf8')
+  const fn = sql.slice(sql.indexOf('FUNCTION public.game_caro_result'), sql.indexOf('FUNCTION public.game_create'))
   assert.ok(fn.includes(`(v_opt ->> 'size')::int, ${caro.defaultOptions.size})`), 'cỡ bàn mặc định SQL ≠ JS')
   assert.ok(fn.includes(`(v_opt ->> 'win')::int, ${caro.defaultOptions.win})`), 'số quân thắng mặc định SQL ≠ JS')
   assert.ok(fn.includes(`(v_opt ->> 'blockedEnds')::boolean, ${caro.defaultOptions.blockedEnds})`), 'chặn hai đầu mặc định SQL ≠ JS')
+  assert.ok(fn.includes(`(v_opt ->> 'exact')::boolean, ${caro.defaultOptions.exact})`), 'đúng 5 quân mặc định SQL ≠ JS')
 }
 
-// X-O cổ điển 3 × 3 (0088): 3 quân liền là thắng, đầy 9 ô không ai thắng là hoà.
+// Phòng Caro 3 × 3 cũ (0088, đã chuyển sang Cờ X-O ở 0107): luật vẫn chấm được — 3 quân liền thắng, đầy 9 ô hoà.
 {
   const xo = { size: 3, win: 3 }
   const s = play(fresh(xo), [[0, 0], [1, 0], [1, 1], [2, 0], [2, 2]])
@@ -113,11 +126,11 @@ for (const line of [
   assert.deepEqual(s.line, [at(s, 0, 0), at(s, 1, 1), at(s, 2, 2)])
   const draw = play(fresh(xo), [[0, 0], [0, 1], [0, 2], [1, 1], [1, 0], [1, 2], [2, 1], [2, 0], [2, 2]])
   assert.deepEqual(caro.result(draw), { winners: [], draw: true }, 'đầy bàn 3 × 3 không ai thắng là hoà')
-  // Server phải nhận bàn 3 (bản 0088) — chặn ở 5 như 0074 là chủ phòng chọn X-O mà không tạo được phòng.
-  const sql = readFileSync('supabase/migrations/0088_games_caro_classic.sql', 'utf8')
-  assert.ok(sql.includes("(p_options ->> 'size')::int, 15) BETWEEN 3 AND 25"), 'game_create 0088 phải nhận cỡ bàn 3')
+  // Server nhận cỡ 3..30 (bản 0107) — form tạo phòng chỉ còn bàn lớn.
+  const sql = readFileSync('supabase/migrations/0107_games_xo.sql', 'utf8')
+  assert.ok(sql.includes("(p_options ->> 'size')::int, 15) BETWEEN 3 AND 30"), 'game_create 0107 phải nhận cỡ bàn tới 30')
   const cfg = JSON.parse(readFileSync('src/config/app.json', 'utf8'))
-  assert.ok(cfg.games.caroSizes.every((n) => n >= 3 && n <= 25), 'cỡ bàn cho chọn phải nằm trong khoảng server nhận')
+  assert.ok(cfg.games.caroSizes.every((n) => n >= 5 && n <= 30), 'cỡ bàn cho chọn phải nằm trong khoảng server nhận, không còn 3 × 3')
 }
 
 console.log('caro check: OK')

@@ -403,7 +403,7 @@ và **Chat phòng** (có tin hệ thống: vào / rời / sẵn sàng / đổi l
 
 ### 7b. Chơi với máy (luyện tập)
 
-13 trò: `BOT_GAMES` ở `registry.js` (Caro, Cờ vua, Cờ tướng, Cờ úp, Ô ăn quan, Cờ gánh, Chấm ô, Cờ cá ngựa, Bắn tàu, Tiến lên, Phỏm, Bài bịp, Xì dách). Sảnh có
+15 trò: `BOT_GAMES` ở `registry.js` (Caro, Cờ X-O, Cờ vua, Cờ tướng, Cờ úp, Ô ăn quan, Cờ gánh, Chấm ô, Cờ cá ngựa, Bắn tàu, Tiến lên, Phỏm, Bài bịp, Xì dách, Nối từ). Sảnh có
 nút **Chơi với máy** → `/tro-choi/may-<game>`; `GameRoom.jsx` thấy tiền tố `may-` thì mở `BotRoom` (tải lười).
 - **Cài đặt ván (nút ⚙):** mức độ, bên đi / số người, **đồng hồ mỗi nước** (15 / 30 giây / không giới hạn, mặc định tắt —
   `prefs.time`). Đồng hồ chạy lại mỗi lần tới lượt người; hết giờ là thua ván luyện. Chỉ ở phòng máy: phòng thật chưa có
@@ -427,6 +427,32 @@ nút **Chơi với máy** → `/tro-choi/may-<game>`; `GameRoom.jsx` thấy ti�
   Worker), không đọc bài người khác, nọc hay dây nổ. Đồng hồ lượt của phòng thật tắt (`time: 0`, cần server đi thay) —
   dùng đồng hồ mỗi nước của phòng máy. Không có Đi lại (bài nằm ngoài state) và Xin hoà. Xì dách: hết ván con, màn
   chơi của người tự xin chia ván mới sau vài giây như phòng thật. Đổi luật server của 4 game là phải đổi cả dealer.js.
+  **Không ăn xu** (chốt 2026-11-12): máy chạy ở trình duyệt, cho xu là bị bơm xu vô hạn. Xu với máy sẽ đi đường "phòng
+  nhà cái" trên server (Bầu cua, Ba cây — giữ đúng lợi thế nhà cái), chưa làm.
+- **Nối từ đấu máy (2026-11-12)** — cách chơi KHÁC phòng thật, màn riêng `NoiTuSolo.jsx` (GameRoom thấy `may-noitu` thì
+  mở màn này thay BotRoom), luật + máy ở `lib/games/noituSolo.js`. Bạn và máy nối luân phiên, **điểm = số từ bạn nối
+  được**: có trong từ điển 1 điểm, từ lạ (hai âm tiết có thật, từ không có) ½, có âm tiết lạ 0. Bạn bấm Chịu / hết giờ
+  lượt (15 / 20 / 30 giây) là hết ván, giữ điểm. Máy bí → bạn thắng, +`BONUS` (3). **Không chặn cứng** (chủ dự án chốt):
+  sai luật nối / sai dạng / từ đã dùng chỉ báo để gõ lại, không mất lượt, không trừ giờ; từ lạ vẫn nhận. Kiểm bằng đúng
+  `wordErr` / `linkOf` / `normWord` của noitu.js (state solo giữ khuôn `opts` / `chain` / `bad` / `fresh`). Gõ một âm
+  tiết thì tự ghép sau âm phải nối. Sau từ lạ / âm tiết lạ mà máy không nối được thì máy ra từ mới tự do, KHÔNG tính máy
+  bí — khỏi bị lừa bằng từ bịa. Máy: Dễ chọn từ còn ≥ 5 đường nối và tự chịu 10% mỗi lượt · Vừa chọn bừa, tự chịu 3% ·
+  Khó chọn từ ít đường nối nhất nhưng không cụt hẳn, chỉ chịu khi hết từ thật. Kỷ lục theo mức lưu trên máy
+  (`localStorage` `noitu-solo:best`), không có bảng chung, không xu.
+  **Từ điển trên máy:** `public/words/vi.txt` (48 120 từ, ~175 KB nén, tải lười một lần khi mở màn) — chép từ
+  `0100_games_words_vi.sql` (dòng đầu `#` ghi nguồn UTS_Dictionary, Apache-2.0). Thêm từ vào 0100 thì chép lại file này:
+  lấy mọi chuỗi `'…'` sau `unnest(ARRAY[` của 0100, mỗi từ một dòng; `noituSolo.test.js` gác hai bên đủ khớp.
+- **Game chỉ chơi một mình (2026-11-12): Tìm số, Kéo búa bao** — `SOLO_GAMES` ở `registry.js` (không nằm trong `GAMES`
+  / `GAME_IDS`: không có phòng, luật phòng, server, BXH hay xu). Sảnh liệt kê `LOBBY_IDS` = `GAME_IDS` + `SOLO_GAMES`; thẻ
+  game chơi một mình chỉ có nút **Chơi** (+ Cách chơi) → `/tro-choi/may-<id>`, GameRoom mở màn riêng qua `SOLO_SCREENS`
+  (cùng chỗ với Nối từ đấu máy). Bản thiết kế "Game mới · Tìm số, Kéo búa bao".
+  - **Tìm số** (`lib/games/timso.js`, `TimSoGame.jsx`): 40 số rải vào 40 trong 48 ô lưới 8 × 6 (lệch, nghiêng, cỡ ngẫu nhiên),
+    chạm đúng thứ tự. Đua với máy (máy ăn số đang cần sau 1,7–3,6 giây) hoặc một mình bấm giờ (kỷ lục `localStorage`
+    `timso:best`). Chạm nhầm chỉ rung; để 5 giây không tìm ra thì số cần tìm phát sáng.
+  - **Kéo búa bao** (`lib/games/keobuabao.js`, `KeoBuaBaoGame.jsx`): đấu máy, chạm 2 / chạm 3, hoà không tính. Máy ra ngẫu
+    nhiên, 25% số ván ra tay khắc tay bạn vừa ra. Mỗi ván: lắc 3 nhịp "Kéo… Búa… Bao!" (0,42 giây / nhịp) rồi lật tay.
+  - Hiệu ứng `ts*` / `kb*` ở `effects.css`. Test: `solo.test.js`. Đợt 2 (chơi giữa người với người) cần server: Kéo búa bao
+    giấu lựa chọn tới khi cả hai cùng ra, Tìm số xử ai chạm trước — chưa làm.
 - **Mức Dễ / Vừa / Khó** — tự viết, chạy trong Web Worker (`bots/worker.js`, màn hình không đứng):
   - `bots/search.js`: minimax + alpha-beta, đào sâu dần trong hạn giờ, tìm thêm nước ăn quân ở lá — Cờ vua, Cờ tướng,
     Cờ úp, Ô ăn quan, Cờ gánh. Gọi thẳng `game.apply` nên không bao giờ đi sai luật (đổi lại chậm hơn engine thật nhiều lần).
@@ -532,7 +558,9 @@ nút **Chơi với máy** → `/tro-choi/may-<game>`; `GameRoom.jsx` thấy ti�
 - `covay.test.js` — ăn quân / cả nhóm, tự sát bị cấm trừ khi ăn được quân, ko (cấm ăn lại ngay, đi nước khác thì hết),
   hai lần bỏ lượt hết ván, điểm vùng + komi, trần số nước, nước rác; hằng số + bộ ván mẫu khớp SQL 0089.
   `caro.test.js` thêm bàn X-O 3 × 3 (3 quân thắng, hoà khi đầy) và game_create 0088 nhận cỡ 3.
-- `fixtures.mjs` — không phải test: sinh lại bộ ván mẫu trong file kiểm 0075, 0076, 0077 và 0089 (§5.1). Chạy xong
+- `xo.test.js` — Cờ X-O 3 chế độ: thắng / hoà, phải di quân khi đủ 3 quân, quân cũ biến mất, hoà khi hết lượt; hằng số +
+  bộ ván mẫu khớp SQL 0107. `caro.test.js` thêm luật đúng 5 quân, `game_caro_result` / `game_create` bản 0107.
+- `fixtures.mjs` — không phải test: sinh lại bộ ván mẫu trong file kiểm 0075, 0076, 0077, 0089, 0090 và 0107 (§5.1). Chạy xong
   xem `git diff`: các khối cũ phải không đổi nội dung (máy Windows có thể đổi xuống dòng CRLF → LF — trả lại bằng
   `git checkout` file đó).
 - Mutation-test theo `RULES.md` §5.
@@ -560,6 +588,7 @@ chạy được trước 0085.
 | **6** | **Tiến lên miền Bắc** (tuỳ chọn phòng) · **Cờ úp** 2 · **Bầu cua** 2–10 · **Lô tô** 2–10 · **Xì dách** 2–8 — đã code (0094–0098) | cái xoay vòng nhiều ván trong một phòng, quân úp theo ô |
 | **7** | **Nối từ** có từ điển tiếng Việt + tuỳ chọn chặn từ cụt / đảo từ / lặp từ — đã code (0099–0100) | bảng dữ liệu chỉ server đọc, nước server đánh dấu `ok` |
 | **8** | **Chơi với máy** 9 trò, 3 mức tự viết + Cao thủ engine nhúng (Cờ vua, Cờ tướng) — đã code (§7b) | chạy luật ở trình duyệt, Web Worker, engine UCI |
+| **9** | **Cờ X-O** 3 chế độ tách khỏi Caro · **Caro** bàn 30 × 30, đúng 5 quân, zoom / kéo bàn — đã code (0107) | server chấm X-O bằng ván mẫu chung (§5.1), chuyển dữ liệu phòng Caro 3 × 3 cũ |
 
 Tách repo / server game riêng chỉ khi: cần game hành động nhanh, mở cho người ngoài CLB,
 hoặc vượt quota Supabase.
@@ -768,6 +797,28 @@ có xì ngồi chờ. Cái dằn thì server ghi bài cả bàn (`show`). Đồn
 
 **Caro bàn 3 × 3** (0088): X-O cổ điển — chọn cỡ 3 khi tạo phòng thì 3 quân liền là thắng, không có luật chặn hai đầu.
 `game_caro_result` (0074) đã chấm đúng mọi cỡ, chỉ `game_create` phải nới cỡ nhỏ nhất từ 5 xuống 3.
+**Từ 0107 bàn 3 × 3 tách thành Cờ X-O** (bên dưới); phòng Caro 3 × 3 cũ được 0107 chuyển sang `xo` chế độ cổ điển
+(chủ dự án duyệt 2026-11-12 — chưa ai chơi thật; câu đổi ngược ghi ở đầu 0107). caro.js vẫn chấm được bàn 3 × 3.
+
+**Caro bàn lớn** (0107): cỡ 15 / 19 / **30** (`caroSizes`; server nhận 3..30). Tuỳ chọn **Chặn hai đầu** và **Đúng 5
+quân** (`exact` — 6 quân liền trở lên không tính, server chấm ở `game_caro_result` bản 0107). Bàn từ 19 × 19 (`BIG` của
+CaroBoard) nằm trong khung cuộn: mỗi ô tối thiểu 0 / 20 / 28 / 36 / 44 px theo mức phóng (mặc định 20, mức 0 = vừa
+khung) — nút − / + / về nước vừa đánh, Ctrl + lăn chuột, chụm hai ngón (bước rời theo tỉ lệ khoảng cách hai ngón), kéo
+chuột để di chuyển, vuốt một ngón là cuộn sẵn của trình duyệt. Chạm (không phải chuột) thì chạm lần 1 hiện quân mờ + viền,
+chạm lần 2 cùng ô mới đánh. Nước mới khuất ngoài khung thì tự cuộn tới. Không thêm thư viện. ponytail: chụm hai ngón dựa
+vào pointer event khi `touch-action: pan-x pan-y` — trình duyệt nào giành cử chỉ để cuộn thì chụm không ăn, còn nút − / +.
+
+**Cờ X-O** (`xo.js`, 0107): bàn 3 × 3, X (ghế 0) đi trước, 3 quân liền là thắng. Chế độ (`options.mode`):
+- **Cổ điển** (`classic`): đặt tới khi đầy bàn, đầy 9 ô mà chưa ai thắng thì hoà. Chế độ lạ → cổ điển.
+- **3 quân di chuyển** (`move`): đặt đủ 3 quân rồi mỗi lượt nhấc một quân của mình sang ô trống bất kỳ `{ from, to }`
+  (không giới hạn ô kề như Tapatan — chọn cho dễ chơi). Đủ quân mà gửi `{ i }` = `badMove`; nhấc quân đối phương =
+  `notYourPiece`.
+- **Quân cũ tự biến mất** (`vanish`): luôn đặt `{ i }`; đã có 3 quân thì quân đặt sớm nhất của mình biến mất cùng lúc.
+  Ô của quân sắp mất vẫn đang có quân — không đặt đè lên được. Màn chơi hiện mờ quân sắp mất của người tới lượt.
+- `move` / `vanish` không bao giờ đầy bàn: đủ `CAP` = 30 lượt mỗi bên (60 nước) mà chưa ai thắng thì hoà.
+- Server tự chấm: `game_xo_result` (0107; `game_finish` 0075 tự tìm `game_<id>_result`) — bộ ván mẫu chung khối `$xo$`
+  của `supabase/manual/0107_games_xo_check.sql`. Có cược như Caro (kết quả server chấm). Bot: minimax (`XO` ở search.js),
+  mức Khó tìm sâu 9 nửa nước — ván cổ điển là tìm hết; phòng máy chọn chế độ trong ⚙. Để sau: X-O lồng (9 bàn con).
 
 **Cờ vây** (`covay.js`, luật Trung Quốc rút gọn): 2 người, Đen (ghế 0) đi trước, bàn 9 × 9 / 13 × 13 / 19 × 19 (chủ phòng
 chọn, lạ thì 9). Đặt quân vào giao điểm hoặc bỏ lượt; nhóm hết khí bị ăn; cấm tự sát (trừ khi nước đó ăn được quân);

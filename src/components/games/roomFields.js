@@ -1,6 +1,7 @@
 import { BOARD_POINTS, NO_STAKE, buyinsOf, stakeOf } from '#lib/games/registry.js'
 import { DICTS as NOITU_DICTS, REPEATS as NOITU_REPEATS, TIMES as NOITU_TIMES } from '#lib/games/noitu.js'
 import { SIZES as COVAY_SIZES } from '#lib/games/covay.js'
+import { MODES as XO_MODES } from '#lib/games/xo.js'
 import { DAY_TIMES as MASOI_TIMES, REVEALS as MASOI_REVEALS, GUARD, SEER, WITCH, WOLF, isWolf, lineupOf } from '#lib/games/masoi.js'
 import { TIMES as BAIBIP_TIMES } from '#lib/games/baibip.js'
 import { LEADS as TIENLEN_LEADS, TIMES as TIENLEN_TIMES, VARIANTS as TIENLEN_VARIANTS } from '#lib/games/tienlen.js'
@@ -31,14 +32,13 @@ export function fieldsOf(gameId, opts, set) {
   const f = []
   const num = (key) => (e) => set({ [key]: Number(e.target.value) })
   if (gameId === 'caro') {
-    // Bàn 3 × 3 là X-O cổ điển: 3 quân thắng, không có luật chặn hai đầu. Bàn lớn: 5 quân.
-    f.push(sel('size', t('games.caro.size'), opts.size, cfg.games.caroSizes.map((n) => ({
-      value: String(n), label: t(n === 3 ? 'games.caro.sizeOptClassic' : 'games.caro.sizeOpt', { n }),
-    })), (e) => {
-      const size = Number(e.target.value)
-      set({ size, win: size === 3 ? 3 : 5, blockedEnds: size === 3 ? false : !!opts.blockedEnds })
-    }))
-    if (opts.size !== 3) f.push(sw('blockedEnds', t('games.caro.blockedEnds'), opts.blockedEnds, (e) => set({ blockedEnds: e.target.checked }), t('games.caro.blockedEndsHint')))
+    // Chỉ bàn lớn, 5 quân thắng — bàn 3 × 3 đã tách thành Cờ X-O (0107).
+    f.push(sel('size', t('games.caro.size'), opts.size, nums(cfg.games.caroSizes, (n) => t('games.caro.sizeOpt', { n })), num('size')))
+    f.push(sw('blockedEnds', t('games.caro.blockedEnds'), opts.blockedEnds, (e) => set({ blockedEnds: e.target.checked }), t('games.caro.blockedEndsHint')))
+    f.push(sw('exact', t('games.caro.exact'), opts.exact, (e) => set({ exact: e.target.checked }), t('games.caro.exactHint')))
+  }
+  if (gameId === 'xo') {
+    f.push(sel('mode', t('games.xo.mode'), opts.mode, XO_MODES.map((v) => ({ value: v, label: t('games.xo.modeOpt.' + v) })), (e) => set({ mode: e.target.value })))
   }
   if (gameId === 'oanquan') {
     f.push(sel('quans', t('games.oanquan.quans'), opts.quans, OQ_QUANS.map((n) => ({ value: String(n), label: t('games.oanquan.quansOpt.' + n) })), num('quans')))

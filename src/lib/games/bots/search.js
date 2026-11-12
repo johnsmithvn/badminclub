@@ -1,5 +1,5 @@
 // Máy chơi bằng tìm kiếm (minimax + cắt tỉa alpha-beta, đào sâu dần trong hạn giờ) cho các trò cờ: Cờ vua, Cờ tướng,
-// Cờ úp, Ô ăn quan, Cờ gánh. Dùng thẳng luật của game (validate / apply / result) nên máy không bao giờ đi sai luật.
+// Cờ úp, Ô ăn quan, Cờ gánh, Cờ X-O. Dùng thẳng luật của game (validate / apply / result) nên máy không bao giờ đi sai luật.
 // Thuần JS, không React — chạy trong Web Worker (worker.js) để màn hình không đứng lúc máy nghĩ.
 //
 // Đa dạng nước đi: các nước kém nước tốt nhất không quá `noise` điểm được chọn ngẫu nhiên — mức Dễ noise lớn
@@ -12,6 +12,7 @@ import cotuong, { legalMoves as xqMoves, typeOf as xqType, colorOf as xqColor, C
 import coup, { HIDDEN_SQUARES, isHidden, legalMoves as coupMoves } from '#lib/games/coup.js'
 import oanquan, { movesOf, sideOf } from '#lib/games/oanquan.js'
 import coganh, { NEIGHBORS, POINTS } from '#lib/games/coganh.js'
+import xo, { LINES as XO_LINES, moving as xoMoving } from '#lib/games/xo.js'
 
 const WIN = 1e6
 
@@ -243,4 +244,20 @@ export const COGANH = {
     for (const p of s.board) if (p != null) v += p === me ? 10 : -10
     return v
   },
+}
+
+/** Cờ X-O: đặt quân vào ô trống, hoặc (chế độ move, đủ 3 quân) nhấc một quân của mình sang ô trống. */
+const xoMoves = (s) => (xoMoving(s, s.turn)
+  ? s.q[s.turn].flatMap((from) => s.board.map((v, to) => (v == null ? { from, to } : null)).filter(Boolean))
+  : s.board.map((v, i) => (v == null ? { i } : null)).filter(Boolean))
+
+export const XO = {
+  game: xo,
+  moves: xoMoves,
+  // Đường còn mở: chỉ có quân một bên — 2 quân đáng hơn hẳn 1 quân.
+  evaluate: (s, me) => XO_LINES.reduce((v, l) => {
+    const mine = l.filter((x) => s.board[x] === me).length
+    const foe = l.filter((x) => s.board[x] === 1 - me).length
+    return v + (foe ? 0 : mine * mine) - (mine ? 0 : foe * foe)
+  }, 0),
 }
