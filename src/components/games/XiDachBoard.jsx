@@ -24,7 +24,7 @@ function useNow(on) {
   return now
 }
 
-export default function XiDachBoard({ state, mySeat, onMove, roomId, result }) {
+export default function XiDachBoard({ state, mySeat, onMove, roomId, result, hands: given }) {
   const { a } = useApp()
   const { started, phase, banker, turn, over, show, xi, won, last } = state
   const seated = mySeat != null && started && !state.out[mySeat]
@@ -35,14 +35,15 @@ export default function XiDachBoard({ state, mySeat, onMove, roomId, result }) {
   const [dealt, setDealt] = useState(null) // { key, cards } | { key, failed }
   const [tries, setTries] = useState(0)
   useEffect(() => {
-    if (!seated || !live) return undefined
+    if (given || !seated || !live) return undefined
     let on = true
     a.gameHand(roomId)
       .then((hands) => { if (on) setDealt({ key, cards: (hands?.[mySeat] || []).slice() }) })
       .catch((e) => { console.warn('[games] Không nạp được bài:', e?.message || e); if (on) setDealt({ key, failed: true }) })
     return () => { on = false }
-  }, [a, roomId, seated, live, mySeat, key, tries])
-  const mine = show?.[mySeat] || xi?.[mySeat] || (dealt?.key === key ? dealt.cards : null)
+  }, [a, roomId, seated, live, mySeat, key, tries, given])
+  // Chơi với máy (BotRoom) truyền sẵn `hands` (như game_hands) — khỏi hỏi server.
+  const mine = show?.[mySeat] || xi?.[mySeat] || (given ? given[mySeat] || null : dealt?.key === key ? dealt.cards : null)
 
   // Hết giờ lượt → { timeout }: người tới lượt báo trước, người khác chờ thêm. Hết ván → xin chia ván mới sau NEXT_MS.
   const due = deadlineOf(state)

@@ -88,7 +88,7 @@ function Seat({ name, src, size, active, pct, low, dim }) {
   )
 }
 
-export default function TienLenBoard({ state, mySeat, onMove, roomId, result, players, names, stake = 0, actions, overActions, note }) {
+export default function TienLenBoard({ state, mySeat, onMove, roomId, result, players, names, stake = 0, actions, overActions, note, hands: given }) {
   const { a, db } = useApp()
   const [ref, k] = useFit(DW)
   const portrait = usePortrait()
@@ -103,15 +103,16 @@ export default function TienLenBoard({ state, mySeat, onMove, roomId, result, pl
   // Server chốt kết quả = phòng đã xong → RLS mở mọi tay: nạp lại để lật bài.
   const reveal = !!result
   useEffect(() => {
-    if (!seated && !reveal) return undefined
+    if (given || (!seated && !reveal)) return undefined
     let live = true
     a.gameHand(roomId)
       .then((hands) => { if (live) setDealt({ roomId, hands }) })
       .catch((e) => { console.warn('[games] Không nạp được bài:', e?.message || e); if (live) setDealt({ roomId, failed: true }) })
     return () => { live = false }
-  }, [a, roomId, seated, reveal, tries])
+  }, [a, roomId, seated, reveal, tries, given])
 
-  const mine = dealt?.roomId === roomId ? dealt : null
+  // Chơi với máy (BotRoom) truyền sẵn `hands` (như game_hands: đang chơi chỉ tay mình, hết ván cả bàn) — khỏi hỏi server.
+  const mine = given ? { hands: given } : dealt?.roomId === roomId ? dealt : null
   const left = (seat) => (mine?.hands?.[seat] || []).filter((c) => !state.gone.includes(c)).sort((x, y) => x - y)
   const hand = seated ? left(mySeat) : []
   const toggle = (c) => setPick({ ply: state.ply, cards: sel.includes(c) ? sel.filter((x) => x !== c) : [...sel, c] })

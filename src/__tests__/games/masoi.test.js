@@ -4,7 +4,7 @@
 
 import assert from 'node:assert/strict'
 import { readFileSync } from 'node:fs'
-import ms, { complete, CUPID, CURSED, deadlineOf, deckOf, ELDER, GUARD, HUNTER, minPlayersOf, NIGHT_SEC, optsOf, rolesOf, rowOf, SEER, tableOf, tallyOf, VILLAGER, WITCH, WOLF } from '#lib/games/masoi.js'
+import ms, { advanceAt, complete,CUPID, CURSED, deadlineOf, deckOf, ELDER, GUARD, HUNTER, minPlayersOf, NIGHT_SEC, optsOf, rolesOf, rowOf, SEER, tableOf, tallyOf, VILLAGER, WITCH, WOLF } from '#lib/games/masoi.js'
 import { replay } from '#lib/games/registry.js'
 
 const begin = (n, options) => ms.apply(ms.setup({ options }), 0, { deal: { n } })
@@ -45,7 +45,7 @@ const count = (t, r) => t.filter((x) => x === r).length
   s = step(s, 0, { night: true })
   assert.equal(ms.validate(s, 0, { night: true }), 'games.err.acted')
   assert.equal(ms.validate(s, 1, { vote: 2 }), 'games.err.badMove', 'đêm không bỏ phiếu')
-  assert.deepEqual(ms.status(s), { key: 'games.masoi.statusNight', params: { n: 1, done: 1, total: 6 } })
+  assert.deepEqual(ms.status(s), { key: 'games.masoi.statusNight', params: { n: 1 } }, 'đêm không đếm ai đã bấm')
   s = sleepAll(s)
   assert.equal(complete(s), true)
   assert.equal(ms.validate(s, 3, { next: true }), null, 'máy nào cũng chốt được')
@@ -59,6 +59,7 @@ const count = (t, r) => t.filter((x) => x === r).length
   assert.equal(ms.validate(s, 0, { vote: 2 }), 'games.err.badTarget', 'không bầu người đã chết')
   assert.equal(ms.validate(s, 0, { night: true }), 'games.err.badMove')
   s = step(s, 0, { vote: 1 })
+  assert.deepEqual(ms.status(s), { key: 'games.masoi.statusDay', params: { n: 1, done: 1, total: 5 } }, 'ngày vẫn đếm phiếu')
   assert.equal(ms.validate(s, 0, { vote: 3 }), 'games.err.acted')
   s = step(step(step(step(s, 1, { vote: 0 }), 3, { vote: 1 }), 4, { vote: -1 }), 5, { vote: 1 })
   assert.deepEqual(tallyOf(s), { 0: 1, 1: 3, '-1': 1 })
@@ -66,7 +67,28 @@ const count = (t, r) => t.filter((x) => x === r).length
   s = step(s, 5, { next: 'night', hang: 1, dead: [1], shown: [] })
   assert.deepEqual([s.phase, s.night, s.alive[1], s.votes.every((v) => v === null), s.events.at(-1)],
     ['night', 2, false, true, { k: 'hang', night: 1, dead: [1], seat: 1 }])
-  assert.deepEqual(ms.status(s).params, { n: 2, done: 0, total: 4 })
+  assert.deepEqual(ms.status(s).params, { n: 2 })
+}
+
+// Nhịp đêm không lộ vai: bước đêm / Phù thủy chờ đủ NIGHT_SEC dù cả làng đã bấm; ban ngày / chốt người rời đi ngay.
+{
+  const T0 = Date.parse('2026-11-12T12:00:00Z')
+  const at = (ms0) => ({ at: new Date(ms0).toISOString() })
+  let s = ms.apply(ms.setup({ options: { time: 0 } }), 0, { deal: { n: 7 } }, at(T0))
+  assert.equal(advanceAt(s, T0 + 1000), null, 'chưa đủ người, không đồng hồ: chờ')
+  s = sleepAll(s)
+  assert.equal(advanceAt(s, T0 + 3000), T0 + NIGHT_SEC * 1000, 'đủ người vẫn chờ hết giờ đêm — kể cả phòng tắt giờ')
+  assert.equal(advanceAt(s, T0 + 60000), T0 + 60000, 'quá giờ thì đi ngay')
+  s = sleepAll(ms.apply(s, 0, { next: 'witch' }, at(T0 + 46000)))
+  assert.equal(advanceAt(s, T0 + 47000), T0 + 46000 + NIGHT_SEC * 1000, 'bước Phù thủy cũng chờ đủ — Phù thủy chết không làm bước ngắn lại')
+  s = ms.apply(s, 0, { next: 'day', dead: [], shown: [], hang: -1 }, at(T0 + 91000))
+  s = s.alive.reduce((x, a, i) => step(x, i, { vote: -1 }), s)
+  assert.equal(advanceAt(s, T0 + 95000), T0 + 95000, 'ban ngày đủ phiếu thì sang ngay')
+  const timed = ms.apply(ms.setup({ options: { time: 60 } }), 0, { deal: { n: 7 } }, at(T0))
+  assert.equal(advanceAt(timed, T0), T0 + NIGHT_SEC * 1000, 'có đồng hồ, chưa đủ người: chốt lúc hết giờ')
+  const out = ms.apply(timed, 3, { out: true }, at(T0 + 2000))
+  assert.equal(advanceAt(out, T0 + 2000), T0 + 2000, 'có người rời giữa đêm: chốt ngay')
+  assert.deepEqual([{ night: true }, { next: 'day' }, { vote: 1 }].map(ms.moveShown), [false, true, true], 'tab Nước đi bỏ nước đêm')
 }
 
 // Bước Phù thủy: chỉ có khi bộ vai có Phù thủy — server ghi { next: 'witch' }, mọi người bấm lại lần nữa.

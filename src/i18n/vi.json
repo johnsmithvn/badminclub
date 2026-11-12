@@ -7030,8 +7030,8 @@
         "wolves": "Bầy Sói thắng",
         "lovers": "Đôi tình nhân thắng"
       },
-      "statusNight": "Đêm {{n}} · {{done}}/{{total}} người đã xong",
-      "statusWitch": "Đêm {{n}}, bước Phù thủy · {{done}}/{{total}} người đã xong",
+      "statusNight": "Đêm {{n}} · cả làng đang ngủ",
+      "statusWitch": "Đêm {{n}}, bước Phù thủy · cả làng đang ngủ",
       "statusDay": "Ngày {{n}} · {{done}}/{{total}} người đã bỏ phiếu",
       "statusHunter": "Thợ săn đang chọn người để bắn",
       "statusSettle": "Có người vừa rời bàn — đang tính lại",
@@ -7073,7 +7073,7 @@
         "vote": "Bầu",
         "shoot": "Bắn"
       },
-      "actSleep": "Đêm nay bạn không có việc gì. Bấm Ngủ để cả làng đi tiếp",
+      "actSleep": "Đêm nay bạn không có việc gì. Bấm Ngủ rồi chờ trời sáng",
       "actSleepWitch": "Phù thủy đang thức. Bấm Ngủ tiếp để chờ trời sáng",
       "sleep": "Ngủ",
       "sleepAgain": "Ngủ tiếp",
@@ -7093,7 +7093,7 @@
       "deadWatch": "Bạn đã chết. Cứ xem tiếp, nhưng đừng mách nước cho ai",
       "youVoted": "Bạn đã bầu {{name}} — chờ mọi người bầu xong",
       "youSkipped": "Bạn đã chọn bỏ qua — chờ mọi người bầu xong",
-      "waitOthers": "Bạn đã xong — chờ người khác ({{done}}/{{total}})",
+      "waitDawn": "Bạn đã xong — chờ trời sáng",
       "skipVotes": "{{n}} phiếu bỏ qua",
       "you": "bạn",
       "leftTag": "đã rời",

@@ -2,7 +2,7 @@ import { useEffect, useState } from 'react'
 import { Button } from '#ds'
 import { useApp } from '#contexts/AppContext.jsx'
 import { t } from '#i18n'
-import { complete, CUPID, CURSED, deadlineOf, deckOf, ELDER, F, GUARD, HUNTER, isWolf, ROLE_IDS, rowOf, SEER, tableOf, tallyOf, VILLAGER, WITCH, WOLF } from '#lib/games/masoi.js'
+import { advanceAt, complete, CUPID, CURSED, deadlineOf, deckOf, ELDER, F, GUARD, HUNTER, isWolf, ROLE_IDS, rowOf, SEER, tableOf, tallyOf, VILLAGER, WITCH, WOLF } from '#lib/games/masoi.js'
 
 // Bàn Ma sói: bầu trời theo pha, lá vai của mình (game_hands — chỉ mình đọc được), bảng người chơi (bấm thẻ để
 // chọn người), khung việc cần làm theo vai, diễn biến. Cả bàn cùng đi: xong bước thì máy mình tự gửi { next } — máy
@@ -223,20 +223,21 @@ export default function MaSoiBoard({ state, mySeat, roomId, onMove, result, play
     return seen[seat] === 1 ? WOLF : null
   }
 
-  // Đủ người thì tự chốt bước: ghế thấp gửi trước; server chưa nhận thì gửi lại sau.
+  // Đủ người thì tự chốt bước: ghế thấp gửi trước; server chưa nhận thì gửi lại sau. Bước đêm thì chờ đủ giờ dù đã
+  // đủ người (advanceAt — xong sớm là lộ vai).
   const ready = complete(state)
   const rank = Math.max(0, (players || []).map((p) => p.seat).sort((x, y) => x - y).indexOf(mySeat))
   // Có đồng hồ: hết giờ cũng chốt (server kiểm giờ của nó; máy mình nhanh hơn server thì im lặng thử lại).
   const due = deadlineOf(state)
   const [again, setAgain] = useState(0)
   useEffect(() => {
-    const at = ready ? Date.now() : due
+    const at = advanceAt(state, Date.now())
     if (at == null || !seated || result) return undefined
     const wait = Math.max(0, at - Date.now()) + 600 + rank * 1200
     const fire = setTimeout(() => onMove({ next: true }), wait)
     const retry = setTimeout(() => setAgain((n) => n + 1), wait + 8000)
     return () => { clearTimeout(fire); clearTimeout(retry) }
-  }, [ready, due, seated, result, rank, state.ply, again, onMove])
+  }, [state, seated, result, rank, again, onMove])
   const now = useNow(due != null && !result)
   const secs = due != null && !result ? Math.max(0, Math.ceil((due - now) / 1000)) : null
 
@@ -274,9 +275,7 @@ export default function MaSoiBoard({ state, mySeat, roomId, onMove, result, play
     try { await onMove(move) } finally { setBusy(false) }
   }
 
-  const total = state.alive.filter(Boolean).length
   const tally = ph === 'day' ? tallyOf(state) : {}
-  const doneN = (ph === 'day' ? state.votes.map((v) => v != null) : state.acted).filter((x, i) => x && state.alive[i]).length
   const dark = live && (ph === 'night' || ph === 'witch')
   const title = state.over ? t('games.masoi.win.' + state.over.team)
     : result ? t('games.masoi.skyOver')
@@ -389,12 +388,12 @@ export default function MaSoiBoard({ state, mySeat, roomId, onMove, result, play
           {!mode && (
             <span style={S.caption}>
               {!seated ? t('games.masoi.spectate')
-                : ready ? t('games.masoi.settling')
+                : ready && !dark ? t('games.masoi.settling')
                   : ph === 'hunter' ? t('games.masoi.hunterWait', { name: nameOf(state.hunter) })
                     : !alive ? t('games.masoi.deadWatch')
                       : !mine ? t('games.masoi.roleLoading')
                         : ph === 'day' ? t(state.votes[mySeat] === -1 ? 'games.masoi.youSkipped' : 'games.masoi.youVoted', { name: nameOf(state.votes[mySeat]) })
-                          : t('games.masoi.waitOthers', { done: doneN, total })}
+                          : t('games.masoi.waitDawn')}
             </span>
           )}
           {ph === 'day' && tally[-1] > 0 && <span style={S.mono}>{t('games.masoi.skipVotes', { n: tally[-1] })}</span>}
@@ -409,7 +408,8 @@ export default function MaSoiBoard({ state, mySeat, roomId, onMove, result, play
           const tags = [t('games.masoi.mark' + seat)]
           if (seat === mySeat) tags.push(t('games.masoi.you'))
           if (!on) tags.push(t(state.left[seat] ? 'games.masoi.leftTag' : 'games.masoi.deadTag'))
-          else if (live && (ph === 'night' || ph === 'witch') && state.acted[seat]) tags.push(t('games.masoi.actedTag'))
+          // Ban đêm chỉ hiện "đã xong" của chính mình — người cuối cùng chưa xong chính là người có vai.
+          else if (seat === mySeat && dark && state.acted[seat]) tags.push(t('games.masoi.actedTag'))
           if (seen[seat] === 0) tags.push(t('games.masoi.goodTag'))
           if (lovers.includes(seat)) tags.push('♥')
           if (picksOf(seat)) tags.push(t('games.masoi.bitTag', { n: picksOf(seat) }))

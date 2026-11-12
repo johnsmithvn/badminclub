@@ -9,6 +9,7 @@ import { acceptsDraw, botToMove, fillLocal, levelsOf, think } from '#lib/games/b
 import { chessFen, fromUci, xiangqiFen } from '#lib/games/bots/engine.js'
 import { pick, CHESS, COUP } from '#lib/games/bots/search.js'
 import { HIDDEN_SQUARES } from '#lib/games/coup.js'
+import { CARD_GAMES, dealResult, dealStart, handOf } from '#lib/games/bots/dealer.js'
 
 /** Số ngẫu nhiên có hạt giống (mulberry32) — ván lặp lại được. */
 function seeded(seed) {
@@ -22,17 +23,29 @@ function seeded(seed) {
   }
 }
 
-/** Máy (lv0 ở ghế 0, lv1 ở ghế 1) đánh tới hết ván hoặc `maxPly`; mọi nước phải qua validate. → state cuối. */
-function duel(id, lv0, lv1, seed, { maxPly = 400, override, seats = 2 } = {}) {
+/**
+ * Máy (lv0 ở ghế 0, lv1 ở các ghế còn lại) đánh tới hết ván hoặc `maxPly`; mọi nước phải qua validate. → state cuối.
+ * Game bài: nhà cái trong máy chia bài trước (dealStart), máy nhận đúng tay của nó (handOf). Xì dách hết ván con thì
+ * ghế 0 xin chia ván mới (ở phòng máy, màn chơi của người tự gửi sau vài giây). `out.secret` nhận bài để chấm.
+ */
+function duel(id, lv0, lv1, seed, { maxPly = 400, override, seats = 2, out } = {}) {
   const game = GAMES[id]
   const rand = seeded(seed)
   const secret = { fleets: {} }
-  let s = game.setup({ options: game.defaultOptions, seats: Array.from({ length: seats }, (_, i) => i) })
+  const options = CARD_GAMES.includes(id) ? { ...game.defaultOptions, time: 0 } : game.defaultOptions
+  let s = game.setup({ options, seats: Array.from({ length: seats }, (_, i) => i) })
+  if (CARD_GAMES.includes(id)) {
+    const d = dealStart(id, s, seats, secret, rand, options)
+    assert.equal(game.validate(s, d.seat, d.move), null, id + ': nước chia sai ' + JSON.stringify(d.move))
+    s = game.apply(s, d.seat, d.move)
+  }
+  if (out) out.secret = secret
   const bots = Array.from({ length: seats }, (_, i) => i)
   for (let n = 0; n < maxPly; n++) {
-    const seat = botToMove(game, s, bots)
+    const redeal = id === 'xidach' && s.phase === 'done' && !s.over
+    const seat = redeal ? s.out.indexOf(false) : botToMove(game, s, bots)
     if (seat == null) break
-    const move = think(id, s, seat, seat === 0 ? lv0 : lv1, rand, override)
+    const move = redeal ? { deal: true } : think(id, s, seat, seat === 0 ? lv0 : lv1, rand, override, handOf(id, s, secret, seat))
     assert.ok(move, id + ': máy không ra nước ở ghế ' + seat)
     const logged = fillLocal(id, s, seat, move, secret, rand)
     const err = game.validate(s, seat, logged)
@@ -69,6 +82,81 @@ for (const id of ['caro', 'oanquan', 'coganh', 'chamo', 'bantau']) {
 {
   const s = duel('cangua', 'hard', 'easy', 3, { seats: 4, maxPly: 5000 })
   assert.equal(s.over, true, 'cá ngựa 4 máy phải xong ván')
+}
+
+// Game bài 2–4 người: máy đánh tới hết ván qua nhà cái trong máy, chấm được kết quả (Phỏm: điểm rác · Tiến lên: thối).
+for (const id of CARD_GAMES) {
+  for (const seats of [2, 3, 4]) {
+    for (const [a, b] of [['easy', 'normal'], ['hard', 'normal']]) {
+      const out = {}
+      const s = duel(id, a, b, 40 + seats, { seats, maxPly: 3000, out })
+      assert.equal(s.over, true, id + ' ' + seats + ' máy phải xong ván')
+      const r = dealResult(id, s, out.secret)
+      assert.ok(r && !r.pending && r.winners.length >= 1, id + ': phải chấm được người thắng ' + JSON.stringify(r))
+    }
+  }
+}
+
+// Game bài: mức Khó (ghế 0) thắng mức Dễ đa số ván — 2 người, ngẫu nhiên ~50%. Xì dách may rủi nhiều nên không gác.
+for (const id of ['tienlen', 'phom', 'baibip']) {
+  let won = 0
+  for (let k = 0; k < 20; k++) {
+    const out = {}
+    const s = duel(id, 'hard', 'easy', 500 + k, { maxPly: 3000, out })
+    if (dealResult(id, s, out.secret).winners.includes(0)) won++
+  }
+  assert.ok(won >= 14, id + ': mức Khó chỉ thắng mức Dễ ' + won + '/20 ván')
+}
+
+// Nhà cái trong máy: kiểm bài trên tay và điền như server.
+{
+  const rand = seeded(9)
+  // Tiến lên: lá không có trên tay → notYourCard; chia đúng 13 lá, người cầm lá nhỏ nhất đi trước và phải đánh lá đó.
+  const tl = GAMES.tienlen
+  let secret = {}
+  let s = tl.setup({ options: { time: 0 } })
+  const d = dealStart('tienlen', s, 4, secret, rand)
+  assert.deepEqual(secret.cards.hands.map((h) => h.length), [13, 13, 13, 13])
+  if (d.move.deal.white == null) {
+    assert.equal(d.move.deal.low, 0, '4 người: 3♠ đi trước')
+    assert.ok(secret.cards.hands[d.seat].includes(0))
+    s = tl.apply(s, d.seat, d.move)
+    const other = secret.cards.hands[(d.seat + 1) % 4][0]
+    assert.throws(() => fillLocal('tienlen', s, d.seat, { play: [0, other] }, secret), /games.err.(notYourCard|badCombo)/)
+    assert.throws(() => fillLocal('tienlen', s, d.seat, { play: [other] }, secret), /games.err.(notYourCard|mustLow)/)
+  }
+
+  // Bài bịp: đánh → log chỉ ghi số lá; tố → lật đúng lá vừa úp, liar theo lá chủ.
+  const bb = GAMES.baibip
+  secret = {}
+  s = bb.setup({ options: { time: 0 } })
+  const d2 = dealStart('baibip', s, 2, secret, rand)
+  s = bb.apply(s, d2.seat, d2.move)
+  const p = d2.seat
+  const lie = secret.cards.hands[p].find((c) => c < 18 && Math.floor(c / 6) !== s.table)
+  if (lie != null) {
+    const logged = fillLocal('baibip', s, p, { play: [lie] }, secret)
+    assert.deepEqual(logged, { play: 1 })
+    assert.ok(!secret.cards.hands[p].includes(lie), 'lá đã đánh rời tay')
+    s = bb.apply(s, p, logged)
+    const call = fillLocal('baibip', s, 1 - p, { call: true }, secret)
+    assert.deepEqual([call.cards, call.liar], [[lie], true])
+  }
+
+  // Xì dách: dằn chưa đủ tuổi → notEnough; cái dằn thì lật bài cả bàn.
+  const xd = GAMES.xidach
+  secret = {}
+  s = xd.setup({ options: { time: 0 } })
+  s = xd.apply(s, 0, dealStart('xidach', s, 2, secret, rand).move)
+  if (s.phase === 'play' && s.turn === 1) {
+    secret.cards.hands[1] = [0, 4] // 3 + 4 = 7 điểm
+    assert.throws(() => fillLocal('xidach', s, 1, { stand: true }, secret), /games.err.notEnough/)
+    secret.cards.hands[1] = [36, 40] // J + Q = 20
+    s = xd.apply(s, 1, fillLocal('xidach', s, 1, { stand: true }, secret))
+    secret.cards.hands[0] = [36, 32] // J + 10 = 20
+    const st = fillLocal('xidach', s, 0, { stand: true }, secret)
+    assert.deepEqual(Object.keys(st.show).sort(), ['0', '1'], 'cái dằn → lật cả bàn')
+  }
 }
 
 // Tìm kiếm thấy nước chiếu hết một nước (Cờ vua) và không bỏ quân miễn phí.

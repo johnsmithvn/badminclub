@@ -96,8 +96,8 @@ function comboNam(cards) {
   return null
 }
 
-const isHeo = (k) => (k.kind === 'single' || k.kind === 'pair') && rankOf(k.top) === TWO
-const isBomb = (k) => k.kind === 'quad' || k.kind === 'pairs'
+export const isHeo = (k) => (k.kind === 'single' || k.kind === 'pair') && rankOf(k.top) === TWO
+export const isBomb = (k) => k.kind === 'quad' || k.kind === 'pairs'
 
 /** Bộ `a` có chặn / chặt được bộ đang trên bàn `t` không. */
 export function beats(a, t, bac = false) {
@@ -225,7 +225,26 @@ function settle(s, seat) {
  */
 export function hintOf(s, hand) {
   if (!hand?.length || s.over || !s.started) return null
-  const bac = s.bac
+  const ok = playsOf(s, hand)
+  // Mở vòng: lá lẻ nhỏ nhất luôn có trong `ok` nên danh sách không bao giờ rỗng. Nước đầu thì `low` là lá nhỏ nhất.
+  // Chặn: cùng kiểu cùng số lá thì lá cao nhất nhỏ hơn = ít heo hơn, nên chỉ cần đẩy hàng xuống cuối.
+  const list = s.table ? ok : ok.filter(({ cs, k }) => cs.includes(s.low ?? Math.min(...hand)) && !isBomb(k))
+  if (!list.length) return null
+  list.sort(s.table ? (a, b) => isBomb(a.k) - isBomb(b.k) || a.k.top - b.k.top : (a, b) => b.cs.length - a.cs.length || a.k.top - b.k.top)
+  return list[0].cs.slice().sort((a, b) => a - b)
+}
+
+/** Mọi bộ đánh được từ `hand` lúc này: thành bộ, chặn / chặt được bàn, nước đầu có lá `low` → [{ cs, k }]. */
+export function playsOf(s, hand) {
+  const ok = combosOf(hand, s.bac).map((cs) => ({ cs, k: comboOf(cs, s.bac) })).filter(({ k }) => k && beats(k, s.table, s.bac))
+  return s.low != null ? ok.filter(({ cs }) => cs.includes(s.low)) : ok
+}
+
+/**
+ * Các bộ có thể ghép từ `hand` (chưa xét bàn): lẻ, đôi / sám / tứ quý (mọi cách chọn), sảnh (lá nhỏ nhất mỗi hạng, hạng
+ * chót thử từng lá), đôi thông (hai lá nhỏ nhất mỗi hạng). Miền Bắc: sảnh cả dây một chất, không có đôi thông.
+ */
+export function combosOf(hand, bac = false) {
   const by = Array.from({ length: 13 }, () => [])
   for (const c of [...hand].sort((a, b) => a - b)) by[rankOf(c)].push(c)
   const out = hand.map((c) => [c])
@@ -260,13 +279,7 @@ export function hintOf(s, hand) {
       }
     }
   }
-  const ok = out.map((cs) => ({ cs, k: comboOf(cs, bac) })).filter(({ k }) => k && beats(k, s.table, bac))
-  // Mở vòng: lá lẻ nhỏ nhất luôn có trong `ok` nên danh sách không bao giờ rỗng. Nước đầu thì `low` là lá nhỏ nhất.
-  // Chặn: cùng kiểu cùng số lá thì lá cao nhất nhỏ hơn = ít heo hơn, nên chỉ cần đẩy hàng xuống cuối.
-  const list = s.table ? ok : ok.filter(({ cs, k }) => cs.includes(s.low ?? Math.min(...hand)) && !isBomb(k))
-  if (!list.length) return null
-  list.sort(s.table ? (a, b) => isBomb(a.k) - isBomb(b.k) || a.k.top - b.k.top : (a, b) => b.cs.length - a.cs.length || a.k.top - b.k.top)
-  return list[0].cs.slice().sort((a, b) => a - b)
+  return out
 }
 
 const game = {

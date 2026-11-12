@@ -29,7 +29,7 @@ export const GAMES = { caro, oanquan, coganh, colat, chamo, tienlen, covua, cotu
 export const GAME_IDS = Object.keys(GAMES)
 
 /** Trò có chế độ chơi với máy (lib/games/bots) — vào bằng /tro-choi/may-<id> (GameRoom.jsx tách sang BotRoom). */
-export const BOT_GAMES = ['caro', 'covua', 'cotuong', 'coup', 'oanquan', 'coganh', 'chamo', 'cangua', 'bantau']
+export const BOT_GAMES = ['caro', 'covua', 'cotuong', 'coup', 'oanquan', 'coganh', 'chamo', 'cangua', 'bantau', 'tienlen', 'phom', 'baibip', 'xidach']
 export const BOT_PREFIX = 'may-'
 
 export const gameOf = (id) => GAMES[id] || null

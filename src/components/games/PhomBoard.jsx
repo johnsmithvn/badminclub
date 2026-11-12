@@ -37,7 +37,7 @@ const Melds = ({ melds, tiny }) => (
   </div>
 )
 
-export default function PhomBoard({ state, mySeat, onMove, roomId, result, players }) {
+export default function PhomBoard({ state, mySeat, onMove, roomId, result, players, hands: given }) {
   const { db, a } = useApp()
   const isMobile = useMobile(768)
   const [dealt, setDealt] = useState(null) // { roomId, ply, hands } | { roomId, failed }
@@ -50,15 +50,16 @@ export default function PhomBoard({ state, mySeat, onMove, roomId, result, playe
   const reveal = !!result
   const ply = state.ply
   useEffect(() => {
-    if (!seated && !reveal) return undefined
+    if (given || (!seated && !reveal)) return undefined
     let live = true
     a.gameHand(roomId)
       .then((hands) => { if (live) setDealt({ roomId, hands }) })
       .catch((e) => { console.warn('[games] Không nạp được bài:', e?.message || e); if (live) setDealt({ roomId, failed: true }) })
     return () => { live = false }
-  }, [a, roomId, seated, reveal, tries, ply])
+  }, [a, roomId, seated, reveal, tries, ply, given])
 
-  const mine = dealt?.roomId === roomId ? dealt : null
+  // Chơi với máy (BotRoom) truyền sẵn `hands` (như game_hands) — khỏi hỏi server.
+  const mine = given ? { hands: given } : dealt?.roomId === roomId ? dealt : null
   const hand = seated ? (mine?.hands?.[mySeat] || []).slice().sort(byNum) : []
   const nameOf = (seat) => {
     const id = players?.find((p) => p.seat === seat)?.memberId

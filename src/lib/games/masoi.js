@@ -12,6 +12,7 @@
 //   - Đồng hồ (tuỳ phòng, 0 = không giới hạn): mỗi bước đêm / Phù thủy / Thợ săn NIGHT_SEC giây, ban ngày opts.time giây,
 //     tính từ giờ server ghi nước mở bước (`since`). Hết giờ thì máy bất kỳ gửi { next } dù chưa đủ người — server
 //     (0084) kiểm giờ; ai chưa bấm coi như ngủ / bỏ phiếu trống / Thợ săn không bắn.
+//     Bước đêm / Phù thủy không sang sớm dù đủ người: máy khách chờ đủ NIGHT_SEC (advanceAt) — xong sớm là lộ vai.
 //
 // KHÔNG LỘ AI CÓ VAI: mỗi bước đêm MỌI người còn sống đều gửi một nước { night } (dân thường bấm Ngủ). Server
 // (0084 game_masoi_fill) đọc vai, kiểm, cất lựa chọn vào ghế âm và log chỉ ghi { night: true }. Xong bước (đủ người,
@@ -51,6 +52,18 @@ export const optsOf = (o) => ({
 /** Hạn của bước hiện tại (ms, giờ server) hoặc null (không giới hạn / chưa biết giờ). */
 export const deadlineOf = (s) =>
   s.opts.time && s.since != null && s.phase && !s.over ? s.since + (s.phase === 'day' ? s.opts.time : NIGHT_SEC) * 1000 : null
+
+/**
+ * Lúc máy nên gửi { next } (ms) hoặc null (chưa — chờ người bấm). Bước đêm / Phù thủy luôn chờ đủ NIGHT_SEC kể từ lúc
+ * mở bước, kể cả khi cả làng đã bấm xong — bước xong sớm là lộ vai: Phù thủy chết thì bước Phù thủy xong trong vài
+ * giây, còn sống thì kéo tới khi người đó quyết. Chốt người rời và ban ngày / Thợ săn thì đi ngay. Chỉ máy khách giữ
+ * nhịp này — server (0084) vẫn nhận { next } sớm khi đủ người.
+ */
+export function advanceAt(s, now) {
+  const hold = !s.settle && (s.phase === 'night' || s.phase === 'witch') && s.since != null
+  if (complete(s)) return hold ? Math.max(now, s.since + NIGHT_SEC * 1000) : now
+  return deadlineOf(s)
+}
 
 /** Bộ vai theo số người (chế độ Tự động) — 0084 game_masoi_table dùng đúng bảng này. */
 export function tableOf(n) {
@@ -261,14 +274,21 @@ export default {
 
   view: (s) => s,
 
-  /** Dòng trạng thái của khung phòng — cả bàn cùng đi, không có "lượt của ai". */
+  /**
+   * Dòng trạng thái của khung phòng — cả bàn cùng đi, không có "lượt của ai". Ban đêm không đếm ai đã bấm: người cuối
+   * cùng còn nghĩ chính là người có vai (bước Phù thủy đứng ở 7/8 = Phù thủy còn sống).
+   */
   status(s) {
     if (!s.started || s.over) return null
-    const total = s.alive.filter(Boolean).length
-    const done = (s.phase === 'day' ? s.votes.map((v) => v != null) : s.acted).filter((a, i) => a && s.alive[i]).length
     const key = s.settle ? 'statusSettle' : { night: 'statusNight', witch: 'statusWitch', day: 'statusDay' }[s.phase] || 'statusHunter'
+    if (s.phase !== 'day' || s.settle) return { key: 'games.masoi.' + key, params: { n: s.night } }
+    const total = s.alive.filter(Boolean).length
+    const done = s.votes.filter((v, i) => v != null && s.alive[i]).length
     return { key: 'games.masoi.' + key, params: { n: s.night, done, total } }
   },
+
+  /** Tab Nước đi bỏ các nước đêm — thứ tự ai bấm xong lộ ai có vai (người bấm cuối bước Phù thủy = Phù thủy). */
+  moveShown: (m) => m?.night === undefined,
 
   result(s) {
     if (!s.over) return null

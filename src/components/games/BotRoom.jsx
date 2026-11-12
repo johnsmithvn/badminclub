@@ -10,6 +10,7 @@ import MoveList from '#components/games/MoveList.jsx'
 import { SkinPicker } from '#components/games/ChessStage.jsx'
 import { BOT_GAMES, BOT_PREFIX, gameOf, seatRange } from '#lib/games/registry.js'
 import { acceptsDraw, botToMove, fillLocal, flatFleet, levelsOf, think } from '#lib/games/bots/index.js'
+import { CARD_GAMES, dealResult, dealStart, handOf, handsView } from '#lib/games/bots/dealer.js'
 import { engineMove } from '#lib/games/bots/engine.js'
 import { pathOf } from '#routes'
 import { t } from '#i18n'
@@ -17,9 +18,12 @@ import { t } from '#i18n'
 // Chơi với máy (luyện tập): ván chạy hẳn trong trình duyệt — luật lib/games, máy lib/games/bots. Không gọi server,
 // không lưu, không tính thống kê. Dùng lại đúng màn chơi của phòng thật (SCREENS); phần server điền (xúc xắc, tàu)
 // do fillLocal làm thay. Máy nghĩ trong Web Worker; mức Cao thủ cờ vua / cờ tướng gọi engine nhúng (engine.js).
+// Game bài (CARD_GAMES): nhà cái trong máy (bots/dealer.js) chia bài lúc vào ván, bài cất ở `g.cards`; màn chơi nhận
+// `hands` như game_hands (đang chơi chỉ tay mình), máy chỉ được nhận tay của chính nó. Không có Đi lại / Xin hoà.
 
 const KEY = 'gamebot:'
 const MIN_THINK_MS = 450 // máy đi nhanh quá nhìn không kịp
+const CARD_THINK_MS = 900 // game bài: vài máy đi liền nhau — chậm hơn cho kịp nhìn lá máy đánh
 const ENGINE_MS = { covua: 1000, cotuong: 1500 }
 const TIMES = [0, 15, 30] // đồng hồ mỗi nước (giây); 0 = không giới hạn
 // Cờ vua / Cờ tướng (bản thiết kế "Co Vua" / "Co Tuong"): bàn tự vẽ thanh người chơi (ChessStage), đồng hồ là đồng hồ
@@ -38,7 +42,18 @@ const mmss = (sec) => Math.floor(sec / 60) + ':' + String(sec % 60).padStart(2, 
 const setupFor = (game, n, opts) => (game ? game.setup({ options: { ...game.defaultOptions, ...opts }, seats: Array.from({ length: n }, (_, i) => i) }) : null)
 // Ô ăn quan: chọn kiểu bàn ngay trong ⚙ (prefs.oq). Đồng hồ phòng máy là prefs.time (đếm ở đây), không dùng options.time.
 const OQ = { quans: [2, 3], rows: [5, 6, 7], stones: [5, 6, 7] }
-const variantOf = (gameId, p) => (gameId === 'oanquan' ? { ...p.oq, time: 0 } : CHESS.includes(gameId) ? { clock: p.clock ?? 10 } : undefined)
+// Game bài: tắt đồng hồ lượt của phòng thật (cần server đi thay) — phòng máy dùng prefs.time.
+const variantOf = (gameId, p) => (gameId === 'oanquan' ? { ...p.oq, time: 0 } : CHESS.includes(gameId) ? { clock: p.clock ?? 10 }
+  : CARD_GAMES.includes(gameId) ? { time: 0 } : undefined)
+
+/** Ván mới: thế ban đầu; game bài thì nhà cái trong máy chia bài luôn (như server ghi nước chia lúc bắt đầu ván). */
+function freshGame(game, gameId, n, opts) {
+  const s = setupFor(game, n, opts)
+  if (!s || !CARD_GAMES.includes(gameId)) return { s, cards: null }
+  const secret = {}
+  const d = dealStart(gameId, s, n, secret, Math.random, { ...game.defaultOptions, ...opts })
+  return { s: game.apply(s, d.seat, d.move, { at: new Date().toISOString() }), cards: secret.cards }
+}
 /** Số người của ván máy: game tự nói theo tuỳ chọn (Ô ăn quan 3 quan = bạn + 2 máy) · game nhiều người: chọn · còn lại 2. */
 function seatsFor(gameId, p) {
   const game = gameOf(gameId)
@@ -55,23 +70,24 @@ function savePrefs(id, p) {
 }
 
 /** Nghĩ ngay trên luồng chính (màn hình đứng trong lúc nghĩ) — nhường một nhịp cho dòng "Máy đang nghĩ" kịp hiện. */
-const thinkHere = (gameId, state, seat, level) => new Promise((ok) => {
+const thinkHere = (gameId, state, seat, level, hand) => new Promise((ok) => {
   setTimeout(() => {
     let move = null
-    try { move = think(gameId, state, seat, level) } catch (err) { console.warn('[bot]', err) }
+    try { move = think(gameId, state, seat, level, Math.random, undefined, hand) } catch (err) { console.warn('[bot]', err) }
     ok(move)
   }, 30)
 })
 
 /**
- * Máy nghĩ trong Worker (một Worker cho cả trang). Trả hàm ask(gameId, state, seat, level) → Promise<move>.
+ * Máy nghĩ trong Worker (một Worker cho cả trang). Trả hàm ask(gameId, state, seat, level, hand) → Promise<move>.
+ * `hand` = bài trên tay của chính ghế đó (game bài).
  * Worker không chạy được (trang cách ly COEP mà file Worker thiếu header — vercel.json / vite.config.js; hoặc máy quá
  * cũ) thì KHÔNG được im lặng: trước đây không bắt onerror nên máy "đang nghĩ" mãi mãi. Giờ lùi về nghĩ trên luồng chính.
  */
 function useWorker() {
   const ref = useRef(null)
   useEffect(() => () => ref.current?.w?.terminate(), [])
-  return useCallback((gameId, state, seat, level) => {
+  return useCallback((gameId, state, seat, level, hand) => {
     if (!ref.current) {
       const cur = { w: null, wait: new Map(), n: 0, dead: false }
       const fail = (e) => {
@@ -89,10 +105,10 @@ function useWorker() {
       ref.current = cur
     }
     const cur = ref.current
-    const args = [gameId, state, seat, level]
+    const args = [gameId, state, seat, level, hand]
     if (cur.dead) return thinkHere(...args)
     const id = ++cur.n
-    return new Promise((ok) => { cur.wait.set(id, { ok, args }); cur.w.postMessage({ id, gameId, state, seat, level }) })
+    return new Promise((ok) => { cur.wait.set(id, { ok, args }); cur.w.postMessage({ id, gameId, state, seat, level, hand }) })
   }, [])
 }
 
@@ -109,6 +125,7 @@ export default function BotRoom({ gameId }) {
   const [hinting, setHinting] = useState(false) // đang hỏi máy nước gợi ý
   const [tip, setTip] = useState(null) // { s, move } — nước gợi ý đang vẽ mũi tên, chỉ đúng với thế cờ `s`
   const chess = CHESS.includes(gameId)
+  const card = CARD_GAMES.includes(gameId)
   const stage = !!SKIN[gameId]
   const multi = game?.maxPlayers > 2 && !game.players
   const nOf = (p) => seatsFor(gameId, p)
@@ -122,9 +139,10 @@ export default function BotRoom({ gameId }) {
   // `past` = thế cờ ngay trước mỗi nước của người — nút Đi lại lùi về đó (bỏ luôn nước máy vừa đáp).
   // `timeout` = người để hết giờ của nước đang đi → thua (đồng hồ mỗi nước, prefs.time giây; 0 = tắt).
   // `log` = ký hiệu từng nước (game có `notate`) cho cột Nước đi.
-  const [g, setG] = useState(() => ({ s: setupFor(game, n, variantOf(gameId, prefs)), fleets: {}, round: 0, err: '', past: [], timeout: false, resign: false, draw: false, info: '', log: [] }))
+  // `cards` = bài từng tay + nọc / dây nổ… của game bài (nhà cái trong máy, bots/dealer.js).
+  const [g, setG] = useState(() => ({ ...freshGame(game, gameId, n, variantOf(gameId, prefs)), fleets: {}, round: 0, err: '', past: [], timeout: false, resign: false, draw: false, info: '', log: [] }))
   const s = g.s
-  const restart = (p = prefs) => setG((cur) => ({ s: setupFor(game, nOf(p), variantOf(gameId, p)), fleets: {}, round: cur.round + 1, err: '', past: [], timeout: false, resign: false, draw: false, info: '', log: [] }))
+  const restart = (p = prefs) => setG((cur) => ({ ...freshGame(game, gameId, nOf(p), variantOf(gameId, p)), fleets: {}, round: cur.round + 1, err: '', past: [], timeout: false, resign: false, draw: false, info: '', log: [] }))
   // Đổi round để Screen dựng lại và lượt máy đang nghĩ cho thế cũ bị bỏ.
   const undo = () => setG((cur) => (cur.past.length
     ? { ...cur, s: rewind(cur.past[cur.past.length - 1]), past: cur.past.slice(0, -1), round: cur.round + 1, err: '', info: '', timeout: false, resign: false, draw: false, log: cur.log.slice(0, cur.past[cur.past.length - 1].ply ?? 0) }
@@ -139,14 +157,16 @@ export default function BotRoom({ gameId }) {
       let s0 = cur.s
       // Đồng hồ tổng bắt đầu chạy từ nước đầu tiên của ván (phòng thật: server ghi { start } lúc bắt đầu).
       if (s0.clock && s0.clock.since == null && game.validate(s0, 0, { start: true }) == null) s0 = game.apply(s0, 0, { start: true }, meta)
-      const secret = { fleets, faces: cur.faces }
-      const logged = fillLocal(gameId, s0, seat, move, secret)
+      // Bài: nhà cái sửa tại chỗ → đưa bản sao (StrictMode gọi hàm này hai lần; nước sai thì bỏ bản sao).
+      const secret = { fleets, faces: cur.faces, cards: cur.cards && structuredClone(cur.cards) }
+      let logged
+      try { logged = fillLocal(gameId, s0, seat, move, secret) } catch (err) { return { ...cur, err: t(err.message) } }
       const e = game.validate(s0, seat, logged)
       if (e) return { ...cur, err: t(e) }
       const next = game.apply(s0, seat, logged, meta)
       const text = game.notate?.(s0, logged, next)
       const past = seat === human && !logged?.timeout ? [...cur.past, cur.s] : cur.past
-      return { ...cur, s: next, fleets, faces: secret.faces, err: '', info: seat === human ? '' : cur.info, past, log: text ? [...cur.log, text] : cur.log }
+      return { ...cur, s: next, fleets, faces: secret.faces, cards: secret.cards, err: '', info: seat === human ? '' : cur.info, past, log: text ? [...cur.log, text] : cur.log }
     })
   }, [game, gameId, human])
 
@@ -157,7 +177,12 @@ export default function BotRoom({ gameId }) {
     if (self.crossOriginIsolated && !window.location.pathname.endsWith(BOT_PREFIX + 'cotuong')) window.location.reload()
   }, [])
 
-  const result = g.draw ? { winners: [], draw: true } : g.timeout || g.resign ? { winners: bots, draw: false, timeout: g.timeout, resign: g.resign } : s && game ? game.result(s) : null
+  // Game bài: kết quả cần bài trên tay (Phỏm điểm rác, Tiến lên thối) — nhà cái chấm như server.
+  const result = g.draw ? { winners: [], draw: true } : g.timeout || g.resign ? { winners: bots, draw: false, timeout: g.timeout, resign: g.resign }
+    : s && game ? (card ? dealResult(gameId, s, g) : game.result(s)) : null
+  const ended = !!result
+  // Bài màn chơi được thấy (thay game_hands): đang chơi chỉ tay mình, hết ván cả bàn. Giữ nguyên object giữa các lần vẽ.
+  const cardHands = useMemo(() => (card ? handsView({ cards: g.cards }, human, ended) : null), [card, g.cards, human, ended])
   const botSeat = s && game && !result ? botToMove(game, s, bots) : null
   const canMove = !!s && !result && botSeat == null && (gameId === 'bantau' && s.phase === 'place' ? false : s.turn === human)
 
@@ -201,13 +226,13 @@ export default function BotRoom({ gameId }) {
         }
         if (!move && !off) setNote(t('games.bot.engineOff'))
       }
-      if (!move) move = await ask(gameId, s, botSeat, level)
+      if (!move) move = await ask(gameId, s, botSeat, level, handOf(gameId, s, { cards: g.cards }, botSeat))
       if (off || !move) return
-      setTimeout(() => { if (!off) play(botSeat, move, g.round) }, Math.max(0, MIN_THINK_MS - (Date.now() - t0)))
+      setTimeout(() => { if (!off) play(botSeat, move, g.round) }, Math.max(0, (card ? CARD_THINK_MS : MIN_THINK_MS) - (Date.now() - t0)))
     }
     go()
     return () => { off = true }
-  }, [s, g.round, botSeat, prefs.level, gameId, game, ask, play])
+  }, [s, g.round, g.cards, card, botSeat, prefs.level, gameId, game, ask, play])
 
   if (!game || !BOT_GAMES.includes(gameId)) {
     return <Empty icon="gamepad-2" title={t('games.notFoundTitle')} hint={t('games.bot.notSupported')} />
@@ -231,7 +256,7 @@ export default function BotRoom({ gameId }) {
     const round = g.round
     const s0 = s
     setHinting(true)
-    const m = await ask(gameId, s0, human, 'hard')
+    const m = await ask(gameId, s0, human, 'hard', handOf(gameId, s0, { cards: g.cards }, human))
     setHinting(false)
     if (!m) return
     if (ARROW.includes(gameId)) setTip({ s: s0, move: m })
@@ -253,8 +278,8 @@ export default function BotRoom({ gameId }) {
   const sub = multi ? t('games.bot.playersOpt', { n: prefs.n, bots: prefs.n - 1 }) : t('games.bot.sideOpt' + human)
   const mins = chess ? prefs.clock ?? 10 : 0
   const myTurn = !result && botSeat == null
-  // Bắn tàu: tàu xếp nằm ngoài state (fleets) nên lùi thế cờ sẽ lệch tàu — không cho đi lại.
-  const canUndo = gameId !== 'bantau' && g.past.length > 0
+  // Bắn tàu / game bài: tàu, bài nằm ngoài state (fleets, cards) nên lùi thế cờ sẽ lệch — không cho đi lại.
+  const canUndo = gameId !== 'bantau' && !card && g.past.length > 0
 
   // Ô ăn quan tự vẽ thẻ Máy / Bạn, đồng hồ và nút ngay trong khung sơn mài (bản 1c) — không lặp thẻ ở ngoài.
   // Cờ vua / Cờ tướng / Cờ úp cũng vậy (ChessStage). Cờ vua / Cờ tướng thêm cột Nước đi bên phải, nút Ván mới nằm ở đó.
@@ -263,7 +288,7 @@ export default function BotRoom({ gameId }) {
   const actions = [
     { key: 'undo', icon: 'undo-2', label: t('games.bot.undo'), on: undo, off: !canUndo },
     { key: 'hint', icon: 'lightbulb', label: t('games.bot.hint'), on: hint, off: !canMove || hinting, soft: true },
-    { key: 'draw', icon: 'handshake', label: t('games.bot.drawOffer'), on: offerDraw, off: !canMove },
+    ...(card ? [] : [{ key: 'draw', icon: 'handshake', label: t('games.bot.drawOffer'), on: offerDraw, off: !canMove }]),
     ...(chess ? [] : [{ key: 'new', icon: 'refresh-cw', label: t('games.bot.newGame'), on: () => restart() }]),
     { key: 'resign', icon: 'flag', label: t('games.bot.resign'), on: resign, off: !!result, danger: true },
   ]
@@ -346,7 +371,7 @@ export default function BotRoom({ gameId }) {
         )}
         <Suspense fallback={<Skeleton height={320} />}>
           <Screen key={g.round} state={game.view(s, human)} mySeat={human} canMove={canMove} onMove={(m) => play(human, m, g.round)}
-            roomId={'bot-' + gameId} result={result} hands={fleets}
+            roomId={'bot-' + gameId} result={result} hands={fleets ?? cardHands}
             {...(stage ? {
               names: { [human]: t('games.bot.you'), [bots[0]]: t('games.bot.bot') },
               tags: { [human]: '', [bots[0]]: '· ' + t('games.bot.levelLine', { level: levelLabel }) },

@@ -129,7 +129,7 @@ function Bomb({ cuts, onCut, boom, size = 120 }) {
   )
 }
 
-export default function BaiBipBoard({ state, mySeat, roomId, onMove, result }) {
+export default function BaiBipBoard({ state, mySeat, roomId, onMove, result, hands: given }) {
   const { a } = useApp()
   const [got, setGot] = useState(null) // { roomId, hands } | { roomId, failed }
   const [tries, setTries] = useState(0)
@@ -138,16 +138,17 @@ export default function BaiBipBoard({ state, mySeat, roomId, onMove, result }) {
   const reveal = !!result
   const myCount = seated ? state.counts[mySeat] ?? 0 : 0
   useEffect(() => {
-    if (!seated && !reveal) return undefined
+    if (given || (!seated && !reveal)) return undefined
     let live = true
     a.gameHand(roomId)
       .then((hands) => { if (live) setGot({ roomId, hands }) })
       .catch((e) => { console.warn('[games] Không nạp được bài:', e?.message || e); if (live) setGot({ roomId, failed: true }) })
     return () => { live = false }
     // Đánh xong (số lá đổi) hoặc sang ván mới → nạp lại tay.
-  }, [a, roomId, seated, reveal, state.round, myCount, tries])
+  }, [a, roomId, seated, reveal, state.round, myCount, tries, given])
 
-  const mine = got?.roomId === roomId ? got : null
+  // Chơi với máy (BotRoom) truyền sẵn `hands` (như game_hands) — khỏi hỏi server.
+  const mine = given ? { hands: given } : got?.roomId === roomId ? got : null
   // Chờ chia ván mới: tay cũ đã hết hiệu lực (server sẽ chia lại) — không hiện nữa.
   const hand = seated && state.phase !== 'redeal' ? [...(mine?.hands?.[mySeat] || [])].sort((x, y) => x - y) : []
   const sel = pick.ply === state.ply ? pick.cards.filter((c) => hand.includes(c)) : []

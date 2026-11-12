@@ -67,6 +67,8 @@ function RoomPage({ id }) {
   const notes = useMemo(() => (game?.notate && room && room.status !== 'waiting'
     ? notesOf(game, { options: room.options, seed: room.seed, seats: inGame.map((p) => p.seat) }, moves).map((x) => x.text)
     : null), [game, room, inGame, moves])
+  // Nước game giấu khỏi tab Nước đi và bộ đếm (Ma sói: nước đêm — thứ tự ai bấm xong lộ ai có vai).
+  const listed = useMemo(() => (game?.moveShown ? moves.filter((m) => game.moveShown(m.move)) : moves), [game, moves])
 
   const nameOf = (memberId) => db.members.find((m) => m.id === memberId)?.name || t('games.unknownPlayer')
   const memberOf = (memberId) => db.members.find((m) => m.id === memberId)
@@ -188,7 +190,7 @@ function RoomPage({ id }) {
                 : custom ? t(custom.key, custom.params)
                   : mySeat == null ? t('games.spectating')
                     : canMove ? t('games.yourTurn') : t('games.theirTurn', { name: turnName ? nameOf(turnName) : '' })}
-              <span style={S.mono}>{t('games.moves', { n: g.moves.length })}</span>
+              <span style={S.mono}>{t('games.moves', { n: listed.length })}</span>
             </div>
           )}
           <Suspense fallback={<Skeleton height={320} />}>
@@ -221,7 +223,7 @@ function RoomPage({ id }) {
           ))}
         </div>
         {tab === 'chat' && <RoomChat g={g} nameOf={nameOf} />}
-        {tab === 'moves' && (notes ? <MoveList list={notes} /> : <Moves game={game} moves={g.moves} seated={room.players} nameOf={nameOf} />)}
+        {tab === 'moves' && (notes ? <MoveList list={notes} /> : <Moves game={game} moves={listed}seated={room.players} nameOf={nameOf} />)}
         {tab === 'watch' && (
           <div style={{ display: 'grid', gap: 4 }}>
             {watchers.length === 0 && <span style={{ ...S.caption, padding: '6px 0' }}>{t('games.room.noWatch')}</span>}

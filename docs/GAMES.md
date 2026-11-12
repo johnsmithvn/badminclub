@@ -309,6 +309,13 @@ Seed nằm trong DB mà mọi người đọc được → ai cũng tính đư�
   gửi một nước** `{ night }` (vai không có việc bấm Ngủ) và log chỉ ghi `{ night: true }` — nhìn log không đoán được ai
   có vai. Có Phù thủy trong bộ vai thì luôn có bước Phù thủy, kể cả khi Phù thủy đã chết. Xong bước thì máy bất kỳ gửi
   `{ next: true }`, server tính rồi ghi kết quả công khai (ai chết, lộ vai nào, Thợ săn, ai thắng).
+  **Nhịp đêm không được lộ vai (2026-11-12):** chỉ "mọi người đều gửi nước" là chưa đủ — *lúc nào* bước xong và *ai bấm
+  sau cùng* cũng lộ. Bước Phù thủy xong trong vài giây là Phù thủy đã chết; người cuối cùng chưa bấm ở bước Phù thủy
+  chính là Phù thủy; ai còn nghĩ ở bước đêm là Sói / Tiên tri / Bảo vệ. Nên: bước đêm và bước Phù thủy luôn chờ đủ
+  `NIGHT_SEC` kể từ lúc mở bước dù cả làng đã bấm (`advanceAt`); ban đêm không hiện nhãn "đã xong" của người khác, không
+  đếm x/y; tab Nước đi bỏ nước `{ night }` (`moveShown`). ponytail: chỉ máy khách giữ nhịp — server 0084 vẫn nhận
+  `{ next }` sớm khi đủ người, và nước đêm vẫn có `created_at` trong DB (người mở công cụ dev vẫn soi được thứ tự). Bịt
+  hẳn thì server phải tự chặn `{ next }` trước hạn và giấu nước đêm khỏi Realtime.
 - **Đồng hồ lượt (Nối từ 0083, Bài bịp 0082, Ma sói 0084):** Supabase không có tiến trình chạy nền (RPC chạy xong là
   hết, Realtime chỉ phát lại thay đổi DB), nên không có máy chủ nào tự "bấm giờ" như game server kiểu dautri.com. Thay
   vào đó: hạn = `created_at` của nước mở bước + số giây phòng chọn; máy bất kỳ thấy hết giờ thì gửi nước báo hết giờ,
@@ -396,7 +403,7 @@ và **Chat phòng** (có tin hệ thống: vào / rời / sẵn sàng / đổi l
 
 ### 7b. Chơi với máy (luyện tập)
 
-9 trò: `BOT_GAMES` ở `registry.js` (Caro, Cờ vua, Cờ tướng, Cờ úp, Ô ăn quan, Cờ gánh, Chấm ô, Cờ cá ngựa, Bắn tàu). Sảnh có
+13 trò: `BOT_GAMES` ở `registry.js` (Caro, Cờ vua, Cờ tướng, Cờ úp, Ô ăn quan, Cờ gánh, Chấm ô, Cờ cá ngựa, Bắn tàu, Tiến lên, Phỏm, Bài bịp, Xì dách). Sảnh có
 nút **Chơi với máy** → `/tro-choi/may-<game>`; `GameRoom.jsx` thấy tiền tố `may-` thì mở `BotRoom` (tải lười).
 - **Cài đặt ván (nút ⚙):** mức độ, bên đi / số người, **đồng hồ mỗi nước** (15 / 30 giây / không giới hạn, mặc định tắt —
   `prefs.time`). Đồng hồ chạy lại mỗi lần tới lượt người; hết giờ là thua ván luyện. Chỉ ở phòng máy: phòng thật chưa có
@@ -409,6 +416,17 @@ nút **Chơi với máy** → `/tro-choi/may-<game>`; `GameRoom.jsx` thấy ti�
   `game_hands`). Cờ úp đi đường bàn ChessStage như Cờ tướng (skin Cờ tướng, mũi tên gợi ý) nhưng không có đồng hồ tổng,
   không có cột Nước đi (coup.js không có `notate`), không có đồng hồ mỗi nước; mở từ sảnh kiểu SPA (không cần cách ly —
   không có mức Cao thủ).
+- **Game bài (2026-11-12): Tiến lên, Phỏm, Bài bịp, Xì dách** — 2–4 người (bạn + 1–3 máy). Ở phòng thật server chia
+  bài, giữ bài từng tay, kiểm lá có trên tay và chấm điểm cần bài trên tay; phòng máy làm thay bằng **nhà cái trong máy**
+  `bots/dealer.js` (bản JS của Tiến lên 0078 / 0094, Bài bịp 0082, Phỏm 0090 — dùng sẵn `referee` / `judge` của
+  phom.js, Xì dách 0098). `dealStart` chia bài lúc vào ván (BotRoom `freshGame`), `fillLocal` → `dealFill` kiểm luật
+  công khai rồi bài trên tay và điền lá thật (sai thì throw mã lỗi, BotRoom hiện lỗi), `dealResult` chấm như
+  `game_<id>_result` (Phỏm điểm rác, Tiến lên thối). Bài nằm ở `g.cards` của BotRoom (bản sao mỗi nước vì StrictMode
+  gọi hàm cập nhật hai lần). Màn chơi nhận `hands` = `handsView` (đang chơi chỉ tay mình, hết ván cả bàn — như RLS của
+  `game_hands`) thay cho `a.gameHand`. **Máy chỉ nhận tay của chính nó** (`handOf` → tham số `hand` của `think` /
+  Worker), không đọc bài người khác, nọc hay dây nổ. Đồng hồ lượt của phòng thật tắt (`time: 0`, cần server đi thay) —
+  dùng đồng hồ mỗi nước của phòng máy. Không có Đi lại (bài nằm ngoài state) và Xin hoà. Xì dách: hết ván con, màn
+  chơi của người tự xin chia ván mới sau vài giây như phòng thật. Đổi luật server của 4 game là phải đổi cả dealer.js.
 - **Mức Dễ / Vừa / Khó** — tự viết, chạy trong Web Worker (`bots/worker.js`, màn hình không đứng):
   - `bots/search.js`: minimax + alpha-beta, đào sâu dần trong hạn giờ, tìm thêm nước ăn quân ở lá — Cờ vua, Cờ tướng,
     Cờ úp, Ô ăn quan, Cờ gánh. Gọi thẳng `game.apply` nên không bao giờ đi sai luật (đổi lại chậm hơn engine thật nhiều lần).
@@ -420,6 +438,18 @@ nút **Chơi với máy** → `/tro-choi/may-<game>`; `GameRoom.jsx` thấy ti�
   - `bots/heuristics.js`: chấm điểm từng nước — Caro (đếm thế + cửa sổ 5 ô, nước bắt buộc trước), Chấm ô (ăn ô, tránh
     cạnh thứ 3, buộc phải cho thì cho ít nhất), Cá ngựa (đá, về chuồng, tránh đứng trong tầm 1–6 sau ngựa địch), Bắn
     tàu (Dễ: ngẫu nhiên · Vừa: săn / diệt · Khó: bản đồ xác suất).
+  - `bots/cards.js`: game bài, mỗi mức một bộ luật kinh nghiệm (Dễ hay chọn bừa).
+    - Tiến lên: chấm mỗi bộ đánh được (`playsOf`) theo số lượt còn phải đánh của bài còn lại (tách tham lam sảnh → bộ →
+      lẻ), giữ heo / hàng tới khi có người sắp về; chặn mà phải phá bộ nhiều thì bỏ lượt. Khó: có người còn 1 lá thì không
+      mở lá lẻ nhỏ, chặn bằng mọi giá khi có người còn ≤ 2 lá.
+    - Phỏm: ăn được là ăn, ù được là ù, hạ theo `bestLay` + gửi bài, đánh rác điểm cao không nằm trong phỏm / đôi / cạ.
+      Khó: chỉ tính đôi / cạ còn "sống" (lá thiếu chưa lộ), càng gần lúc hạ càng bớt giữ, tránh nhả lá người khác ghép ăn.
+    - Bài bịp: đánh lá thật (Joker để sau), không có thì nói dối 1 lá; tố khi xác suất người kia nói thật thấp. Khó: xác
+      suất siêu bội "người kia có ≥ k lá chủ trên tay" thay cho "k lá ngẫu nhiên đều là lá chủ".
+    - Xì dách: dằn từ 17. Khó: con 4 lá thấp rút thử ngũ linh; cái dằn 18 khi các con dằn sớm (ít lá).
+    - Đo (máy đấu máy, 100 ván, ghế Khó so với còn lại): Khó thắng Dễ ~90% (Tiến lên, Phỏm, Bài bịp 2 người), Khó
+      thắng Vừa: Tiến lên ~60%, Bài bịp gần 100%, Phỏm ~50% (nhiều may rủi, chỉ nhỉnh hơn về điểm). Xì dách gần như
+      may rủi — Khó chỉ hơn Dễ / Vừa chút ít, test không gác.
   - Bảng độ sâu / giờ / `noise` ở `SEARCH` trong `bots/index.js`. Đa dạng: các nước kém nước tốt nhất ≤ `noise` được
     chọn ngẫu nhiên (Dễ noise lớn, Khó gần 0); nước bằng điểm luôn được xáo trước.
 - **Mức Cao thủ** (chỉ Cờ vua, Cờ tướng) — engine nhúng, UCI, `bots/engine.js`, file ở `public/engines/` (GPL-3.0, giữ
@@ -708,6 +738,7 @@ Giờ theo server: hết giờ do máy bất kỳ báo, 0083 chỉ nhận khi đ
 - **Ngày:** người còn sống bầu treo cổ hoặc bỏ qua; bị treo khi nhiều phiếu nhất và hơn hẳn mọi lựa chọn khác kể cả bỏ
   qua, hoà thì không ai.
 - **Đồng hồ:** mỗi bước đêm 45 giây, ban ngày 60 / 120 / 180 / 300 giây hoặc tắt (mặc định 120); hết giờ thì sang bước.
+  Bước đêm / Phù thủy luôn kéo đủ 45 giây kể cả khi cả làng đã bấm (kể cả phòng tắt giờ) — xong sớm là lộ vai, xem §5.2 "Nhịp đêm".
 - **Thắng:** hết Sói → Dân làng; Sói ≥ số người còn lại → bầy Sói; đôi tình nhân khác phe là hai người cuối → đôi đó.
   `result.winners` = mọi ghế của phe thắng.
 - **Lộ vai** (chủ phòng chọn, `options.reveal`): mọi người chết · chỉ người bị treo · không ai; hết ván lật hết. Rời bàn

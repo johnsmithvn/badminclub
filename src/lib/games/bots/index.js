@@ -4,11 +4,16 @@
 // (Bắn tàu, 0080), xáo + lật quân úp (Cờ úp, 0095) — bí mật (tàu của từng bên, mặt thật quân úp) nằm ở `secret` do màn
 // chơi giữ; máy chỉ nhận state nên không đọc được tàu người chơi hay mặt quân còn úp.
 //
-// Mức: easy / normal / hard tự viết (search.js, heuristics.js). master = engine nhúng (engine.js, chỉ Cờ vua /
+// Game bài (Tiến lên, Phỏm, Bài bịp, Xì dách): nhà cái trong máy (dealer.js) chia bài và làm thay server; bài cất ở
+// `secret.cards`, máy chỉ được nhận tay của chính nó (`hand` của think — handOf). Máy chơi bài: cards.js.
+//
+// Mức: easy / normal / hard tự viết (search.js, heuristics.js, cards.js). master = engine nhúng (engine.js, chỉ Cờ vua /
 // Cờ tướng) — chạy ở luồng chính nên không nằm ở đây.
 
 import { CHESS, COGANH, COUP, OANQUAN, pick, shuffle, XIANGQI } from '#lib/games/bots/search.js'
 import { bantauBot, canguaBot, caroBot, chamoBot } from '#lib/games/bots/heuristics.js'
+import { baibipBot, phomBot, tienlenBot, xidachBot } from '#lib/games/bots/cards.js'
+import { CARD_GAMES, dealFill } from '#lib/games/bots/dealer.js'
 import { SHIPS } from '#lib/games/bantau.js'
 import { HIDDEN_SQUARES, colorOf, typeOf } from '#lib/games/coup.js'
 import { START } from '#lib/games/cotuong.js'
@@ -24,13 +29,18 @@ const SEARCH = {
   coganh: { rule: COGANH, easy: { depth: 1, noise: 15 }, normal: { depth: 3, ms: 800, noise: 4 }, hard: { depth: 6, ms: 2000, noise: 1 } },
 }
 const HEUR = { caro: caroBot, chamo: chamoBot, cangua: canguaBot, bantau: bantauBot }
+const CARDS = { tienlen: tienlenBot, phom: phomBot, baibip: baibipBot, xidach: xidachBot }
 
 /** Mức của từng trò (danh sách trò: BOT_GAMES ở registry.js). master chỉ có ở trò có engine nhúng. */
 export const levelsOf = (id) => (id === 'covua' || id === 'cotuong' ? LEVELS : LEVELS.slice(0, 3))
 
-/** Nước của máy. `level` master không có ở đây → dùng hard (engine.js gọi lại khi không chạy được engine). */
-export function think(id, s, seat, level, rand = Math.random, override) {
+/**
+ * Nước của máy. `level` master không có ở đây → dùng hard (engine.js gọi lại khi không chạy được engine).
+ * `hand` = bài trên tay của chính ghế đó (game bài) — máy không được nhận bài người khác.
+ */
+export function think(id, s, seat, level, rand = Math.random, override, hand = []) {
   const lv = level === 'master' ? 'hard' : level
+  if (CARDS[id]) return CARDS[id](s, seat, lv, rand, hand)
   if (HEUR[id]) return HEUR[id](s, seat, lv, rand)
   const g = SEARCH[id]
   return pick(g.rule, s, seat, { ...g[lv], ...override, rand })
@@ -71,6 +81,7 @@ function coupFaces(rand) {
  * secret = { fleets: { [ghế]: [[ô…] × 5] }, faces?: [90] mặt thật quân úp ('A'…'P' theo ô xuất phát, xáo lần đầu cần) }.
  */
 export function fillLocal(id, s, seat, move, secret, rand = Math.random) {
+  if (CARD_GAMES.includes(id)) return dealFill(id, s, seat, move, secret, rand) // sai thì throw Error(mã lỗi)
   if (id === 'cangua' && move?.roll === true) return { roll: true, dice: 1 + Math.floor(rand() * 6) }
   if (id === 'coup') {
     // Như game_coup_fill: bỏ flip / took máy khách gửi, điền theo ô xuất phát (coup.apply chỉ dùng khi quân còn úp).
