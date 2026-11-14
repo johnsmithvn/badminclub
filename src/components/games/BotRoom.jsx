@@ -8,6 +8,9 @@ import { HowTo } from '#components/games/GameInfo.jsx'
 import { G, btn, card, mono, over, seg, segWrap } from '#components/games/stage.js'
 import MoveList from '#components/games/MoveList.jsx'
 import { SkinPicker } from '#components/games/ChessStage.jsx'
+import { CLOSEUP_GAMES, CloseUpToggle } from '#components/games/CutScene.jsx'
+import { useBubbles } from '#components/games/RoomChat.jsx'
+import { stickerText } from '#components/games/characters.js'
 import { BOT_GAMES, BOT_PREFIX, gameOf, seatRange } from '#lib/games/registry.js'
 import { acceptsDraw, botToMove, fillLocal, flatFleet, levelsOf, think } from '#lib/games/bots/index.js'
 import { CARD_GAMES, dealResult, dealStart, handOf, handsView } from '#lib/games/bots/dealer.js'
@@ -34,6 +37,21 @@ const CHESS = ['covua', 'cotuong']
 // Bàn vẽ bằng ChessStage (thanh người chơi, nút, skin) — Cờ úp mượn bàn Cờ tướng nhưng không có đồng hồ tổng, không ký
 // hiệu nước (không có cột Nước đi). Như SKIN của GameRoom.jsx.
 const SKIN = { covua: 'covua', cotuong: 'cotuong', coup: 'cotuong' }
+// Máy "phản ứng" bằng bong bóng (bản "Cờ · sinh động"): ăn được quân, bị ăn quân lớn, chiếu — cứ hai nước có thì một
+// lần hiện, câu chọn theo số nước (không ngẫu nhiên → StrictMode / vẽ lại không đổi câu). stk: = sticker.
+const FEEL = { gain: ['stk:cuoi', 'thanks', 'stk:lua'], loss: ['stk:khoc', 'stk:gian', 'oops'], check: ['check', 'stk:lua'], big: ['stk:lua', 'nice'] }
+const BIG = 'NBRQHC' // quân lớn: mã, tượng, xe, hậu (cờ vua) · xe, pháo, mã (cờ tướng)
+/** Câu máy nói sau nước vừa đi của thế `s` (null = im). */
+function feelOf(s, bot) {
+  const l = s?.last
+  if (!l || s.ply % 2) return null
+  const ct = l.captured?.toUpperCase()
+  const kind = l.seat === bot ? (ct ? (BIG.includes(ct) ? 'gain' : 'big') : s.check != null && !s.over ? 'check' : null)
+    : ct && BIG.includes(ct) ? 'loss' : null
+  if (!kind) return null
+  const k = FEEL[kind][Math.floor(s.ply / 2) % FEEL[kind].length]
+  return k.startsWith('stk:') ? stickerText(k.slice(4)) : t('games.bot.feel.' + k)
+}
 const CLOCKS = [5, 10, 0] // phút mỗi bên; 0 = không giới hạn
 // Gợi ý vẽ mũi tên trên bàn (bạn vẫn tự đi); các trò khác máy đi hộ một nước.
 const ARROW = ['covua', 'cotuong', 'coup', 'oanquan']
@@ -145,6 +163,7 @@ export default function BotRoom({ gameId }) {
   // `cards` = bài từng tay + nọc / dây nổ… của game bài (nhà cái trong máy, bots/dealer.js).
   const [g, setG] = useState(() => ({ ...freshGame(game, gameId, n, variantOf(gameId, prefs)), fleets: {}, round: 0, err: '', past: [], timeout: false, resign: false, draw: false, info: '', log: [] }))
   const s = g.s
+  const feel = useBubbles(g.feel ? [g.feel] : []).bot // bong bóng máy vừa nói (3 giây)
   const restart = (p = prefs) => setG((cur) => ({ ...freshGame(game, gameId, nOf(p), variantOf(gameId, p)), fleets: {}, round: cur.round + 1, err: '', past: [], timeout: false, resign: false, draw: false, info: '', log: [] }))
   // Đổi round để Screen dựng lại và lượt máy đang nghĩ cho thế cũ bị bỏ.
   const undo = () => setG((cur) => (cur.past.length
@@ -169,9 +188,10 @@ export default function BotRoom({ gameId }) {
       const next = game.apply(s0, seat, logged, meta)
       const text = game.notate?.(s0, logged, next)
       const past = seat === human && !logged?.timeout ? [...cur.past, cur.s] : cur.past
-      return { ...cur, s: next, fleets, faces: secret.faces, cards: secret.cards, err: '', info: seat === human ? '' : cur.info, past, log: text ? [...cur.log, text] : cur.log }
+      const said = SKIN[gameId] && bots.length === 1 ? feelOf(next, bots[0]) : null
+      return { ...cur, s: next, fleets, faces: secret.faces, cards: secret.cards, err: '', info: seat === human ? '' : cur.info, past, log: text ? [...cur.log, text] : cur.log, feel: said ? { memberId: 'bot', text: said, at: Date.now() } : cur.feel }
     })
-  }, [game, gameId, human])
+  }, [game, gameId, human, bots])
 
   // Trang cờ tướng được cách ly (COOP/COEP) để chạy engine. Rời trang bằng bất kỳ đường nào (nút Quay lại, menu, nút
   // lùi của trình duyệt) → tải lại trang mới cho hết cách ly, không thì video YouTube nhúng ở trang khác bị chặn.
@@ -285,8 +305,9 @@ export default function BotRoom({ gameId }) {
   const canUndo = gameId !== 'bantau' && !card && g.past.length > 0
 
   // Ô ăn quan tự vẽ thẻ Máy / Bạn, đồng hồ và nút ngay trong khung sơn mài (bản 1c) — không lặp thẻ ở ngoài.
+  // Cờ gánh (Ruộng làng) cũng vậy, qua ChessStage.
   // Cờ vua / Cờ tướng / Cờ úp cũng vậy (ChessStage). Cờ vua / Cờ tướng thêm cột Nước đi bên phải, nút Ván mới nằm ở đó.
-  const inFrame = gameId === 'oanquan' || stage
+  const inFrame = gameId === 'oanquan' || gameId === 'coganh' || stage
   const clock = limit ? { left: left ?? limit, limit, on: left != null } : null
   const actions = [
     { key: 'undo', icon: 'undo-2', label: t('games.bot.undo'), on: undo, off: !canUndo },
@@ -320,6 +341,7 @@ export default function BotRoom({ gameId }) {
         )}
         <span style={{ flex: 1 }} />
         {stage && <SkinPicker kind={SKIN[gameId]} />}
+        {CLOSEUP_GAMES.includes(gameId) && <CloseUpToggle />}
         <button type="button" aria-label={t('games.howto')} title={t('games.howto')} onClick={() => setHowto(true)} style={S.sq(false)}>
           <Icon name="book-open" size={17} />
         </button>
@@ -378,6 +400,7 @@ export default function BotRoom({ gameId }) {
             roomId={'bot-' + gameId} result={result} hands={fleets ?? cardHands}
             {...(stage ? {
               names: { [human]: t('games.bot.you'), [bots[0]]: t('games.bot.bot') },
+              bubbles: feel ? { [bots[0]]: feel } : undefined,
               tags: { [human]: '', [bots[0]]: '· ' + t('games.bot.levelLine', { level: levelLabel }) },
               actions, hint: tipMove,
               overActions: [{ key: 'new', label: t('games.bot.newGame'), on: () => restart() }, ...(canUndo ? [{ key: 'undo', label: t('games.bot.undo'), on: undo }] : [])],

@@ -369,6 +369,29 @@ Không thêm vào `MobileFooterNav` (5 slot đã đầy).
 - Màn chơi từng game lazy thêm một lớp nữa qua `components/games/screens.js`.
 - Kết quả: người không vào mục game **không tải byte nào**; vào sảnh chưa tải logic/màn của game nào.
 
+### Chat sticker · bong bóng · Cận cảnh (bản "Cờ · sinh động", 2026-11-14)
+
+- **Sticker**: 8 hình (`components/games/characters.js` — `STICKERS`), gửi qua kênh chat sẵn có dưới dạng chữ `:stk:<id>:`
+  (`stickerText` / `stickerOf`) — không đổi giao thức, máy cũ thấy chuỗi chữ. Khay mở bằng nút mặt cười trong `RoomChat`.
+- **Bong bóng**: `useBubbles(g.chat)` (RoomChat.jsx) → tin mới nhất của từng người trong 3 giây; `GameRoom` đổi sang
+  `bubbles` theo ghế, bàn có `ChessStage` đưa vào `top/bottom.bubble`. Đã nối: Cờ gánh, Cờ vây, Cờ vua, Cờ tướng, Cờ úp.
+- **Cận cảnh** (`CutScene.jsx`): dải phim diễn lại đòn ăn quân, nút bật / tắt ở đầu phòng (`CLOSEUP_GAMES`), nhớ theo máy,
+  mặc định tắt. Suy từ `state.last` như `ChessFx` — không hẹn giờ, không giữ state.
+- **Cờ gánh · Ruộng làng**: Làng Lúa (ghế 0) / Làng Sen (ghế 1), vẽ trên `ChessStage` (phòng thật: `STAGED`; phòng máy:
+  `inFrame`). Gánh / vây tách ở UI từ `last.flipped` (`splitCaps`) — **không đổi luật / SQL**.
+- **Cờ vây · Vây sao**: Đen = hành tinh, Trắng = ngôi sao (ảnh đại diện `SKY`), vẽ trên `ChessStage` (`STAGED`), bàn 588
+  cho cả 9 / 13 / 19. Nhóm còn một khí nháy đỏ, quân bị ăn bay đi, ăn ≥ 2 quân + bật Cận cảnh → cảnh hố đen (`kind 'hole'`).
+  Giữ nguyên chạm-ngắm trên điện thoại, báo lý do nước cấm, ô ko, bảng điểm. Không đổi luật / SQL.
+- **Cờ vua / Cờ tướng / Cờ úp · Sinh động**: skin nhân vật mới (mặc định, giữ 3 skin cũ). Ăn quân + bật Cận cảnh → cảnh đấu
+  (`kind 'duel'`, kiểu đòn theo quân: Tốt đâm · Mã nhảy · Tượng giẫm · Xe húc · Hậu phóng phép · Vua chém; Cờ tướng thêm Pháo
+  nã đạn · Sĩ quạt · Tướng đóng ấn). Phong cấp / Tốt qua sông → cảnh thăng cấp (`kind 'rise'`; phong lại quân đã mất = Hồi sinh).
+  Chiếu hết / hết cờ → lồng úp vua (`MateCage`, luôn có, không cần Cận cảnh). Cảnh đấu dùng ảnh nhân vật ở mọi skin.
+  Tất cả suy từ `state.last` — không đổi luật / SQL. Qua sông có nước bắn (`pills[].splash`), thăng cấp có sao bung.
+- **Máy phản ứng** (BotRoom, Cờ vua / Cờ tướng / Cờ úp): ăn được quân, bị ăn quân lớn, chiếu → bong bóng sticker / câu ngắn
+  trên thanh của máy (`feelOf`, cứ hai nước có thì một lần, câu chọn theo số nước — không ngẫu nhiên).
+- **Điện thoại** (GameRoom, các game `CLOSEUP_GAMES`): dưới bàn chỉ còn thanh nhắn (`RoomChat dock`: câu nhanh cuộn ngang,
+  sticker, ô nhắn, dòng tin mới nhất); nút **Phòng** mở tấm trượt chứa đủ tab Nước đi / Chat / Người xem.
+
 ### Luồng
 
 ```

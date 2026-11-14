@@ -6351,6 +6351,12 @@
     "howtoTitle": "Cách chơi {{game}}",
     "cardBack": "Lá úp",
     "bot": {
+      "feel": {
+        "thanks": "Cảm ơn nhé",
+        "oops": "Ối, hớ rồi",
+        "check": "Chiếu nè",
+        "nice": "Đẹp chưa"
+      },
       "play": "Chơi với máy",
       "title": "{{game}} · chơi với máy",
       "level": "Mức độ",
@@ -6494,17 +6500,38 @@
     },
     "coganh": {
       "name": "Cờ gánh",
-      "desc": "Đi từng bước theo đường kẻ, chen vào giữa hai quân đối phương là gánh, bao kín là vây. Quân bị ăn đổi sang màu mình, lấy hết quân đối phương thì thắng.",
-      "mark0": "Quân đỏ · đi trước",
-      "mark1": "Quân xanh",
-      "pieces": "quân",
+      "desc": "Đi từng bước theo đường kẻ, chen vào giữa hai quân đối phương là gánh, bao kín là vây. Quân bị ăn đổi sang làng mình, lấy hết quân đối phương thì thắng.",
+      "mark0": "Làng Lúa · đi trước",
+      "mark1": "Làng Sen",
+      "village0": "Làng Lúa",
+      "village1": "Làng Sen",
+      "folk": "{{n}} dân trên ruộng",
+      "folkWon": "{{n}} dân trên ruộng · thu phục {{won}}",
+      "thinking": "Đang nghĩ…",
+      "mustShort": "Bắt buộc đi vào ô mở",
+      "pickTo": "Chọn điểm đến",
       "boardAria": "Bàn cờ gánh 5 × 5 điểm",
-      "pieceAria": "Quân của bạn đi được",
+      "pieceAria": "Người làng bạn đi được",
       "toAria": "Điểm đi tới được",
-      "pickHint": "Chạm một quân của bạn để xem những điểm đi được",
-      "moveHint": "Chạm điểm sáng để đi, chạm quân khác để đổi quân",
-      "forcedHint": "Bạn bị mở thế: phải đi một quân vào điểm đang nháy để gánh",
-      "howto": "Bàn 5 × 5 điểm, mỗi bên 8 quân xếp quanh mép phía mình. Quân đỏ đi trước.\nMỗi lượt đi một quân sang điểm kề còn trống theo đường kẻ. Chỉ những điểm có đường chéo mới đi chéo được.\nGánh: đi vào giữa hai quân đối phương thẳng hàng thì hai quân đó đổi sang màu mình. Gánh được nhiều đường một lúc thì ăn hết.\nVây: nhóm quân đối phương bị bao kín, không còn điểm trống nào kề bên, thì cả nhóm đổi sang màu mình.\nMở: đối phương rút một quân ra khỏi giữa hai quân của họ, để trống điểm ở giữa. Bạn có quân kề điểm đó thì bắt buộc phải đi vào gánh. Đây thường là bẫy để họ ăn lại nhiều hơn.\nLấy hết quân đối phương thì thắng. 40 nước liền không ai ăn được quân nào thì đếm quân: nhiều hơn thì thắng, bằng nhau thì hoà."
+      "pointAria": "Điểm hàng {{r}} cột {{c}}",
+      "end": {
+        "wipe": "Một làng không còn ai",
+        "count": "Hết lượt đếm, so số dân"
+      },
+      "fx": {
+        "ganh": "Gánh",
+        "ganh2": "Gánh đôi · {{n}} người",
+        "vay": "Vây · {{n}} người",
+        "open": "Mở · phải đi vào"
+      },
+      "cut": {
+        "ganh": "Gánh · thu phục {{n}} người",
+        "ganh2": "Gánh đôi · thu phục {{n}} người",
+        "ganhSub": "Đứng giữa hai người làng khác, gánh cả hai về làng mình",
+        "vay": "Vây kín · {{n}} người đổi làng",
+        "vaySub": "Hết đường ra là theo làng bao vây"
+      },
+      "howto": "Bàn 5 × 5 điểm, mỗi làng 8 người xếp quanh mép phía mình. Làng Lúa đi trước.\nMỗi lượt đi một người sang điểm kề còn trống theo đường kẻ. Chỉ những điểm có đường chéo mới đi chéo được.\nGánh: đi vào giữa hai người làng kia thẳng hàng thì cả hai về làng mình. Gánh được nhiều đường một lúc thì ăn hết.\nVây: nhóm người làng kia bị bao kín, không còn điểm trống nào kề bên, thì cả nhóm về làng mình.\nMở: đối phương rút một người ra khỏi giữa hai người của họ, để trống điểm ở giữa. Bạn có người kề điểm đó thì bắt buộc phải đi vào gánh. Đây thường là bẫy để họ ăn lại nhiều hơn.\nLấy hết người làng kia thì thắng. 40 nước liền không ai ăn được thì đếm số dân: nhiều hơn thì thắng, bằng nhau thì hoà."
     },
     "colat": {
       "name": "Cờ lật",
@@ -6597,8 +6624,6 @@
       "overWin": "{{name}} về nhất",
       "viewTable": "Xem bàn",
       "showResult": "Xem kết quả",
-      "rotate": "Xoay ngang điện thoại để chơi",
-      "rotateHint": "Bàn Tiến lên cần màn hình ngang để lá bài đủ to mà bấm.",
       "time": "Thời gian mỗi lượt",
       "timeOpt": "{{n}} giây",
       "timeNone": "Không giới hạn",
@@ -6653,7 +6678,52 @@
       },
       "howto": "Bàn 8 × 8, mỗi bên 16 quân: vua, hậu, 2 xe, 2 tượng, 2 mã, 8 tốt. Quân trắng đi trước.\nXe đi ngang / dọc, tượng đi chéo, hậu đi cả ngang dọc chéo, bao xa cũng được nếu không bị cản. Mã đi hình chữ L và nhảy qua được quân khác. Vua đi 1 ô mọi hướng.\nTốt tiến thẳng 1 ô (nước đầu được tiến 2 ô), ăn chéo 1 ô phía trước. Tốt đối phương vừa tiến 2 ô vượt qua cạnh tốt bạn thì nước ngay sau bạn được bắt nó như khi nó chỉ tiến 1 ô (bắt tốt qua đường).\nTốt lên tới hàng cuối thì phong thành hậu, xe, tượng hoặc mã — bạn chọn.\nNhập thành: vua đi 2 ô về phía xe, xe nhảy sang ô vua vừa đi qua. Chỉ được khi vua và xe đó chưa đi, giữa hai quân trống, vua không đang bị chiếu và không đi qua hay tới ô bị khống chế.\nKhông được đi nước để vua mình bị chiếu. Bị chiếu thì phải gỡ: chạy vua, chặn, hoặc ăn quân đang chiếu.\nChiếu mà đối phương không gỡ được là chiếu hết — thắng.\nHoà khi: đến lượt mà hết nước đi nhưng không bị chiếu; một thế cờ lặp lại 3 lần; 50 nước liền mỗi bên không ăn quân, không đi tốt; hoặc không bên nào còn đủ quân để chiếu hết.",
       "bannerCheck": "CHIẾU!",
-      "bannerMate": "CHIẾU HẾT!"
+      "bannerMate": "CHIẾU HẾT!",
+      "live": {
+        "side0": "Mặt Trời",
+        "side1": "Mặt Trăng",
+        "name": {
+          "K": "Vua",
+          "Q": "Hậu",
+          "R": "Xe",
+          "B": "Tượng",
+          "N": "Mã",
+          "P": "Tốt"
+        },
+        "verb": {
+          "K": "chém",
+          "Q": "phóng phép hạ",
+          "R": "tông",
+          "B": "giẫm",
+          "N": "đạp",
+          "P": "đâm"
+        },
+        "skill": {
+          "K": "Kiếm vương một nhát",
+          "Q0": "Ánh dương thiêu đốt",
+          "Q1": "Ánh trăng hoá sương",
+          "R": "Tháp thành lao thẳng",
+          "B": "Voi giậm rung đất",
+          "N": "Vó ngựa sấm sét",
+          "P": "Giáo tre xuyên trận"
+        },
+        "duel": "{{a}} {{verb}} {{v}}",
+        "castle": "Nhập thành",
+        "pillPromo": "Thăng cấp",
+        "pillRevive": "Hồi sinh",
+        "promoT": "Thăng cấp · Tốt thành {{p}}",
+        "promoSub": "Tốt đi hết bàn cờ",
+        "reviveT": "Hồi sinh {{p}}",
+        "reviveSub": "{{p}} đã ngã nay trở lại chiến trường",
+        "mate": {
+          "Q": "Hậu phong ấn Vua",
+          "R": "Tháp thành giam Vua",
+          "N": "Vó ngựa khoá Vua",
+          "B": "Voi rừng vây Vua",
+          "P": "Tốt bắt sống Vua"
+        },
+        "mateSub": "Chiếu hết · {{side}} thắng"
+      }
     },
     "cotuong": {
       "name": "Cờ tướng",
@@ -6680,7 +6750,60 @@
       },
       "howto": "Bàn 9 cột × 10 hàng, quân đi trên giao điểm. Giữa bàn là sông, mỗi bên có cung 3 × 3 có đường chéo. Quân đỏ đi trước.\nTướng đi 1 bước ngang / dọc, không ra khỏi cung. Sĩ đi 1 bước chéo trong cung.\nTượng đi chéo 2 bước, không qua sông, bị cản nếu có quân ở điểm giữa (mắt tượng).\nMã đi 1 bước thẳng rồi 1 bước chéo ra ngoài, bị cản nếu có quân ở điểm thẳng kề bên (chân mã).\nXe đi ngang / dọc bao xa cũng được nếu không bị cản. Pháo đi như xe, nhưng muốn ăn phải nhảy qua đúng một quân ở giữa (ngòi).\nTốt tiến 1 bước. Qua sông rồi được đi ngang 1 bước, không bao giờ lùi.\nHai tướng không được đối mặt trên một cột mà giữa không có quân nào. Không được đi nước để tướng mình bị chiếu.\nĐến lượt mà không còn nước đi — bị chiếu bí hay bị vây kín — là thua.\nChống ván kéo dài: 120 nước liền không ai ăn quân, một thế lặp lại 3 lần, hoặc cả hai không còn quân sang sông được thì hoà.",
       "bannerCheck": "CHIẾU TƯỚNG!",
-      "bannerMate": "HẾT CỜ!"
+      "bannerMate": "HẾT CỜ!",
+      "live": {
+        "side0": "Quân Đỏ",
+        "side1": "Quân Đen",
+        "name": {
+          "K": "Tướng",
+          "A": "Sĩ",
+          "E": "Tượng",
+          "H": "Mã",
+          "R": "Xe",
+          "C": "Pháo",
+          "P": "Tốt"
+        },
+        "verb": {
+          "K": "đóng ấn",
+          "A": "điểm huyệt",
+          "E": "giẫm",
+          "H": "đạp",
+          "R": "húc",
+          "C": "nã đạn",
+          "P": "đâm"
+        },
+        "skill": {
+          "K": "Ấn soái trấn áp",
+          "A": "Quạt lông điểm huyệt",
+          "E": "Voi rừng giậm đất",
+          "H": "Thiên mã đạp gió",
+          "R": "Chiến xa xung trận",
+          "C": "Hoả pháo cách sơn",
+          "P": "Giáo tre xuyên trận"
+        },
+        "duel": "{{a}} {{verb}} {{v}}",
+        "cross": {
+          "P": "Tốt lội sông · lên cấp",
+          "R": "Chiến xa rẽ sóng",
+          "H": "Mã phi qua sông",
+          "C": "Pháo sang bè vượt sông"
+        },
+        "riseT": "Tốt qua sông · lên cấp",
+        "riseSub": "Từ giờ đi ngang được",
+        "badge": "Cấp 2",
+        "mate": {
+          "K": "Lộ mặt Tướng",
+          "A": "Sĩ trói Tướng",
+          "E": "Voi chặn cửa cung",
+          "H": "Ngựa giẫm cửa cung",
+          "R": "Chiến xa vây Tướng",
+          "C": "Pháo cách sơn khoá Tướng",
+          "P": "Tốt bắt sống Tướng"
+        },
+        "mateSub": "Chiếu bí · {{side}} thắng",
+        "stale": "Tướng hết đường lui",
+        "staleSub": "Hết nước đi · {{side}} thắng"
+      }
     },
     "cangua": {
       "name": "Cờ cá ngựa",
@@ -6965,11 +7088,26 @@
       "mark1": "Ghế 2",
       "mark2": "Ghế 3",
       "mark3": "Ghế 4",
-      "you": "bạn",
       "cards": "{{n}} lá",
-      "pile": "Đã đánh",
-      "myPile": "Bạn đã đánh {{n}}/4",
-      "eaten": "Đã ăn",
+      "youCap": "Bạn",
+      "thinking": "Đang nghĩ…",
+      "myTurn": "Tới lượt bạn",
+      "waitFor": "Chờ {{name}} đánh…",
+      "pileShort": "Đánh",
+      "eatenShort": "Ăn",
+      "stockShort": "Nọc",
+      "eatThis": "Ăn lá này",
+      "drawStock": "Bốc nọc",
+      "hint": "Gợi ý",
+      "sortRank": "Xếp theo số",
+      "sortSuit": "Xếp theo chất",
+      "stampEat": "ĂN!",
+      "stampChot": "ĂN CHỐT!",
+      "overMe": "Bạn về Nhất",
+      "overWin": "{{name}} về Nhất",
+      "viewTable": "Xem bàn",
+      "showResult": "Xem kết quả",
+      "myPile": "Đã đánh {{n}}/4",
       "eatenTag": "ăn",
       "chotTag": "chốt",
       "laidTag": "đã hạ",
@@ -6977,11 +7115,8 @@
       "outTag": "đã rời",
       "lastBy": "{{side}} vừa đánh",
       "noLast": "Chưa có lá để ăn",
-      "stock": "Nọc · {{n}} lá",
       "takeHint": "Ăn lá vừa đánh nếu ghép được phỏm, hoặc bốc nọc",
       "cantEatHint": "Lá vừa đánh không ghép được phỏm với bài của bạn — bốc nọc",
-      "eat": "Ăn",
-      "draw": "Bốc",
       "pickHint": "Chạm một lá rồi bấm Đánh",
       "pickHintEaten": "Chạm một lá rồi bấm Đánh — lá mờ đang giữ phỏm cho lá đã ăn",
       "discard": "Đánh",
@@ -7058,11 +7193,28 @@
     "covay": {
       "name": "Cờ vây",
       "desc": "Hai người thay phiên đặt quân đen, trắng lên giao điểm, vây quân và chiếm đất. Bàn 9 × 9, 13 × 13 hoặc 19 × 19, hết ván tự đếm điểm.",
-      "mark0": "Đen · đi trước",
-      "mark1": "Trắng",
-      "side0": "Đen",
-      "side1": "Trắng",
+      "mark0": "Hành tinh (Đen) · đi trước",
+      "mark1": "Sao (Trắng)",
+      "side0": "Hành tinh",
+      "side1": "Sao",
       "you": "bạn",
+      "thinking": "Đang nghĩ…",
+      "barLine": "bắt {{caps}} · vùng {{area}}",
+      "end": {
+        "pass": "Hai bên bỏ lượt · đếm vùng",
+        "cap": "Hết số nước · đếm vùng"
+      },
+      "fx": {
+        "take0": "Hút {{n}} quân",
+        "take1": "Thu {{n}} quân",
+        "pass": "{{side}} bỏ lượt"
+      },
+      "cut": {
+        "title0": "Hố đen nuốt {{n}} ngôi sao",
+        "sub0": "Nhóm hết khí bị hút khỏi bầu trời",
+        "title1": "Siêu tân tinh thổi bay {{n}} hành tinh",
+        "sub1": "Ánh sao bao kín, hành tinh mất quỹ đạo"
+      },
       "size": "Cỡ bàn",
       "sizeOpt": {
         "9": "9 × 9 · ván nhanh, khoảng 15 phút",
@@ -7080,7 +7232,7 @@
       "scoreLine0": "{{side}}: {{stones}} quân + {{land}} đất = {{total}} điểm",
       "scoreLine1": "{{side}}: {{stones}} quân + {{land}} đất + {{komi}} komi = {{total}} điểm",
       "scoreNote": "Đất là giao điểm trống chỉ giáp quân một màu (ô vuông nhỏ trên bàn). Quân chết chưa bị ăn vẫn tính là quân sống.",
-      "howto": "Bàn có các đường kẻ; quân đặt lên giao điểm. Đen đi trước, hai bên thay phiên đặt một quân hoặc bỏ lượt. Quân đã đặt không di chuyển.\nKhí là giao điểm trống kề một nhóm quân (liền nhau theo hàng, cột). Nhóm nào hết khí thì bị ăn, nhấc khỏi bàn.\nKhông được tự sát: đặt xong mà nhóm của mình hết khí là nước sai — trừ khi nước đó ăn được quân đối phương.\nLuật ko: vừa bị ăn đúng một quân thì không được ăn lại ngay ở chỗ đó; đi một nước khác rồi mới được.\nHai bên bỏ lượt liền nhau là hết ván. Điểm = số quân trên bàn + số giao điểm trống chỉ giáp quân của mình. Trắng được cộng 7,5 điểm (komi) vì đi sau, nên không bao giờ hoà.\nApp tự đếm điểm, không có bước đánh dấu quân chết: quân đã chết thì ăn hẳn trước khi bỏ lượt."
+      "howto": "Bàn có các đường kẻ; quân đặt lên giao điểm. Hành tinh (Đen) đi trước, hai bên thay phiên đặt một quân hoặc bỏ lượt. Quân đã đặt không di chuyển.\nKhí là giao điểm trống kề một nhóm quân (liền nhau theo hàng, cột). Nhóm nào hết khí thì bị ăn, nhấc khỏi bàn.\nKhông được tự sát: đặt xong mà nhóm của mình hết khí là nước sai — trừ khi nước đó ăn được quân đối phương.\nLuật ko: vừa bị ăn đúng một quân thì không được ăn lại ngay ở chỗ đó; đi một nước khác rồi mới được.\nHai bên bỏ lượt liền nhau là hết ván. Điểm = số quân trên bàn + số giao điểm trống chỉ giáp quân của mình. Sao (Trắng) được cộng 7,5 điểm (komi) vì đi sau, nên không bao giờ hoà.\nApp tự đếm điểm, không có bước đánh dấu quân chết: quân đã chết thì ăn hẳn trước khi bỏ lượt."
     },
     "masoi": {
       "name": "Ma sói",
@@ -7496,6 +7648,11 @@
       "soloBadge": "1 người",
       "play": "Chơi"
     },
+    "closeup": {
+      "on": "Cận cảnh: Bật",
+      "off": "Cận cảnh: Tắt",
+      "hint": "Bật để xem cảnh cận mỗi lần ăn quân"
+    },
     "room": {
       "players": "Người chơi",
       "chat": "Chat",
@@ -7503,6 +7660,23 @@
       "chatPh": "Nhắn gì đó…",
       "send": "Gửi",
       "chatEmpty": "Chưa có tin nào. Tin chỉ hiện với người đang mở phòng, tải lại trang là mất.",
+      "stickers": "Sticker",
+      "openPanel": "Mở chat, nước đi, người xem",
+      "panelShort": "Phòng",
+      "panel": "Phòng chơi",
+      "lastLine": "{{name}}: {{text}}",
+      "lastSticker": "đã thả biểu cảm",
+      "lastNone": "Chưa có tin nhắn",
+      "stk": {
+        "tim": "Thương",
+        "cuoi": "Cười",
+        "khoc": "Khóc",
+        "gian": "Giận",
+        "like": "Thích",
+        "lua": "Cháy",
+        "gg": "GG",
+        "nghi": "Nghĩ"
+      },
       "quick1": "Hay quá!",
       "quick2": "Nhanh lên nào",
       "quick3": "GG",
@@ -7535,6 +7709,7 @@
     },
     "skin": {
       "label": "Kiểu bàn",
+      "live": "Sinh động",
       "arcane": "Huyền bí",
       "frost": "Băng giá",
       "grove": "Rừng cổ",

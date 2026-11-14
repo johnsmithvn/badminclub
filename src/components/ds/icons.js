@@ -25,7 +25,7 @@ import {
   Bell, Calendar, Swords, User,
   BookOpen, Bookmark, Pin,
   Gamepad2, Hash, Flag, LogOut, Bot,
-  SkipForward, Lightbulb, Handshake, MessageCircle, ListOrdered,
+  SkipForward, Lightbulb, Handshake, MessageCircle, ListOrdered, Smile,
 } from 'lucide-react'
 
 export const ICONS = {
@@ -118,6 +118,7 @@ export const ICONS = {
   scale: Scale,
   'scan-line': ScanLine,
   sparkles: Sparkles,
+  smile: Smile,
   search: Search,
   send: Send,
   settings: Settings,

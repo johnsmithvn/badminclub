@@ -3,6 +3,7 @@ import { Icon } from '#ds'
 import { G, btn, card, mono } from '#components/games/stage.js'
 import { SKINS, setSkin, useSkin } from '#components/games/chessSkins.js'
 import { mmss, rnd, useFit } from '#components/games/chessUi.js'
+import { STICKERS, stickerOf } from '#components/games/characters.js'
 import { useMobile } from '#hooks/useMobile.js'
 import { t } from '#i18n'
 
@@ -15,14 +16,37 @@ import { t } from '#i18n'
 
 const LOW_MS = 20000 // dưới ngần này đồng hồ chuyển đỏ
 
-function Bar({ p, active }) {
+/**
+ * Bong bóng chat nổi cạnh ô ký hiệu (bản "Cờ · sinh động"): tin chữ hoặc sticker vừa gửi, `up` = mở lên trên (thanh dưới).
+ * Màu viết cứng như bản thiết kế (bong bóng sáng chữ tối) — đọc được trên cả nền sáng lẫn tối.
+ */
+function Bubble({ msg, up }) {
+  const stk = stickerOf(msg.text)
+  const tail = { position: 'absolute', left: 14, width: 0, height: 0, borderLeft: '7px solid transparent', borderRight: '7px solid transparent', ...(up ? { bottom: -7, borderTop: '8px solid #F4F7FB' } : { top: -7, borderBottom: '8px solid #F4F7FB' }) }
+  return (
+    <span role="status" style={{
+      position: 'absolute', left: 2, ...(up ? { bottom: 'calc(100% + 8px)' } : { top: 'calc(100% + 8px)' }), zIndex: 30, width: 'max-content', maxWidth: 220,
+      padding: stk ? 6 : '7px 11px', borderRadius: 14, background: '#F4F7FB', color: '#0B1220', font: '600 13.5px/1.35 var(--font-sans)',
+      overflowWrap: 'anywhere', boxShadow: '0 10px 26px rgba(0,0,0,.45)', transformOrigin: up ? '16px 100%' : '16px 0', animation: 'gbPop .4s cubic-bezier(.2,1.5,.4,1)',
+    }}>
+      {stk ? <img src={STICKERS[stk].src} alt={t('games.room.stk.' + stk)} style={{ display: 'block', width: 52, height: 52 }} /> : msg.text}
+      <span style={tail} />
+    </span>
+  )
+}
+
+function Bar({ p, active, up }) {
   const low = p.clock != null && active && p.clock <= LOW_MS
   return (
     <div style={{
-      ...card, borderRadius: 16, display: 'flex', alignItems: 'center', gap: 12, padding: '9px 14px',
-      background: active ? G.tealA(0.08) : G.card, borderColor: active ? G.tealA(0.5) : G.line,
+      ...card, borderRadius: 16, display: 'flex', alignItems: 'center', gap: 12, padding: '9px 14px', position: 'relative', zIndex: p.bubble ? 25 : undefined,
+      background: active ? G.tealA(0.08) : G.card, borderColor: active ? G.tealA(0.5) : G.line, boxShadow: active && p.glow ? `0 0 30px -10px ${p.glow}` : undefined,
+      transition: 'background .3s, border-color .3s',
     }} aria-live={p.me ? 'polite' : undefined}>
-      {p.mark}
+      <span style={{ position: 'relative', display: 'flex', flexShrink: 0 }}>
+        {p.mark}
+        {p.bubble && <Bubble key={p.bubble.at} msg={p.bubble} up={up} />}
+      </span>
       <div style={{ display: 'grid', gap: 3, flex: 1, minWidth: 0, gridTemplateColumns: 'minmax(0, 1fr)' }}>
         <span style={{ font: '700 15px/1.2 var(--font-sans)', whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis' }}>
           {p.name}{p.tag && <span style={{ fontWeight: 400, color: G.muted, fontSize: 12 }}> {p.tag}</span>}
@@ -44,12 +68,14 @@ function Bar({ p, active }) {
 }
 
 /**
- * `sk` skin · `box` { w, h, pad, radius } cỡ thiết kế của mặt bàn và lề khung · `top` / `bottom` thanh người chơi
- * { mark (ô ký hiệu), name, tag, caps, adv, status, alert, clock (ms | null), me } · `turnTop` / `turnBottom` ai đang tới lượt ·
+ * `sk` skin (`gem: false` = khung không đính ngọc góc) · `box` { w, h, pad, radius } cỡ thiết kế của mặt bàn và lề khung ·
+ * `top` / `bottom` thanh người chơi { mark (ô ký hiệu), name, tag, caps, adv, status, alert, clock (ms | null), me,
+ * bubble (tin chat vừa gửi { text, at } — useBubbles), glow (màu quầng khi tới lượt) } · `turnTop` / `turnBottom` ai đang tới lượt ·
  * `evalPct` 0–100 phần của người ngồi dưới · `over` { title, sub } | null · `overActions` / `actions`
- * [{ key, icon, label, on, off, danger, soft }] · `offer` { text, answer? (đồng ý: boolean) → void }.
+ * [{ key, icon, label, on, off, danger, soft }] · `offer` { text, answer? (đồng ý: boolean) → void } ·
+ * `overDelay` giây chờ trước khi màn kết thúc hiện (để lồng chiếu bí diễn xong).
  */
-export default function ChessStage({ sk, box, top, bottom, turnTop, turnBottom, evalPct, over, overActions, actions, offer, children }) {
+export default function ChessStage({ sk, box, top, bottom, turnTop, turnBottom, evalPct, over, overActions, actions, offer, overDelay, children }) {
   const isMobile = useMobile(768)
   const DW = box.w + box.pad * 2 + 4 + (evalPct == null ? 0 : 26)
   const DH = box.h + box.pad * 2 + 4
@@ -73,11 +99,11 @@ export default function ChessStage({ sk, box, top, bottom, turnTop, turnBottom, 
             position: 'relative', padding: box.pad, borderRadius: 22, background: sk.frame, border: '2px solid ' + sk.border,
             boxShadow: `0 30px 70px -30px rgba(0,0,0,.8), 0 0 50px -12px rgba(${sk.rgb},.35), inset 0 0 0 6px rgba(0,0,0,.25)`,
           }}>
-            {gem({ left: -9, top: -9 })}{gem({ right: -9, top: -9 })}{gem({ left: -9, bottom: -9 })}{gem({ right: -9, bottom: -9 })}
+            {sk.gem !== false && <>{gem({ left: -9, top: -9 })}{gem({ right: -9, top: -9 })}{gem({ left: -9, bottom: -9 })}{gem({ right: -9, bottom: -9 })}</>}
             <div style={{ position: 'relative', width: box.w, height: box.h, userSelect: 'none', touchAction: 'manipulation' }}>
               {children}
               {over && !hidden && (
-                <div style={{ position: 'absolute', inset: 0, zIndex: 20, borderRadius: box.radius, background: 'rgba(5,6,16,.74)', backdropFilter: 'blur(3px)', display: 'flex', flexDirection: 'column', alignItems: 'center', justifyContent: 'center', gap: 12, padding: 24, textAlign: 'center' }}>
+                <div style={{ position: 'absolute', inset: 0, zIndex: 20, borderRadius: box.radius, background: 'rgba(5,6,16,.74)', backdropFilter: 'blur(3px)', animation: overDelay ? `chOverIn .4s ease-out ${overDelay}s both` : undefined, display: 'flex', flexDirection: 'column', alignItems: 'center', justifyContent: 'center', gap: 12, padding: 24, textAlign: 'center' }}>
                   <div style={{ font: 'italic 700 50px/1.1 var(--font-display)', color: sk.acc, textShadow: '0 0 30px ' + sk.acc }}>{over.title}</div>
                   {over.sub && <div style={{ font: '400 17px/1.4 var(--font-sans)', color: '#e6edf7', maxWidth: 420 }}>{over.sub}</div>}
                   <div style={{ display: 'flex', gap: 10, marginTop: 8, flexWrap: 'wrap', justifyContent: 'center' }}>
@@ -95,7 +121,7 @@ export default function ChessStage({ sk, box, top, bottom, turnTop, turnBottom, 
           </div>
         </div>
       </div>
-      <Bar p={bottom} active={turnBottom} />
+      <Bar p={bottom} active={turnBottom} up />
 
       {offer && (
         <div style={{ ...card, display: 'flex', alignItems: 'center', gap: 10, padding: '10px 14px', flexWrap: 'wrap', borderColor: G.goldA(0.45), background: G.goldA(0.08) }} role="status">
@@ -129,9 +155,11 @@ export default function ChessStage({ sk, box, top, bottom, turnTop, turnBottom, 
  * mới tự diễn lại: vệt nước đi · gợn sóng ô đến · chớp + mảnh bung + hồn quân khi ăn · cột sáng phong cấp · chữ CHIẾU!
  * Luôn có: bụi sáng bay, hào quang quân bị chiếu, vòng chọn quay, mũi tên gợi ý.
  *   `at(i)` tâm ô / điểm i (px thiết kế) · `cell` cạnh ô · `last` { from, to } · `cap` { colors, node } quân vừa bị ăn ·
- *   `promo` vừa phong cấp · `check` ô vua bị chiếu · `banner` { text, mate } · `sel` ô đang chọn · `hint` { from, to }.
+ *   `promo` vừa phong cấp · `check` ô vua bị chiếu · `banner` { text, mate } · `sel` ô đang chọn · `hint` { from, to } ·
+ *   `pills` [{ i, text, bg, fg, dy, delay, splash }] nhãn nổi trên ô i (Nhập thành · Thăng cấp · Tốt qua sông …), mỗi nước một
+ *   lần; `splash` [màu…] thêm vòng sóng + giọt nước bắn ở chân nhãn (quân lội qua sông).
  */
-export function ChessFx({ sk, w, h, at, cell, ply, last, cap, promo, check, banner, sel, hint, motes = true }) {
+export function ChessFx({ sk, w, h, at, cell, ply, last, cap, promo, check, banner, sel, hint, pills, motes = true }) {
   const kids = []
   const ink = sk.blend === 'multiply' // skin Mực tàu: hiệu ứng mực, không phát sáng
   if (motes) {
@@ -184,6 +212,23 @@ export function ChessFx({ sk, w, h, at, cell, ply, last, cap, promo, check, bann
       }
       kids.push(<div key={k + 'soul'} style={{ position: 'absolute', left: b.x - cell / 2, top: b.y - cell / 2, width: cell, height: cell, display: 'grid', placeItems: 'center', opacity: 0, animation: 'chSoul 1.4s ease-out .26s forwards', zIndex: 7, filter: `drop-shadow(0 0 12px ${cols[0]})` }}>{cap.node}</div>)
     }
+    pills?.forEach((q, j) => {
+      const c = at(q.i)
+      kids.push(<span key={k + 'pill' + j} style={{
+        position: 'absolute', left: c.x, top: c.y + (q.dy ?? -cell * 0.6), zIndex: 9, padding: '5px 12px', borderRadius: 99, background: q.bg, color: q.fg || '#fff', whiteSpace: 'nowrap',
+        font: '800 20px/1.1 var(--font-display)', letterSpacing: '.02em', boxShadow: '0 8px 18px rgba(0,0,0,.45)', opacity: 0, animation: `chBanner 1.6s ease-out ${q.delay ?? 0.4}s forwards`,
+      }}>{q.text}</span>)
+      if (q.splash) {
+        const y = c.y + (q.dy ?? 0) + 14
+        const d = q.delay ?? 0.4
+        kids.push(<span key={k + 'sp' + j} style={{ position: 'absolute', left: c.x, top: y, width: cell * 1.3, height: cell * 0.5, borderRadius: '50%', border: '3px solid ' + q.splash[0], boxShadow: '0 0 14px ' + q.splash[0], opacity: 0, animation: `chRipple .8s ease-out ${d}s forwards`, zIndex: 8 }} />)
+        for (let n = 0; n < 12; n++) {
+          const ang = Math.PI + (n / 11) * Math.PI // nửa trên: giọt bắn lên
+          const col = q.splash[n % q.splash.length]
+          kids.push(<span key={k + 'dr' + j + '-' + n} style={{ position: 'absolute', left: c.x, top: y, width: 7, height: 9, borderRadius: '50% 50% 50% 50% / 60% 60% 40% 40%', background: col, '--dx': Math.cos(ang) * (34 + rnd(n) * 30) + 'px', '--dy': Math.sin(ang) * (30 + rnd(n * 3) * 34) + 'px', opacity: 0, animation: `chBurst .8s cubic-bezier(.2,.7,.3,1) ${d}s forwards`, zIndex: 8 }} />)
+        }
+      }
+    })
     if (banner) {
       kids.push(<div key={k + 'banner'} style={{
         position: 'absolute', left: '50%', top: '50%', zIndex: 8, font: `italic 700 ${banner.mate ? 76 : 66}px/1 var(--font-display)`, letterSpacing: '.04em', whiteSpace: 'nowrap',

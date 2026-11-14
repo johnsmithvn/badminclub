@@ -1,4 +1,5 @@
 import { useSyncExternalStore } from 'react'
+import { CHESS_ART, XIANGQI_ART } from '#components/games/characters.js'
 
 // Skin bàn Cờ vua / Cờ tướng (bản thiết kế "Co Vua" / "Co Tuong") và vùng biển Bắn tàu (bản "Bắn tàu", 2026-11-12). Bàn cờ là một "vật" có màu riêng nên màu VIẾT CỨNG
 // và giữ nguyên ở chế độ sáng / tối (DESIGN.md §2.4) — khác phần chữ / thẻ quanh bàn vẫn theo token.
@@ -6,6 +7,9 @@ import { useSyncExternalStore } from 'react'
 //   acc / rgb — màu nhấn (nước đi, gợi ý, đồng hồ đang chạy); frame / border — khung; page — quầng sáng sau bàn.
 // Cờ vua: L / D ô sáng / tối · wG / bG chuyển màu quân trắng / đen (tô lên chữ ký hiệu) · wF / bF bóng quân ·
 //   wC / bC màu mảnh bung khi quân trắng / đen bị ăn · cL / cD màu chữ toạ độ trên ô sáng / tối.
+//   L / D có thể là hàm (hàng hiển thị 0–7) → màu, để bàn chuyển màu theo hàng.
+// Skin "Sinh động" (bản "Cờ · sinh động", cả hai cờ): `art` [phe][loại] ảnh quân nhân vật thay ký hiệu / quân tròn ·
+//   av ô nền ảnh đại diện từng phe · water dải nước sông (Cờ tướng). Quân úp của Cờ úp vẫn vẽ quân tròn (rD / bD …).
 // Cờ tướng: board mặt bàn · line đường kẻ · river chữ Sở hà Hán giới · label toạ độ · rD / bD mặt quân đỏ / đen ·
 //   rI / bI chữ quân · rG / bG ánh chữ · dSh bóng quân · rC / bC mảnh bung · motes bụi sáng · blend kiểu hoà sáng.
 // Bắn tàu: sea mặt biển · grid đường kẻ · wave sóng trôi · sweep tia radar quét · paper kiểu giấy (trúng vẽ dấu X thay
@@ -17,6 +21,13 @@ import { useSyncExternalStore } from 'react'
 
 export const SKINS = {
   covua: {
+    live: {
+      L: (r) => `rgb(${222 + Math.round(26 * r / 7)},${222 + Math.round(6 * r / 7)},${246 - Math.round(54 * r / 7)})`,
+      D: (r) => `rgb(${96 + Math.round(120 * r / 7)},${98 + Math.round(52 * r / 7)},${176 - Math.round(96 * r / 7)})`,
+      frame: 'linear-gradient(160deg,#1f2550,#0b0f26)', border: '#F0B75C', acc: '#ffcf3a', rgb: '255,207,58', page: 'rgba(240,183,92,.18)',
+      sw: 'linear-gradient(135deg,#ffe9a8 50%,#8f97ff 50%)', art: CHESS_ART, av: ['linear-gradient(145deg,#ffe9a8,#e0a020)', 'linear-gradient(145deg,#8f97ff,#2a2466)'],
+      wC: ['#fff6c8', '#ffd76a', '#ffcf3a'], bC: ['#d0d8ff', '#9fb0ff', '#6b74e0'], cL: '#5a4fa0', cD: '#f4f0ff',
+    },
     arcane: {
       L: 'linear-gradient(135deg,#ddd3f7,#c6b8ec)', D: 'linear-gradient(135deg,#6b59b2,#4e3e91)', frame: 'linear-gradient(160deg,#2e2058,#140c2b)',
       border: '#d9b45a', acc: '#ffd77a', rgb: '255,215,122', page: 'rgba(98,60,190,.22)', sw: 'linear-gradient(135deg,#6b59b2,#4e3e91)',
@@ -40,6 +51,16 @@ export const SKINS = {
     },
   },
   cotuong: {
+    live: {
+      board: 'radial-gradient(circle at 30% 20%,rgba(255,255,255,.35),transparent 50%),radial-gradient(circle at 80% 80%,rgba(140,90,30,.18),transparent 55%),repeating-radial-gradient(circle at 40% 60%,rgba(120,80,30,.05) 0 2px,transparent 2px 7px),#ead9b0',
+      size: '100% 100%', frame: 'linear-gradient(180deg,#5a2a14,#3a1a0c)', border: '#c99a2e', line: '#6b4423', river: '#3a1e0a', label: '#6b4423',
+      acc: '#ffcf3a', rgb: '255,207,58', page: 'rgba(200,120,40,.18)', sw: 'linear-gradient(135deg,#ead9b0 50%,#c0281c 50%)',
+      water: 'repeating-linear-gradient(170deg,rgba(60,120,160,0) 0 14px,rgba(60,120,160,.22) 14px 17px,rgba(60,120,160,0) 17px 30px) 0 0 / 120px 100%,linear-gradient(180deg,rgba(80,150,190,.28),rgba(60,120,160,.42),rgba(80,150,190,.28))',
+      art: XIANGQI_ART, av: ['linear-gradient(145deg,#ffd0c0,#c0281c)', 'linear-gradient(145deg,#bff0dc,#14574a)'],
+      rD: 'radial-gradient(circle at 35% 30%,#fbecd0,#deb985 58%,#a2733f)', rI: '#b3202a', rG: 'none',
+      bD: 'radial-gradient(circle at 35% 30%,#fbecd0,#deb985 58%,#a2733f)', bI: '#1c1714', bG: 'none',
+      dSh: '0 3px 0 #6b4a25,0 8px 14px rgba(0,0,0,.35)', rC: ['#ff8a6a', '#ffd0a0', '#ffffff'], bC: ['#7fd6b4', '#c8ffe9', '#2f7a5f'], motes: false, blend: 'normal',
+    },
     jade: {
       board: 'radial-gradient(ellipse at 50% 50%,#e6f5ec,#bfe0cd 70%,#9fcab4)', size: '100% 100%', frame: 'linear-gradient(160deg,#173b2d,#08170f)',
       border: '#c9a45c', line: '#2f5f49', river: '#2f5f49', label: '#2f5f49', acc: '#7fffd4', rgb: '127,255,212', page: 'rgba(40,160,120,.18)', sw: '#5fae8a',
@@ -99,7 +120,9 @@ export const SKINS = {
     },
   },
 }
-const DEFAULT = { covua: 'arcane', cotuong: 'lacquer', bantau: 'ocean', cangua: 'classic' }
+// Không phải bảng màu: công tắc "Cận cảnh" (CutScene.jsx) mượn kho này để cũng nhớ theo máy, mặc định tắt.
+SKINS.closeup = { off: {}, on: {} }
+const DEFAULT = { covua: 'live', cotuong: 'live', bantau: 'ocean', cangua: 'classic', closeup: 'off' }
 
 // Kho skin nhỏ: đọc / ghi localStorage, báo mọi chỗ đang dùng (nút chọn ở đầu trang + bàn cờ) cùng đổi.
 const KEY = 'gameskin:'

@@ -149,7 +149,8 @@ qua `components/badges/badgeTone.js`:
 ### 2.4 Bàn Cờ vua / Cờ tướng: skin viết cứng
 
 Hai bàn cờ (`CoVuaBoard`, `CoTuongBoard`, kéo theo Cờ úp) vẽ theo bản thiết kế "Co Vua" / "Co Tuong" (2026-11-11): mỗi
-loại 3 skin chọn được — Cờ vua: Huyền bí / Băng giá / Rừng cổ; Cờ tướng: Ngọc bích / Sơn mài / Mực tàu. Bảng màu nằm hết
+loại 4 skin chọn được — Cờ vua: **Sinh động** (mặc định) / Huyền bí / Băng giá / Rừng cổ; Cờ tướng: **Sinh động** (mặc định) /
+Ngọc bích / Sơn mài / Mực tàu. Bảng màu nằm hết
 ở `components/games/chessSkins.js` (`SKINS`, `useSkin` — nhớ theo máy bằng localStorage); khung, thanh người chơi, cột cán
 cân, hiệu ứng, màn kết thúc dùng chung ở `ChessStage.jsx` (`ChessStage`, `ChessFx`, `SkinPicker`).
 
@@ -172,8 +173,15 @@ cân, hiệu ứng, màn kết thúc dùng chung ở `ChessStage.jsx` (`ChessSta
   Bát rung khi chờ mở dùng `bcShake`.
 - **Bàn Tiến lên kiểu chiếu nỉ** (bản "Tien Len", 2026-11-11): cùng ngoại lệ, bảng màu riêng `TL` trong `TienLenBoard.jsx`
   (nỉ xanh, viền gỗ). Bàn
-  860 × 660 co bằng `useFit`; điện thoại dọc mà co dưới 0.6 thì phủ lớp "Xoay ngang điện thoại" (chặn bấm). Hiệu ứng
+  860 × 660 co bằng `useFit`; khung hẹp hơn 560px thì đổi sang bàn 374 × 480 (đối thủ một hàng trên cùng, nút Gợi ý /
+  Bỏ lượt / Đánh xuống dưới bàn) — không còn bắt xoay ngang (2026-11-14). Hiệu ứng
   `tlDeal` / `tlFly` / `tlStamp` ở `effects.css` + `chFlash` / `chBurst` khi chặt.
+- **Bàn Phỏm kiểu chiếu tá lả** (bản "Phỏm · Chiếu tá lả", 2026-11-13): cùng ngoại lệ, bảng màu riêng `PH` trong
+  `PhomBoard.jsx` (nỉ lục, viền gỗ chỉ vàng, kính tối trên chiếu). Hai bố cục theo bề rộng khung: rộng 788 × 760 (đối thủ
+  trái / trên / phải), khung hẹp hơn 560px thì bàn 374 × 600 (đối thủ một hàng trên cùng); co bằng `useFit`. Nút Ăn / Bốc /
+  Đánh / Hạ nằm DƯỚI bàn, dùng token. Hiệu ứng mượn của Tiến lên (`tlFly`, `tlStamp`, `chFlash`, `chBurst`).
+- **Phần chung của bàn bài** (`cardTable.jsx`): `Seat` (ảnh + vòng lượt) và `Overlay` (màn kết thúc đè lên bàn) — Tiến
+  lên, Phỏm dùng; game bài khác có bản thiết kế thì ráp từ đây. Mặt bàn / bố cục ghế vẫn là của từng game.
 - **Bàn Bắn tàu** (bản "Bắn tàu", 2026-11-12): cùng ngoại lệ — vùng biển 3 skin chọn được (Hải chiến / Radar / Giấy kẻ ô)
   ở `chessSkins.js` (`SKINS.bantau`, `useSkin('bantau')`, nút `SkinPicker kind="bantau"` nằm trên bàn), tàu 5 loại vẽ SVG
   theo màu skin, nhấn phía mình ngọc `#00B2A9` / phía đối phương cam `#ff7a1a` (hằng `ME` / `FOE` trong `BanTauBoard.jsx`).
@@ -184,6 +192,20 @@ cân, hiệu ứng, màn kết thúc dùng chung ở `ChessStage.jsx` (`ChessSta
   `useFit`), 3 skin (Cổ điển / Đêm sao / Sơn mài) ở `chessSkins.js` (`SKINS.cangua`, nút `SkinPicker kind="cangua"` trên bàn),
   4 màu phe theo skin. Xúc xắc 3D (CSS `preserve-3d`), quân ngựa SVG. Thẻ người chơi, dòng gợi ý, nút Đổ xúc xắc quanh bàn
   dùng token. Bàn xoay cho màu mình ở góc dưới trái. Hiệu ứng `cn*` ở `effects.css`.
+- **Bàn Cờ gánh · Ruộng làng** (bản "Cờ · sinh động", 2026-11-14): cùng ngoại lệ — mặt ruộng lúa, bờ đất + bờ cỏ, quân là
+  hai nhân vật SVG (`VILLAGERS` trong `characters.js`), khung qua `ChessStage` (`sk.gem: false`). Bong bóng chat trên thanh
+  người chơi và lớp Cận cảnh (`CutScene.jsx`) cũng viết cứng màu. Hiệu ứng `cg*` / `cs*` / `gbPop` ở `effects.css`; phần
+  chỉ hiện lúc chạy hiệu ứng để nền opacity 0 nên "giảm chuyển động" không sót gì. Nhảy / nhún ở đây là ngoại lệ có chủ
+  đích của §6 (chỉ trên bàn chơi, không dùng cho UI app).
+- **Bàn Cờ vây · Vây sao** (cùng bản, 2026-11-14): cùng ngoại lệ — trời đêm tinh vân, lưới phát sáng, Đen là hành tinh có
+  vành, Trắng là ngôi sao (vẽ bằng CSS, cỡ theo khoảng cách đường kẻ — bàn 588 cho cả 9 / 13 / 19). Màu đất lúc đếm, ảnh đại
+  diện (`SKY`) viết cứng; nút Đặt quân / Bỏ lượt, bảng điểm dưới bàn vẫn dùng token. Hiệu ứng `cv*` / `csSwirl` / `csCore`.
+- **Skin "Sinh động" Cờ vua / Cờ tướng** (cùng bản, 2026-11-14): quân là ảnh nhân vật (`CHESS_ART` Mặt Trời / Mặt Trăng,
+  `XIANGQI_ART` Đỏ / Đen — `characters.js`), đầu quân nhô lên ô / điểm phía trên (bàn không cắt tràn, ảnh không bắt chuột).
+  Cờ vua ô chuyển màu theo hàng (`L` / `D` là hàm); Cờ tướng mặt gỗ + dòng nước sông (`water`). Quân úp Cờ úp vẫn quân
+  tròn. Nhãn nổi trên ô (`ChessFx pills`: Nhập thành · Thăng cấp / Hồi sinh · qua sông), lồng chiếu bí (`MateCage`, màn
+  kết thúc hiện trễ `overDelay`), cảnh đấu / thăng cấp khi bật Cận cảnh (`du*` / `rise*` / `mt*` trong `effects.css`).
+  Điện thoại: phòng các game này thay cột tab dưới bàn bằng thanh nhắn (`RoomChat dock`) + tấm trượt "Phòng" (Dialog sheet).
 - **Lá bài dùng chung** (`PlayingCard.jsx`, theo bản "Tien Len"): mặt ngà + lưng sọc đỏ, bảng màu `CARD` (`stage.js`) viết cứng, giữ
   nguyên ở sáng / tối. Tiến lên, Xì dách, Phỏm, Ba cây dùng chung `Card` (cỡ `w`; ≥ 56px in góc, nhỏ hơn in giữa) / `CardFace`;
   Phỏm, Ba cây truyền `faces` = `RANK_FACES` của `phom.js` (hạng 0 là A). Bài bịp (bộ Q/K/A/Joker) vẽ riêng nhưng dùng `CARD`.
