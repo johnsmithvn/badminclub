@@ -21,12 +21,16 @@
 // Vòng ô (chiều +1), R = rows, P = quans, N = P·(R+1):
 //   quan của "đoạn" k ở ô k·(R+1) · dân của ghế k là k·(R+1)+1 … k·(R+1)+R.
 //   2 quan, 5 ô: 0 = quan trái · 1..5 = ghế 0 (hàng dưới, trái → phải) · 6 = quan phải · 7..11 = ghế 1 (hàng trên).
-// state = { opts, stones[N], quan[N], score[P], quanValue, turn, ply, over, winners, last, since }
+// state = { opts, stones[N], quan[N], score[P], out[P], quanValue, turn, ply, over, winners, last, since }
 //   last = { seat, cell, dir, taken[], frames[], timeout? } — frames: từng bước của nước vừa đi để bàn diễn lại
 //   since = giờ server (ms) của nước gần nhất — tính hạn lượt khi có đồng hồ.
+//   out  = ghế đã rời ván (bàn 3 quan): mất lượt từ đó, không được tính thắng; ô dân của họ vẫn nằm trên bàn, người
+//          khác vẫn rải qua / ăn được, hết ván dân còn bên đó vẫn về điểm của họ (không ai hưởng).
 // move  = { cell, dir } — cell là ô dân của mình, dir ∈ { 1, -1 }
 //       · { timeout: true } (máy khách báo hết giờ) → server ghi { cell, dir, timeout: true } đi thay người tới lượt
 //       · { start: true } — server ghi lúc bắt đầu phòng có đồng hồ (0104 game_oanquan_deal), chỉ để lấy giờ.
+//       · { out: true } — server ghi khi người đó rời ván / mất kết nối mà bàn còn ≥ 2 người (game_leave / game_claim).
+//         KHÔNG đổi ply / last: bàn không diễn lại nước cũ, chỉ chuyển lượt (0108 game_oanquan_run chép y vậy).
 
 export const QUANS = [2, 3]
 export const ROWS = [5, 6, 7]
@@ -78,14 +82,43 @@ export function queueStates(q, s) {
   return s.ply === tail.ply ? [...q.slice(0, -1), s] : [...q, s]
 }
 
-/** Hết quan, tàn dân: sỏi còn bên nào về bên đó, ô quan (nếu còn sỏi lẻ) không của ai. */
+/** Ghế kế tiếp còn trong ván sau `seat` (vòng tròn). */
+function nextSeat(s, seat) {
+  for (let k = 1; k <= s.opts.quans; k++) {
+    const y = (seat + k) % s.opts.quans
+    if (!s.out[y]) return y
+  }
+  return seat
+}
+
+/**
+ * Hết quan, tàn dân: sỏi còn bên nào về bên đó, ô quan (nếu còn sỏi lẻ) không của ai.
+ * Người thắng = điểm cao nhất trong những người CÒN trong ván. Cả bàn bằng điểm = hoà; đã có người rời thì người rời
+ * thua, những người còn lại bằng điểm nhau là cùng thắng (không tính hoà — hoà là người bỏ ván không mất gì).
+ */
 function sweep(s) {
   for (let seat = 0; seat < s.opts.quans; seat++) {
     for (const i of sideOf(s, seat)) { s.score[seat] += s.stones[i]; s.stones[i] = 0 }
   }
   s.over = true
-  const top = Math.max(...s.score)
-  s.winners = s.score.every((x) => x === top) ? [] : s.score.flatMap((x, k) => (x === top ? [k] : []))
+  const live = s.score.flatMap((_, k) => (s.out[k] ? [] : [k]))
+  const top = Math.max(...live.map((k) => s.score[k]))
+  const tops = live.filter((k) => s.score[k] === top)
+  s.winners = tops.length === s.opts.quans ? [] : tops
+}
+
+/**
+ * Đầu lượt của `s.turn`: hết quan → thu quân, hết ván; người sắp đi hết dân bên mình → rải lại mỗi ô một viên từ điểm
+ * của mình, không đủ điểm thì hết ván. `snap` ghi bước cho bàn diễn lại.
+ */
+function startTurn(s, snap) {
+  if (quanCells(s).every((q) => empty(s, q))) { sweep(s); snap('sweep', null); return }
+  const side = sideOf(s, s.turn)
+  if (!side.every((k) => s.stones[k] === 0)) return
+  if (s.score[s.turn] < side.length) { sweep(s); snap('sweep', null); return }
+  s.score[s.turn] -= side.length
+  for (const k of side) s.stones[k] = 1
+  snap('refill', s.turn)
 }
 
 const game = {
@@ -102,11 +135,16 @@ const game = {
     const stones = Array(N).fill(opts.stones)
     const quan = Array(N).fill(false)
     for (let k = 0; k < opts.quans; k++) { stones[k * (opts.rows + 1)] = 0; quan[k * (opts.rows + 1)] = true }
-    return { opts, stones, quan, score: Array(opts.quans).fill(0), quanValue: QUAN_VALUE, turn: 0, ply: 0, over: false, winners: null, last: null, since: null }
+    return {
+      opts, stones, quan, score: Array(opts.quans).fill(0), out: Array(opts.quans).fill(false), quanValue: QUAN_VALUE,
+      turn: 0, ply: 0, over: false, winners: null, last: null, since: null,
+    }
   },
 
   validate(s, seat, move) {
     if (s.over) return 'games.err.over'
+    // Chỉ server ghi (0108 từ chối máy khách gửi): ghế còn trong ván mới rời được.
+    if (move?.out === true) return Number.isInteger(seat) && seat >= 0 && seat < s.opts.quans && !s.out[seat] ? null : 'games.err.badMove'
     if (move?.start === true) return s.ply === 0 && s.since == null ? null : 'games.err.badMove'
     if (move?.timeout === true) {
       // Máy khách báo hết giờ (chưa có ô): server mới biết giờ thật — sớm thì games.err.notYet, máy tự thử lại.
@@ -128,6 +166,16 @@ const game = {
     const at = Date.parse(meta?.at)
     const stamp = (s) => (Number.isFinite(at) ? { ...s, since: at } : s)
     if (move.start === true) return stamp(s0)
+    if (move.out === true) {
+      const s = { ...s0, stones: s0.stones.slice(), quan: s0.quan.slice(), score: s0.score.slice(), out: s0.out.map((o, i) => o || i === seat0) }
+      // Còn ≤ 1 người: hết ván (thực tế server đã xử thắng người còn lại trước khi tới đây).
+      if (s.out.filter((o) => !o).length <= 1) { sweep(s); return stamp(s) }
+      // Không phải lượt người rời: lượt và hạn giờ giữ nguyên.
+      if (s0.turn !== seat0) return s
+      s.turn = nextSeat(s, seat0)
+      startTurn(s, () => {})
+      return stamp(s)
+    }
     if (move.timeout === true && move.cell === undefined) return s0 // chưa qua server
     const seat = move.timeout === true ? s0.turn : seat0
     const { cell, dir } = move
@@ -174,19 +222,9 @@ const game = {
     }
 
     s.last = { seat, cell, dir, taken, frames, ...(move.timeout === true ? { timeout: true } : {}) }
-    s.turn = (seat + 1) % s.opts.quans
+    s.turn = nextSeat(s, seat)
     s.ply = s0.ply + 1
-
-    if (quanCells(s).every((q) => empty(s, q))) { sweep(s); snap('sweep', null); return stamp(s) }
-
-    // Người sắp đi hết dân bên mình → rải lại mỗi ô một viên từ điểm của mình, không đủ thì hết ván.
-    const side = sideOf(s, s.turn)
-    if (side.every((k) => s.stones[k] === 0)) {
-      if (s.score[s.turn] < side.length) { sweep(s); snap('sweep', null); return stamp(s) }
-      s.score[s.turn] -= side.length
-      for (const k of side) s.stones[k] = 1
-      snap('refill', s.turn)
-    }
+    startTurn(s, snap)
     return stamp(s)
   },
 

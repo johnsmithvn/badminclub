@@ -6447,7 +6447,12 @@
       "hintPick": "Chọn một quân của bạn để nhấc",
       "hintDrop": "Chọn ô trống để đặt quân sang",
       "hintFade": "Quân mờ sẽ biến mất khi bạn đặt quân mới",
-      "howto": "Hai người lần lượt đặt quân vào ô trống: X đi trước, O đi sau. Ai có 3 quân liền nhau theo hàng ngang, dọc hoặc chéo trước là thắng.\nCổ điển: đặt tới khi đầy bàn; đầy 9 ô mà chưa ai thắng thì hoà.\n3 quân di chuyển: mỗi bên chỉ có 3 quân. Đặt đủ 3 quân rồi mà chưa ai thắng thì mỗi lượt nhấc một quân của mình sang ô trống bất kỳ (bấm quân, rồi bấm ô).\nQuân cũ tự biến mất: đã có 3 quân thì khi đặt quân mới, quân đặt sớm nhất của bạn biến mất (quân sắp mất hiện mờ).\nHai chế độ sau: mỗi bên đi đủ 30 lượt mà chưa ai thắng thì hoà."
+      "time": "Thời gian mỗi nước",
+      "timeOpt": "{{n}} giây",
+      "timeNone": "Không giới hạn",
+      "timerAria": "Thời gian còn lại của lượt",
+      "skipped": "{{who}} hết giờ — mất lượt",
+      "howto": "Hai người lần lượt đặt quân vào ô trống: X đi trước, O đi sau. Ai có 3 quân liền nhau theo hàng ngang, dọc hoặc chéo trước là thắng.\nCổ điển: đặt tới khi đầy bàn; đầy 9 ô mà chưa ai thắng thì hoà.\n3 quân di chuyển: mỗi bên chỉ có 3 quân. Đặt đủ 3 quân rồi mà chưa ai thắng thì mỗi lượt nhấc một quân của mình sang ô trống bất kỳ (bấm quân, rồi bấm ô).\nQuân cũ tự biến mất: đã có 3 quân thì khi đặt quân mới, quân đặt sớm nhất của bạn biến mất (quân sắp mất hiện mờ).\nHai chế độ sau: mỗi bên đi đủ 30 lượt mà chưa ai thắng thì hoà.\nĐồng hồ (chủ phòng chọn 3, 5, 10 giây hoặc không giới hạn): từ nước thứ hai, hết giờ mà chưa đi thì mất lượt — không được đặt quân, đối thủ đi tiếp. Lượt bị mất cũng tính vào 30 lượt."
     },
     "oanquan": {
       "name": "Ô ăn quan",

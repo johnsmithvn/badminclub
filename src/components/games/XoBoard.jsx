@@ -1,21 +1,50 @@
-import { useState } from 'react'
+import { useEffect, useRef, useState } from 'react'
 import { CELL, Mark } from '#components/games/CaroBoard.jsx'
-import { CAP, fadingOf, moving } from '#lib/games/xo.js'
+import { CAP, deadlineOf, fadingOf, moving } from '#lib/games/xo.js'
 import { t } from '#i18n'
 
 /**
  * Bàn Cờ X-O 3 × 3 — cùng nét vẽ với bàn Caro (Mark, CELL). Luật ở lib/games/xo.js.
  * Chế độ 3 quân di chuyển: đủ quân thì bấm một quân của mình (viền sáng) rồi bấm ô trống để nhấc sang.
  * Chế độ quân cũ biến mất: quân sắp mất của người tới lượt hiện mờ.
+ * Đồng hồ lượt (0109): thanh giờ dưới bàn; hết giờ máy tự báo { timeout }, server so giờ rồi cho mất lượt.
  */
 const N = 3
 const SPAN = N * CELL
+const SYM = ['X', 'O']
+
+/** Đồng hồ máy, nhích 10 lần mỗi giây khi lượt có hạn giờ (lượt chỉ 3 giây nên cần mịn hơn các bàn khác). */
+function useNow(on) {
+  const [now, setNow] = useState(() => Date.now())
+  useEffect(() => {
+    if (!on) return undefined
+    const id = setInterval(() => setNow(Date.now()), 100)
+    return () => clearInterval(id)
+  }, [on])
+  return now
+}
 
 export default function XoBoard({ state, mySeat, canMove, onMove }) {
   const { board, last, line, mode } = state
   const [hover, setHover] = useState(null)
   const [pick, setPick] = useState({ ply: -1, from: null }) // quân đang chọn để nhấc — gắn với số nước, sang nước mới tự bỏ
   const from = pick.ply === state.ply ? pick.from : null
+
+  // Đồng hồ lượt → tự báo { timeout }: người tới lượt báo trước, đối thủ chờ thêm (phòng khi máy kia đã tắt).
+  // Server đo bằng giờ của nó; chưa tới thì im lặng (games.err.notYet), mỗi 1,5 giây thử lại.
+  const due = deadlineOf(state)
+  const now = useNow(due != null)
+  const sent = useRef('')
+  useEffect(() => {
+    if (due == null || mySeat == null) return
+    const at = due + (state.turn === mySeat ? 250 : 900)
+    if (now < at) return
+    const tag = state.ply + ':' + Math.floor((now - at) / 1500)
+    if (sent.current === tag) return
+    sent.current = tag
+    onMove({ timeout: true })
+  }, [due, mySeat, now, state.turn, state.ply, onMove])
+  const leftMs = due != null ? Math.max(0, due - now) : null
   const lifting = canMove && moving(state, mySeat)
   const fading = state.over ? null : fadingOf(state, state.turn)
   const win = new Set(line || [])
@@ -40,9 +69,10 @@ export default function XoBoard({ state, mySeat, canMove, onMove }) {
   }
   const ghostOk = (i) => i != null && board[i] == null && (!lifting || from != null)
 
-  const hint = !canMove || state.over ? ''
-    : lifting ? t(from == null ? 'games.xo.hintPick' : 'games.xo.hintDrop')
-      : fading != null ? t('games.xo.hintFade') : ''
+  const hint = last?.skip && !state.over ? t('games.xo.skipped', { who: SYM[last.seat] })
+    : !canMove || state.over ? ''
+      : lifting ? t(from == null ? 'games.xo.hintPick' : 'games.xo.hintDrop')
+        : fading != null ? t('games.xo.hintFade') : ''
   const left = mode !== 'classic' && !state.over ? CAP - Math.floor(state.ply / 2) : null
 
   return (
@@ -88,6 +118,15 @@ export default function XoBoard({ state, mySeat, canMove, onMove }) {
             stroke="var(--status-delivered-fg)" strokeWidth={5} strokeLinecap="round" opacity={0.45} />
         )}
       </svg>
+      {/* Thanh giờ của lượt đang đi: cạn dần, đỏ khi còn dưới 1 giây. Phòng không tính giờ / chưa có nước đầu thì không vẽ. */}
+      {leftMs != null && (
+        <div role="timer" aria-label={t('games.xo.timerAria')} style={{ width: '100%', maxWidth: 330, height: 4, borderRadius: 99, background: 'var(--border-default)', overflow: 'hidden' }}>
+          <div style={{
+            width: Math.min(100, (leftMs / (state.time * 1000)) * 100) + '%', height: '100%', borderRadius: 99,
+            background: leftMs <= 1000 ? 'var(--status-incident-fg)' : 'var(--status-delivered-fg)', transition: 'width .1s linear',
+          }} />
+        </div>
+      )}
       <span style={{ font: 'var(--type-caption)', color: 'var(--text-muted)', textAlign: 'center', minHeight: 18 }}>
         {t('games.xo.modeOpt.' + mode)}{left != null ? ' · ' + t('games.xo.turnsLeft', { n: left }) : ''}{hint ? ' · ' + hint : ''}
       </span>

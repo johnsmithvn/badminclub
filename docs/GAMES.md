@@ -1,6 +1,6 @@
 # GAMES.md — Phân hệ Mini-game trong CLB
 
-**Version:** v0.10.0 (Giai đoạn 1 — Caro, Ô ăn quan, Cờ gánh, Cờ lật, Chấm ô; Giai đoạn 2 — Tiến lên, Cờ vua, Cờ tướng, Cờ cá ngựa, Bắn tàu, Domino; Giai đoạn 3 — Bài bịp, Nối từ, Ma sói; 0085 — mất kết nối chỉ xử người ván đang chờ; 0086 — Ma sói: Sói được cắn Sói; 0087 — Ma sói: chủ phòng tự chọn bộ vai; 0088 — Caro bàn X-O 3 × 3; 0089 — Cờ vây; 0090 — Phỏm; 0091 — Bảng xếp hạng game; 0092 — Ba cây; 0093 — Xu ảo; 0094–0098 — Tiến lên miền Bắc, Cờ úp, Bầu cua, Lô tô, Xì dách; 0099–0100 — Nối từ có từ điển; Chơi với máy (§7b)) · **Updated:** 2026-11-10 · **Nhánh:** `feat/games`
+**Version:** v0.10.0 (Giai đoạn 1 — Caro, Ô ăn quan, Cờ gánh, Cờ lật, Chấm ô; Giai đoạn 2 — Tiến lên, Cờ vua, Cờ tướng, Cờ cá ngựa, Bắn tàu, Domino; Giai đoạn 3 — Bài bịp, Nối từ, Ma sói; 0085 — mất kết nối chỉ xử người ván đang chờ; 0086 — Ma sói: Sói được cắn Sói; 0087 — Ma sói: chủ phòng tự chọn bộ vai; 0088 — Caro bàn X-O 3 × 3; 0089 — Cờ vây; 0090 — Phỏm; 0091 — Bảng xếp hạng game; 0092 — Ba cây; 0093 — Xu ảo; 0094–0098 — Tiến lên miền Bắc, Cờ úp, Bầu cua, Lô tô, Xì dách; 0099–0100 — Nối từ có từ điển; Chơi với máy (§7b); 0108 — Ô ăn quan 3 quan: người rời ván không còn làm kẹt ván; 0109 — Cờ X-O: đồng hồ lượt, hết giờ mất lượt) · **Updated:** 2026-11-13 · **Nhánh:** `feat/games`
 
 Thành viên cùng một CLB mở phòng và chơi game theo lượt với nhau ngay trong app.
 File này chốt **khung chung** trước khi viết game đầu tiên. Mỗi game sau này chỉ cắm vào khung,
@@ -531,7 +531,8 @@ nút **Chơi với máy** → `/tro-choi/may-<game>`; `GameRoom.jsx` thấy ti�
   đầu bàn kể cả ăn quan, quan non (§12), hai ô trống liền mất lượt, rải lại khi hết dân (đủ đúng 5 điểm vẫn
   được), hết quan thu dân về, hoà, `frames` cho hoạt ảnh; 300 ván ngẫu nhiên tất định luôn kết thúc và không
   sinh / mất sỏi; hằng số + ván mẫu khớp SQL (§5.1). Tuỳ chọn 0104: optsOf ↔ SQL, bàn 3 quan, nhón, 3 người cùng
-  điểm đầu, hết giờ ({ start } / { timeout }), ván ngẫu nhiên mọi biến thể.
+  điểm đầu, hết giờ ({ start } / { timeout }), ván ngẫu nhiên mọi biến thể. Người rời ván 0108: rời lúc chưa tới lượt /
+  đúng lượt, người kế hết dân, chấm khi có người rời, 160 ván 3 quan có người rời ngẫu nhiên, gác SQL 0108 áp `{ out }`.
 - `chessclock.test.js` — đồng hồ tổng Cờ vua / Cờ tướng (trừ giờ theo dòng log, cộng 5 giây, hết giờ, đi muộn), xin hoà
   (không tự nhận, đi nước thường = từ chối), SAN cờ vua, ký hiệu Việt cờ tướng, gác 0105 chép đúng `INC_SEC` / phút /
   `needReady` / giữ `stake`.
@@ -559,7 +560,9 @@ nút **Chơi với máy** → `/tro-choi/may-<game>`; `GameRoom.jsx` thấy ti�
   hai lần bỏ lượt hết ván, điểm vùng + komi, trần số nước, nước rác; hằng số + bộ ván mẫu khớp SQL 0089.
   `caro.test.js` thêm bàn X-O 3 × 3 (3 quân thắng, hoà khi đầy) và game_create 0088 nhận cỡ 3.
 - `xo.test.js` — Cờ X-O 3 chế độ: thắng / hoà, phải di quân khi đủ 3 quân, quân cũ biến mất, hoà khi hết lượt; hằng số +
-  bộ ván mẫu khớp SQL 0107. `caro.test.js` thêm luật đúng 5 quân, `game_caro_result` / `game_create` bản 0107.
+  bộ ván mẫu khớp SQL 0107. Đồng hồ lượt 0109: tuỳ chọn `time`, hạn lượt (nước đầu / nước chưa có giờ server không tính),
+  báo hết giờ phải qua server, mất lượt, hai bên bỏ mặc vẫn hết ván, cổ điển hoà lúc đầy bàn, gác SQL 0109 (mức giờ, dấu
+  `skip`, `notYet`, chữ ký hàm, quyền). `caro.test.js` thêm luật đúng 5 quân, `game_caro_result` / `game_create` bản 0107.
 - `fixtures.mjs` — không phải test: sinh lại bộ ván mẫu trong file kiểm 0075, 0076, 0077, 0089, 0090 và 0107 (§5.1). Chạy xong
   xem `git diff`: các khối cũ phải không đổi nội dung (máy Windows có thể đổi xuống dòng CRLF → LF — trả lại bằng
   `git checkout` file đó).
@@ -649,6 +652,16 @@ bằng = hoà) · **rows** 5 | 6 | 7 ô dân mỗi hàng (rải lại cần đú
 rồi xét tiếp như vừa rải xong ở đó (chỉ nhón dân, không bao giờ nhón quan; quan không còn dân thì dừng như luật thường) · **time** 0 | 20 | 30 | 50 giây mỗi nước theo giờ server (mẫu Bài bịp: phòng có đồng
 hồ được `game_oanquan_deal` ghi nước 1 `{ start }` lấy giờ; máy báo `{ timeout }`, server đi thay một ô ngẫu nhiên).
 Phòng máy: chọn kiểu bàn trong ⚙, bàn 3 quan = bạn + 2 máy. Thiếu người ở phòng thật **chưa** tự thêm máy.
+**Người rời ván bàn 3 quan (0108, 2026-11-13):** nước `{ out: true }` server ghi (§5.2) trước đây bị luật bỏ qua → lượt đứng
+mãi ở ghế đã rời, phòng không đồng hồ kẹt hẳn. Giờ: ghế rời mất lượt từ đó (`state.out`, `nextSeat`), không được tính thắng;
+ô dân của họ vẫn nằm trên bàn (người khác rải qua / ăn được), hết ván dân còn bên đó vẫn về điểm của họ. Đang tới lượt người
+rời thì lượt sang ghế kế còn trong ván, tính giờ lại từ nước `{ out }`; không phải lượt họ thì lượt và hạn giờ giữ nguyên.
+`{ out }` không tăng `ply`, không đổi `last` (bàn không diễn lại nước cũ). Chấm: điểm cao nhất trong những người còn trong
+ván; cả bàn bằng điểm = hoà, đã có người rời thì những người còn lại bằng điểm là cùng thắng (người rời thua cược).
+`game_oanquan_run` bản 0108 = bản 0104 + các chỗ ghi chú "0108" (thêm cột ra `o_out` nên phải DROP rồi tạo lại).
+ponytail: bàn chưa vẽ dấu "đã rời" trên hàng của người rời — chỉ thấy lượt bỏ qua họ; thêm nhãn ở `OAnQuanBoard` nếu cần.
+Phòng có đồng hồ đang chơi dở lúc chạy 0108 mà đã có người rời: các nước server đi thay người rời (trước 0108) sẽ bị bỏ
+qua khi dựng lại — ván đó nên chơi lại (tính năng mới 2 ngày, gần như không có phòng nào như vậy).
 
 **Cờ gánh** (`coganh.js`): bàn 5×5, đường chéo chỉ qua điểm có hàng + cột chẵn, mỗi bên 8 quân. Đi một bước
 theo đường kẻ. **Gánh**: đi vào giữa hai quân địch thẳng hàng thì lật cả hai. **Vây**: nhóm quân địch không còn
@@ -816,7 +829,20 @@ vào pointer event khi `touch-action: pan-x pan-y` — trình duyệt nào giàn
 - **Quân cũ tự biến mất** (`vanish`): luôn đặt `{ i }`; đã có 3 quân thì quân đặt sớm nhất của mình biến mất cùng lúc.
   Ô của quân sắp mất vẫn đang có quân — không đặt đè lên được. Màn chơi hiện mờ quân sắp mất của người tới lượt.
 - `move` / `vanish` không bao giờ đầy bàn: đủ `CAP` = 30 lượt mỗi bên (60 nước) mà chưa ai thắng thì hoà.
-- Server tự chấm: `game_xo_result` (0107; `game_finish` 0075 tự tìm `game_<id>_result`) — bộ ván mẫu chung khối `$xo$`
+- **Đồng hồ lượt, hết giờ thì mất lượt** (0109, chủ dự án chốt 2026-11-13): `options.time` = 3 | 5 | 10 giây mỗi nước (khác =
+  không tính giờ — mọi phòng tạo trước 0109; phòng mới mặc định 3). Hạn = `created_at` của lượt hợp lệ gần nhất + time
+  (`deadlineOf`); **nước đầu ván không tính giờ** (bàn vừa hiện ra đã mất gần một giây tải — chưa có `{ start }` như Ô ăn
+  quan). Hết giờ máy bất kỳ đang ngồi báo `{ timeout: true }` (`request` → không áp trước; người tới lượt báo sau 0,25 giây,
+  đối thủ sau 0,9 giây); `game_xo_check` so `now()` với hạn (`games.err.notYet` nếu sớm) rồi `game_xo_fill` đóng dấu
+  `{ timeout: true, skip: true }`. Dòng có `skip` = người tới lượt **mất lượt**: không đặt quân, lượt sang đối thủ, tính
+  giờ lại từ dòng đó. Chỉ dòng có `skip` mới tính (máy khách tự gửi `skip` bị từ chối; DB chưa chạy 0109 thì dòng trơn bị
+  mọi máy bỏ qua). Lượt bị mất vẫn tính vào `ply` nên hai bên cùng bỏ mặc thì hoà sau 60 lượt. Luật hoà viết lại cho đúng
+  khi có lượt mất: **đầy bàn hoặc đủ 60 lượt** (cổ điển không mất lượt thì đầy bàn đúng ở lượt 9 như cũ — bộ ván mẫu 0107
+  không đổi). Nước thường vẫn không kiểm ở server (§5.1). Màn chơi: thanh giờ dưới bàn (đỏ khi còn dưới 1 giây), dòng "X /
+  O hết giờ — mất lượt". Phòng máy tắt đồng hồ này (`time: 0`, dùng đồng hồ mỗi nước của phòng máy).
+  ponytail: 3 giây tính theo giờ server nên mạng trễ ~0,5 giây là mất chừng ấy thời gian nghĩ; nước gửi sau hạn vẫn được
+  nhận nếu tới trước dòng báo hết giờ. Cần chặt hơn thì cho `game_xo_check` từ chối nước thường đã quá hạn.
+- Server tự chấm: `game_xo_run` / `game_xo_result` (0109; bản đầu 0107; `game_finish` 0075 tự tìm `game_<id>_result`) — bộ ván mẫu chung khối `$xo$`
   của `supabase/manual/0107_games_xo_check.sql`. Có cược như Caro (kết quả server chấm). Bot: minimax (`XO` ở search.js),
   mức Khó tìm sâu 9 nửa nước — ván cổ điển là tìm hết; phòng máy chọn chế độ trong ⚙. Để sau: X-O lồng (9 bàn con).
 

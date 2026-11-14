@@ -1,7 +1,7 @@
 import { BOARD_POINTS, NO_STAKE, buyinsOf, stakeOf } from '#lib/games/registry.js'
 import { DICTS as NOITU_DICTS, REPEATS as NOITU_REPEATS, TIMES as NOITU_TIMES } from '#lib/games/noitu.js'
 import { SIZES as COVAY_SIZES } from '#lib/games/covay.js'
-import { MODES as XO_MODES } from '#lib/games/xo.js'
+import { MODES as XO_MODES, TIMES as XO_TIMES } from '#lib/games/xo.js'
 import { DAY_TIMES as MASOI_TIMES, REVEALS as MASOI_REVEALS, GUARD, SEER, WITCH, WOLF, isWolf, lineupOf } from '#lib/games/masoi.js'
 import { TIMES as BAIBIP_TIMES } from '#lib/games/baibip.js'
 import { LEADS as TIENLEN_LEADS, TIMES as TIENLEN_TIMES, VARIANTS as TIENLEN_VARIANTS } from '#lib/games/tienlen.js'
@@ -18,7 +18,7 @@ import cfg from '#config/app.js'
 // "nhãn — giá trị". Thêm tuỳ chọn mới cho game nào thì thêm ở đây là cả hai chỗ cùng thấy.
 
 // Game có đồng hồ / số vòng chọn lúc tạo phòng: chữ ở games.<id>.time · timeOpt · timeNone (0 = tắt) · laps · lapsOpt.
-const TIME_OPTS = { baucua: BAUCUA_TIMES, loto: LOTO_TIMES, xidach: XIDACH_TIMES, oanquan: OQ_TIMES, tienlen: TIENLEN_TIMES }
+const TIME_OPTS = { baucua: BAUCUA_TIMES, loto: LOTO_TIMES, xidach: XIDACH_TIMES, oanquan: OQ_TIMES, tienlen: TIENLEN_TIMES, xo: XO_TIMES }
 const LAP_OPTS = { baucua: BAUCUA_LAPS, xidach: XIDACH_LAPS }
 const MASOI_CUSTOM = [WOLF, WOLF, SEER, GUARD, WITCH]
 const CHESS = ['covua', 'cotuong']

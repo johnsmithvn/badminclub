@@ -47,7 +47,7 @@ const OQ = { quans: [2, 3], rows: [5, 6, 7], stones: [5, 6, 7] }
 // Game bài: tắt đồng hồ lượt của phòng thật (cần server đi thay) — phòng máy dùng prefs.time.
 // Cờ X-O: chế độ chọn trong ⚙ (prefs.xo).
 const variantOf = (gameId, p) => (gameId === 'oanquan' ? { ...p.oq, time: 0 } : CHESS.includes(gameId) ? { clock: p.clock ?? 10 }
-  : CARD_GAMES.includes(gameId) ? { time: 0 } : gameId === 'xo' ? { mode: p.xo || 'classic' } : undefined)
+  : CARD_GAMES.includes(gameId) ? { time: 0 } : gameId === 'xo' ? { mode: p.xo || 'classic', time: 0 } : undefined)
 
 /** Ván mới: thế ban đầu; game bài thì nhà cái trong máy chia bài luôn (như server ghi nước chia lúc bắt đầu ván). */
 function freshGame(game, gameId, n, opts) {

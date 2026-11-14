@@ -154,16 +154,28 @@ const total = (s) => s.stones.reduce((a, b) => a + b, 0) + s.score.reduce((a, b)
   }
 }
 
-// Server chấm lại bằng SQL (0104: game_oanquan_run, thay luật cố định của 0075). Không có Postgres trong test nên gác hai lớp:
+// Server chấm lại bằng SQL (game_oanquan_run — bản đang chạy là 0108, chép 0104 + người rời ván). Không có Postgres trong
+// test nên gác hai lớp:
 //   1. Hằng số luật trong SQL = hằng số JS.
 //   2. Bộ ván mẫu nhúng trong file kiểm tay 0075 — JS chấm ở đây phải ra đúng kết quả ghi trong đó;
 //      file kiểm tay chạy trên DB thật bắt SQL chấm ra đúng kết quả đó. Hai đầu cùng một bộ ván.
 {
+  // Hàm deal vẫn ở 0104; _run / _result bản mới nhất ở 0108.
   const sql = readFileSync('supabase/migrations/0104_games_oanquan_rules.sql', 'utf8')
-  const fn = sql.slice(sql.indexOf('FUNCTION public.game_oanquan_run'), sql.indexOf('FUNCTION public.game_oanquan_result'))
+  const sql8 = readFileSync('supabase/migrations/0108_games_oanquan_out.sql', 'utf8')
+  const fn = sql8.slice(sql8.indexOf('FUNCTION public.game_oanquan_run'), sql8.indexOf('FUNCTION public.game_oanquan_result'))
   for (const [name, v] of [['c_quan', QUAN_VALUE], ['c_non', QUAN_NON], ['c_max', MAX_STEPS]]) {
-    assert.ok(new RegExp(name + ' +CONSTANT int := ' + v + ';').test(fn), name + ' trong 0104 phải = ' + v + ' như JS')
+    assert.ok(new RegExp(name + ' +CONSTANT int := ' + v + ';').test(fn), name + ' trong 0108 phải = ' + v + ' như JS')
   }
+  // Người rời ván (0108): server phải áp nước { out } y như JS — thiếu là ván 3 quan kẹt ở ghế đã rời, xu cược bị giữ.
+  assert.ok(fn.includes("ELSIF m.move -> 'out' = 'true'::jsonb THEN"), '0108 phải nhận nước { out } trong log')
+  assert.ok(/IF m\.probe OR [^;]*v_out\[v_seat \+ 1\] THEN v_err := 'games\.err\.badMove'/.test(fn), '{ out } chỉ server ghi: máy khách gửi (probe) phải bị từ chối')
+  assert.ok(fn.includes('IF NOT v_out[y + 1] THEN v_turn := y; EXIT; END IF;'), 'lượt phải sang ghế kế CÒN trong ván')
+  // \s+ chứ không so nguyên xuống dòng: máy Windows checkout ra CRLF.
+  assert.ok(/ELSIF v_seat <> v_turn THEN\s+CONTINUE;/.test(fn), 'người rời không tới lượt: lượt và hạn giờ giữ nguyên')
+  const res = sql8.slice(sql8.indexOf('FUNCTION public.game_oanquan_result'), sql8.indexOf('FUNCTION public.game_oanquan_check'))
+  assert.ok(res.includes('WHERE NOT r.o_out[i] AND r.o_score[i] = v_top'), 'người rời không được tính thắng')
+  assert.ok(res.includes('jsonb_array_length(v_win) = r.o_quans'), 'chỉ hoà khi CẢ BÀN bằng điểm')
   // optsOf ↔ SQL: cùng tập giá trị, cùng mặc định.
   const has = (x, msg) => assert.ok(fn.includes(x), msg || 'game_oanquan_run thiếu: ' + x)
   assert.deepEqual(optsOf({}), { quans: 2, rows: 5, stones: 5, nhon: false, time: 0 })
@@ -258,6 +270,115 @@ const total = (s) => s.stones.reduce((a, b) => a + b, 0) + s.score.reduce((a, b)
   assert.deepEqual(oq.result(end([1, 0, 9])), { winners: [2], draw: false })
   assert.deepEqual(oq.result(end([7, 0, 7])), { winners: [0, 2], draw: false })
   assert.deepEqual(oq.result(end([0, 1, 0])), { winners: [], draw: true })
+}
+
+// ---------- Người rời ván 3 quan (0108) ----------
+// Server ghi { out } khi bàn còn ≥ 2 người. Trước đây luật bỏ qua nước này: lượt đứng mãi ở ghế đã rời, ván kẹt, xu cược bị giữ.
+
+// Rời lúc CHƯA tới lượt: lượt + hạn giờ giữ nguyên; tới vòng thì bỏ qua ghế đó.
+{
+  const s0 = oq.apply(fresh({ quans: 3, time: 30 }), 0, { start: true }, { at: '2026-11-13T10:00:00Z' })
+  assert.deepEqual(s0.out, [false, false, false])
+  assert.equal(oq.validate(s0, 2, { out: true }), null)
+  const s1 = oq.apply(s0, 2, { out: true }, { at: '2026-11-13T10:00:10Z' })
+  assert.deepEqual(s1.out, [false, false, true])
+  assert.equal(s1.turn, 0, 'chưa tới lượt người rời thì lượt không đổi')
+  assert.equal(deadlineOf(s1), deadlineOf(s0), 'người khác rời không được làm người đang nghĩ có thêm / mất giờ')
+  assert.equal(s1.ply, s0.ply, '{ out } không tính là một nước: đổi ply là bàn diễn lại nước cũ')
+  assert.equal(oq.validate(s1, 2, { out: true }), 'games.err.badMove', 'đã rời rồi thì không rời lần nữa')
+  assert.equal(oq.validate(s1, 5, { out: true }), 'games.err.badMove')
+  const s2 = oq.apply(s1, 0, { cell: 1, dir: -1 }, { at: '2026-11-13T10:00:12Z' }) // rải 1 viên sang ô quan 0, dừng trước ô 17
+  const s3 = oq.apply(s2, s2.turn, { cell: sideOf(s2, s2.turn).find((c) => s2.stones[c] > 0), dir: 1 })
+  assert.equal(s2.turn, 1)
+  assert.equal(s3.turn, 0, 'sau ghế 1 phải về ghế 0, bỏ qua ghế 2 đã rời')
+}
+
+// Rời đúng lúc TỚI LƯỢT: lượt sang người kế còn trong ván, tính giờ lại từ lúc rời. Dựng lại từ log cũng vậy.
+{
+  const room = { options: { quans: 3, time: 20 }, seed: 'x', seats: [0, 1, 2] }
+  const log = [
+    { seq: 1, seat: 0, move: { start: true }, at: '2026-11-13T10:00:00Z' },
+    { seq: 2, seat: 0, move: { cell: 1, dir: 1 }, at: '2026-11-13T10:00:05Z' },
+    { seq: 3, seat: 1, move: { out: true }, at: '2026-11-13T10:00:15Z' },
+  ]
+  const before = replay(oq, room, log.slice(0, 2))
+  const s = replay(oq, room, log)
+  assert.equal(before.turn, 1)
+  assert.equal(s.turn, 2, 'người tới lượt rời ván: lượt phải sang ghế 2 — đứng ở ghế 1 là ván kẹt vĩnh viễn')
+  assert.equal(s.over, false)
+  assert.equal(s.ply, before.ply)
+  assert.deepEqual(s.last, before.last)
+  assert.equal(oq.apply(before, 1, { out: true }, log[2]).last, before.last, 'giữ nguyên nước vừa đi (cùng object) để bàn không diễn lại')
+  assert.equal(deadlineOf(s), Date.parse('2026-11-13T10:00:35Z'), 'người kế được đủ giờ tính từ lúc người kia rời')
+  assert.equal(oq.validate(s, 2, { cell: sideOf(s, 2).find((c) => s.stones[c] > 0), dir: 1 }), null)
+  assert.equal(oq.validate(s, 1, { cell: sideOf(s, 1)[0], dir: 1 }), 'games.err.notYourTurn', 'người đã rời không còn lượt')
+  // Ô dân của người rời vẫn trên bàn: tổng sỏi + điểm không đổi.
+  assert.equal(total(s), total(before))
+}
+
+// Người rời đang tới lượt, người kế hết dân: rải lại như đầu lượt thường; thiếu điểm thì hết ván.
+{
+  const base = fresh({ quans: 3 })
+  const bare = { ...base, stones: base.stones.map((x, i) => (sideOf(base, 2).includes(i) ? 0 : x)), turn: 1 }
+  const refill = oq.apply({ ...bare, score: [0, 0, 9] }, 1, { out: true })
+  assert.equal(refill.turn, 2)
+  assert.deepEqual(sideOf(refill, 2).map((c) => refill.stones[c]), [1, 1, 1, 1, 1])
+  assert.equal(refill.score[2], 4, 'rải lại trừ đúng số ô một hàng')
+  const end = oq.apply({ ...bare, score: [0, 0, 3] }, 1, { out: true })
+  assert.equal(end.over, true, 'người kế hết dân, thiếu điểm rải lại → hết ván')
+}
+
+// Chấm khi có người rời: người rời không được thắng dù nhiều điểm nhất; hai người còn lại bằng điểm là CÙNG THẮNG, không
+// phải hoà (hoà là người bỏ ván không mất cược).
+{
+  // Chỉ ghế 0 còn 1 dân: đi xong thì người kế (còn trong ván) hết dân, thiếu điểm rải lại → hết ván; ghế 0 thu về 1 dân.
+  const end = (score, out) => {
+    const s = fresh({ quans: 3 })
+    s.stones = Array(18).fill(0); s.stones[4] = 1
+    return oq.apply({ ...s, score, out }, 0, { cell: 4, dir: 1 })
+  }
+  assert.deepEqual(oq.result(end([1, 0, 9], [false, false, true])), { winners: [0], draw: false }, 'ghế 2 nhiều điểm nhất nhưng đã rời')
+  assert.deepEqual(oq.result(end([2, 50, 3], [false, true, false])), { winners: [0, 2], draw: false }, 'hai người còn lại bằng điểm (3 – 3): cùng thắng, người rời (50 điểm) thua')
+  assert.deepEqual(oq.result(end([2, 3, 3], [false, false, false])), { winners: [], draw: true }, 'không ai rời, cả bàn bằng điểm: vẫn là hoà')
+  const tie = fresh({ quans: 3 })
+  tie.stones = Array(18).fill(0); tie.stones[4] = 1; tie.stones[13] = 1
+  // Ghế 1 đã rời → lượt sang ghế 2 (còn dân), chưa hết ván; ghế 2 đi nốt.
+  const mid = oq.apply({ ...tie, score: [3, 20, 3], out: [false, true, false] }, 0, { cell: 4, dir: 1 })
+  assert.equal(mid.turn, 2, 'bỏ qua ghế 1 đã rời')
+  assert.equal(mid.over, false)
+  // Còn ≤ 1 người trong ván (server thường đã xử thắng trước): người còn lại thắng.
+  const last = oq.apply({ ...fresh({ quans: 3 }), out: [true, false, false] }, 2, { out: true })
+  assert.equal(last.over, true)
+  assert.deepEqual(oq.result(last), { winners: [1], draw: false })
+}
+
+// 3 quan, một người rời ở thời điểm bất kỳ: ván luôn kết thúc, không sinh / mất sỏi, người rời không bao giờ có lượt / thắng.
+{
+  let seed = 4242
+  const rand = (n) => { seed = (seed * 1103515245 + 12345) % 2147483648; return seed % n }
+  for (const options of [{ quans: 3 }, { quans: 3, rows: 6, stones: 6, nhon: true }]) {
+    for (let g = 0; g < 80; g++) {
+      let s = fresh(options)
+      const sum = total(s)
+      const gone = rand(3)
+      const when = rand(12)
+      let turns = 0
+      while (!s.over) {
+        if (turns === when) s = oq.apply(s, gone, { out: true })
+        if (s.over) break
+        assert.ok(turns < when || s.turn !== gone, 'người đã rời không được tới lượt')
+        const moves = sideOf(s, s.turn).filter((c) => s.stones[c] > 0).flatMap((cell) => [{ cell, dir: 1 }, { cell, dir: -1 }])
+        assert.ok(moves.length > 0, 'tới lượt mà không có nước nào — ván kẹt')
+        const mv = moves[rand(moves.length)]
+        assert.equal(oq.validate(s, s.turn, mv), null)
+        s = oq.apply(s, s.turn, mv)
+        assert.equal(total(s), sum, 'sỏi tự sinh ra hoặc biến mất')
+        assert.ok(++turns < 2000, 'ván không chịu kết thúc')
+      }
+      const r = oq.result(s)
+      if (turns >= when) assert.ok(!r.winners.includes(gone) && !r.draw, 'đã có người rời: không hoà, người rời không thắng')
+    }
+  }
 }
 
 // Hết giờ: { timeout } trơn phải qua server; nước server ghi { cell, dir, timeout } áp cho người tới lượt.

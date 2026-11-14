@@ -4,7 +4,8 @@
 
 import assert from 'node:assert/strict'
 import { readFileSync } from 'node:fs'
-import xo, { CAP, fadingOf, moving } from '#lib/games/xo.js'
+import xo, { CAP, deadlineOf, fadingOf, moving, optsOf, TIMES } from '#lib/games/xo.js'
+import { replay } from '#lib/games/registry.js'
 
 const fresh = (mode) => xo.setup({ options: mode ? { mode } : {} })
 /** Đi lần lượt các nước (ghế theo lượt); mọi nước phải hợp lệ. */
@@ -64,8 +65,112 @@ const play = (s, moves) => moves.reduce((st, m) => {
   assert.deepEqual([s.ply, xo.result(s)], [2 * CAP, { winners: [], draw: true }])
 }
 
-// Server (0107) dùng cùng hằng số và đọc cùng bộ ván mẫu: JS chấm từng ván phải ra đúng kết quả ghi trong file kiểm.
+// ---------- Đồng hồ lượt (0109): hết giờ thì mất lượt ----------
+const T0 = Date.parse('2026-11-13T10:00:00Z')
+const at = (sec) => ({ at: new Date(T0 + sec * 1000).toISOString() })
+const timed = (mode, time = 3) => xo.setup({ options: { mode, time } })
+const SKIP = { timeout: true, skip: true }
+
+// Tuỳ chọn: phòng cũ (không có `time`) không tính giờ; phòng mới mặc định 3 giây; giá trị lạ về 0.
 {
+  assert.deepEqual(TIMES, [0, 3, 5, 10])
+  assert.equal(xo.defaultOptions.time, 3, 'phòng mới mặc định 3 giây mỗi nước')
+  assert.deepEqual(optsOf({}), { mode: 'classic', time: 0 }, 'phòng tạo trước 0109 không có time → không tính giờ')
+  for (const bad of ['3', 4, 3.5, -3, true, null]) assert.equal(optsOf({ time: bad }).time, 0, 'time lạ: ' + JSON.stringify(bad))
+  assert.equal(optsOf({ time: 10 }).time, 10)
+}
+
+// Hạn lượt: nước đầu không tính giờ; từ đó hạn = giờ server của lượt gần nhất + time. Nước chưa có giờ server thì chưa tính.
+{
+  const s0 = timed()
+  assert.equal(deadlineOf(s0), null, 'nước đầu ván không tính giờ')
+  assert.equal(xo.validate(s0, 1, { timeout: true }), 'games.err.badMove', 'chưa có nước đầu thì không có hết giờ')
+  const s1 = xo.apply(s0, 0, { i: 4 }, at(7))
+  assert.equal(deadlineOf(s1), T0 + 10_000, 'X đi lúc giây 7, phòng 3 giây → O phải đi trước giây 10')
+  assert.equal(deadlineOf(xo.apply(s0, 0, { i: 4 })), null, 'nước máy mình vừa hiện trước (chưa có giờ server): chưa tính giờ — tính bừa là báo hết giờ oan')
+  assert.equal(deadlineOf(xo.apply(timed('classic', 10), 0, { i: 4 }, at(7))), T0 + 17_000)
+  assert.equal(xo.validate(fresh(), 0, { timeout: true }), 'games.err.badMove', 'phòng không tính giờ thì không có hết giờ')
+  assert.equal(deadlineOf(xo.apply(fresh(), 0, { i: 4 }, at(7))), null)
+}
+
+// Báo hết giờ: ai ngồi bàn cũng báo được, phải qua server; chỉ dòng server đóng dấu `skip` mới làm mất lượt.
+{
+  const s1 = xo.apply(timed(), 0, { i: 4 }, at(0))
+  for (const seat of [0, 1]) assert.equal(xo.validate(s1, seat, { timeout: true }), null, 'ghế ' + seat + ' báo hết giờ')
+  assert.equal(xo.request(s1, 0, { timeout: true }), true, 'báo hết giờ không được hiện trước — giờ thật chỉ server biết')
+  assert.equal(xo.request(s1, 1, { i: 0 }), false)
+  assert.equal(xo.apply(s1, 0, { timeout: true }, at(3)), s1, 'dòng chưa có dấu skip (chưa qua server / DB thiếu 0109): không đổi gì')
+  const s2 = xo.apply(s1, 0, SKIP, at(3.4)) // máy ghế 0 báo, người mất lượt là O (đang tới lượt)
+  assert.deepEqual([s2.turn, s2.ply, s2.last, s2.over], [0, 2, { seat: 1, skip: true }, false])
+  assert.deepEqual(s2.board, s1.board, 'mất lượt: không quân nào được đặt')
+  assert.equal(deadlineOf(s2), T0 + 6_400, 'lượt mới tính giờ từ dòng mất lượt')
+  assert.equal(xo.validate(s2, 1, { i: 0 }), 'games.err.notYourTurn', 'O vừa mất lượt, tới X')
+  // X đi hai nước liền nhờ O mất lượt → thắng hàng trên.
+  const win = [[0, { i: 3 }], [1, SKIP], [0, { i: 5 }]].reduce((s, [seat, m], k) => xo.apply(s, seat, m, at(4 + k)), s2)
+  assert.deepEqual(xo.result(win), { winners: [0], draw: false })
+  assert.equal(xo.validate(win, 1, { timeout: true }), 'games.err.over')
+}
+
+// Dựng lại từ log (registry.replay) ra đúng như áp từng nước; dòng hết giờ ở phòng không tính giờ bị bỏ qua.
+{
+  const log = [
+    { seq: 1, seat: 0, move: { i: 0 }, ...at(0) },
+    { seq: 2, seat: 0, move: SKIP, ...at(3.3) },       // O mất lượt
+    { seq: 3, seat: 0, move: { i: 1 }, ...at(4) },
+    { seq: 4, seat: 1, move: { timeout: true }, ...at(5) }, // rác: không có dấu skip
+    { seq: 5, seat: 1, move: { i: 2 }, ...at(6) },
+  ]
+  const s = replay(xo, { options: { mode: 'classic', time: 3 } }, log)
+  assert.deepEqual([s.board.slice(0, 3), s.turn, s.ply], [[0, 0, 1], 0, 4])
+  const plain = replay(xo, { options: { mode: 'classic' } }, log)
+  assert.deepEqual([plain.board.slice(0, 3), plain.turn, plain.ply], [[0, null, 1], 0, 2], 'phòng không tính giờ: dòng skip bị bỏ qua, O vẫn giữ lượt')
+}
+
+// Hai bên cùng bỏ mặc: lượt bị mất vẫn tính vào số lượt → hoà sau 2 × CAP lượt, không chạy mãi. Cổ điển cũng vậy.
+for (const mode of ['classic', 'move', 'vanish']) {
+  let s = xo.apply(timed(mode), 0, { i: 4 }, at(0))
+  let k = 0
+  while (!s.over) {
+    assert.equal(xo.validate(s, 0, { timeout: true }), null)
+    s = xo.apply(s, 0, SKIP, at(++k * 3.3))
+    assert.ok(k < 200, mode + ': ván không chịu kết thúc')
+  }
+  assert.deepEqual([s.ply, xo.result(s)], [2 * CAP, { winners: [], draw: true }], mode + ': đủ 2 × CAP lượt (kể cả lượt mất) là hoà')
+}
+
+// Cổ điển có lượt bị mất: vẫn hoà đúng lúc ĐẦY BÀN (không phải ở lượt thứ 9 — lúc đó bàn còn ô trống).
+{
+  let s = xo.apply(timed(), 0, { i: 0 }, at(0))
+  s = xo.apply(s, 0, SKIP, at(4)) // O mất lượt → ply 2, bàn mới có 1 quân
+  for (const [seat, i] of [[0, 1], [1, 2], [0, 4], [1, 3], [0, 5], [1, 7], [0, 6]]) s = xo.apply(s, seat, { i }, at(5 + i))
+  assert.equal(s.ply, 9)
+  assert.equal(s.over, false, 'lượt thứ 9 nhưng bàn còn 1 ô trống (do có lượt bị mất) — chưa hoà')
+  s = xo.apply(s, 1, { i: 8 }, at(20))
+  assert.deepEqual(xo.result(s), { winners: [], draw: true })
+}
+
+// Server (0107 → 0109) dùng cùng hằng số và đọc cùng bộ ván mẫu: JS chấm từng ván phải ra đúng kết quả ghi trong file kiểm.
+{
+  // 0109 = bản đang chạy của hàm dựng lại ván (game_xo_run) + kiểm / đóng dấu hết giờ.
+  const sql9 = readFileSync('supabase/migrations/0109_games_xo_time.sql', 'utf8')
+  const run = sql9.slice(sql9.indexOf('FUNCTION public.game_xo_run'), sql9.indexOf('FUNCTION public.game_xo_result'))
+  assert.ok(run.includes(`c_cap    CONSTANT int := ${CAP};`), 'số lượt tối đa SQL 0109 ≠ JS')
+  assert.ok(run.includes("options -> 'time' IN (" + TIMES.filter(Boolean).map((n) => `'${n}'::jsonb`).join(', ') + ')'), 'các mức giờ ở 0109 ≠ TIMES của JS')
+  assert.ok(run.includes("IF m.move -> 'skip' = 'true'::jsonb AND v_time > 0 AND v_since IS NOT NULL THEN"), 'chỉ dòng server đóng dấu skip, phòng có giờ, đã có nước đầu mới mất lượt — như validate / apply của JS')
+  assert.ok(run.includes('v_over := v_ply >= 2 * c_cap;'), 'lượt bị mất phải tính vào số lượt — không thì hai bên bỏ mặc là ván chạy mãi')
+  assert.ok(run.includes('NOT EXISTS (SELECT 1 FROM unnest(v_board) x WHERE x IS NULL) OR v_ply >= 2 * c_cap'), 'luật hoà: đầy bàn hoặc đủ 2 × CAP lượt')
+  const chk = sql9.slice(sql9.indexOf('FUNCTION public.game_xo_check'), sql9.indexOf('FUNCTION public.game_xo_fill'))
+  assert.ok(chk.includes("IF p_move ? 'skip' THEN RETURN 'games.err.badMove'"), 'máy khách tự gửi dấu skip phải bị từ chối — không thì ai cũng ép được đối thủ mất lượt')
+  assert.ok(chk.includes("RETURN 'games.err.notYet'") && chk.includes('r.o_since + r.o_time * 1000'), 'báo hết giờ phải do server so giờ')
+  assert.ok(sql9.includes(`'{"timeout": true, "skip": true}'::jsonb`), 'game_xo_fill phải đóng dấu skip')
+  // game_move (0078) tìm hàm theo đúng chữ ký này.
+  for (const fn of ['game_xo_check(p_room uuid, p_seat integer, p_move jsonb)', 'game_xo_fill(p_room uuid, p_seat integer, p_move jsonb)']) {
+    assert.ok(sql9.includes('FUNCTION public.' + fn), 'thiếu / sai chữ ký ' + fn)
+  }
+  for (const fn of ['game_xo_run(uuid)', 'game_xo_result(uuid)', 'game_xo_check(uuid, integer, jsonb)', 'game_xo_fill(uuid, integer, jsonb)']) {
+    assert.ok(sql9.includes('REVOKE ALL ON FUNCTION public.' + fn + ' FROM PUBLIC, anon, authenticated;'), fn + ' phải khoá khỏi máy khách')
+  }
+
   const sql = readFileSync('supabase/migrations/0107_games_xo.sql', 'utf8')
   assert.ok(sql.includes(`c_cap    CONSTANT int := ${CAP};`), 'số lượt tối đa SQL ≠ JS')
   assert.ok(sql.includes("WHERE game = 'caro' AND options ->> 'size' = '3'"), '0107 phải chuyển phòng Caro 3 × 3 cũ sang Cờ X-O')
