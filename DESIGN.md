@@ -181,7 +181,16 @@ cân, hiệu ứng, màn kết thúc dùng chung ở `ChessStage.jsx` (`ChessSta
   trái / trên / phải), khung hẹp hơn 560px thì bàn 374 × 600 (đối thủ một hàng trên cùng); co bằng `useFit`. Nút Ăn / Bốc /
   Đánh / Hạ nằm DƯỚI bàn, dùng token. Hiệu ứng mượn của Tiến lên (`tlFly`, `tlStamp`, `chFlash`, `chBurst`).
 - **Phần chung của bàn bài** (`cardTable.jsx`): `Seat` (ảnh + vòng lượt) và `Overlay` (màn kết thúc đè lên bàn) — Tiến
-  lên, Phỏm dùng; game bài khác có bản thiết kế thì ráp từ đây. Mặt bàn / bố cục ghế vẫn là của từng game.
+  lên, Phỏm, Xì dách, Ba cây, Bài bịp dùng; game bài khác có bản thiết kế thì ráp từ đây. Mặt bàn / bố cục ghế vẫn là của từng game.
+- **Bàn Xì dách · Sòng nhà cái** (bản "Xì dách", 2026-11-14): cùng ngoại lệ, bảng màu `XD` trong `XiDachBoard.jsx` (nỉ lục bầu
+  dục, nhà cái trên đỉnh, con bài vòng cung). Rộng 800 × 720 / hẹp 374 × 560. Nút Rút / Dằn / Lật cả bàn DƯỚI bàn, dùng token.
+  Hiệu ứng `tlFly` (lá bay từ hộp bài), `gameFlip`, vệt sáng `xdSweep` khi lật, `chBurst` khi hết trận.
+- **Bàn Ba cây · Đêm nặn bài** (bản "Ba cây", 2026-11-14): cùng ngoại lệ, bảng màu `BC` trong `BaCayBoard.jsx` (nhung đỏ bầu
+  dục viền gỗ chỉ vàng, 8 ghế quanh bàn). Rộng 800 × 560 / hẹp 374 × 400. Ba lá to của mình nằm DƯỚI bàn: kéo góc phải dưới
+  để hé (clip-path) hoặc chạm để hé dần. Người thắng đội vương miện, `tlStamp` + `chBurst`.
+- **Bàn Bài bịp · Bom 6 dây** (bản "Bài bịp", 2026-11-14): cùng ngoại lệ, bảng màu `BB` + mặt lá Q/K/A/Joker vẽ SVG riêng
+  (`FACE`) trong `BaiBipBoard.jsx` (chiếu tím viền gỗ). Rộng 788 × 760 / hẹp 374 × 560. Bị tố thua → lớp phủ lật bài + quả bom
+  to 6 dây (màu dây `WIRE_INK`) để cắt. Nút Úp / Tố DƯỚI bàn. Hiệu ứng `tlFly`, `tlStamp`, `chFlash` + `chBurst` khi nổ.
 - **Bàn Bắn tàu** (bản "Bắn tàu", 2026-11-12): cùng ngoại lệ — vùng biển 3 skin chọn được (Hải chiến / Radar / Giấy kẻ ô)
   ở `chessSkins.js` (`SKINS.bantau`, `useSkin('bantau')`, nút `SkinPicker kind="bantau"` nằm trên bàn), tàu 5 loại vẽ SVG
   theo màu skin, nhấn phía mình ngọc `#00B2A9` / phía đối phương cam `#ff7a1a` (hằng `ME` / `FOE` trong `BanTauBoard.jsx`).
@@ -208,7 +217,7 @@ cân, hiệu ứng, màn kết thúc dùng chung ở `ChessStage.jsx` (`ChessSta
   Điện thoại: phòng các game này thay cột tab dưới bàn bằng thanh nhắn (`RoomChat dock`) + tấm trượt "Phòng" (Dialog sheet).
 - **Lá bài dùng chung** (`PlayingCard.jsx`, theo bản "Tien Len"): mặt ngà + lưng sọc đỏ, bảng màu `CARD` (`stage.js`) viết cứng, giữ
   nguyên ở sáng / tối. Tiến lên, Xì dách, Phỏm, Ba cây dùng chung `Card` (cỡ `w`; ≥ 56px in góc, nhỏ hơn in giữa) / `CardFace`;
-  Phỏm, Ba cây truyền `faces` = `RANK_FACES` của `phom.js` (hạng 0 là A). Bài bịp (bộ Q/K/A/Joker) vẽ riêng nhưng dùng `CARD`.
+  Phỏm, Ba cây truyền `faces` = `RANK_FACES` của `phom.js` (hạng 0 là A). Bài bịp (bộ Q/K/A/Joker) vẽ riêng theo bản thiết kế.
   Viền chọn / nhãn lá ăn vẫn dùng token. Đổi kiểu lá = sửa một file này.
 - **Mục Trò chơi (sảnh, BXH, phòng)** theo bản "Tro choi - Redesign" 1a / 1c / 3a: kiểu chung ở `components/games/stage.js`
   (`G`, `card`, `chip`, `seg`, `btn`, `tab`, `over`…) — **dùng token**, nền là theme chung (sáng / tối / sky). Header app ẩn ở

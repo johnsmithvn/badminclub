@@ -30,7 +30,7 @@ const SOLO_SCREENS = {
 // Game có "sân khấu" riêng (ChessStage): bàn tự vẽ thanh người chơi, trạng thái, nút Xin hoà / Xin thua, màn kết
 // thúc — khung phòng không lặp lại dải trạng thái và nút Đầu hàng. SKIN = game chọn được skin bàn (thanh người chơi
 // đã nằm trên bàn nên bỏ tab Người chơi; Tiến lên, Bầu cua, Phỏm giữ tab đó để xem xu từng người).
-const STAGED = ['covua', 'cotuong', 'coup', 'tienlen', 'baucua', 'phom', 'coganh', 'covay']
+const STAGED = ['covua', 'cotuong', 'coup', 'tienlen', 'baucua', 'phom', 'coganh', 'covay', 'xidach', 'bacay', 'baibip']
 const SKIN = { covua: 'covua', cotuong: 'cotuong', coup: 'cotuong' }
 
 export default function GameRoom() {
