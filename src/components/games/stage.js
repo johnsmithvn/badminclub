@@ -1,6 +1,7 @@
 // Kiểu chung của mục Trò chơi (sảnh, BXH, phòng) — theo bản thiết kế "Tro choi - Redesign" (1a / 1c / 3a):
 // tiêu đề + tab gạch chân, thẻ viền mảnh, nhãn mono viết hoa, ngọc lam = hành động, vàng = mục tiêu / xu.
 // Màu đi theo token nên nền là theme chung của app (sáng / tối / sky) — chủ dự án chọn 2026-11-10.
+// Sảnh có nền trời chung (app.json → sky.liteRoutes 'games', 2026-11-15): thẻ thành kính mờ nhờ `[data-sky]`.
 
 const mix = (v, a) => `color-mix(in srgb, var(${v}) ${Math.round(a * 100)}%, transparent)`
 
@@ -30,7 +31,11 @@ export const G = {
 /** Khung cả màn: chỉ là lưới (nền là theme chung). */
 export const stage = ({ mobile } = {}) => ({ display: 'grid', gap: mobile ? 16 : 22, gridTemplateColumns: 'minmax(0, 1fr)', minWidth: 0, color: G.text })
 
-export const card = { borderRadius: 14, background: G.card, border: '1px solid ' + G.line, minWidth: 0 }
+// Khung: viền mảnh + vệt sáng mép trên + bóng đổ mềm (trên nền trời, `[data-sky]` biến nền thẻ thành kính mờ).
+export const card = {
+  borderRadius: 14, background: G.card, border: '1px solid ' + G.line, minWidth: 0,
+  boxShadow: 'inset 0 1px 0 color-mix(in srgb, #fff 6%, transparent), 0 14px 32px -22px rgba(0,0,0,.55)',
+}
 export const over = { font: '600 11px/1 var(--font-mono)', letterSpacing: '.12em', textTransform: 'uppercase', color: G.muted }
 export const mono = { font: '400 12px/1.3 var(--font-mono)', color: G.muted }
 
@@ -38,6 +43,7 @@ export const mono = { font: '400 12px/1.3 var(--font-mono)', color: G.muted }
 export const chip = (on) => ({
   padding: '7px 14px', borderRadius: 99, cursor: 'pointer', whiteSpace: 'nowrap', flexShrink: 0, font: '600 13px/1 var(--font-sans)',
   background: on ? G.tealA(0.16) : G.card, color: on ? G.tealHi : G.soft, border: '1px solid ' + (on ? G.tealA(0.45) : G.line),
+  boxShadow: on ? `0 0 0 3px ${G.tealA(0.1)}, 0 6px 16px -10px ${G.tealA(0.9)}` : 'none', transition: 'box-shadow .15s, background .15s',
 })
 /** Nút trong nhóm phân đoạn (Tuần / Tháng…). Bọc bằng `segWrap`. */
 export const segWrap = { display: 'flex', gap: 4, padding: 4, borderRadius: 10, background: G.card, border: '1px solid ' + G.line, flexShrink: 0 }
@@ -46,15 +52,22 @@ export const seg = (on) => ({
   background: on ? G.tealA(0.18) : 'transparent', color: on ? G.tealHi : G.muted,
 })
 
-/** Nút: primary (ngọc lam đặc), soft (ngọc lam nhạt), ghost (viền xám), danger (viền đỏ). */
+/**
+ * Nút: primary (ngọc lam đặc — đổ sáng từ trên + quầng), soft (ngọc lam nhạt), ghost (viền xám, nền kính nhẹ), danger (viền đỏ).
+ * Vệt sáng mép trên (inset) để nút nổi khối trên nền trời.
+ */
+const HI = 'inset 0 1px 0 color-mix(in srgb, #fff 22%, transparent)'
 export const btn = (kind = 'primary', { sm, block } = {}) => ({
   display: 'inline-flex', alignItems: 'center', justifyContent: 'center', gap: 6, cursor: 'pointer', whiteSpace: 'nowrap',
   padding: sm ? '7px 12px' : '10px 16px', borderRadius: sm ? 9 : 10, font: `700 ${sm ? 13 : 14}px/1 var(--font-sans)`,
-  width: block ? '100%' : undefined, minWidth: 0,
-  ...(kind === 'primary' ? { background: G.teal, color: G.tealInk, border: '1px solid ' + G.teal }
-    : kind === 'soft' ? { background: G.tealA(0.14), color: G.tealHi, border: '1px solid ' + G.tealA(0.4) }
-      : kind === 'danger' ? { background: 'transparent', color: G.red, border: '1px solid ' + G.redA(0.35) }
-        : { background: 'transparent', color: G.sub, border: '1px solid ' + G.lineHi }),
+  width: block ? '100%' : undefined, minWidth: 0, transition: 'box-shadow .15s, filter .15s',
+  ...(kind === 'primary' ? {
+    background: 'linear-gradient(180deg, color-mix(in srgb, var(--action-accent-bg) 78%, #fff), var(--action-accent-bg) 55%)',
+    color: G.tealInk, border: '1px solid ' + G.teal, boxShadow: `${HI}, 0 8px 20px -10px ${G.tealA(0.85)}`,
+  }
+    : kind === 'soft' ? { background: `linear-gradient(180deg, ${G.tealA(0.2)}, ${G.tealA(0.1)})`, color: G.tealHi, border: '1px solid ' + G.tealA(0.4), boxShadow: 'inset 0 1px 0 color-mix(in srgb, #fff 8%, transparent)' }
+      : kind === 'danger' ? { background: G.redA(0.06), color: G.red, border: '1px solid ' + G.redA(0.35) }
+        : { background: 'color-mix(in srgb, var(--surface-card) 55%, transparent)', color: G.sub, border: '1px solid ' + G.lineHi, boxShadow: 'inset 0 1px 0 color-mix(in srgb, #fff 6%, transparent)' }),
 })
 /** Ô nhập. */
 export const field = {

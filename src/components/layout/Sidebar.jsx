@@ -203,7 +203,8 @@ export default function Sidebar({ route }) {
         )}
       </div>
 
-      <div style={{ padding: '8px 10px 8px 6px', flex: 1, overflowY: 'auto' }}>
+      {/* Cửa sổ thấp thì menu vẫn cuộn được, nhưng thanh cuộn mảnh + màu chìm theo nền (không dùng thanh xám mặc định của Windows). */}
+      <div style={{ padding: '8px 10px 8px 6px', flex: 1, overflowY: 'auto', scrollbarWidth: 'thin', scrollbarColor: 'color-mix(in srgb, currentColor 22%, transparent) transparent' }}>
         <SidebarNav
           items={items}
           value={route === 'session' ? 'sessions' : route === 'tournament' || route === 'tournamentBracket' || route === 'tournamentFlow' ? 'tournaments' : route === 'libraryPost' ? 'library' : route === 'gameRoom' ? 'games' : route}

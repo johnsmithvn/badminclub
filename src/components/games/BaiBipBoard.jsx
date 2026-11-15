@@ -68,6 +68,7 @@ function BigBomb({ cuts, onCut, secs, k }) {
   return (
     <div style={{ width: 380 * k, height: 330 * k }}>
       <div role="img" aria-label={t('games.baibip.bombAria', { n: WIRES - cuts.length })} style={{ position: 'relative', width: 380, height: 330, transform: `scale(${k})`, transformOrigin: '0 0' }}>
+        <div style={{ position: 'absolute', inset: 0, animation: 'bbIdle 2.4s ease-in-out infinite' }}>
         <span aria-hidden="true" style={{ position: 'absolute', left: 80, top: 55, width: 220, height: 220, borderRadius: '50%', background: 'radial-gradient(circle at 35% 30%, #868e96 0, #343a40 30%, #121417 65%, #000 100%)', boxShadow: 'inset -18px -22px 40px rgba(0,0,0,.7), 0 20px 50px rgba(0,0,0,.7)' }} />
         <span aria-hidden="true" style={{ position: 'absolute', left: 82, top: 152, width: 216, height: 26, borderRadius: '50%', border: '5px solid #adb5bd', opacity: 0.5, transform: 'translateY(-97px)' }} />
         <span aria-hidden="true" style={{ position: 'absolute', left: 247, top: 29, width: 28, height: 34, borderRadius: 6, background: 'linear-gradient(90deg, #868e96, #495057)', transform: 'rotate(30deg)' }} />
@@ -99,6 +100,7 @@ function BigBomb({ cuts, onCut, secs, k }) {
             </button>
           )
         })}
+        </div>
       </div>
     </div>
   )
@@ -129,7 +131,7 @@ function useNow(on) {
 }
 const kindName = (k) => t('games.baibip.kind' + KINDS[k])
 
-export default function BaiBipBoard({ state, mySeat, roomId, onMove, result, players, names, actions, overActions, note, hands: given }) {
+export default function BaiBipBoard({ state, mySeat, roomId, onMove, result, players, names, actions, overActions, note, bubbles, hands: given }) {
   const { db, a } = useApp()
   const [ref, k0] = useFit(WIDE.w)
   const narrow = k0 * WIDE.w < 560
@@ -138,6 +140,15 @@ export default function BaiBipBoard({ state, mySeat, roomId, onMove, result, pla
   const [got, setGot] = useState(null) // { roomId, hands } | { roomId, failed }
   const [tries, setTries] = useState(0)
   const [pick, setPick] = useState({ ply: -1, cards: [] })
+  const [peek, setPeek] = useState(false) // hết trận: tạm ẩn màn thắng để xem bàn
+  // Tố xong: bước 1 lật bài, ~1,8 giây sau mới tới bước 2 quả bom (bản thiết kế) — chỉ hẹn giờ trên máy.
+  const cutKey = state.phase === 'cut' && !state.over ? state.ply : null
+  const [bombAt, setBombAt] = useState(null)
+  useEffect(() => {
+    if (cutKey == null) return undefined
+    const id = setTimeout(() => setBombAt(cutKey), 1800)
+    return () => clearTimeout(id)
+  }, [cutKey])
   const seated = mySeat != null
   const reveal = !!result
   const myCount = seated ? state.counts[mySeat] ?? 0 : 0
@@ -166,6 +177,8 @@ export default function BaiBipBoard({ state, mySeat, roomId, onMove, result, pla
     setPick({ ply: state.ply, cards: next })
   }
   const { last, reveal: shown, table } = state
+  // Không có lá để lật (hiếm) thì vào thẳng bước bom.
+  const bombStep = cutKey != null && (bombAt === cutKey || !shown)
 
   // Hết giờ lượt → tự báo { timeout }: người tới lượt báo trước, người khác chờ thêm (phòng máy kia đã tắt).
   // Server đo bằng giờ của nó; chưa tới thì im lặng, mỗi 4 giây thử lại.
@@ -212,17 +225,26 @@ export default function BaiBipBoard({ state, mySeat, roomId, onMove, result, pla
     const [x0, y0] = ptOf(state.lastPlay.seat)
     for (let j = 0; j < state.lastPlay.n; j++) {
       fx.push(
-        <span key={'fly' + ply + j} style={{ position: 'absolute', left: pileAt[0] + j * 6, top: pileAt[1], '--fx': x0 - pileAt[0] + 'px', '--fy': y0 - pileAt[1] + 'px', '--fr': '-14deg', '--r': (j - 1) * 8 + 'deg', transform: 'translate(-50%, -50%)', animation: `tlFly .45s cubic-bezier(.3,.6,.3,1) ${(j * 0.08).toFixed(2)}s both`, zIndex: 30 }}>
+        <span key={'fly' + ply + j} style={{ position: 'absolute', left: pileAt[0] + j * 6, top: pileAt[1], '--fx': x0 - pileAt[0] + 'px', '--fy': y0 - pileAt[1] + 'px', '--fr': '-14deg', '--r': (j - 1) * 8 + 'deg', transform: 'translate(-50%, -50%)', animation: `tlArc .5s cubic-bezier(.3,.6,.3,1) ${(j * 0.08).toFixed(2)}s both`, zIndex: 30 }}>
           <Card kind={null} w={narrow ? 32 : 44} />
         </span>,
       )
     }
+  }
+  if (last?.play != null && state.lastPlay) {
+    fx.push(<div key={'claim' + ply} style={{ position: 'absolute', left: cx, top: cy + (narrow ? 40 : 54), padding: '5px 12px', borderRadius: 99, background: '#3b1d5a', color: '#fff', font: `800 ${narrow ? 12 : 15}px/1.2 var(--font-display)`, whiteSpace: 'nowrap', opacity: 0, animation: 'bbLabel 1.4s ease-out .3s forwards', zIndex: 55 }}>
+      {t('games.baibip.claimFx', { side: who(state.lastPlay.seat), n: state.lastPlay.n, kind: kindName(table) })}
+    </div>)
   }
   if (last?.call && shown) stamp('call' + ply, [ptOf(shown.caller)[0], ptOf(shown.caller)[1] - 30], t('games.baibip.call'), '#e03131', narrow ? 18 : 26)
   if (last?.cut !== undefined && last.seat != null) {
     const p = ptOf(last.seat)
     if (last.boom) {
       fx.push(<span key={'flash' + ply} style={{ position: 'absolute', left: p[0], top: p[1], width: 220, height: 220, borderRadius: '50%', background: 'radial-gradient(circle, #fff 0 15%, #ffd43b 30%, #ff6b00 55%, rgba(200,30,0,.6) 70%, transparent 75%)', opacity: 0, animation: 'chFlash 1s ease-out forwards', zIndex: 57 }} />)
+      fx.push(<span key={'white' + ply} style={{ position: 'absolute', inset: 0, background: '#fff', opacity: 0, animation: 'bbFlashW .9s ease-out forwards', zIndex: 56 }} />)
+      ;[[120, 0], [-110, -30], [40, -120], [-60, 90], [90, 80]].forEach(([sx, sy], j) => fx.push(
+        <span key={'smoke' + ply + j} style={{ position: 'absolute', left: p[0], top: p[1], width: 90, height: 90, borderRadius: '50%', background: 'radial-gradient(circle, rgba(80,80,90,.9), rgba(40,40,50,.5) 60%, transparent 72%)', '--sx': sx * (narrow ? 0.6 : 1) + 'px', '--sy': sy * (narrow ? 0.6 : 1) + 'px', opacity: 0, animation: `bbSmoke 2.2s ease-out ${(0.15 + j * 0.08).toFixed(2)}s forwards`, zIndex: 57 }} />,
+      ))
       burst('boom' + ply, p, ['#ffd43b', '#ff6b00', '#ff4d4f', '#495057'])
       stamp('bw' + ply, p, t('games.baibip.boomWord'), '#c92a2a', narrow ? 22 : 34)
     } else {
@@ -257,7 +279,7 @@ export default function BaiBipBoard({ state, mySeat, roomId, onMove, result, pla
       }}>
         {state.blown[seat] && <span aria-hidden="true" style={{ position: 'absolute', inset: 0, borderRadius: 16, background: 'radial-gradient(circle at 50% 40%, rgba(0,0,0,.5), transparent 70%), repeating-radial-gradient(circle at 30% 60%, rgba(0,0,0,.25) 0 3px, transparent 3px 9px)', pointerEvents: 'none' }} />}
         <div style={{ display: 'flex', alignItems: 'center', gap: 7, minWidth: 0 }}>
-          <Seat name={m?.name || nameOf(seat)} src={m?.avatarUrl} size={L.av} active={on} pct={on && secs != null && state.opts?.time ? secs / state.opts.time : undefined} low={on && secs != null && secs <= 5} />
+          <Seat name={m?.name || nameOf(seat)} src={m?.avatarUrl} size={L.av} active={on} pct={on && secs != null && state.opts?.time ? (secs / state.opts.time) * 100 : null} low={on && secs != null && secs <= 5} bubble={bubbles?.[seat]} up={seat === mySeat} />
           <div style={{ display: 'grid', minWidth: 0 }}>
             <span style={{ font: `700 ${narrow ? 11.5 : 13.5}px/1.2 var(--font-sans)`, whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis' }}>{who(seat)}</span>
             <span style={{ font: `400 ${narrow ? 9.5 : 10.5}px/1.3 var(--font-mono)`, color: BB.sub }}>{state.blown[seat] ? t('games.baibip.blownTag') : t('games.baibip.cardsLeft', { n })}</span>
@@ -292,11 +314,11 @@ export default function BaiBipBoard({ state, mySeat, roomId, onMove, result, pla
         const on = sel.includes(c)
         const ok = fits(c, table)
         return (
-          <button key={c} type="button" onClick={canPlay && !forced ? () => toggle(c) : undefined} aria-pressed={on}
+          <button key={c} type="button" className={canPlay && !forced && !on ? 'bbPick' : undefined} onClick={canPlay && !forced ? () => toggle(c) : undefined} aria-pressed={on}
             aria-label={kindName(kindOf(c)) + (ok ? t('games.baibip.fitsAria') : '')}
             style={{
               position: 'absolute', left: i * L.hstep, top: 18, padding: 0, border: 0, borderRadius: 8, background: 'none', cursor: canPlay && !forced ? 'pointer' : 'default', touchAction: 'manipulation',
-              transform: on ? 'translateY(-16px)' : 'none', transition: 'transform .18s',
+              transform: on ? 'translateY(-16px)' : undefined, transition: 'transform .18s',
               boxShadow: on ? '0 0 0 3px ' + BB.teal + ', 0 10px 22px rgba(0,0,0,.5)' : ok ? '0 0 0 2px rgba(240,183,92,.55), 0 4px 10px rgba(0,0,0,.45)' : '0 4px 10px rgba(0,0,0,.45)',
             }}>
             <Card kind={kindOf(c)} w={L.hw} />
@@ -315,8 +337,9 @@ export default function BaiBipBoard({ state, mySeat, roomId, onMove, result, pla
   return (
     <div style={{ display: 'grid', gap: 12, gridTemplateColumns: 'minmax(0, 1fr)' }}>
       <div ref={ref} style={{ width: '100%', maxWidth: WIDE.w, margin: '0 auto', display: 'grid', justifyItems: 'center' }}>
-        <div style={{ width: L.w * k, height: L.h * k, position: 'relative' }}>
-          <div style={{ width: L.w, height: L.h, transform: `scale(${k})`, transformOrigin: '0 0', position: 'relative', overflow: 'hidden', borderRadius: L.radius, background: BB.felt, boxShadow: BB.rim(L.rim), color: BB.ink, userSelect: 'none' }}>
+        <div data-game-fx style={{ width: L.w * k, height: L.h * k, position: 'relative' }}>
+          <div style={{ width: L.w, height: L.h, transform: `scale(${k})`, transformOrigin: '0 0', position: 'relative' }}>
+          <div style={{ position: 'absolute', inset: 0, overflow: 'hidden', borderRadius: L.radius, background: BB.felt, boxShadow: BB.rim(L.rim), color: BB.ink, userSelect: 'none', animation: last?.call && state.phase === 'cut' ? `bbShake${ply % 2 ? 'A' : 'B'} .5s ease-out` : undefined }}>
             {/* Đối thủ */}
             {Array.from({ length: state.n }, (_, s) => s).filter((s) => s !== base).map((s) => {
               const [x, y, w] = L.box[slotOf(s)] || L.box.top
@@ -361,8 +384,8 @@ export default function BaiBipBoard({ state, mySeat, roomId, onMove, result, pla
             {/* Tố: lật bài + quả bom của người thua */}
             {state.phase === 'cut' && state.cutter != null && !state.over && (
               <div style={{ position: 'absolute', inset: 0, zIndex: 70, display: 'grid', alignContent: 'center', justifyItems: 'center', gap: narrow ? 8 : 14, background: 'radial-gradient(circle at 50% 50%, rgba(60,0,10,.55), rgba(4,2,10,.85))' }}>
-                {shown && (
-                  <div style={{ display: 'grid', justifyItems: 'center', gap: narrow ? 6 : 10, padding: narrow ? '10px 14px' : '16px 22px', borderRadius: 20, background: 'rgba(20,12,40,.92)', border: '2px solid #ff6b6b', boxShadow: '0 0 50px -10px #ff6b6b' }}>
+                {shown && !bombStep && (
+                  <div style={{ display: 'grid', justifyItems: 'center', gap: narrow ? 6 : 10, animation: 'gamePop var(--dur-slow) var(--ease-standard) both', padding: narrow ? '10px 14px' : '16px 22px', borderRadius: 20, background: 'rgba(20,12,40,.92)', border: '2px solid #ff6b6b', boxShadow: '0 0 50px -10px #ff6b6b' }}>
                     <span style={{ font: `italic 800 ${narrow ? 18 : 26}px/1.2 var(--font-display)`, color: '#fff' }}>{t('games.baibip.called', { caller: who(shown.caller), side: who(shown.seat) })}</span>
                     <div data-game-fx style={{ display: 'flex', gap: narrow ? 6 : 10 }}>
                       {shown.cards.map((c, i) => {
@@ -380,29 +403,38 @@ export default function BaiBipBoard({ state, mySeat, roomId, onMove, result, pla
                     </span>
                   </div>
                 )}
-                <div style={{ display: 'grid', justifyItems: 'center', gap: 2, textAlign: 'center' }}>
+                {bombStep && <div style={{ display: 'grid', justifyItems: 'center', gap: 2, textAlign: 'center' }}>
                   <span style={{ font: `italic 800 ${narrow ? 17 : 24}px/1.2 var(--font-display)`, color: '#fff' }}>
                     {state.cutter === mySeat ? t('games.baibip.cutHint') : t('games.baibip.waitCut', { side: who(state.cutter) })}
                   </span>
                   <span style={{ font: '400 12px/1.3 var(--font-mono)', color: '#ffa8a8' }}>{t('games.baibip.cutOdds', { n: wiresLeft(state.cutter) })}</span>
-                </div>
-                <BigBomb cuts={state.cuts[state.cutter] || []} secs={secs} k={L.bomb * (narrow ? 0.85 : 1)}
-                  onCut={state.cutter === mySeat && myTurn ? (w) => onMove({ cut: w }) : undefined} />
+                </div>}
+                {bombStep && <BigBomb cuts={state.cuts[state.cutter] || []} secs={secs} k={L.bomb * (narrow ? 0.85 : 1)}
+                  onCut={state.cutter === mySeat && myTurn ? (w) => onMove({ cut: w }) : undefined} />}
               </div>
             )}
 
             {/* Hết trận: người sống sót */}
-            {state.over && (
+            {state.over && !peek && (
               <div style={{ position: 'absolute', inset: 0, zIndex: 75, background: 'rgba(4,2,12,.7)', backdropFilter: 'blur(2px)', display: 'grid', placeItems: 'center' }}>
-                <div style={{ display: 'grid', justifyItems: 'center', gap: 10, padding: '20px 28px', borderRadius: 22, background: 'rgba(20,12,40,.95)', border: '2px solid #ffcf3a', boxShadow: '0 0 60px -10px #ffcf3a', textAlign: 'center', maxWidth: L.w - 32 }}>
+                <div aria-hidden="true" style={{ position: 'absolute', inset: 0, overflow: 'hidden', pointerEvents: 'none' }}>
+                  {state.winner != null && Array.from({ length: 36 }, (_, j) => (
+                    <span key={j} style={{ position: 'absolute', top: -20, left: (rnd(j * 7 + 3) * 100).toFixed(1) + '%', width: 9, height: 14, borderRadius: 2, background: [BB.teal, '#F0B75C', '#d0bfff', '#ff6b6b', '#ffd43b'][j % 5], animation: `bbFall ${(2.4 + rnd(j) * 2).toFixed(2)}s linear ${(rnd(j * 5) * 2).toFixed(2)}s infinite` }} />
+                  ))}
+                </div>
+                <div style={{ position: 'relative', display: 'grid', justifyItems: 'center', gap: 10, padding: '20px 28px', borderRadius: 22, background: 'rgba(20,12,40,.95)', border: '2px solid #ffcf3a', boxShadow: '0 0 60px -10px #ffcf3a', textAlign: 'center', maxWidth: L.w - 32 }}>
                   <span style={{ font: `italic 800 ${narrow ? 24 : 34}px/1.2 var(--font-display)` }}>
                     {state.winner == null ? t('games.scoring') : state.winner === mySeat ? t('games.baibip.winMe') : t('games.baibip.winOther', { side: nameOf(state.winner) })}
                   </span>
                   {state.winner != null && <span style={{ font: '400 14px/1.4 var(--font-sans)', color: '#F0B75C' }}>{t('games.baibip.winSub', { n: wiresLeft(state.winner) })}</span>}
-                  {(overActions || []).map((x) => <button key={x.key} type="button" onClick={x.on} style={{ ...btn('primary'), padding: '11px 26px', pointerEvents: 'auto' }}>{x.label}</button>)}
+                  <div style={{ display: 'flex', gap: 8, flexWrap: 'wrap', justifyContent: 'center' }}>
+                    <button type="button" onClick={() => setPeek(true)} style={{ ...btn('ghost'), padding: '11px 22px' }}>{t('games.baibip.viewTable')}</button>
+                    {(overActions || []).map((x) => <button key={x.key} type="button" onClick={x.on} style={{ ...btn('primary'), padding: '11px 26px' }}>{x.label}</button>)}
+                  </div>
                 </div>
               </div>
             )}
+          </div>
           </div>
         </div>
       </div>
@@ -450,9 +482,10 @@ export default function BaiBipBoard({ state, mySeat, roomId, onMove, result, pla
             )
             : <span style={{ ...S.hint, padding: '10px 0' }}>{t('games.baibip.waitDeal', { side: who(state.turn) })}</span>
         )}
-        {actions?.length > 0 && (
+        {(actions?.length > 0 || (state.over && peek)) && (
           <div style={{ display: 'flex', gap: 6, justifyContent: 'center', flexWrap: 'wrap' }}>
-            {actions.map((x) => (
+            {state.over && peek && <button type="button" onClick={() => setPeek(false)} style={btn('soft', { sm: true })}>{t('games.baibip.showResult')}</button>}
+            {(actions || []).map((x) => (
               <button key={x.key} type="button" disabled={x.off} onClick={x.on} style={{ ...btn(x.danger ? 'danger' : 'ghost', { sm: true }), opacity: x.off ? 0.45 : 1 }}>{x.label}</button>
             ))}
           </div>

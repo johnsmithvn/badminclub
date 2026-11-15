@@ -81,7 +81,7 @@ const Tag = ({ children, tone = 'gold', sm }) => (
   <span style={{ flex: 'none', padding: '1px 7px', borderRadius: 99, whiteSpace: 'nowrap', font: `700 ${sm ? 10 : 11}px/1.4 var(--font-sans)`, background: tone === 'red' ? 'rgba(229,72,77,.2)' : PH.goldA, color: tone === 'red' ? PH.red : PH.gold }}>{children}</span>
 )
 
-export default function PhomBoard({ state, mySeat, onMove, roomId, result, players, names, stake = 0, actions, overActions, note, hands: given }) {
+export default function PhomBoard({ state, mySeat, onMove, roomId, result, players, names, stake = 0, actions, overActions, note, bubbles, hands: given }) {
   const { db, a } = useApp()
   const [ref, k0] = useFit(WIDE.w)
   // Khung hẹp hơn ~560px (điện thoại dọc) thì đổi sang bàn hẹp — co bàn rộng xuống đó thì lá nhỏ không bấm nổi.
@@ -193,7 +193,7 @@ export default function PhomBoard({ state, mySeat, onMove, roomId, result, playe
         border: '1.5px solid ' + (on ? PH.teal : PH.line), boxShadow: on ? '0 0 22px -4px ' + PH.teal : 'none', opacity: state.out[seat] ? 0.55 : 1, transition: 'box-shadow .3s, border-color .3s',
       }}>
         <div style={{ display: 'flex', alignItems: 'center', gap: tight ? 6 : 8, minWidth: 0 }}>
-          <Seat name={m?.name || nameOf(seat)} src={m?.avatarUrl} size={tight ? 20 : 32} active={on} />
+          <Seat name={m?.name || nameOf(seat)} src={m?.avatarUrl} size={tight ? 20 : 32} active={on} bubble={bubbles?.[seat]} />
           <div style={{ flex: 1, minWidth: 0, display: 'grid', gap: 1 }}>
             <span style={{ font: `700 ${tight ? 12 : 14}px/1.25 var(--font-sans)`, whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis' }}>{nameOf(seat)}</span>
             {!tight && (
@@ -336,7 +336,7 @@ export default function PhomBoard({ state, mySeat, onMove, roomId, result, playe
                         <span key={ply} style={{
                           position: 'absolute', left: '50%', top: '50%', width: lw, height: lh, borderRadius: 8, '--r': '0deg', '--fr': '0deg',
                           '--fx': fx0 - lastX + 'px', '--fy': fy0 - lastY + 'px', boxShadow: '0 0 0 2px ' + (last.chot ? '#f87171' : PH.gold) + ', 0 10px 22px -6px rgba(0,0,0,.7)',
-                          transform: 'translate(-50%, -50%)', animation: 'tlFly .38s cubic-bezier(.3,.7,.2,1) both',
+                          transform: 'translate(-50%, -50%)', animation: 'tlArc .45s cubic-bezier(.3,.7,.2,1) both',
                         }}>
                           <CardFace c={last.card} w={lw} h={lh} faces={RANK_FACES} />
                           {last.chot && <span style={{ position: 'absolute', top: -7, right: -7, padding: '2px 5px', borderRadius: 99, background: '#c92a2a', color: '#fff', font: '800 9.5px/1.2 var(--font-sans)' }}>{t('games.phom.chotTag')}</span>}
@@ -359,7 +359,7 @@ export default function PhomBoard({ state, mySeat, onMove, roomId, result, playe
             {/* Mình: tên + trạng thái, chồng đã đánh, phỏm đã hạ, bài trên tay */}
             <div style={{ position: 'absolute', left: L.pad, right: L.pad, bottom: narrow ? 6 : 40, display: 'grid', gap: narrow ? 3 : 4, zIndex: 4 }}>
               <div style={{ display: 'flex', alignItems: 'center', gap: 8, minWidth: 0, whiteSpace: 'nowrap' }}>
-                <Seat name={memberOf(base)?.name || nameOf(base)} src={memberOf(base)?.avatarUrl} size={narrow ? 20 : 26} active={onTurn(base)} />
+                <Seat name={memberOf(base)?.name || nameOf(base)} src={memberOf(base)?.avatarUrl} size={narrow ? 20 : 26} active={onTurn(base)} bubble={bubbles?.[base]} up />
                 <span style={{ font: `700 ${narrow ? 13 : 14}px/1.2 var(--font-sans)`, overflow: 'hidden', textOverflow: 'ellipsis', minWidth: 0 }}>{seated ? t('games.phom.youCap') : nameOf(base)}</span>
                 {meTag && <Tag>{meTag}</Tag>}
                 {onTurn(base) && <span style={{ font: '700 12px/1.2 var(--font-sans)', color: PH.teal }}>{seated ? t('games.phom.myTurn') : t('games.phom.thinking')}</span>}
@@ -390,9 +390,23 @@ export default function PhomBoard({ state, mySeat, onMove, roomId, result, playe
 
             <div data-game-fx style={{ position: 'absolute', inset: 0, pointerEvents: 'none' }}>{fx}</div>
 
+            {/* Ù: pop-up giữa bàn (bản thiết kế) rồi mới hiện màn kết thúc */}
+            {state.over && state.u && !peek && (
+              <div data-game-fx style={{ position: 'absolute', inset: 0, zIndex: 25, pointerEvents: 'none' }}>
+                <div aria-live="assertive" style={{ position: 'absolute', left: '50%', top: '44%', padding: narrow ? '12px 20px' : '18px 34px', borderRadius: 24, background: 'radial-gradient(circle at 50% 0, rgba(255,207,58,.35), rgba(10,14,30,.95) 70%)', border: '3px solid #ffcf3a', boxShadow: '0 0 70px #ffcf3a', textAlign: 'center', opacity: 0, animation: 'phU 2.4s cubic-bezier(.2,1.4,.4,1) forwards' }}>
+                  <div style={{ font: `italic 800 ${narrow ? 30 : 46}px/1.15 var(--font-display)`, color: '#fff', textShadow: '0 0 24px #ffcf3a', whiteSpace: 'nowrap' }}>
+                    {t(state.u.khan ? 'games.phom.uPopKhan' : state.u.tron ? 'games.phom.uPopTron' : 'games.phom.uPop', { side: who(state.u.seat) })}
+                  </div>
+                  <div style={{ font: '600 14px/1.4 var(--font-sans)', color: '#F0B75C' }}>
+                    {t(state.u.khan ? 'games.phom.uSubKhan' : state.u.tron ? 'games.phom.uSubTron' : 'games.phom.uSub')}
+                  </div>
+                </div>
+              </div>
+            )}
+
             {/* Màn kết thúc */}
             {ow && (
-              <Overlay width={narrow ? 340 : 560} maxHeight={L.h - 40}>
+              <Overlay width={narrow ? 340 : 560} maxHeight={L.h - 40} delay={state.u ? 2.1 : 0}>
                 <div style={{ display: 'grid', justifyItems: 'center', gap: 4, textAlign: 'center' }}>
                   <span style={{ font: '600 11px/1 var(--font-mono)', letterSpacing: '.14em', textTransform: 'uppercase', color: G.muted }}>{t('games.phom.finalTitle')}</span>
                   <span style={{ font: `800 ${narrow ? 22 : 28}px/1.2 var(--font-display)`, color: G.goldHi }}>{overTitle}</span>

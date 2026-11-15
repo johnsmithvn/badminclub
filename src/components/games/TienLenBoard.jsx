@@ -71,7 +71,7 @@ function useNow(on) {
   return now
 }
 
-export default function TienLenBoard({ state, mySeat, onMove, roomId, result, players, names, stake = 0, actions, overActions, note, hands: given }) {
+export default function TienLenBoard({ state, mySeat, onMove, roomId, result, players, names, stake = 0, actions, overActions, note, bubbles, hands: given }) {
   const { a, db } = useApp()
   const [ref, k0] = useFit(WIDE.w)
   // Khung hẹp hơn ~560px thì đổi sang bàn hẹp — co bàn rộng xuống đó thì lá trên tay không bấm nổi.
@@ -245,7 +245,7 @@ export default function TienLenBoard({ state, mySeat, onMove, roomId, result, pl
         <span key={`p${state.ply}-${c}`} style={{
           position: 'absolute', left: DW / 2 + off, top: CY, width: L.pile[0], height: L.pile[1], borderRadius: 7, boxShadow: '0 10px 22px -6px rgba(0,0,0,.7)',
           transform: `translate(-50%, -50%) rotate(${r}deg)`, '--fx': ox - DW / 2 - off + 'px', '--fy': oy - CY + 'px', '--fr': (ox === DW / 2 ? 0 : 90) + 'deg', '--r': r + 'deg',
-          animation: `tlFly .38s cubic-bezier(.3,.7,.2,1) ${(j * 0.035).toFixed(3)}s both`, zIndex: 2,
+          animation: `tlArc .45s cubic-bezier(.3,.7,.2,1) ${(j * 0.035).toFixed(3)}s both`, zIndex: 2,
         }}><CardFace c={c} w={L.pile[0]} h={L.pile[1]} /></span>,
       )
     })
@@ -308,7 +308,7 @@ export default function TienLenBoard({ state, mySeat, onMove, roomId, result, pl
             const m = memberOf(s)
             return (
               <div key={s} style={{ position: 'absolute', left: x, top: y, transform: 'translate(-50%, -50%)', display: 'flex', flexDirection: 'column', alignItems: 'center', gap: narrow ? 3 : 6, zIndex: 4, width: L.ow }}>
-                <Seat name={m?.name || nameOf(s)} src={m?.avatarUrl} size={L.seat} active={active} pct={active ? pct : null} low={low} dim={state.passed[s] && !over} />
+                <Seat name={m?.name || nameOf(s)} src={m?.avatarUrl} size={L.seat} active={active} pct={active ? pct : null} low={low} dim={state.passed[s] && !over} bubble={bubbles?.[s]} />
                 <span style={{ maxWidth: '100%', font: `700 ${narrow ? 12 : 14}px/1.2 var(--font-sans)`, whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis' }}>{nameOf(s)}</span>
                 <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
                   {cnt > 0 && (
@@ -326,7 +326,7 @@ export default function TienLenBoard({ state, mySeat, onMove, roomId, result, pl
 
           {/* Mình */}
           <div style={{ position: 'absolute', ...(narrow ? { left: 12, top: 318, gap: 10, maxWidth: 260 } : { left: 24, top: 446, gap: 12, maxWidth: 300 }), display: 'flex', alignItems: 'center', zIndex: 4 }} aria-live="polite">
-            <Seat name={memberOf(base)?.name || nameOf(base)} src={memberOf(base)?.avatarUrl} size={L.me} active={state.started && !over && state.turn === base} pct={pct} low={low} />
+            <Seat name={memberOf(base)?.name || nameOf(base)} src={memberOf(base)?.avatarUrl} size={L.me} active={state.started && !over && state.turn === base} pct={pct} low={low} bubble={bubbles?.[base]} up />
             <div style={{ display: 'grid', gap: 2, minWidth: 0 }}>
               <span style={{ font: '700 14px/1.2 var(--font-sans)', whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis' }}>
                 {nameOf(base)}{seated && <span style={{ fontWeight: 500, fontSize: 11, color: G.tealHi }}> {t('games.wait.youTag')}</span>}

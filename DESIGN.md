@@ -180,7 +180,7 @@ cân, hiệu ứng, màn kết thúc dùng chung ở `ChessStage.jsx` (`ChessSta
   `PhomBoard.jsx` (nỉ lục, viền gỗ chỉ vàng, kính tối trên chiếu). Hai bố cục theo bề rộng khung: rộng 788 × 760 (đối thủ
   trái / trên / phải), khung hẹp hơn 560px thì bàn 374 × 600 (đối thủ một hàng trên cùng); co bằng `useFit`. Nút Ăn / Bốc /
   Đánh / Hạ nằm DƯỚI bàn, dùng token. Hiệu ứng mượn của Tiến lên (`tlFly`, `tlStamp`, `chFlash`, `chBurst`).
-- **Phần chung của bàn bài** (`cardTable.jsx`): `Seat` (ảnh + vòng lượt) và `Overlay` (màn kết thúc đè lên bàn) — Tiến
+- **Phần chung của bàn bài** (`cardTable.jsx`): `Seat` (ảnh + vòng giờ SVG nét liền rút dần + bong bóng chat `bubble`) và `Overlay` (màn kết thúc đè lên bàn) — Tiến
   lên, Phỏm, Xì dách, Ba cây, Bài bịp dùng; game bài khác có bản thiết kế thì ráp từ đây. Mặt bàn / bố cục ghế vẫn là của từng game.
 - **Bàn Xì dách · Sòng nhà cái** (bản "Xì dách", 2026-11-14): cùng ngoại lệ, bảng màu `XD` trong `XiDachBoard.jsx` (nỉ lục bầu
   dục, nhà cái trên đỉnh, con bài vòng cung). Rộng 800 × 720 / hẹp 374 × 560. Nút Rút / Dằn / Lật cả bàn DƯỚI bàn, dùng token.
@@ -190,7 +190,8 @@ cân, hiệu ứng, màn kết thúc dùng chung ở `ChessStage.jsx` (`ChessSta
   để hé (clip-path) hoặc chạm để hé dần. Người thắng đội vương miện, `tlStamp` + `chBurst`.
 - **Bàn Bài bịp · Bom 6 dây** (bản "Bài bịp", 2026-11-14): cùng ngoại lệ, bảng màu `BB` + mặt lá Q/K/A/Joker vẽ SVG riêng
   (`FACE`) trong `BaiBipBoard.jsx` (chiếu tím viền gỗ). Rộng 788 × 760 / hẹp 374 × 560. Bị tố thua → lớp phủ lật bài + quả bom
-  to 6 dây (màu dây `WIRE_INK`) để cắt. Nút Úp / Tố DƯỚI bàn. Hiệu ứng `tlFly`, `tlStamp`, `chFlash` + `chBurst` khi nổ.
+  to 6 dây (màu dây `WIRE_INK`) để cắt. Nút Úp / Tố DƯỚI bàn. Hiệu ứng `tlArc`, `tlStamp`, `bbShake` khi tố, `bbIdle` bom chờ, `bbFlashW` + `bbSmoke` +
+  `chBurst` khi nổ, `bbLabel` câu nhận, `bbFall` pháo giấy. Tố xong: lật bài ~1,8 giây rồi mới tới bom (hẹn giờ trên máy).
 - **Bàn Bắn tàu** (bản "Bắn tàu", 2026-11-12): cùng ngoại lệ — vùng biển 3 skin chọn được (Hải chiến / Radar / Giấy kẻ ô)
   ở `chessSkins.js` (`SKINS.bantau`, `useSkin('bantau')`, nút `SkinPicker kind="bantau"` nằm trên bàn), tàu 5 loại vẽ SVG
   theo màu skin, nhấn phía mình ngọc `#00B2A9` / phía đối phương cam `#ff7a1a` (hằng `ME` / `FOE` trong `BanTauBoard.jsx`).
@@ -225,6 +226,9 @@ cân, hiệu ứng, màn kết thúc dùng chung ở `ChessStage.jsx` (`ChessSta
   Sảnh **mobile** theo bản "Sảnh · mobile" (2026-11-12): đầu trang = tiêu đề | nút mã phòng 44px (bấm mới hiện ô nhập) + viên ví;
   dải "Ván đang dở" một hàng; thẻ game 2 cột một chạm → sheet `GameSheet` (mô tả, thành tích, phòng đang mở của game đó,
   Cách chơi / Chơi với máy / Tạo phòng). Những phần bản thiết kế không vẽ vẫn giữ: 3 tab, ô tìm, Phòng đang mở (chỉ khi có phòng), Top tháng.
+  Sảnh **desktop** theo bản "Sảnh · 1 · Hai cột — game là chính" (2026-11-15): thẻ Ván đang dở chạy hết bề ngang, dưới là lưới
+  game | cột phải 320px (Phòng đang mở + Top tháng). Trang `games` có nền trời chung (`sky.liteRoutes`) nên thẻ là kính mờ.
+  Nút / khung trong `stage.js` có vệt sáng mép trên, `btn('primary')` đổ sáng + quầng ngọc lam, `chip` đang chọn có quầng.
 
 ## 3. Typography
 

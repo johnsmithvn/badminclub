@@ -20,7 +20,7 @@ const LOW_MS = 20000 // dưới ngần này đồng hồ chuyển đỏ
  * Bong bóng chat nổi cạnh ô ký hiệu (bản "Cờ · sinh động"): tin chữ hoặc sticker vừa gửi, `up` = mở lên trên (thanh dưới).
  * Màu viết cứng như bản thiết kế (bong bóng sáng chữ tối) — đọc được trên cả nền sáng lẫn tối.
  */
-function Bubble({ msg, up }) {
+export function Bubble({ msg, up }) {
   const stk = stickerOf(msg.text)
   const tail = { position: 'absolute', left: 14, width: 0, height: 0, borderLeft: '7px solid transparent', borderRight: '7px solid transparent', ...(up ? { bottom: -7, borderTop: '8px solid #F4F7FB' } : { top: -7, borderBottom: '8px solid #F4F7FB' }) }
   return (

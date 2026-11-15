@@ -14,7 +14,8 @@ import { nutOf, scoreOf, topOf } from '#lib/games/bacay.js'
  * (mình ở giữa đáy), giữa bàn là số người đã lật + dòng trạng thái. Ba lá của mình nằm to DƯỚI bàn: kéo góc phải dưới
  * lên để hé (hoặc chạm để hé dần) — chỉ máy mình thấy — rồi bấm Lật cho cả bàn xem. Người thắng đội vương miện.
  * Bản thiết kế có ô góp cược (ante) nhưng đang tắt (luật hiện tại chơi bằng điểm) — chưa làm.
- * Hai bố cục theo bề rộng khung (như Phỏm): rộng 800 × 560, khung hẹp hơn 560px thì bàn 374 × 400. Co bằng useFit.
+ * Hai bố cục theo bề rộng khung (như Phỏm): rộng 800 × 560 (lá to dưới bàn), khung hẹp hơn 560px thì bàn 374 × 400, đang nặn
+ * thì cao thêm 140 để ba lá nằm trong bàn như bản mobile. Co bằng useFit.
  *
  * Bài trên tay không có trong state trước khi lật (docs/GAMES.md §5.2): nạp riêng từ game_hands (RLS: đang chơi chỉ trả tay
  * mình, hết ván trả mọi tay). Lá đã lật nằm trong log. Luật: lib/games/bacay.js · server: 0092.
@@ -82,7 +83,7 @@ function SqueezeCard({ c, w, peel, onPeel, label }) {
   )
 }
 
-export default function BaCayBoard({ state, mySeat, onMove, roomId, result, players, names, stake = 0, actions, overActions, note, hands: given }) {
+export default function BaCayBoard({ state, mySeat, onMove, roomId, result, players, names, stake = 0, actions, overActions, note, bubbles, hands: given }) {
   const { db, a } = useApp()
   const [ref, k0] = useFit(WIDE.w)
   const narrow = k0 * WIDE.w < 560
@@ -165,12 +166,12 @@ export default function BaCayBoard({ state, mySeat, onMove, roomId, result, play
         boxShadow: won ? '0 0 0 2px rgba(255,207,58,.5), 0 0 40px -4px ' + BC.crown : 'none', opacity: state.out[seat] ? 0.5 : 1, transition: 'box-shadow .4s, border-color .4s',
       }}>
         {won && (
-          <span aria-hidden="true" style={{ position: 'absolute', left: '50%', top: narrow ? -16 : -22, transform: 'translateX(-50%)', lineHeight: 0 }}>
+          <span aria-hidden="true" style={{ position: 'absolute', left: '50%', top: narrow ? -16 : -22, transform: 'translateX(-50%)', lineHeight: 0, animation: 'bcCrown 1.2s ease-in-out infinite' }}>
             <svg width={narrow ? 24 : 32} height={narrow ? 18 : 24} viewBox="0 0 40 30"><path d="M3 26 L5 8 L13 16 L20 3 L27 16 L35 8 L37 26 Z" fill="#ffd43b" stroke="#8a5a00" strokeWidth="2" strokeLinejoin="round" /><circle cx="20" cy="17" r="3" fill="#e5484d" /></svg>
           </span>
         )}
         <div style={{ display: 'flex', alignItems: 'center', gap: 5, minWidth: 0 }}>
-          <Seat name={m?.name || nameOf(seat)} src={m?.avatarUrl} size={L.seat} active={!state.over && !cards && !state.out[seat]} />
+          <Seat name={m?.name || nameOf(seat)} src={m?.avatarUrl} size={L.seat} active={!state.over && !cards && !state.out[seat]} bubble={bubbles?.[seat]} up={seat === mySeat} />
           <div style={{ display: 'grid', minWidth: 0 }}>
             <span style={{ font: `700 ${narrow ? 11 : 12.5}px/1.2 var(--font-sans)`, whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis', maxWidth: narrow ? 62 : 92 }}>{who(seat)}</span>
             {sc != null && <span style={{ font: `400 ${narrow ? 9.5 : 10.5}px/1.3 var(--font-mono)`, color: BC.gold, whiteSpace: 'nowrap' }}>{money(sc)}</span>}
@@ -198,11 +199,22 @@ export default function BaCayBoard({ state, mySeat, onMove, roomId, result, play
 
   const [ox, oy, ow, oh] = L.oval
   const [px, py] = L.pot
+  // Khung hẹp (bản mobile): ba lá to nằm TRONG bàn, dưới chiếu — bàn cao thêm một dải. Khung rộng: lá nằm dưới bàn.
+  const inBoard = narrow && canFlip && !mine?.failed
+  const H = L.h + (inBoard ? 140 : 0)
+  const myCards = (
+    <div role="group" aria-label={t('games.bacay.handAria')} style={{ display: 'flex', gap: narrow ? 10 : 16, justifyContent: 'center' }}>
+      {(myHand.length ? myHand : [null, null, null]).map((c, j) => (
+        <SqueezeCard key={c ?? 'x' + j} c={c} w={L.mw} peel={c == null ? 0 : peeled[c] || 0} label={t('games.bacay.peekCard')}
+          onPeel={(p) => c != null && setPeel({ roomId, p: { ...peeled, [c]: Math.min(1, p) } })} />
+      ))}
+    </div>
+  )
   return (
     <div style={{ display: 'grid', gap: 12, gridTemplateColumns: 'minmax(0, 1fr)' }}>
       <div ref={ref} style={{ width: '100%', maxWidth: WIDE.w, margin: '0 auto', display: 'grid', justifyItems: 'center' }}>
-        <div style={{ width: L.w * k, height: L.h * k, position: 'relative' }}>
-          <div style={{ width: L.w, height: L.h, transform: `scale(${k})`, transformOrigin: '0 0', position: 'relative', overflow: 'hidden', borderRadius: L.radius, background: BC.room, color: BC.ink, userSelect: 'none' }}>
+        <div data-game-fx style={{ width: L.w * k, height: H * k, position: 'relative' }}>
+          <div style={{ width: L.w, height: H, transform: `scale(${k})`, transformOrigin: '0 0', position: 'relative', overflow: 'hidden', borderRadius: L.radius, background: BC.room, color: BC.ink, userSelect: 'none' }}>
             <span aria-hidden="true" style={{ position: 'absolute', left: ox, top: oy, width: ow, height: oh, borderRadius: '50%', background: BC.felt, boxShadow: BC.rim(L.rim) }} />
             <span aria-hidden="true" style={{ position: 'absolute', left: ox + ow * 0.14, top: oy + oh * 0.14, width: ow * 0.72, height: oh * 0.72, borderRadius: '50%', border: '2px dashed rgba(240,183,92,.3)' }} />
 
@@ -217,6 +229,8 @@ export default function BaCayBoard({ state, mySeat, onMove, roomId, result, play
               const [x, y] = posOf(s)
               return <div key={s} style={{ position: 'absolute', left: x, top: y, transform: 'translate(-50%, -50%)', zIndex: s === base ? 20 : 10 }}>{seatBox(s)}</div>
             })}
+
+            {inBoard && <div style={{ position: 'absolute', left: 0, right: 0, top: L.h + 4, zIndex: 25 }}>{myCards}</div>}
 
             <div data-game-fx style={{ position: 'absolute', inset: 0, pointerEvents: 'none' }}>{fx}</div>
           </div>
@@ -236,12 +250,7 @@ export default function BaCayBoard({ state, mySeat, onMove, roomId, result, play
             : (
               <>
                 <span style={S.hint}>{t(allOpen ? 'games.bacay.peekDone' : 'games.bacay.peekHint')}</span>
-                <div role="group" aria-label={t('games.bacay.handAria')} style={{ display: 'flex', gap: narrow ? 10 : 16, justifyContent: 'center' }}>
-                  {(myHand.length ? myHand : [null, null, null]).map((c, j) => (
-                    <SqueezeCard key={c ?? 'x' + j} c={c} w={L.mw} peel={c == null ? 0 : peeled[c] || 0} label={t('games.bacay.peekCard')}
-                      onPeel={(p) => c != null && setPeel({ roomId, p: { ...peeled, [c]: Math.min(1, p) } })} />
-                  ))}
-                </div>
+                {!inBoard && myCards}
                 {allOpen && <span style={{ font: '700 14px/1.3 var(--font-sans)', color: G.goldHi }}>{t('games.bacay.myNut', { nut: nutText(myHand), top: faceOf(topOf(myHand)) })}</span>}
                 <button type="button" disabled={myHand.length !== 3} onClick={() => onMove({ flip: true })}
                   style={{ ...btn('primary'), minHeight: 48, padding: '12px 26px', font: '800 15px/1 var(--font-sans)', width: '100%', maxWidth: 420, opacity: myHand.length === 3 ? 1 : 0.45 }}>

@@ -1,8 +1,8 @@
 import { useEffect, useState } from 'react'
-import { Button } from '#ds'
+import { Avatar, Button } from '#ds'
 import { useApp } from '#contexts/AppContext.jsx'
 import { t } from '#i18n'
-import { CARD, G, btn } from '#components/games/stage.js'
+import { CARD, G, btn, card } from '#components/games/stage.js'
 import { rnd, useFit } from '#components/games/chessUi.js'
 import { CardFace } from '#components/games/PlayingCard.jsx'
 import { Overlay, Seat } from '#components/games/cardTable.jsx'
@@ -69,7 +69,7 @@ function useNow(on) {
   return now
 }
 
-export default function XiDachBoard({ state, mySeat, onMove, roomId, result, players, names, stake = 0, actions, overActions, note, hands: given }) {
+export default function XiDachBoard({ state, mySeat, onMove, roomId, result, players, names, stake = 0, actions, overActions, note, bubbles, hands: given }) {
   const { a, db } = useApp()
   const [ref, k0] = useFit(WIDE.w)
   // Khung hẹp hơn ~560px thì đổi sang bàn hẹp — co bàn rộng xuống đó thì chữ trên ghế không đọc nổi.
@@ -167,7 +167,7 @@ export default function XiDachBoard({ state, mySeat, onMove, roomId, result, pla
           <span key={state.round + ':' + j + (open ? 'o' : 'b')} style={{
             position: 'absolute', left: j * step + w / 2, top: h / 2, width: w, height: h, borderRadius: 6, boxShadow: '0 3px 8px rgba(0,0,0,.45)',
             transform: 'translate(-50%, -50%)', '--fx': sx - px + 'px', '--fy': sy - py + 'px', '--fr': '0deg', '--r': '0deg',
-            animation: open && seat !== mySeat ? 'gameFlip var(--dur-slow) var(--ease-standard) both' : `tlFly .4s cubic-bezier(.3,.7,.2,1) ${(j * 0.06).toFixed(2)}s both`,
+            animation: open && seat !== mySeat ? 'gameFlip var(--dur-slow) var(--ease-standard) both' : `tlArc .45s cubic-bezier(.3,.7,.2,1) ${(j * 0.06).toFixed(2)}s both`,
             ...(open ? null : { background: CARD.back, border: '2px solid ' + CARD.backLine }),
           }}>
             {open && <CardFace c={open[j]} w={w} h={h} />}
@@ -196,7 +196,7 @@ export default function XiDachBoard({ state, mySeat, onMove, roomId, result, pla
         opacity: state.out[seat] ? 0.5 : 1, transition: 'box-shadow .3s, border-color .3s', maxWidth: narrow ? 150 : 230,
       }}>
         <div style={{ display: 'flex', alignItems: 'center', gap: 6, maxWidth: '100%', minWidth: 0 }}>
-          <Seat name={m?.name || nameOf(seat)} src={m?.avatarUrl} size={L.seat} active={on} pct={on ? pct : null} low={low} />
+          <Seat name={m?.name || nameOf(seat)} src={m?.avatarUrl} size={L.seat} active={on} pct={on ? pct : null} low={low} bubble={bubbles?.[seat]} up={seat === mySeat} />
           <div style={{ minWidth: 0, display: 'grid' }}>
             <span style={{ font: `700 ${narrow ? 11.5 : 13}px/1.2 var(--font-sans)`, whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis', maxWidth: narrow ? 70 : 110 }}>{who(seat)}</span>
             <span style={{ font: `400 ${narrow ? 10 : 11}px/1.3 var(--font-mono)`, color: XD.gold, whiteSpace: 'nowrap' }}>{t('games.xidach.points', { n: signed(sc) })}</span>
@@ -274,7 +274,7 @@ export default function XiDachBoard({ state, mySeat, onMove, roomId, result, pla
                 }}>
                   <span style={{ position: 'absolute', top: -12, left: '50%', transform: 'translateX(-50%)', padding: '2px 12px', borderRadius: 99, background: 'linear-gradient(180deg, #ffe08a, #e0a020)', color: '#2a1800', font: '800 12px/1.4 var(--font-display)', letterSpacing: '.06em', whiteSpace: 'nowrap', boxShadow: '0 4px 12px rgba(0,0,0,.5)' }}>{t('games.xidach.dealerTag')}</span>
                   <div style={{ display: 'flex', alignItems: 'center', gap: 8, marginTop: 4 }}>
-                    <Seat name={memberOf(banker)?.name || nameOf(banker)} src={memberOf(banker)?.avatarUrl} size={narrow ? 22 : 28} active={phase === 'play' && live && turn === banker} pct={turn === banker ? pct : null} low={low} />
+                    <Seat name={memberOf(banker)?.name || nameOf(banker)} src={memberOf(banker)?.avatarUrl} size={narrow ? 22 : 28} active={phase === 'play' && live && turn === banker} pct={turn === banker ? pct : null} low={low} bubble={bubbles?.[banker]} />
                     <div style={{ display: 'grid' }}>
                       <span style={{ font: `800 ${narrow ? 12.5 : 14}px/1.2 var(--font-sans)`, whiteSpace: 'nowrap', maxWidth: 140, overflow: 'hidden', textOverflow: 'ellipsis' }}>{who(banker)}</span>
                       <span style={{ font: '400 11px/1.3 var(--font-mono)', color: XD.gold, whiteSpace: 'nowrap' }}>{t('games.xidach.points', { n: signed(scores?.[banker] ?? 0) })}</span>
@@ -395,6 +395,29 @@ export default function XiDachBoard({ state, mySeat, onMove, roomId, result, pla
             <span style={S.hint}>{t('games.xidach.nextSoon')}</span>
             <button type="button" onClick={() => onMove({ deal: true })} style={btn('soft', { sm: true })}>{t('games.xidach.next')}</button>
           </div>
+        )}
+
+        {/* Bảng điểm cộng dồn trong lúc chơi (bản thiết kế: tab "Bảng điểm" — có vai nhà cái + người thắng) */}
+        {started && !ow && (
+          <details style={{ ...card, padding: '8px 12px', borderRadius: 12 }}>
+            <summary style={{ cursor: 'pointer', font: '700 13px/1.4 var(--font-sans)', color: G.muted }}>{t('games.xidach.standings', { r: state.round + 1, n: state.rounds })}</summary>
+            {ranks.map((seat) => {
+              const sc = scores?.[seat] ?? 0
+              const top = over && seat === ranks[0]
+              return (
+                <div key={seat} style={{ display: 'flex', alignItems: 'center', gap: 10, padding: '8px 0', borderTop: '1px solid ' + G.line, minWidth: 0 }}>
+                  <Avatar name={nameOf(seat)} src={memberOf(seat)?.avatarUrl} size={28} />
+                  <span style={{ flex: 1, minWidth: 0, font: '700 13.5px/1.3 var(--font-sans)', whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis' }}>
+                    {nameOf(seat)}{seat === mySeat ? ' ' + t('games.wait.youTag') : ''}
+                    {seat === banker && <span style={{ font: '600 11px/1 var(--font-sans)', color: G.goldHi }}> {t('games.xidach.roleBanker')}</span>}
+                  </span>
+                  <span style={{ font: '400 12.5px/1 var(--font-mono)', color: sc > 0 ? G.tealHi : sc < 0 ? G.red : G.muted }}>{money(sc)}</span>
+                  <span style={{ minWidth: 46, textAlign: 'right', font: '700 12px/1 var(--font-mono)', color: '#ffcf3a' }}>{top ? t('games.xidach.winTag') : ''}</span>
+                </div>
+              )
+            })}
+            <span style={{ display: 'block', marginTop: 6, font: 'var(--type-caption)', color: G.muted }}>{t('games.xidach.scoreNote', { n: state.rounds })}</span>
+          </details>
         )}
 
         {((actions?.length > 0) || (over && peek)) && (

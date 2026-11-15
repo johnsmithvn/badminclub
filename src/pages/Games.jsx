@@ -250,21 +250,11 @@ export default function Games() {
       {tab === 'play' && (<>
         {err && <Alert tone="danger">{err}</Alert>}
 
-        <div style={{ display: 'grid', gap: 20, gridTemplateColumns: isMobile ? 'minmax(0, 1fr)' : 'minmax(0, 1fr) 320px', alignItems: 'start' }}>
-          <div style={{ ...S.col, gap: isMobile ? 16 : 20 }}>
-            {/* Ván đang dở + phòng đang chờ */}
-            <div style={{ display: 'grid', gap: 14, gridTemplateColumns: isMobile || !current ? 'minmax(0, 1fr)' : 'minmax(0, 1.1fr) minmax(0, 1fr)' }}>
-              {current && <ResumeCard room={current} me={me} members={db.members} onEnter={() => enter(current)} />}
-              <div style={{ ...card, padding: '16px 18px', display: 'grid', gap: 8, gridTemplateColumns: 'minmax(0, 1fr)' }}>
-                <span style={over}>{t('games.openRooms')}</span>
-                {!data && <Skeleton height={80} />}
-                {data && others.length === 0 && <span style={{ ...S.caption, padding: '10px 0' }}>{t('games.emptyHint')}</span>}
-                <div style={{ display: 'grid', gridTemplateColumns: 'minmax(0, 1fr)', maxHeight: 240, overflowY: 'auto' }}>
-                  {others.map((r) => <RoomRow key={r.id} room={r} me={me} members={db.members} onEnter={() => enter(r)} />)}
-                </div>
-              </div>
-            </div>
+        {/* Bản "Sảnh · Hai cột — game là chính": ván đang dở chạy hết bề ngang; dưới là lưới game | cột phải (phòng đang mở + top tháng). */}
+        {current && <ResumeCard room={current} me={me} members={db.members} onEnter={() => enter(current)} />}
 
+        <div style={{ display: 'grid', gap: 20, gridTemplateColumns: isMobile ? 'minmax(0, 1fr)' : 'minmax(0, 1fr) 320px', alignItems: 'start' }}>
+          <div style={{ ...S.col, gap: 16 }}>
             {/* Lọc nhóm + tìm */}
             <div style={{ display: 'flex', gap: 12, alignItems: 'center', flexWrap: 'wrap', justifyContent: 'space-between' }}>
               <div style={{ display: 'flex', gap: 6, minWidth: 0, overflowX: 'auto', maxWidth: '100%' }}>
@@ -332,8 +322,21 @@ export default function Games() {
             </div>
           </div>
 
-          {/* Cột phải: top tháng */}
-          <TopMonth top={top} me={me} members={db.members} onSeeBoard={() => goTab('board')} />
+          {/* Cột phải: phòng đang mở + top tháng */}
+          <div style={{ ...S.col, gap: 16 }}>
+            <div style={{ ...card, padding: '16px 18px', display: 'grid', gap: 8, gridTemplateColumns: 'minmax(0, 1fr)' }}>
+              <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
+                <span style={over}>{t('games.openRooms')}</span>
+                {data && <span style={{ ...mono, flexShrink: 0 }}>{others.length}</span>}
+              </div>
+              {!data && <Skeleton height={80} />}
+              {data && others.length === 0 && <span style={{ ...S.caption, padding: '10px 0' }}>{t('games.emptyHint')}</span>}
+              <div style={{ display: 'grid', gridTemplateColumns: 'minmax(0, 1fr)', maxHeight: 330, overflowY: 'auto', scrollbarWidth: 'thin' }}>
+                {others.map((r) => <RoomRow key={r.id} room={r} me={me} members={db.members} onEnter={() => enter(r)} />)}
+              </div>
+            </div>
+            <TopMonth top={top} me={me} members={db.members} onSeeBoard={() => goTab('board')} />
+          </div>
         </div>
       </>)}
 
