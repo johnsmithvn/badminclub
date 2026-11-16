@@ -129,19 +129,24 @@
     "tagChallengeMult": "Kèo ×{{mult}}",
     "tagChallengeMultHint": "Trận trong kèo được nhân {{mult}} điểm mùa. Elo vẫn tính như trận thường.",
     "tagPrediction": "Dự đoán",
+    "tagGame": "Game",
     "actPrediction": "Dự đoán kèo",
     "ledgerPredictionWon": "Đoán trúng kèo {{code}}",
     "ledgerPredictionLost": "Đoán trượt kèo {{code}}",
+    "ledgerGameWon": "Thắng {{game}}",
+    "ledgerGameLost": "Thua {{game}}",
     "ledgerHistoryTitle": "Lịch sử điểm cả mùa",
     "splitMatch": "Điểm trận",
     "splitChallenge": "Điểm kèo",
     "splitPrediction": "Dự đoán",
+    "splitGame": "Game",
     "splitBonus": "Thưởng mốc",
     "splitStart": "Khởi đầu",
     "ledgerFilterAll": "Tất cả",
     "ledgerFilterMatch": "Trận",
     "ledgerFilterChallenge": "Kèo",
     "ledgerFilterPrediction": "Dự đoán",
+    "ledgerFilterGame": "Game",
     "ledgerFilterEmpty": "Chưa có dòng nào ở mục này.",
     "eloGapPill": "Lệch {{gap}} Elo",
     "tierPillHeavyFavored": "Kèo trên sâu ({{gap}})",
@@ -7657,7 +7662,10 @@
       "noChips": "Bạn không còn đủ xu trên bàn để đặt mức này",
       "noCoinsSeat": "Có người trong phòng không còn đủ số xu đã chọn mang vào — mời họ chọn mức thấp hơn hoặc rời ghế rồi bắt đầu lại",
       "kicked": "Bạn đã bị chủ phòng mời ra — không vào lại phòng này được.",
-      "needReady": "Còn người chưa bấm Sẵn sàng."
+      "needReady": "Còn người chưa bấm Sẵn sàng.",
+      "noSp": "Điểm mùa của bạn không đủ {{n}} để vào bàn này",
+      "noSpSeat": "{{name}} không còn đủ điểm mùa cho mức cược của bàn",
+      "busy": "Bạn đang chơi dở một ván ở phòng khác. Đánh nốt, hoặc vào lại phòng đó ở mục Ván đang dở rồi bấm Rời"
     },
     "cat": {
       "all": "Tất cả",
@@ -7876,6 +7884,13 @@
       "histLine": "Bạn {{a}} · {{b}} Máy",
       "rule": "Búa đập Kéo · Kéo cắt Bao · Bao bọc Búa.",
       "howto": "Bạn và máy cùng ra tay: Búa, Kéo hoặc Bao.\nBúa đập Kéo, Kéo cắt Bao, Bao bọc Búa. Ra giống nhau là hoà, ván đó không tính.\nChọn thể thức chạm 2 hoặc chạm 3: ai thắng đủ số ván trước là thắng trận.\nMáy chủ yếu ra ngẫu nhiên, nhưng đôi khi để ý tay bạn vừa ra."
+    },
+    "sp": {
+      "label": "Cược điểm mùa",
+      "pill": "{{n}} điểm mùa",
+      "delta": "{{n}} điểm mùa",
+      "hint": "Mỗi người bỏ {{n}} điểm mùa vào hũ. Thua mất {{n}}, người thắng chia đều hũ. Hoà thì không ai mất",
+      "hintOff": "Để trống là không cược. Tối đa {{max}} điểm mỗi người"
     }
   }
 }

@@ -610,7 +610,7 @@ export function stakeBaseOf(seasonRes, memberId) {
   if (!row) return 0
   if (row.matchesCount > 0) return row.totalSeasonPoints || 0
   const start = seasonRes.season?.startPoints ?? cfg.season?.startPoints ?? 0
-  return Math.max(0, start + (row.breakdown?.predictionNetPoints || 0))
+  return Math.max(0, start + (row.breakdown?.predictionNetPoints || 0) + (row.breakdown?.gameNetPoints || 0))
 }
 
 /**

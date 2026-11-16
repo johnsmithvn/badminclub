@@ -321,6 +321,14 @@ export function toDb(raw, ctx) {
         teamB: players.filter((p) => p.team === 'B').map((p) => p.member_id),
       }
     }),
+    // Chỉ đọc, ghi do trigger 0110 — cố ý không có trong TABLES.
+    gameSeasonPoints: (raw.gameSeasonPoints || []).map((g) => ({
+      roomId: g.room_id,
+      memberId: g.member_id,
+      game: g.game,
+      delta: num(g.delta),
+      createdAt: g.created_at,
+    })),
     challengePredictions: (raw.challengePredictions || []).map((p) => ({
       id: p.id,
       challengeId: p.challenge_id,

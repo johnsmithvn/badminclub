@@ -505,6 +505,6 @@ assert.ok(sp.challenge > sp.match / 2, 'trận kèo nhân hệ số → điểm 
 assert.equal(sp.bonus, 5, 'thắng 3 liền → thưởng mốc chuỗi 3')
 assert.equal(sp.prediction, 1, 'phiếu +2 và -1')
 assert.equal(sp.start + sp.match + sp.challenge + sp.bonus + sp.prediction, splitOut.totalPoints, 'các nguồn cộng lại = tổng điểm mùa')
-assert.deepEqual(getMemberSeasonLedger('L1', { ...ledgerDb, matches: [] }, seasonQ3).split, { start: 0, match: 0, challenge: 0, bonus: 0, prediction: 1 }, 'chưa đánh trận nào thì không có điểm khởi đầu')
+assert.deepEqual(getMemberSeasonLedger('L1', { ...ledgerDb, matches: [] }, seasonQ3).split, { start: 0, match: 0, challenge: 0, bonus: 0, prediction: 1, game: 0 }, 'chưa đánh trận nào thì không có điểm khởi đầu')
 
 console.log('ledger split check: OK')

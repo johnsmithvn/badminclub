@@ -3,9 +3,11 @@
 // Như Thư viện / Giải đấu: dữ liệu KHÔNG nằm trong `db`, KHÔNG qua diff()/save(). Trang tự nạp,
 // mỗi lần ghi chờ DB xong mới báo. Luật quyền nằm ở RPC của 0074; luật game ở lib/games/*.
 
-import { findGameRoom, gameRpc, loadGameBoard, loadGameHand, loadGameLobby, loadGameRoom, loadGameWallets, loadMemberCoins, loadMyWallet, loadRoomCoins, subscribeGameRoom } from '#contexts/storage.js'
-import { gameOf, seatRange } from '#lib/games/registry.js'
-import { myMember } from '#lib/money.js'
+import { findGameRoom, gameRpc, loadGameBoard, loadGameHand, loadGameLobby, loadGameRoom, loadGameWallets, loadMemberCoins, loadMyWallet, loadRoomCoins, loadRoomSp, subscribeGameRoom } from '#contexts/storage.js'
+import { gameOf, seatRange, seatedOf, spOf } from '#lib/games/registry.js'
+import { myMember, playerName } from '#lib/money.js'
+import { calculateSeasonLeaderboard } from '#lib/season.js'
+import { availableSeasonPoints, stakeBaseOf } from '#lib/challenge.js'
 import { t } from '#i18n'
 
 /** Lỗi mang key `games.err.*` (từ RAISE của RPC) → dịch; lỗi khác giữ nguyên để còn biết là gì. */
@@ -23,6 +25,20 @@ const isStale = (e) => e?.code === '23505' || ['games.err.stale', 'games.err.not
 export function makeGameActions({ dbRef, toast }) {
   const db = () => dbRef.current
   const me = () => myMember(db())?.id || null
+
+  /**
+   * Cược điểm mùa (0110): server không biết số dư (điểm mùa là số dẫn xuất) nên chặn ở đây, như cược kèo.
+   * Trả người đầu tiên trong `ids` không đủ `sp` điểm khả dụng, không ai thì null.
+   * Mỗi người chỉ ngồi một phòng chưa xong (0111) nên không có chuyện nhiều bàn cùng thấy đủ số dư.
+   * ponytail: sổ game chỉ vào db lúc nạp lại, nên ván vừa thua chưa trừ ngay. Chặn hẳn thì cần sổ số dư phía server.
+   */
+  const shortOfSp = (ids, sp) => {
+    if (!sp) return null
+    const d = db()
+    const res = calculateSeasonLeaderboard(d)
+    return ids.find((id) => availableSeasonPoints(stakeBaseOf(res, id), d.challengePredictions, d.challenges, d.sessions, id) < sp) || null
+  }
+  const noSp = (sp) => { toast(t('games.err.noSp', { n: sp })); return Promise.resolve(null) }
 
   const run = async (fn, ok) => {
     try {
@@ -42,6 +58,8 @@ export function makeGameActions({ dbRef, toast }) {
     /** Xu ảo (0093): ví cả CLB · xu ăn thua của một phòng. */
     gameWallets: () => loadGameWallets(db().clubId),
     gameRoomCoins: (id) => loadRoomCoins(id),
+    /** Điểm mùa ăn thua của một phòng (0110). */
+    gameRoomSp: (id) => loadRoomSp(id),
     gameMemberCoins: (memberId, limit) => loadMemberCoins(memberId, limit),
     gameMyWallet: () => loadMyWallet(db().clubId),
     /** Đổi số xu mang vào bàn (0101) — chỉ lúc phòng chờ; ví thiếu / mức lạ → server từ chối, toast. */
@@ -60,12 +78,16 @@ export function makeGameActions({ dbRef, toast }) {
     /** Tạo phòng, trả id. `from` = phòng vừa chơi xong (Chơi lại). */
     gameCreate: (game, options, isPrivate, from = null) => {
       if (!me()) { toast(t('games.err.notMember')); return Promise.resolve(null) }
+      if (shortOfSp([me()], spOf(options))) return noSp(spOf(options))
       return run(() => gameRpc('game_create', {
         p_club: db().clubId, p_game: game, p_options: options || {}, p_private: !!isPrivate, p_from: from,
       }))
     },
 
-    gameJoin: (room) => run(() => gameRpc('game_join', { p_room: room.id, p_max: seatRange(gameOf(room.game), room.options)[1] })),
+    gameJoin: (room) => {
+      if (shortOfSp([me()], spOf(room.options))) return noSp(spOf(room.options))
+      return run(() => gameRpc('game_join', { p_room: room.id, p_max: seatRange(gameOf(room.game), room.options)[1] }))
+    },
     gameLeave: (roomId) => run(() => gameRpc('game_leave', { p_room: roomId })),
     /** Phòng chờ (0105): bật / tắt Sẵn sàng · chủ phòng mời một người ra · chủ phòng đổi luật (giữ mức cược). */
     gameReady: (roomId, ready) => run(() => gameRpc('game_ready', { p_room: roomId, p_ready: !!ready })),
@@ -73,6 +95,8 @@ export function makeGameActions({ dbRef, toast }) {
     gameSetOptions: (roomId, options) => run(() => gameRpc('game_set_options', { p_room: roomId, p_options: options || {} })),
     gameStart: (room) => {
       const [min, max] = seatRange(gameOf(room.game), room.options)
+      const broke = shortOfSp(seatedOf(room.players).map((p) => p.memberId), spOf(room.options))
+      if (broke) { toast(t('games.err.noSpSeat', { name: playerName(db(), broke) || '' })); return Promise.resolve(null) }
       return run(() => gameRpc('game_start', { p_room: room.id, p_min: min, p_max: max }))
     },
 

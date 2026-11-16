@@ -141,6 +141,10 @@ Ký hiệu: `[x]` xong và đã kiểm · `[~]` đang làm · `[ ]` chưa làm.
 
 ### Cố ý hoãn — có lý do, không phải quên
 
+- [ ] **Chống gian lận cược điểm mùa trong game** (0110, chủ dự án hoãn 2026-11-16: "ai làm thế, có lỗ hổng tính sau").
+      Danh sách lỗ hổng ở `docs/GAMES.md` §4c. Việc đầu tiên khi cần: `game_finish` với Cờ vua / Cờ tướng / Cờ úp chỉ nhận
+      kết quả khi người gọi không nằm trong `winners`. Sau đó mới tính giới hạn kèo / ngày / cặp.
+
 - [ ] **Realtime channel theo `session_id`** cho `session_lineups` + `matches` (handoff 05).
       Hoãn vì: `reload()` từ server giữa lúc người điều phối đang kéo thả sẽ ăn mất thao tác
       đang làm. Phần chống xung đột cần thiết kế riêng, không phải mấy dòng `subscribe`.

@@ -13,7 +13,7 @@ import RoomChat, { useBubbles } from '#components/games/RoomChat.jsx'
 import { CLOSEUP_GAMES, CloseUpToggle } from '#components/games/CutScene.jsx'
 import MoveList from '#components/games/MoveList.jsx'
 import { SkinPicker } from '#components/games/ChessStage.jsx'
-import { BOARD_POINTS, BOT_PREFIX, chipsOf, notesOf, seatRange, stakeOf } from '#lib/games/registry.js'
+import { BOARD_POINTS, BOT_PREFIX, chipsOf, notesOf, seatRange, spOf, stakeOf } from '#lib/games/registry.js'
 import { clockMins, INC_SEC } from '#lib/games/chessClock.js'
 import { pathOf } from '#routes'
 import { t } from '#i18n'
@@ -62,13 +62,15 @@ function RoomPage({ id }) {
   // Xu ăn thua (0093): server trả lúc phòng chuyển sang 'finished' — nạp một lần khi thấy phòng xong.
   const [coins, setCoins] = useState(null) // { roomId, map: { [memberId]: delta } }
   const stake = stakeOf(room?.options)
+  // Cược điểm mùa (0110): ăn thua đọc từ sổ game_season_points, hiện cùng chỗ với xu.
+  const sp = spOf(room?.options)
   const done = room?.status === 'finished'
   useEffect(() => {
-    if (!done || !stake || !room?.id) return undefined
+    if (!done || !(stake || sp) || !room?.id) return undefined
     let live = true
-    a.gameRoomCoins(room.id).then((map) => { if (live) setCoins({ roomId: room.id, map }) }).catch(() => {})
+    ;(sp ? a.gameRoomSp : a.gameRoomCoins)(room.id).then((map) => { if (live) setCoins({ roomId: room.id, map }) }).catch(() => {})
     return () => { live = false }
-  }, [a, done, stake, room?.id])
+  }, [a, done, stake, sp, room?.id])
   const coinOf = (memberId) => (coins?.roomId === room?.id ? coins.map[memberId] : undefined)
   // Đang chơi game điểm có bảng điểm theo ván (Bầu cua, Xì dách) thì hiện xu còn trên bàn = mang vào + điểm × giá điểm.
   const points = BOARD_POINTS.includes(room?.game)
@@ -208,7 +210,7 @@ function RoomPage({ id }) {
               )}
               {coinOf(p.memberId) != null && (
                 <span style={{ ...S.mono, fontWeight: 600, color: coinOf(p.memberId) > 0 ? 'var(--status-delivered-fg)' : coinOf(p.memberId) < 0 ? 'var(--status-incident-fg)' : undefined }}>
-                  {t('games.coins.delta', { n: (coinOf(p.memberId) > 0 ? '+' : '') + coinOf(p.memberId) })}
+                  {t(sp ? 'games.sp.delta' : 'games.coins.delta', { n: (coinOf(p.memberId) > 0 ? '+' : '') + coinOf(p.memberId) })}
                 </span>
               )}
               {off && <span style={{ ...S.mono, color: 'var(--status-delayed-fg)' }}>{off}</span>}
@@ -234,6 +236,7 @@ function RoomPage({ id }) {
           </span>
         </div>
         {stake > 0 && <span style={S.badge}>{t('games.coins.stakePill', { n: stake })}</span>}
+        {sp > 0 && <span style={S.badge}>{t('games.sp.pill', { n: sp })}</span>}
         {mins > 0 && <span style={S.badge}>{t('games.clockPill', { n: mins, inc: INC_SEC })}</span>}
         <button type="button" onClick={copyCode} title={t('games.wait.copyCode')} style={S.code}>
           <span style={{ font: '700 14px/1 var(--font-mono)', letterSpacing: '.12em', color: G.text }}>{room.code}</span>

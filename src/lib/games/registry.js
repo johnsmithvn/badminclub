@@ -123,6 +123,19 @@ export const NO_STAKE = ['covua', 'cotuong', 'cangua', 'coup']
 /** Mức cược của phòng — như game_stake ở SQL: ngoài danh sách là 0. */
 export const stakeOf = (options) => (STAKES.includes(options?.stake) ? options.stake : 0)
 
+/* ---------- Cược điểm mùa (0110) — server chặn trần + danh sách, chuyển điểm lúc hết ván. Phải khớp SQL (season_points.test.js gác). ---------- */
+
+/** Game được cược điểm mùa: có bản chấm server (trừ 3 game cờ — chủ dự án chấp nhận), không thuần may rủi. */
+export const SP_GAMES = ['caro', 'oanquan', 'coganh', 'colat', 'chamo', 'covay', 'bantau', 'noitu', 'baibip',
+  'tienlen', 'phom', 'covua', 'cotuong', 'coup']
+/** Trần điểm mùa mỗi người bỏ vào hũ một ván. */
+export const SP_MAX = 20
+/** Điểm mùa mỗi người bỏ vào hũ — như game_sp ở SQL: số nguyên 1..SP_MAX, khác là 0 (không cược). */
+export const spOf = (options) => {
+  const n = options?.sp
+  return Number.isInteger(n) && n >= 1 && n <= SP_MAX ? n : 0
+}
+
 /**
  * Game mà tổng điểm cộng dồn qua các ván có nghĩa (điểm ăn thua giữa người chơi) → BXH xếp theo điểm, và phòng có cược
  * trả xu = điểm × mức cược (0093).

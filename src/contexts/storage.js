@@ -44,7 +44,7 @@ export async function load(clubId, soft = false) {
     dues, adjustments, courtBills, manual, guestPrices,
     locks, rosterRows, changes, levelRows, joinRequests,
     challenges, playerRatings, matchEdits, clubCalibration,
-    notifications, challengePredictions, liveMatches,
+    notifications, challengePredictions, liveMatches, gameSeasonPoints,
   ] = await Promise.all([
     supabase.from('clubs').select('*').eq('id', clubId).single(),
     of('courts'),
@@ -77,6 +77,7 @@ export async function load(clubId, soft = false) {
     of('notifications').order('created_at', { ascending: false }).limit(100),
     of('challenge_predictions'),
     of('session_live_matches'),
+    of('game_season_points', 'room_id, member_id, game, delta, created_at'),
   ])
 
   const clubRowRaw = unwrap(club)
@@ -136,6 +137,8 @@ export async function load(clubId, soft = false) {
     challengePredictions: challengePredictions.error ? [] : (challengePredictions.data || []),
     // DB chưa chạy 0069 thì chưa có bảng: coi như sân trống, không làm hỏng cả lần nạp.
     liveMatches: liveMatches.error ? [] : (liveMatches.data || []),
+    // Cược điểm mùa trong mini-game (0110). Chưa chạy migration thì coi như chưa ai cược.
+    gameSeasonPoints: gameSeasonPoints.error ? [] : (gameSeasonPoints.data || []),
   }
 
   if (soft && (synced.clubId !== clubId || pending || running || dirty || gen !== g0)) return null
@@ -793,6 +796,13 @@ export async function loadRoomCoins(roomId) {
   const out = {}
   for (const r of rows) out[r.member_id] = (out[r.member_id] || 0) + (Number(r.delta) || 0)
   return out
+}
+
+/** Điểm mùa ăn thua của một phòng (0110) → { [memberId]: delta }. */
+export async function loadRoomSp(roomId) {
+  if (!supabase) throw new Error('Chưa cấu hình Supabase')
+  const rows = unwrap(await supabase.from('game_season_points').select('member_id, delta').eq('room_id', roomId)) || []
+  return Object.fromEntries(rows.map((r) => [r.member_id, Number(r.delta) || 0]))
 }
 
 /** Sổ xu của một người (0101 game_coin_tx), mới nhất trước → [{ id, roomId, game, kind, delta, balance, at }]. */

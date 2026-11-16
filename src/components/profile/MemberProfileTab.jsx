@@ -33,9 +33,10 @@ function getMemberAvatar(m) {
 // Bộ lọc sổ điểm mùa: [key, nhãn, điều kiện]. Trận thường = không phải kèo, không phải phiếu dự đoán.
 const LEDGER_FILTERS = [
   ['all', 'season.ledgerFilterAll', () => true],
-  ['match', 'season.ledgerFilterMatch', (ev) => !ev.isChallenge && !ev.isPrediction],
+  ['match', 'season.ledgerFilterMatch', (ev) => !ev.isChallenge && !ev.isPrediction && !ev.isGame],
   ['challenge', 'season.ledgerFilterChallenge', (ev) => ev.isChallenge],
   ['prediction', 'season.ledgerFilterPrediction', (ev) => ev.isPrediction],
+  ['game', 'season.ledgerFilterGame', (ev) => ev.isGame],
 ]
 
 export default function MemberProfileTab({
@@ -789,6 +790,7 @@ export default function MemberProfileTab({
                         ['season.splitMatch', ledgerData.split.match],
                         ['season.splitChallenge', ledgerData.split.challenge],
                         ['season.splitPrediction', ledgerData.split.prediction],
+                        ['season.splitGame', ledgerData.split.game],
                         ['season.splitBonus', ledgerData.split.bonus],
                         ['season.splitStart', ledgerData.split.start, true],
                       ].map(([key, val, plain]) => (
@@ -869,15 +871,15 @@ export default function MemberProfileTab({
                                     padding: '2px 6px',
                                     borderRadius: 4,
                                     font: "600 10.5px/1 'IBM Plex Sans', sans-serif",
-                                    background: ev.isPrediction
+                                    background: (ev.isPrediction || ev.isGame)
                                       ? (isDark ? 'rgba(139, 92, 246, 0.2)' : 'rgba(139, 92, 246, 0.12)')
                                       : ev.isChallenge
                                       ? (isDark ? 'rgba(249, 115, 22, 0.2)' : 'rgba(249, 115, 22, 0.12)')
                                       : (isDark ? 'rgba(56, 189, 248, 0.15)' : 'rgba(14, 165, 233, 0.12)'),
-                                    color: ev.isPrediction
+                                    color: (ev.isPrediction || ev.isGame)
                                       ? (isDark ? '#A78BFA' : '#7C3AED')
                                       : ev.isChallenge ? (isDark ? '#FB923C' : '#EA580C') : (isDark ? '#38BDF8' : '#0284C7'),
-                                    border: ev.isPrediction
+                                    border: (ev.isPrediction || ev.isGame)
                                       ? '1px solid rgba(139, 92, 246, 0.35)'
                                       : ev.isChallenge
                                       ? '1px solid rgba(249, 115, 22, 0.35)'
@@ -885,7 +887,9 @@ export default function MemberProfileTab({
                                   }}
                                   title={(ev.isChallenge && chalMult > 1) ? t('season.tagChallengeMultHint', { mult: chalMult }) : undefined}
                                 >
-                                  {ev.isPrediction
+                                  {ev.isGame
+                                    ? t('season.tagGame')
+                                    : ev.isPrediction
                                     ? t('season.tagPrediction')
                                     : ev.isChallenge
                                     ? (chalMult > 1 ? t('season.tagChallengeMult', { mult: chalMult }) : t('season.tagChallenge'))
@@ -968,7 +972,9 @@ export default function MemberProfileTab({
                                     : (isDark ? '#F87171' : '#DC2626'),
                                 }}
                               >
-                                {ev.isPrediction
+                                {ev.isGame
+                                  ? t(ev.titleKey, { game: t('games.' + ev.gameId + '.name') })
+                                  : ev.isPrediction
                                   ? t(ev.titleKey, { code: ev.code })
                                   : ev.type === 'win'
                                   ? (ev.scoreText ? t('season.winScore', { score: ev.scoreText }) : t('season.matchWin'))

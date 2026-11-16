@@ -719,7 +719,7 @@ function buildMemberSeasonPointsTrajectory(db, memberId, activeSeason = null) {
           events.push({ at: Number(l.at), points: l.pointsAfter })
         }
       })
-      const preds = memberRow.predictionLogs || []
+      const preds = [...(memberRow.predictionLogs || []), ...(memberRow.gameLogs || [])]
       preds.forEach((p) => {
         if (p.at) {
           events.push({ at: Number(p.at), points: p.pointsAfter })
@@ -1065,7 +1065,7 @@ export function getRecentPlayerMatches(db, memberId, limit = 3) {
         ;(row.matchLogs || []).forEach((l) => {
           if (l.at) events.push({ at: Number(l.at), points: l.pointsAfter })
         })
-        ;(row.predictionLogs || []).forEach((p) => {
+        ;[...(row.predictionLogs || []), ...(row.gameLogs || [])].forEach((p) => {
           if (p.at) events.push({ at: Number(p.at), points: p.pointsAfter })
         })
         events.sort((a, b) => a.at - b.at)

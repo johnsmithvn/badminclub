@@ -1,4 +1,4 @@
-import { BOARD_POINTS, NO_STAKE, buyinsOf, stakeOf } from '#lib/games/registry.js'
+import { BOARD_POINTS, NO_STAKE, buyinsOf, spOf, stakeOf } from '#lib/games/registry.js'
 import { DICTS as NOITU_DICTS, REPEATS as NOITU_REPEATS, TIMES as NOITU_TIMES } from '#lib/games/noitu.js'
 import { SIZES as COVAY_SIZES } from '#lib/games/covay.js'
 import { MODES as XO_MODES, TIMES as XO_TIMES } from '#lib/games/xo.js'
@@ -96,7 +96,8 @@ export function rulesOf(gameId, opts) {
     x.type === 'switch' ? t(x.value ? 'games.wait.on' : 'games.wait.off')
       : x.type === 'roles' ? x.text
         : x.options.find((o) => o.value === x.value)?.label ?? x.value])
-  if (!NO_STAKE.includes(gameId)) {
+  if (spOf(opts)) rows.push([t('games.sp.label'), t('games.sp.pill', { n: spOf(opts) })])
+  else if (!NO_STAKE.includes(gameId)) {
     const n = stakeOf(opts)
     rows.push([t(BOARD_POINTS.includes(gameId) ? 'games.coins.pointValue' : 'games.coins.stake'), n ? t('games.coins.stakeOpt', { n }) : t('games.coins.noStake')])
   }

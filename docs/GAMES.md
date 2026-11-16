@@ -22,6 +22,7 @@ không tự dựng phòng, đồng bộ hay giao diện chờ riêng.
 **Cách ly tuyệt đối với cầu lông** — cùng nguyên tắc với Giải đấu (`ARCHITECTURE.md` Tầng F):
 không ghi `matches`, không gọi `rating.js` / `season.js` / `xp.js`, không sinh dòng `transactions`.
 Nhờ vậy phân hệ này **không bao giờ** làm đỏ backtest (`RULES.md` §0).
+**Ngoại lệ duy nhất:** phòng cược điểm mùa (§4c, 0110) — chuyển điểm giữa người chơi qua sổ riêng, không ghi `matches`.
 
 **Nguồn game:** chỉ game dân gian / luật chung (Caro, Tiến lên, Ma sói, Nối từ, Bắn tàu…) hoặc
 game tự thiết kế. Không làm lại game thương mại, không chép giao diện / văn bản luật của web khác.
@@ -218,6 +219,35 @@ Thay **cách trả xu** của 0093 (phần mức cược, 3 game không cược,
   `budgetOf` trong `baucua.js`). `game_baucua_run` của 0101 = bản 0096 + các khối đánh dấu `0101` (test so hai bản).
 - **Giao diện:** form tạo phòng ghi "Giá 1 điểm" với game điểm; phòng chờ có ô "Xu mang vào bàn", ghế hiện "Mang N
   xu" / "Trên bàn N xu"; bàn Bầu cua hiện chip bằng xu; thẻ Xu trò chơi đọc `game_coin_tx` (nhãn `games.coins.kind.*`).
+
+## 4c. Cược điểm mùa — migration `0110_games_season_points.sql` (chủ dự án duyệt 2026-11-16)
+
+**Ngoại lệ có chủ đích của §1 "cách ly"**: phòng được cược điểm mùa thật. Điểm **chuyển** giữa người chơi, không sinh ra.
+- **Mức cược:** chủ phòng nhập `options.sp` = 1..20 (`SP_MAX`) lúc tạo phòng. Một phòng chỉ cược một thứ: xu **hoặc** điểm mùa.
+- **Hũ chung, mọi game một luật:** người thua mất `sp`, người thắng chia đều `sp × số người thua` (chia nguyên, lẻ bỏ). Hoà /
+  không ai thắng / không ai thua / ván bỏ → không ai mất. Phỏm, Tiến lên bỏ qua điểm trong ván, chỉ người về nhất ăn hũ.
+  Người bỏ giữa ván thua cược (như ví xu).
+- **Game được cược** (`SP_GAMES`): Caro, Ô ăn quan, Cờ gánh, Cờ lật, Chấm ô, Cờ vây, Bắn tàu, Nối từ, Bài bịp, Tiến lên, Phỏm,
+  Cờ vua, Cờ tướng, Cờ úp. **Không:** game may rủi (Ba cây, Bầu cua, Xì dách, Lô tô, Cá ngựa). **Chưa quyết:** Cờ X-O, Domino, Ma sói.
+- **Chặn số dư ở máy khách** (`gameActions`: tạo phòng, vào ghế, bấm Bắt đầu kiểm cả bàn) — y như cược kèo cầu lông, vì điểm
+  mùa là số dẫn xuất, server không tính được. Server chỉ giữ trần 20 + danh sách game. Không khán giả cược ké.
+- **Vào điểm mùa:** trigger ghi `game_season_points` lúc phòng sang `finished`; `season.js` đọc như phiếu cược kèo (lọc mùa
+  theo `created_at`, cộng thẳng không kẹp, `breakdown.gameNetPoints`, `gameLogs`, sổ cái có bộ lọc "Game").
+- **Lỗ hổng đã biết, chấp nhận (chủ dự án 2026-11-16 — "có lỗ hổng tính sau"):**
+  - Cờ vua / Cờ tướng / Cờ úp: kết quả do máy khách báo, gọi thẳng `game_finish` bịa người thắng được. Cách bịt rẻ: 3 game
+    này chỉ nhận kết quả khi người báo **không** nằm trong `winners` (người thua báo; hết giờ / rời ván server tự biết).
+  - Sổ game chỉ vào `db` lúc nạp lại: ván vừa thua chưa trừ số dư ngay ở máy khách.
+  - Sàn 0 của tổng điểm mùa có thể "in" vài điểm khi người thua đã tụt về 0 (vd. sửa tỉ số trận cũ sau khi cược).
+  - Không giới hạn số kèo / ngày, không chặn một cặp đánh lặp để chuyển điểm cho nhau.
+
+### Một người một phòng — migration `0111_games_one_room.sql` (chủ dự án yêu cầu 2026-11-16)
+
+Áp cho **mọi** phòng (không riêng phòng cược). Ngồi ghế phòng mới (tạo, vào, vào lại) khi đang ngồi phòng khác chưa xong:
+phòng kia đang chờ → server tự rời phòng đó (`game_leave`: chuyển chủ phòng / bỏ phòng trống); đang chơi dở →
+`games.err.busy`, phải đánh nốt hoặc vào lại (thẻ Ván đang dở ở sảnh) bấm Rời. Tự rời thay vì chặn để phòng chờ bỏ quên
+(sảnh ẩn sau `staleHours`) không làm kẹt ai. Người xem và chơi với máy không bị ảnh hưởng.
+> ponytail: sảnh chỉ nạp `lobbyLimit` phòng mới nhất — một ván đang chơi bị bỏ treo rất lâu có thể không hiện ở Ván đang dở.
+> Gặp thật thì cho `games.err.busy` kèm mã phòng.
 
 ## 5. Ai giữ "sự thật" của ván
 

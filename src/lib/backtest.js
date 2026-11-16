@@ -146,7 +146,7 @@ export function runBacktest(backup = {}) {
       // Cộng cả điểm khởi đầu vào "điểm thật", nếu không thì 100 điểm ai cũng có sẽ bị
       // `clampGain` đếm nhầm thành điểm ảo và chỉ số sức khoẻ báo động giả cho cả 22 người.
       // Lãi/lỗ cược cũng vậy: file bản 3 có phiếu cược, thiếu nó thì tiền cược thắng bị đọc là "sàn 0 sinh điểm".
-      const raw = startPoints + (b.matchNetPts || 0) + (b.streakBonusPts || 0) + (b.upsetBonusPts || 0) + (b.predictionNetPoints || 0)
+      const raw = startPoints + (b.matchNetPts || 0) + (b.streakBonusPts || 0) + (b.upsetBonusPts || 0) + (b.predictionNetPoints || 0) + (b.gameNetPoints || 0)
       return {
         id: r.id,
         name: r.name,

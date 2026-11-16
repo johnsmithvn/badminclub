@@ -284,6 +284,9 @@ export function buildSeasonStandings(db, season, eloOf = () => null) {
       predictionLogs: (r.predictionLogs || []).map((l) => ({
         at: l.at, numPts: l.numPts, pointsAfter: l.pointsAfter, prediction: pick(l.prediction, FROZEN_PREDICTION_FIELDS),
       })),
+      gameLogs: (r.gameLogs || []).map((l) => ({
+        at: l.at, numPts: l.numPts, pointsAfter: l.pointsAfter, game: pick(l.game, ['roomId', 'game', 'delta', 'createdAt']),
+      })),
     }
   })
   return {
@@ -411,6 +414,11 @@ export function calculateSeasonLeaderboard(db = {}, customSeason = null) {
     if (p.status !== 'won' && p.status !== 'lost') return false
     if (!p.settledAt) return false
     const ts = Date.parse(p.settledAt)
+    return Number.isFinite(ts) && ts >= startTs && ts <= endTs
+  })
+  // Điểm mùa ăn thua trong mini-game (0110): chuyển giữa người chơi, tính vào mùa theo lúc server chuyển.
+  const seasonGameSp = (db.gameSeasonPoints || []).filter((g) => {
+    const ts = Date.parse(g.createdAt)
     return Number.isFinite(ts) && ts >= startTs && ts <= endTs
   })
 
@@ -640,9 +648,13 @@ export function calculateSeasonLeaderboard(db = {}, customSeason = null) {
     })
     const rawPredictionNet = predictionWonPoints - predictionLostPoints
     const predictionNetPoints = rawPredictionNet
+    // Cược điểm mùa trong mini-game: cộng thẳng như cược kèo, không kẹp.
+    // ponytail: sàn 0 của tổng có thể "in" điểm khi người thua đã tụt về 0 (vd. sửa tỉ số cũ sau khi cược) — chấp nhận.
+    const myGameSp = seasonGameSp.filter((g) => g.memberId === memberId)
+    const gameNetPoints = myGameSp.reduce((s, g) => s + (Number(g.delta) || 0), 0)
     const matchPointsOnly = totalSeasonPoints
     // Sàn 0 của TỔNG vẫn giữ: điểm mùa không âm, nhưng thua là tụt thật cho tới khi chạm 0.
-    totalSeasonPoints = Math.max(0, matchPointsOnly + predictionNetPoints)
+    totalSeasonPoints = Math.max(0, matchPointsOnly + predictionNetPoints + gameNetPoints)
 
     // Cột "điểm sau" của sổ cái.
     //
@@ -654,42 +666,34 @@ export function calculateSeasonLeaderboard(db = {}, customSeason = null) {
     // nguyên từng bit, nếu không là đổi điểm mùa của cả CLB (LUẬT SỐ 0 — backtest).
     // Mỗi mốc cộng thêm phần điểm dự đoán đã quyết toán TRƯỚC thời điểm đó, cùng công thức với
     // tổng nên dòng cuối luôn khớp `totalSeasonPoints`.
-    const predsAsc = [...myPredictions].sort((a, b) => Date.parse(a.settledAt) - Date.parse(b.settledAt))
+    // Phiếu cược kèo và ván game chung một dòng thời gian "ngoài trận" — cùng công thức với tổng.
+    const sideAsc = [
+      ...myPredictions.map((p) => ({ at: Date.parse(p.settledAt), num: (p.status === 'won' ? 1 : -1) * (Number(p.stakePoints) || 0), prediction: p })),
+      ...myGameSp.map((g) => ({ at: Date.parse(g.createdAt), num: Number(g.delta) || 0, game: g })),
+    ].sort((a, b) => a.at - b.at)
     const predictionLogs = []
-    let predNetSoFar = 0
-    let predIdx = 0
+    const gameLogs = []
+    let sideNetSoFar = 0
+    let sideIdx = 0
     let matchPtsSoFar = myMatches.length ? startPoints : 0
+    const pushSide = () => {
+      const s = sideAsc[sideIdx++]
+      sideNetSoFar += s.num
+      const log = { at: s.at, numPts: s.num, pointsAfter: Math.max(0, matchPtsSoFar + sideNetSoFar) }
+      if (s.game) gameLogs.push({ ...log, game: s.game })
+      else predictionLogs.push({ ...log, prediction: s.prediction })
+    }
 
     matchLogs.forEach((log) => {
       const at = Number(log.at) || 0
-      // Phiếu quyết toán trước trận này thì đã nằm trong điểm lúc trận diễn ra.
-      while (predIdx < predsAsc.length && Date.parse(predsAsc[predIdx].settledAt) <= at) {
-        const p = predsAsc[predIdx]
-        predNetSoFar += (p.status === 'won' ? 1 : -1) * (Number(p.stakePoints) || 0)
-        predictionLogs.push({
-          prediction: p,
-          at: Date.parse(p.settledAt),
-          numPts: (p.status === 'won' ? 1 : -1) * (Number(p.stakePoints) || 0),
-          pointsAfter: Math.max(0, matchPtsSoFar + predNetSoFar),
-        })
-        predIdx++
-      }
+      // Phiếu / ván xong trước trận này thì đã nằm trong điểm lúc trận diễn ra.
+      while (sideIdx < sideAsc.length && sideAsc[sideIdx].at <= at) pushSide()
       matchPtsSoFar = log.pointsAfter
-      log.pointsAfter = Math.max(0, matchPtsSoFar + predNetSoFar)
+      log.pointsAfter = Math.max(0, matchPtsSoFar + sideNetSoFar)
     })
 
-    // Phiếu quyết toán sau trận cuối (hoặc người chưa đánh trận nào trong mùa).
-    while (predIdx < predsAsc.length) {
-      const p = predsAsc[predIdx]
-      predNetSoFar += (p.status === 'won' ? 1 : -1) * (Number(p.stakePoints) || 0)
-      predictionLogs.push({
-        prediction: p,
-        at: Date.parse(p.settledAt),
-        numPts: (p.status === 'won' ? 1 : -1) * (Number(p.stakePoints) || 0),
-        pointsAfter: Math.max(0, matchPtsSoFar + predNetSoFar),
-      })
-      predIdx++
-    }
+    // Phiếu / ván xong sau trận cuối (hoặc người chưa đánh trận nào trong mùa).
+    while (sideIdx < sideAsc.length) pushSide()
 
     // 3. Số buổi có mặt
     let attendedCount = 0
@@ -739,6 +743,7 @@ export function calculateSeasonLeaderboard(db = {}, customSeason = null) {
       lastMatchAt,
       matchLogs,
       predictionLogs,
+      gameLogs,
       breakdown: {
         matchNetPts,
         streakBonusPts,
@@ -748,6 +753,7 @@ export function calculateSeasonLeaderboard(db = {}, customSeason = null) {
         predictionLostPoints,
         predictionNetPoints,
         rawPredictionNet,
+        gameNetPoints,
       },
     }
   })
@@ -888,18 +894,35 @@ export function getMemberSeasonLedger(memberId, db = {}, customSeason = null) {
     }
   })
 
+  // Ván mini-game cược điểm mùa (0110). Tên game do component dịch (`games.<id>.name`).
+  const gameEvents = (memberRow.gameLogs || []).map((log) => ({
+    id: 'g-' + log.game.roomId,
+    time: log.at ? new Date(log.at).toTimeString().slice(0, 5) : '',
+    titleKey: log.numPts > 0 ? 'season.ledgerGameWon' : 'season.ledgerGameLost',
+    gameId: log.game.game,
+    scoreText: '',
+    gapText: '',
+    pts: log.numPts > 0 ? `+${log.numPts}` : String(log.numPts),
+    numPts: log.numPts,
+    pointsAfter: log.pointsAfter,
+    type: log.numPts > 0 ? 'win' : 'loss',
+    isGame: true,
+    at: log.at || 0,
+  }))
+
   // `allEvents` là sổ đủ cả mùa cho modal có bộ lọc; `recentEvents` giữ 10 dòng cho các thẻ tóm tắt.
-  const allEvents = [...events, ...predEvents].sort((a, b) => (b.at || 0) - (a.at || 0))
+  const allEvents = [...events, ...predEvents, ...gameEvents].sort((a, b) => (b.at || 0) - (a.at || 0))
 
   // Tổng điểm mùa tách theo nguồn, đọc lại đúng các con số của sổ (không tính lại): khởi đầu + trận
   // thường + trận kèo + thưởng mốc (chuỗi 3/5, upset) + dự đoán = totalPoints (trừ khi tổng chạm sàn 0).
-  const split = { start: allLogs.length ? (season.startPoints ?? cfg.season?.startPoints ?? 0) : 0, match: 0, challenge: 0, bonus: 0, prediction: 0 }
+  const split = { start: allLogs.length ? (season.startPoints ?? cfg.season?.startPoints ?? 0) : 0, match: 0, challenge: 0, bonus: 0, prediction: 0, game: 0 }
   allLogs.forEach((m) => {
     const bonus = (m.earnedStreakBonus || 0) + (m.earnedUpsetBonus || 0)
     split.bonus += bonus
     split[isChallengeMatch(m) ? 'challenge' : 'match'] += (m.effectiveChange ?? 0) - bonus
   })
   ;(memberRow.predictionLogs || []).forEach((log) => { split.prediction += log.numPts || 0 })
+  ;(memberRow.gameLogs || []).forEach((log) => { split.game += log.numPts || 0 })
 
   return {
     season,

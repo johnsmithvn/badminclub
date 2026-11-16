@@ -407,6 +407,18 @@ người cược giỏi leo được cao hơn người đánh nhiều. Chặn c�
 Người chưa ra sân trận nào vẫn cược được bằng 100 điểm khởi đầu (`stakeBaseOf`), nhưng điểm BXH
 của họ chỉ gồm lãi/lỗ cược — 100 điểm khởi đầu chỉ vào BXH sau trận đầu tiên.
 
+### 3.6b. Cược điểm mùa trong mini-game (0110)
+
+```
+gameNet = tổng delta của mình trong `game_season_points` (lọc mùa theo created_at)
+điểm cuối = max(0, điểmTrận + predictionNet + gameNet)
+```
+
+Mỗi ván: người thua `−sp`, người thắng `+⌊sp × số người thua ÷ số người thắng⌋`, `sp` = 1..20. Tổng cả CLB không đổi
+(lẻ chia thì mất bớt). Cộng thẳng, không kẹp — như cược kèo. Vốn cược dùng chung `stakeBaseOf` (cộng cả `gameNet`).
+Luật phòng, danh sách game, lỗ hổng: `docs/GAMES.md` §4c. Backtest không phủ (dữ liệu không có ván game) — lưới gác là
+`src/__tests__/games/season_points.test.js`.
+
 ### 3.7. Điều kiện xếp hạng
 
 | Nhãn | Điều kiện |

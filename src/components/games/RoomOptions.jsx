@@ -1,5 +1,5 @@
-import { Alert, Checkbox, Select, Switch } from '#ds'
-import { BOARD_POINTS, NO_STAKE, STAKES, buyinsOf, stakeOf } from '#lib/games/registry.js'
+import { Alert, Checkbox, Input, Select, Switch } from '#ds'
+import { BOARD_POINTS, NO_STAKE, SP_GAMES, SP_MAX, STAKES, buyinsOf, spOf, stakeOf } from '#lib/games/registry.js'
 import { ROLE_IDS as MASOI_ROLE_IDS, SPECIALS as MASOI_SPECIALS, WOLF, isWolf, lineupOf, minPlayersOf } from '#lib/games/masoi.js'
 import { fieldsOf } from '#components/games/roomFields.js'
 import { t } from '#i18n'
@@ -15,6 +15,7 @@ export default function RoomOptions({ gameId, opts, setOpts, coins = 0, stakeLoc
     setOpts(next)
   }
   const stake = stakeOf(opts)
+  const sp = spOf(opts)
   const ins = buyinsOf(gameId, stake)
   const points = BOARD_POINTS.includes(gameId)
   const broke = ins.length > 0 && ins[0] > coins
@@ -53,7 +54,24 @@ export default function RoomOptions({ gameId, opts, setOpts, coins = 0, stakeLoc
           </div>
         )
       })}
-      {!NO_STAKE.includes(gameId) && !stakeLocked && (
+      {/* Cược điểm mùa (0110): một phòng chỉ cược một thứ — đang cược xu thì ẩn ô này và ngược lại. */}
+      {SP_GAMES.includes(gameId) && !stakeLocked && stake === 0 && (
+        <Input
+          type="number"
+          inputMode="numeric"
+          min={0}
+          max={SP_MAX}
+          label={t('games.sp.label')}
+          hint={sp ? t('games.sp.hint', { n: sp }) : t('games.sp.hintOff', { max: SP_MAX })}
+          value={sp || ''}
+          placeholder="0"
+          onChange={(e) => {
+            const n = Math.trunc(Number(e.target.value))
+            set({ sp: n > 0 ? Math.min(SP_MAX, n) : undefined })
+          }}
+        />
+      )}
+      {!NO_STAKE.includes(gameId) && !stakeLocked && sp === 0 && (
         <>
           <Select
             label={t(points ? 'games.coins.pointValue' : 'games.coins.stake')}

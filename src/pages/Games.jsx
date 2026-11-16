@@ -11,7 +11,7 @@ import { blockedOf } from '#components/games/roomFields.js'
 import GameBoard, { CoinBoard } from '#components/games/GameBoard.jsx'
 import { G, btn, card, chip, field, mono, over, rankColor, stage, tab as tabStyle } from '#components/games/stage.js'
 import { myMember } from '#lib/money.js'
-import { BOARD_POINTS, BOT_GAMES, BOT_PREFIX, COIN_START, GAMES, LOBBY_IDS, NO_STAKE, SOLO_GAMES, STAKES, boardOf, gameOf, isStaleRoom, seatRange, seatedOf, stakeOf, statsOf } from '#lib/games/registry.js'
+import { BOARD_POINTS, BOT_GAMES, BOT_PREFIX, COIN_START, GAMES, LOBBY_IDS, NO_STAKE, SOLO_GAMES, STAKES, boardOf, gameOf, isStaleRoom, seatRange, seatedOf, spOf, stakeOf, statsOf } from '#lib/games/registry.js'
 // Nhóm game cho hàng lọc ở sảnh — chỉ để vẽ, không ảnh hưởng luật.
 const CAT = { caro: 'board', xo: 'board', oanquan: 'board', coganh: 'board', colat: 'board', chamo: 'board', covua: 'board', cotuong: 'board',
   bantau: 'board', coup: 'board', covay: 'board', tienlen: 'card', domino: 'card', baibip: 'card', xidach: 'card', phom: 'card',
@@ -437,6 +437,7 @@ function RoomRow({ room, me, members, onEnter }) {
       {room.status === 'playing' && <span style={{ width: 7, height: 7, borderRadius: 99, background: G.teal, flexShrink: 0 }} title={t('games.status.playing')} />}
       <span style={{ ...mono, flexShrink: 0 }}>{seated.length}/{maxP}</span>
       {stake > 0 && <span style={{ ...mono, flexShrink: 0, color: G.goldHi }}>{stake}</span>}
+      {spOf(room.options) > 0 && <span style={{ ...mono, flexShrink: 0, color: G.goldHi }}>{t('games.sp.pill', { n: spOf(room.options) })}</span>}
       <button type="button" onClick={onEnter} style={{ ...btn(canJoin || mine ? 'soft' : 'ghost', { sm: true }), padding: '5px 10px', font: '600 12px/1 var(--font-sans)', flexShrink: 0 }}>
         {canJoin || mine ? t('games.enter') : t('games.watch')}
       </button>
@@ -452,7 +453,7 @@ function ResumeCard({ room, me, members, onEnter, compact }) {
   const stake = stakeOf(room.options)
   const playing = room.status === 'playing'
   const title = t('games.' + room.game + '.name') + (rivals.length ? ' · ' + rivals.join(', ') : '')
-  const meta = room.code + ' · ' + t('games.seats', { n: seated.length, max: seatRange(g, room.options)[1] }) + (stake > 0 ? ' · ' + t('games.coins.stakePill', { n: stake }) : '')
+  const meta = room.code + ' · ' + t('games.seats', { n: seated.length, max: seatRange(g, room.options)[1] }) + (stake > 0 ? ' · ' + t('games.coins.stakePill', { n: stake }) : '') + (spOf(room.options) > 0 ? ' · ' + t('games.sp.pill', { n: spOf(room.options) }) : '')
   const ellipsis = { overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }
   if (compact) return (
     <button type="button" onClick={onEnter} style={{
