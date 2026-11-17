@@ -4,7 +4,7 @@
 
 import assert from 'node:assert/strict'
 import { readFileSync } from 'node:fs'
-import ms, { advanceAt, complete,CUPID, CURSED, deadlineOf, deckOf, ELDER, GUARD, HUNTER, minPlayersOf, NIGHT_SEC, optsOf, rolesOf, rowOf, SEER, tableOf, tallyOf, VILLAGER, WITCH, WOLF } from '#lib/games/masoi.js'
+import ms, { advanceAt, complete, DAY_TIME_CHOICES, DAY_TIMES,CUPID, CURSED, deadlineOf, deckOf, ELDER, GUARD, HUNTER, minPlayersOf, NIGHT_SEC, optsOf, rolesOf, rowOf, SEER, tableOf, tallyOf, VILLAGER, WITCH, WOLF } from '#lib/games/masoi.js'
 import { replay } from '#lib/games/registry.js'
 
 const begin = (n, options) => ms.apply(ms.setup({ options }), 0, { deal: { n } })
@@ -26,9 +26,11 @@ const count = (t, r) => t.filter((x) => x === r).length
   assert.deepEqual([tableOf(8)[0], count(tableOf(8), WOLF)], [CURSED, 1], '8 người: 1 Sói nguyền + 1 Sói')
   assert.equal(count(tableOf(12), WOLF) + count(tableOf(12), CURSED), 3)
   assert.ok(tableOf(11).includes(CUPID) && !tableOf(10).includes(CUPID), 'Thần tình yêu từ 11 người')
-  assert.deepEqual(optsOf({}), { reveal: 'all', time: 120, roles: null })
-  assert.deepEqual(optsOf({ reveal: 'none' }), { reveal: 'none', time: 120, roles: null })
-  assert.deepEqual(optsOf({ reveal: 'x' }), { reveal: 'all', time: 120, roles: null })
+  assert.deepEqual(optsOf({}), { reveal: 'all', time: 120, roles: null, vote: 'open' })
+  assert.deepEqual(optsOf({ reveal: 'none' }), { reveal: 'none', time: 120, roles: null, vote: 'open' })
+  assert.deepEqual(optsOf({ reveal: 'x', vote: 'x' }), { reveal: 'all', time: 120, roles: null, vote: 'open' })
+  assert.equal(optsOf({ vote: 'secret' }).vote, 'secret')
+  assert.ok(!DAY_TIME_CHOICES.includes(0) && DAY_TIMES.includes(0), 'phòng mới không còn "không giới hạn", phòng cũ để 0 vẫn chạy')
   assert.deepEqual(rowOf([1, 1, 0, 0, 1, 3, 0]), { role: 1, facts: [[1, 0, 0], [1, 3, 0]] })
   assert.equal(rowOf([]), null)
 }
@@ -66,7 +68,7 @@ const count = (t, r) => t.filter((x) => x === r).length
   assert.equal(complete(s), true)
   s = step(s, 5, { next: 'night', hang: 1, dead: [1], shown: [] })
   assert.deepEqual([s.phase, s.night, s.alive[1], s.votes.every((v) => v === null), s.events.at(-1)],
-    ['night', 2, false, true, { k: 'hang', night: 1, dead: [1], seat: 1 }])
+    ['night', 2, false, true, { k: 'hang', night: 1, dead: [1], seat: 1, votes: [1, 0, null, 1, -1, 1] }], 'hết ngày nhật ký giữ đủ phiếu (phòng phiếu kín đọc lại)')
   assert.deepEqual(ms.status(s).params, { n: 2 })
 }
 
@@ -108,7 +110,8 @@ const count = (t, r) => t.filter((x) => x === r).length
   s = step(s, 0, { next: 'witch' })
   s = sleepAll(s)
   s = step(s, 1, { next: 'hunter', hunter: 4, dead: [4], shown: [[4, HUNTER]], hang: -1 })
-  assert.deepEqual([s.phase, s.turn, s.hunter, s.after, s.shown[4]], ['hunter', 4, 4, 'day', HUNTER])
+  assert.deepEqual([s.phase, s.turn, s.hunter, s.after, s.shown[4]], ['hunter', null, 4, 'day', HUNTER], 'không sáng ghế Thợ săn như tới lượt')
+  assert.deepEqual(ms.waiting(s), [4], 'vẫn chờ đúng Thợ săn (mất kết nối)')
   assert.equal(ms.status(s).key, 'games.masoi.statusHunter')
   assert.equal(ms.validate(s, 3, { shoot: 0 }), 'games.err.badMove', 'chỉ Thợ săn được bắn')
   assert.equal(ms.validate(s, 4, { shoot: 4 }), 'games.err.badTarget')
@@ -240,6 +243,22 @@ const count = (t, r) => t.filter((x) => x === r).length
   assert.ok(sql.includes('5 = ANY(game_masoi_deck('), 'bước Phù thủy theo bộ vai thật')
   assert.ok(!/game_masoi_table\(r\.o_n\)/.test(sql), 'không còn tra bảng tự động ở bước Phù thủy')
   assert.ok(sql.includes('2 * v_w >= p_n') && sql.includes('BETWEEN 1 AND 8'), 'luật số Sói + dạng vai khớp deckOf / rolesOf')
+}
+
+// Chat Nghĩa địa: ván đang chạy thì người chết / người xem nói ở kênh 'grave'; người sống và lúc hết ván thì kênh chung.
+{
+  let s = begin(6)
+  assert.equal(ms.chatScope(s, 0), null)
+  assert.equal(ms.chatScope(s, null), 'grave', 'người xem')
+  s = step(sleepAll(s), 0, { next: 'day', dead: [2], shown: [], hang: -1 })
+  assert.deepEqual([ms.chatScope(s, 2), ms.chatScope(s, 3)], ['grave', null])
+  assert.equal(ms.chatScope({ ...s, over: { team: 'village' } }, 2), null, 'hết ván thì nói chung')
+}
+
+// Server 0112: bước đêm / Phù thủy chỉ sang bước khi đủ NIGHT_SEC — khớp advanceAt ở máy khách.
+{
+  const sql = readFileSync(new URL('../../../supabase/migrations/0112_games_masoi_night.sql', import.meta.url), 'utf8')
+  assert.ok(sql.includes(`o_phase IN ('night', 'witch') AND m.at >= v_since + ${NIGHT_SEC * 1000}`), '0112: đêm phải đủ NIGHT_SEC giây')
 }
 
 // SQL 0084 dùng cùng bảng vai, cùng mã lỗi.

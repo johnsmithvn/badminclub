@@ -27,7 +27,6 @@ export function useGameRoom(roomId) {
   // Chat trong phòng: tin broadcast qua kênh realtime của phòng — chỉ ai đang mở phòng thấy, không lưu, tải lại là mất.
   // ponytail: tên người gửi do máy gửi tự khai (không qua server); cần lịch sử / chống mạo danh thì làm bảng game_chat + RLS.
   const [chatRaw, setChat] = useState({ forId: roomId, list: [] })
-  const chat = chatRaw.forId === roomId ? chatRaw.list : []
   const sayRef = useRef(null)
   // Ai đang mở phòng (presence) — ghế + người xem. Kênh đổi phòng thì danh sách cũ bỏ.
   const [hereRaw, setHere] = useState({ forId: roomId, ids: [] })
@@ -201,15 +200,25 @@ export function useGameRoom(roomId) {
     a.gameClaim(roomId, seats).then((ok) => { if (ok) reload() })
   }, [a, roomId, status, seatedHere, result, seated, me, idle, now, reload])
 
+  // Kênh chat theo luật game khi ván đang chạy — game.chatScope(state, ghế) → tên kênh | null (Ma sói: người chết / người
+  // xem nói ở 'grave', người sống không thấy). Tin gắn `scope` của người gửi; máy nhận chỉ hiện tin chung + tin cùng kênh
+  // mình. Hết ván thì hiện hết. Chỉ lọc ở máy — tin broadcast không qua server (xem ponytail chat ở trên).
+  const scoped = !!(game?.chatScope && state && !result)
+  const chatScope = scoped ? game.chatScope(state, mySeat) : null
+  const chat = useMemo(() => {
+    const all = chatRaw.forId === roomId ? chatRaw.list : []
+    return scoped ? all.filter((m) => !m.scope || m.scope === chatScope) : all
+  }, [chatRaw, roomId, scoped, chatScope])
+
   const say = useCallback((text) => {
-    const msg = { memberId: me, text: text.trim().slice(0, CHAT_LEN) }
+    const msg = { memberId: me, text: text.trim().slice(0, CHAT_LEN), ...(chatScope ? { scope: chatScope } : {}) }
     if (!me || !msg.text) return
     sayRef.current?.(msg)
     addChat({ ...msg, at: Date.now() })
-  }, [me, addChat])
+  }, [me, addChat, chatScope])
 
   /** Chủ phòng: báo mọi máy đếm ngược (máy mình đếm luôn — kênh không gửi lại cho chính mình). */
   const countdown = useCallback(() => { countRef.current?.(); setCount({ forId: roomId, at: Date.now() }) }, [roomId])
 
-  return { room, game, state, result, seated, inGame, mySeat, me, canMove, idle, moves: data?.moves || [], loading: !data && !err, err, reload, play, chat, say, here, countAt, countdown }
+  return { room, game, state, result, seated, inGame, mySeat, me, canMove, idle, moves: data?.moves || [], loading: !data && !err, err, reload, play, chat, chatScope, say, here, countAt, countdown }
 }

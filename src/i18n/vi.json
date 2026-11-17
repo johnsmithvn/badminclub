@@ -6439,21 +6439,26 @@
     },
     "xo": {
       "name": "Cờ X-O",
-      "desc": "Bàn 3 × 3, ai có 3 quân liền trước là thắng. Có 3 chế độ: cổ điển, 3 quân di chuyển, quân cũ tự biến mất.",
+      "desc": "Bàn 3 × 3, ai có 3 quân liền trước là thắng. Có 4 chế độ: cổ điển, 3 quân di chuyển, quân cũ tự biến mất, X-O lồng.",
       "mark0": "X · đi trước",
       "mark1": "O",
       "mode": "Chế độ",
       "modeOpt": {
         "classic": "Cổ điển · đầy bàn thì hoà",
         "move": "3 quân di chuyển",
-        "vanish": "Quân cũ tự biến mất"
+        "vanish": "Quân cũ tự biến mất",
+        "ultimate": "X-O lồng · 9 bàn con"
       },
       "modeShort": {
         "classic": "Cổ điển",
         "move": "Di quân",
-        "vanish": "Biến mất"
+        "vanish": "Biến mất",
+        "ultimate": "Lồng"
       },
       "boardAria": "Bàn cờ X-O 3 × 3",
+      "boardAriaUlt": "Bàn cờ X-O lồng: 9 bàn con 3 × 3",
+      "hintBoard": "đánh trong bàn con đang sáng",
+      "hintFree": "được đánh bàn con nào chưa xong",
       "turnsLeft": "còn {{n}} lượt mỗi bên",
       "hintPick": "Chọn một quân của bạn để nhấc",
       "hintDrop": "Chọn ô trống để đặt quân sang",
@@ -6463,7 +6468,7 @@
       "timeNone": "Không giới hạn",
       "timerAria": "Thời gian còn lại của lượt",
       "skipped": "{{who}} hết giờ — mất lượt",
-      "howto": "Hai người lần lượt đặt quân vào ô trống: X đi trước, O đi sau. Ai có 3 quân liền nhau theo hàng ngang, dọc hoặc chéo trước là thắng.\nCổ điển: đặt tới khi đầy bàn; đầy 9 ô mà chưa ai thắng thì hoà.\n3 quân di chuyển: mỗi bên chỉ có 3 quân. Đặt đủ 3 quân rồi mà chưa ai thắng thì mỗi lượt nhấc một quân của mình sang ô trống bất kỳ (bấm quân, rồi bấm ô).\nQuân cũ tự biến mất: đã có 3 quân thì khi đặt quân mới, quân đặt sớm nhất của bạn biến mất (quân sắp mất hiện mờ).\nHai chế độ sau: mỗi bên đi đủ 30 lượt mà chưa ai thắng thì hoà.\nĐồng hồ (chủ phòng chọn 3, 5, 10 giây hoặc không giới hạn): từ nước thứ hai, hết giờ mà chưa đi thì mất lượt — không được đặt quân, đối thủ đi tiếp. Lượt bị mất cũng tính vào 30 lượt."
+      "howto": "Hai người lần lượt đặt quân vào ô trống: X đi trước, O đi sau. Ai có 3 quân liền nhau theo hàng ngang, dọc hoặc chéo trước là thắng.\nCổ điển: đặt tới khi đầy bàn; đầy 9 ô mà chưa ai thắng thì hoà.\n3 quân di chuyển: mỗi bên chỉ có 3 quân. Đặt đủ 3 quân rồi mà chưa ai thắng thì mỗi lượt nhấc một quân của mình sang ô trống bất kỳ (bấm quân, rồi bấm ô).\nQuân cũ tự biến mất: đã có 3 quân thì khi đặt quân mới, quân đặt sớm nhất của bạn biến mất (quân sắp mất hiện mờ).\nHai chế độ này: mỗi bên đi đủ 30 lượt mà chưa ai thắng thì hoà.\nX-O lồng: bàn lớn gồm 9 bàn con 3 × 3. Thắng một bàn con (3 quân liền) là chiếm ô đó của bàn lớn; ai chiếm 3 ô liền của bàn lớn là thắng ván. Bạn đánh vào ô nào của bàn con thì đối thủ phải đánh trong bàn con ở vị trí đó (bàn con sáng lên). Bàn con đó đã có người thắng hoặc đã đầy thì đối thủ được đánh bàn con nào chưa xong. Bàn con đầy mà không ai thắng thì không ai chiếm; mọi bàn con xong mà chưa ai thắng thì hoà.\nĐồng hồ (chủ phòng chọn 3, 5, 10 giây hoặc không giới hạn): từ nước thứ hai, hết giờ mà chưa đi thì mất lượt — không được đặt quân, đối thủ đi tiếp. Lượt bị mất cũng tính vào 30 lượt."
     },
     "oanquan": {
       "name": "Ô ăn quan",
@@ -6861,7 +6866,7 @@
       "mark1": "Ghế 2",
       "yourSea": "Biển của bạn",
       "seaOf": "Biển của {{side}}",
-      "placeHint": "Bấm Xếp ngẫu nhiên tới khi ưng, rồi Chốt.",
+      "placeHint": "Kéo tàu để đổi chỗ, chạm vào tàu để xoay — hoặc bấm Xếp ngẫu nhiên. Xong thì Chốt.",
       "shuffle": "Xếp ngẫu nhiên",
       "confirm": "Chốt hạm đội",
       "fireAria": "Bắn ô {{cell}}",
@@ -6902,7 +6907,7 @@
         "3": "Tàu ngầm",
         "4": "Khu trục hạm"
       },
-      "howto": "Mỗi người một vùng biển 10 × 10 ô, giấu 5 tàu dài 5, 4, 3, 3 và 2 ô. Tàu nằm thẳng ngang hoặc dọc, không chồng lên nhau, được đứng sát nhau.\nĐầu ván, xếp tàu (bấm Xếp ngẫu nhiên tới khi ưng) rồi Chốt. Tàu cất ở máy chủ, đối thủ không nhìn thấy.\nGhế 1 bắn trước. Mỗi lượt chạm một ô trên biển đối phương để bắn: trúng thì được bắn tiếp, trượt thì tới lượt đối phương.\nBắn trúng hết các ô của một tàu là tàu chìm, cả con tàu hiện ra.\nĐánh chìm cả 5 tàu của đối phương trước là thắng. Hết ván thì lật tàu của cả hai bên."
+      "howto": "Mỗi người một vùng biển 10 × 10 ô, giấu 5 tàu dài 5, 4, 3, 3 và 2 ô. Tàu nằm thẳng ngang hoặc dọc, không chồng lên nhau, được đứng sát nhau.\nĐầu ván, xếp tàu: kéo từng tàu sang chỗ khác, chạm vào tàu để xoay ngang / dọc, hoặc bấm Xếp ngẫu nhiên — rồi Chốt. Tàu cất ở máy chủ, đối thủ không nhìn thấy.\nGhế 1 bắn trước. Mỗi lượt chạm một ô trên biển đối phương để bắn: trúng thì được bắn tiếp, trượt thì tới lượt đối phương.\nBắn trúng hết các ô của một tàu là tàu chìm, cả con tàu hiện ra.\nĐánh chìm cả 5 tàu của đối phương trước là thắng. Hết ván thì lật tàu của cả hai bên."
     },
     "domino": {
       "name": "Domino",
@@ -7380,7 +7385,7 @@
       "spectate": "Bạn đang xem ván này",
       "settling": "Đã đủ người — đang sang bước tiếp…",
       "hunterWait": "{{name}} (Thợ săn) đang chọn người để bắn",
-      "deadWatch": "Bạn đã chết. Cứ xem tiếp, nhưng đừng mách nước cho ai",
+      "deadWatch": "Bạn đã chết. Cứ xem tiếp — tin nhắn của bạn chỉ người chết và người xem thấy",
       "youVoted": "Bạn đã bầu {{name}} — chờ mọi người bầu xong",
       "youSkipped": "Bạn đã chọn bỏ qua — chờ mọi người bầu xong",
       "waitDawn": "Bạn đã xong — chờ trời sáng",
@@ -7406,7 +7411,24 @@
       "timeOpt": "{{n}} giây",
       "timeNone": "Không giới hạn",
       "timeLeft": "Còn {{time}}",
-      "howto": "Mỗi người nhận một vai bí mật, chỉ mình bạn xem được lá vai của mình. Có hai phe: Dân làng và bầy Sói. Server làm quản trò: tự gọi từng bước và tự tính ai chết.\nĐêm: mọi người còn sống đều phải bấm một nút — vai không có việc thì bấm Ngủ — nên không ai đoán được ai có vai. Sói cùng chọn một người để cắn (được chọn cả Sói, kể cả mình), Tiên tri soi một người, Bảo vệ che một người, đêm đầu Thần tình yêu ghép một đôi.\nCó Phù thủy trong ván thì đêm có thêm bước Phù thủy: Phù thủy biết ai bị cắn, có một bình cứu và một bình độc cho cả ván, mỗi đêm dùng tối đa một bình.\nSáng: lộ ai đã chết. Già làng sống sót qua lần đầu bị cắn. Sói nguyền được một lần biến người bị cắn thành Sói. Một người trong đôi tình nhân chết thì người kia chết theo. Thợ săn chết thì được bắn một người.\nNgày: mọi người còn sống bỏ phiếu treo cổ một người hoặc bỏ qua. Người nhiều phiếu nhất phải hơn hẳn mọi lựa chọn khác, kể cả bỏ qua, mới bị treo; hoà thì không ai bị treo.\nThắng: hết Sói thì Dân làng thắng. Số Sói còn sống không ít hơn số người còn lại thì bầy Sói thắng. Đôi tình nhân khác phe là hai người cuối cùng thì đôi đó thắng.\nChủ phòng chọn có lộ vai người chết hay không; hết ván thì lật hết. Rời bàn coi như chết, không lộ vai. Đã chết thì cứ xem tiếp nhưng đừng mách nước.\nCó đồng hồ (chủ phòng chọn): mỗi bước đêm 45 giây, ban ngày theo giờ đã chọn. Hết giờ ai chưa bấm coi như ngủ / bỏ phiếu trống, Thợ săn chưa bắn coi như không bắn."
+      "peek": "Xem vai",
+      "cover": "Che lại",
+      "coveredTitle": "Vai đang được che",
+      "coveredHint": "Bấm Xem vai khi không ai nhìn sang màn hình của bạn.",
+      "coveredAct": "Đêm nay tới lượt bạn — mở vai để xem cần làm gì.",
+      "hunterWaitAnon": "Thợ săn đang chọn người để bắn",
+      "evShotAnon": "Thợ săn bắn {{target}}",
+      "evShotNoneAnon": "Thợ săn không bắn ai",
+      "votedCount": "{{done}}/{{total}} người đã bỏ phiếu",
+      "evVotes": "· Phiếu: {{list}}",
+      "goneCount": "lộ {{n}}",
+      "vote": "Phiếu treo cổ",
+      "voteOpt": {
+        "open": "Công khai — thấy ai bầu ai",
+        "secret": "Kín — hết ngày mới lật"
+      },
+      "voteHint": "Phiếu kín: ban ngày chỉ thấy số người đã bầu, hết ngày nhật ký ghi đủ ai bầu ai.",
+      "howto": "Mỗi người nhận một vai bí mật, chỉ mình bạn xem được lá vai của mình — lá vai che sẵn, bấm Xem vai khi không ai nhìn sang. Có hai phe: Dân làng và bầy Sói. Server làm quản trò: tự gọi từng bước và tự tính ai chết.\nĐêm: mọi người còn sống đều phải bấm một nút — vai không có việc thì bấm Ngủ — nên không ai đoán được ai có vai. Sói cùng chọn một người để cắn (được chọn cả Sói, kể cả mình), Tiên tri soi một người, Bảo vệ che một người, đêm đầu Thần tình yêu ghép một đôi.\nCó Phù thủy trong ván thì đêm có thêm bước Phù thủy: Phù thủy biết ai bị cắn, có một bình cứu và một bình độc cho cả ván, mỗi đêm dùng tối đa một bình.\nSáng: lộ ai đã chết. Già làng sống sót qua lần đầu bị cắn. Sói nguyền được một lần biến người bị cắn thành Sói. Một người trong đôi tình nhân chết thì người kia chết theo. Thợ săn chết thì được bắn một người.\nNgày: mọi người còn sống bỏ phiếu treo cổ một người hoặc bỏ qua (phòng phiếu kín thì hết ngày mới lật ai bầu ai). Người nhiều phiếu nhất phải hơn hẳn mọi lựa chọn khác, kể cả bỏ qua, mới bị treo; hoà thì không ai bị treo.\nThắng: hết Sói thì Dân làng thắng. Số Sói còn sống không ít hơn số người còn lại thì bầy Sói thắng. Đôi tình nhân khác phe là hai người cuối cùng thì đôi đó thắng.\nChủ phòng chọn có lộ vai người chết hay không; hết ván thì lật hết. Rời bàn coi như chết, không lộ vai. Đã chết thì cứ xem tiếp; tin nhắn của người chết và người xem chỉ họ với nhau thấy (Nghĩa địa) tới hết ván. Vai Thợ săn chưa lộ thì phát súng không nêu tên người bắn.\nĐồng hồ: mỗi bước đêm luôn kéo đủ 45 giây (dù cả làng đã bấm), ban ngày theo giờ chủ phòng chọn. Hết giờ ai chưa bấm coi như ngủ / bỏ phiếu trống, Thợ săn chưa bắn coi như không bắn."
     },
     "coup": {
       "name": "Cờ úp",
@@ -7734,7 +7756,13 @@
       "watch": "Người xem",
       "watching": "đang xem",
       "noWatch": "Chưa có ai vào xem.",
-      "noMovesHint": "Chưa có nước nào. Chạm một quân của bạn để xem ô đi được."
+      "noMovesHint": "Chưa có nước nào. Chạm một quân của bạn để xem ô đi được.",
+      "scope": {
+        "grave": "Nghĩa địa"
+      },
+      "scopeHint": {
+        "grave": "Nghĩa địa — chỉ người chết và người xem đọc được, người còn sống không thấy tới hết ván."
+      }
     },
     "lobbyShort": "Sảnh",
     "landOn": "Xoay ngang",

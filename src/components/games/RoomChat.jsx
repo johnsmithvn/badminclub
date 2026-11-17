@@ -62,7 +62,9 @@ export default function RoomChat({ g, nameOf, grow = false, dock = false, onRoom
           const stk = stickerOf(m.text)
           return (
             <div key={i} style={{ display: 'flex', flexDirection: 'column', alignItems: mine ? 'flex-end' : 'flex-start', gap: 3 }}>
-              {!mine && <span style={{ ...mono, fontSize: 11 }}>{nameOf(m.memberId)}</span>}
+              {(!mine || m.scope) && (
+                <span style={{ ...mono, fontSize: 11 }}>{!mine ? nameOf(m.memberId) : ''}{m.scope ? (!mine ? ' · ' : '') + t('games.room.scope.' + m.scope) : ''}</span>
+              )}
               {stk ? <img src={STICKERS[stk].src} alt={t('games.room.stk.' + stk)} title={t('games.room.stk.' + stk)} style={{ width: 64, height: 64 }} /> : (
                 <span style={{
                   maxWidth: '85%', padding: '8px 12px', borderRadius: 12, font: '400 13px/1.45 var(--font-sans)', overflowWrap: 'anywhere',
@@ -91,6 +93,7 @@ export default function RoomChat({ g, nameOf, grow = false, dock = false, onRoom
               ))}
             </div>
           )}
+          {g.chatScope && <span style={{ font: '500 12px/1.4 var(--font-sans)', color: G.muted }}>{t('games.room.scopeHint.' + g.chatScope)}</span>}
           <form onSubmit={(e) => { e.preventDefault(); if (text.trim()) send(text) }} style={{ display: 'flex', gap: 6 }}>
             {roomBtn}
             <button type="button" aria-pressed={tray} aria-label={t('games.room.stickers')} title={t('games.room.stickers')} onClick={() => setTray(!tray)}

@@ -183,8 +183,12 @@ export default function MaSoiBoard({ state, mySeat, roomId, onMove, result, play
   const [tries, setTries] = useState(0)
   const [sel, setSel] = useState({ key: '', picks: [], curse: false })
   const [busy, setBusy] = useState(false)
+  // Thẻ vai che sẵn (ngồi cạnh nhau ngoài sân, liếc là thấy) — bấm Xem vai mới hiện; lúc che thì mọi thứ chỉ mình biết
+  // (đồng đội Sói, kết quả soi, tình nhân, việc ban đêm) cũng ẩn theo.
+  const [peek, setPeek] = useState(false)
   const seated = mySeat != null
   const done = !!result || !!state.over
+  const covered = seated && !peek && !done
 
   // Vai + dữ kiện riêng: nạp lại sau mỗi nước (đồng đội Sói vừa chọn, Tiên tri vừa soi, trời vừa sáng…).
   useEffect(() => {
@@ -218,6 +222,7 @@ export default function MaSoiBoard({ state, mySeat, roomId, onMove, result, play
   const roleOf = (seat) => {
     if (state.shown[seat] != null) return state.shown[seat]
     if (done && hands?.[seat]?.length) return hands[seat][0]
+    if (covered) return null
     if (seat === mySeat) return role
     if (isWolf(role) && mates.includes(seat)) return WOLF
     return seen[seat] === 1 ? WOLF : null
@@ -253,7 +258,7 @@ export default function MaSoiBoard({ state, mySeat, roomId, onMove, result, play
   if (live && ph === 'hunter' && state.hunter === mySeat && state.shot == null) mode = 'shoot'
 
   const canPick = (seat) => {
-    if (!state.alive[seat] || !mode || mode === 'sleep') return false
+    if (!state.alive[seat] || !mode || mode === 'sleep' || (covered && mode !== 'vote')) return false
     if (mode === 'wolf') return true // 0086: được cắn bất kỳ ai còn sống, kể cả đồng đội Sói và chính mình
     if (mode === 'guard') return seat !== guarded
     if (mode === 'cupid') return true
@@ -275,7 +280,13 @@ export default function MaSoiBoard({ state, mySeat, roomId, onMove, result, play
     try { await onMove(move) } finally { setBusy(false) }
   }
 
-  const tally = ph === 'day' ? tallyOf(state) : {}
+  // Phiếu kín: ban ngày chỉ hiện số người đã bầu; hết ngày nhật ký ghi đủ phiếu (event `votes`).
+  const secret = state.opts.vote === 'secret'
+  const tally = ph === 'day' && !secret ? tallyOf(state) : {}
+  const voted = state.votes.filter((v, i) => v != null && state.alive[i]).length
+  const total = state.alive.filter(Boolean).length
+  // Thợ săn chưa lộ vai (phòng không lộ vai người chết) thì không nêu tên người đang bắn.
+  const hunterAnon = state.hunter != null && state.shown[state.hunter] == null
   const dark = live && (ph === 'night' || ph === 'witch')
   const title = state.over ? t('games.masoi.win.' + state.over.team)
     : result ? t('games.masoi.skyOver')
@@ -285,8 +296,10 @@ export default function MaSoiBoard({ state, mySeat, roomId, onMove, result, play
           : t('games.masoi.skyNight', { n: state.night })
 
   const counts = {}
-  // Bộ vai của phòng (tự chọn hoặc bảng tự động — 0087), không phải ai còn sống.
+  // Bộ vai của phòng (tự chọn hoặc bảng tự động — 0087), không phải ai còn sống. `gone` = vai đã lộ của người chết.
   if (state.n) (deckOf(state.opts, state.n).deck || tableOf(state.n)).forEach((r) => { counts[r] = (counts[r] || 0) + 1 })
+  const gone = {}
+  state.shown.forEach((r, i) => { if (r != null && !state.alive[i]) gone[r] = (gone[r] || 0) + 1 })
 
   return (
     <div style={{ display: 'grid', gap: 12, gridTemplateColumns: 'minmax(0, 1fr)' }}>
@@ -294,10 +307,17 @@ export default function MaSoiBoard({ state, mySeat, roomId, onMove, result, play
 
       {/* Vai của mình */}
       {seated && (
-        <div style={{ ...S.panel, gridTemplateColumns: 'auto minmax(0, 1fr)', alignItems: 'start' }}>
-          <RoleIcon role={role} size={56} dead={!state.alive[mySeat]} />
+        <div style={{ ...S.panel, gridTemplateColumns: 'auto minmax(0, 1fr) auto', alignItems: 'start' }}>
+          <RoleIcon role={covered ? null : role} size={56} dead={!state.alive[mySeat]} />
           <div style={{ display: 'grid', gap: 4, minWidth: 0 }}>
-            {mine
+            {covered && mine
+              ? (
+                <>
+                  <span style={S.label}>{t('games.masoi.coveredTitle')}</span>
+                  <span style={S.caption}>{t('games.masoi.coveredHint')}</span>
+                </>
+              )
+              : mine
               ? (
                 <>
                   <span style={S.label}>{t('games.masoi.myRole')}: <b style={{ color: INK[role] }}>{roleName(role)}</b></span>
@@ -330,19 +350,28 @@ export default function MaSoiBoard({ state, mySeat, roomId, onMove, result, play
                 )
                 : <span style={S.caption}>{t('games.masoi.roleLoading')}</span>}
           </div>
+          {mine && !done && (
+            <Button size="sm" variant="secondary" icon="eye" onClick={() => setPeek(!peek)}>{t(peek ? 'games.masoi.cover' : 'games.masoi.peek')}</Button>
+          )}
         </div>
       )}
 
       {/* Việc cần làm */}
       {live && (
         <div style={{ ...S.panel, justifyItems: 'center', textAlign: 'center' }} aria-live="polite">
-          {mode === 'sleep' && (
+          {covered && mode && mode !== 'vote' && (
+            <>
+              <span style={S.caption}>{t('games.masoi.coveredAct')}</span>
+              <Button icon="eye" onClick={() => setPeek(true)}>{t('games.masoi.peek')}</Button>
+            </>
+          )}
+          {!covered && mode === 'sleep' && (
             <>
               <span style={S.caption}>{t(ph === 'witch' ? 'games.masoi.actSleepWitch' : 'games.masoi.actSleep')}</span>
               <Button icon="moon" disabled={busy} onClick={() => send({ night: {} })}>{t(ph === 'witch' ? 'games.masoi.sleepAgain' : 'games.masoi.sleep')}</Button>
             </>
           )}
-          {['wolf', 'seer', 'guard', 'cupid', 'vote', 'shoot'].includes(mode) && (
+          {(mode === 'vote' || (!covered && ['wolf', 'seer', 'guard', 'cupid', 'shoot'].includes(mode))) && (
             <>
               <span style={S.label}>{t('games.masoi.act.' + mode)}</span>
               {mode === 'shoot' && <span style={S.caption}>{t('games.masoi.hunterHint')}</span>}
@@ -369,7 +398,7 @@ export default function MaSoiBoard({ state, mySeat, roomId, onMove, result, play
               </div>
             </>
           )}
-          {mode === 'witch' && (
+          {!covered && mode === 'witch' && (
             <>
               <span style={S.label}>{t('games.masoi.act.witch')}</span>
               <span style={S.caption}>{bitten >= 0 ? t('games.masoi.factBitten', { name: nameOf(bitten) }) : t('games.masoi.factBittenNone')}</span>
@@ -389,7 +418,7 @@ export default function MaSoiBoard({ state, mySeat, roomId, onMove, result, play
             <span style={S.caption}>
               {!seated ? t('games.masoi.spectate')
                 : ready && !dark ? t('games.masoi.settling')
-                  : ph === 'hunter' ? t('games.masoi.hunterWait', { name: nameOf(state.hunter) })
+                  : ph === 'hunter' ? (hunterAnon ? t('games.masoi.hunterWaitAnon') : t('games.masoi.hunterWait', { name: nameOf(state.hunter) }))
                     : !alive ? t('games.masoi.deadWatch')
                       : !mine ? t('games.masoi.roleLoading')
                         : ph === 'day' ? t(state.votes[mySeat] === -1 ? 'games.masoi.youSkipped' : 'games.masoi.youVoted', { name: nameOf(state.votes[mySeat]) })
@@ -397,6 +426,7 @@ export default function MaSoiBoard({ state, mySeat, roomId, onMove, result, play
             </span>
           )}
           {ph === 'day' && tally[-1] > 0 && <span style={S.mono}>{t('games.masoi.skipVotes', { n: tally[-1] })}</span>}
+          {ph === 'day' && secret && <span style={S.mono}>{t('games.masoi.votedCount', { done: voted, total })}</span>}
         </div>
       )}
 
@@ -410,10 +440,10 @@ export default function MaSoiBoard({ state, mySeat, roomId, onMove, result, play
           if (!on) tags.push(t(state.left[seat] ? 'games.masoi.leftTag' : 'games.masoi.deadTag'))
           // Ban đêm chỉ hiện "đã xong" của chính mình — người cuối cùng chưa xong chính là người có vai.
           else if (seat === mySeat && dark && state.acted[seat]) tags.push(t('games.masoi.actedTag'))
-          if (seen[seat] === 0) tags.push(t('games.masoi.goodTag'))
-          if (lovers.includes(seat)) tags.push('♥')
-          if (picksOf(seat)) tags.push(t('games.masoi.bitTag', { n: picksOf(seat) }))
-          if (ph === 'day' && live && state.votes[seat] != null) tags.push('→ ' + (state.votes[seat] === -1 ? t('games.masoi.skipVote') : nameOf(state.votes[seat])))
+          if (!covered && seen[seat] === 0) tags.push(t('games.masoi.goodTag'))
+          if (!covered && lovers.includes(seat)) tags.push('♥')
+          if (!covered && picksOf(seat)) tags.push(t('games.masoi.bitTag', { n: picksOf(seat) }))
+          if (ph === 'day' && live && !secret && state.votes[seat] != null) tags.push('→ ' + (state.votes[seat] === -1 ? t('games.masoi.skipVote') : nameOf(state.votes[seat])))
           const Tag = can ? 'button' : 'div'
           return (
             <Tag key={seat} type={can ? 'button' : undefined} onClick={can ? () => toggle(seat) : undefined} aria-pressed={can ? picked : undefined}
@@ -439,9 +469,10 @@ export default function MaSoiBoard({ state, mySeat, roomId, onMove, result, play
         <span style={S.label}>{t('games.masoi.inGame')}</span>
         <div style={{ display: 'flex', gap: 6, flexWrap: 'wrap' }}>
           {[WOLF, CURSED, SEER, GUARD, WITCH, HUNTER, ELDER, CUPID, VILLAGER].filter((r) => counts[r]).map((r) => (
-            <span key={r} style={S.chip}>
-              <RoleIcon role={r} size={18} />
+            <span key={r} style={{ ...S.chip, opacity: gone[r] >= counts[r] ? 0.55 : 1, textDecoration: gone[r] >= counts[r] ? 'line-through' : 'none' }}>
+              <RoleIcon role={r} size={18} dead={gone[r] >= counts[r]} />
               {roleName(r)}{counts[r] > 1 ? ' ×' + counts[r] : ''}
+              {gone[r] > 0 && gone[r] < counts[r] ? ' · ' + t('games.masoi.goneCount', { n: gone[r] }) : ''}
             </span>
           ))}
         </div>
@@ -449,7 +480,7 @@ export default function MaSoiBoard({ state, mySeat, roomId, onMove, result, play
           <>
             <span style={S.label}>{t('games.masoi.log')}</span>
             <ol style={{ margin: 0, paddingLeft: 18, display: 'grid', gap: 3 }}>
-              {[...state.events].reverse().map((e, k) => <li key={state.events.length - k} style={S.caption}>{eventText(e, nameOf, state.shown)}</li>)}
+              {[...state.events].reverse().map((e, k) => <li key={state.events.length - k} style={S.caption}>{eventText(e, nameOf, state.shown, secret)}</li>)}
             </ol>
           </>
         )}
@@ -458,8 +489,8 @@ export default function MaSoiBoard({ state, mySeat, roomId, onMove, result, play
   )
 }
 
-/** Một dòng diễn biến. Vai đã lộ thì ghi kèm. */
-function eventText(e, nameOf, shown) {
+/** Một dòng diễn biến. Vai đã lộ thì ghi kèm. Phòng phiếu kín: dòng treo cổ ghi thêm đủ phiếu của ngày đó. */
+function eventText(e, nameOf, shown, secret) {
   const who = (x) => nameOf(x) + (shown[x] != null ? ' (' + roleName(shown[x]) + ')' : '')
   const list = (xs) => xs.map(who).join(', ')
   const extra = (xs) => (xs.length ? ' ' + t('games.masoi.evAlso', { names: list(xs) }) : '')
@@ -467,11 +498,19 @@ function eventText(e, nameOf, shown) {
   if (e.k === 'settle') return t('games.masoi.evSettle', { names: list(e.dead) })
   if (e.k === 'dawn') return e.dead.length ? t('games.masoi.evDawn', { n: e.night, names: list(e.dead) }) : t('games.masoi.evDawnNone', { n: e.night })
   if (e.k === 'hang') {
-    if (e.seat < 0) return t('games.masoi.evHangNone', { n: e.night })
-    return t('games.masoi.evHang', { n: e.night, name: who(e.seat) }) + extra(e.dead.filter((x) => x !== e.seat))
+    const ballots = secret && e.votes
+      ? ' ' + t('games.masoi.evVotes', {
+        list: e.votes.map((v, x) => (v == null ? null : nameOf(x) + ' → ' + (v === -1 ? t('games.masoi.skipVote') : nameOf(v)))).filter(Boolean).join(', '),
+      })
+      : ''
+    if (e.seat < 0) return t('games.masoi.evHangNone', { n: e.night }) + ballots
+    return t('games.masoi.evHang', { n: e.night, name: who(e.seat) }) + extra(e.dead.filter((x) => x !== e.seat)) + ballots
   }
-  if (e.target < 0) return t('games.masoi.evShotNone', { name: nameOf(e.seat) })
-  return t('games.masoi.evShot', { name: nameOf(e.seat), target: who(e.target) }) + extra(e.dead.filter((x) => x !== e.target))
+  // Thợ săn chưa lộ vai thì không nêu tên người bắn.
+  const anon = shown[e.seat] == null
+  if (e.target < 0) return anon ? t('games.masoi.evShotNoneAnon') : t('games.masoi.evShotNone', { name: nameOf(e.seat) })
+  return (anon ? t('games.masoi.evShotAnon', { target: who(e.target) }) : t('games.masoi.evShot', { name: nameOf(e.seat), target: who(e.target) }))
+    + extra(e.dead.filter((x) => x !== e.target))
 }
 
 const S = {

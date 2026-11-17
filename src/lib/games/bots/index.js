@@ -12,6 +12,7 @@
 
 import { CHESS, COGANH, COUP, OANQUAN, pick, shuffle, XIANGQI, XO } from '#lib/games/bots/search.js'
 import { bantauBot, canguaBot, caroBot, chamoBot } from '#lib/games/bots/heuristics.js'
+import { goBot } from '#lib/games/bots/go.js'
 import { baibipBot, phomBot, tienlenBot, xidachBot } from '#lib/games/bots/cards.js'
 import { CARD_GAMES, dealFill } from '#lib/games/bots/dealer.js'
 import { SHIPS } from '#lib/games/bantau.js'
@@ -30,7 +31,7 @@ const SEARCH = {
   // Bàn 3 × 3: mức Khó tìm hết ván cổ điển (9 nước); chế độ move / vanish tìm sâu 9 nửa nước trong hạn giờ.
   xo: { rule: XO, easy: { depth: 1, noise: 4 }, normal: { depth: 3, ms: 600, noise: 1 }, hard: { depth: 9, ms: 1500, noise: 0 } },
 }
-const HEUR = { caro: caroBot, chamo: chamoBot, cangua: canguaBot, bantau: bantauBot }
+const HEUR = { caro: caroBot, chamo: chamoBot, cangua: canguaBot, bantau: bantauBot, covay: goBot }
 const CARDS = { tienlen: tienlenBot, phom: phomBot, baibip: baibipBot, xidach: xidachBot }
 
 /** Mức của từng trò (danh sách trò: BOT_GAMES ở registry.js). master chỉ có ở trò có engine nhúng. */
@@ -43,7 +44,7 @@ export const levelsOf = (id) => (id === 'covua' || id === 'cotuong' ? LEVELS : L
 export function think(id, s, seat, level, rand = Math.random, override, hand = []) {
   const lv = level === 'master' ? 'hard' : level
   if (CARDS[id]) return CARDS[id](s, seat, lv, rand, hand)
-  if (HEUR[id]) return HEUR[id](s, seat, lv, rand)
+  if (HEUR[id]) return HEUR[id](s, seat, lv, rand, override)
   const g = SEARCH[id]
   return pick(g.rule, s, seat, { ...g[lv], ...override, rand })
 }

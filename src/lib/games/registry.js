@@ -37,7 +37,7 @@ export const SOLO_GAMES = ['timso', 'keobuabao']
 export const LOBBY_IDS = [...GAME_IDS, ...SOLO_GAMES]
 
 /** Trò có chế độ chơi với máy (lib/games/bots) — vào bằng /tro-choi/may-<id> (GameRoom.jsx tách sang BotRoom; Nối từ → NoiTuSolo). */
-export const BOT_GAMES = ['caro', 'xo', 'covua', 'cotuong', 'coup', 'oanquan', 'coganh', 'chamo', 'cangua', 'bantau', 'tienlen', 'phom', 'baibip', 'xidach', 'noitu']
+export const BOT_GAMES = ['caro', 'xo', 'covay', 'covua', 'cotuong', 'coup', 'oanquan', 'coganh', 'chamo', 'cangua', 'bantau', 'tienlen', 'phom', 'baibip', 'xidach', 'noitu']
 export const BOT_PREFIX = 'may-'
 
 export const gameOf = (id) => GAMES[id] || null

@@ -4,7 +4,7 @@
 
 import assert from 'node:assert/strict'
 import { readFileSync } from 'node:fs'
-import bt, { fleetOk, randomFleet, SHIPS, TOTAL } from '#lib/games/bantau.js'
+import bt, { fleetOk, moveShip, randomFleet, shipCells, SHIPS, TOTAL } from '#lib/games/bantau.js'
 import { replay } from '#lib/games/registry.js'
 
 const FLEET = [[0, 1, 2, 3, 4], [20, 30, 40, 50], [7, 8, 9], [97, 98, 99], [66, 67]]
@@ -67,6 +67,21 @@ const FLEET = [[0, 1, 2, 3, 4], [20, 30, 40, 50], [7, 8, 9], [97, 98, 99], [66, 
   for (const fn of ['game_bantau_fleet_ok(int[])', 'game_bantau_result(uuid)', 'game_bantau_fill(uuid, integer, jsonb)']) {
     assert.ok(sql.includes('REVOKE ALL ON FUNCTION public.' + fn + ' FROM PUBLIC, anon, authenticated'), fn)
   }
+}
+
+// Xếp tay: kéo tàu sang chỗ mới / xoay — ra ngoài bàn hay đè tàu khác thì không được; hạm đội mới vẫn hợp lệ.
+{
+  // Tàu 5 hàng 0 (A1–E1), tàu 4 hàng 2, tàu 3 hàng 4, tàu 3 hàng 6, tàu 2 hàng 8 — đều ngang, sát mép trái.
+  const fleet = SHIPS.map((n, k) => shipCells(n, 2 * k, 0, false))
+  assert.ok(fleetOk(fleet))
+  const moved = moveShip(fleet, 4, 8, 5, false)
+  assert.deepEqual(moved[4], [85, 86], 'tàu 2 ô sang F9–G9')
+  assert.ok(fleetOk(moved))
+  assert.deepEqual(moveShip(fleet, 0, 0, 0, true), null, 'dựng dọc tàu 5 ô ở A1 đè lên tàu 4 ô ở hàng 3')
+  assert.deepEqual(moveShip(fleet, 0, 0, 9, true)[0], [9, 19, 29, 39, 49], 'dựng dọc ở cột J thì được')
+  assert.equal(moveShip(fleet, 0, 0, 6, false), null, 'tàu 5 ô ngang từ G1 ra ngoài bàn')
+  assert.equal(moveShip(fleet, 1, 0, 0, false), null, 'tàu 4 ô lên A1 đè tàu 5 ô')
+  assert.equal(moveShip(fleet, 3, 8, 9, true), null, 'tàu 3 ô dọc từ J9 ra ngoài bàn')
 }
 
 console.log('bantau check: OK')

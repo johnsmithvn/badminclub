@@ -33,6 +33,22 @@ export function fleetOk(fleet) {
   })
 }
 
+/** Các ô của một tàu dài `len`, đầu tàu ở (r0, c0), dọc hay ngang (không kiểm trong bàn). */
+export const shipCells = (len, r0, c0, down) => Array.from({ length: len }, (_, j) => (down ? (r0 + j) * SIZE + c0 : r0 * SIZE + c0 + j))
+
+/**
+ * Đặt lại tàu thứ `k` của hạm đội (xếp tay — kéo thả / xoay): đầu tàu ở (r0, c0), dọc hay ngang → hạm đội mới, hoặc null
+ * nếu ra ngoài bàn hay đè lên tàu khác. Máy khách dùng — server vẫn kiểm cả hạm đội (fleetOk) lúc chốt.
+ */
+export function moveShip(fleet, k, r0, c0, down) {
+  const len = fleet[k].length
+  if (r0 < 0 || c0 < 0 || (down ? r0 + len : r0 + 1) > SIZE || (down ? c0 + 1 : c0 + len) > SIZE) return null
+  const cells = shipCells(len, r0, c0, down)
+  const taken = new Set(fleet.flatMap((ship, j) => (j === k ? [] : ship)))
+  if (cells.some((x) => taken.has(x))) return null
+  return fleet.map((ship, j) => (j === k ? cells : ship))
+}
+
 /** Xếp ngẫu nhiên một hạm đội (máy khách dùng — không nằm trong luật / log). */
 export function randomFleet(rand = Math.random) {
   for (;;) {

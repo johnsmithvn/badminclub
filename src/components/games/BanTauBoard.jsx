@@ -6,7 +6,7 @@ import { G, btn, card, mono, over } from '#components/games/stage.js'
 import { SkinPicker } from '#components/games/ChessStage.jsx'
 import { useSkin } from '#components/games/chessSkins.js'
 import { useFit } from '#components/games/chessUi.js'
-import { CELLS, randomFleet, SHIPS, SIZE } from '#lib/games/bantau.js'
+import { CELLS, moveShip, randomFleet, shipCells, SHIPS, SIZE } from '#lib/games/bantau.js'
 
 // Bàn Bắn tàu theo bản thiết kế "Bắn tàu" (2026-11-12): vùng biển 3 skin (Hải chiến / Radar / Giấy kẻ ô — chessSkins.js,
 // nhớ theo máy), tàu vẽ chi tiết 5 loại, hiệu ứng khoá mục tiêu → đạn rơi → nổ (chớp, khói, vòng loang, mảnh bung, chữ
@@ -17,7 +17,8 @@ import { CELLS, randomFleet, SHIPS, SIZE } from '#lib/games/bantau.js'
 // Hiệu ứng suy từ state.last, key theo số nước — không giữ state; vào phòng giữa chừng không diễn lại nước cũ (mountPly).
 // Bọc `data-game-fx` nên máy bật "giảm chuyển động" là tắt hết. Luật: lib/games/bantau.js.
 // Tàu cất ở server (game_hands, chỉ chủ tàu đọc); chơi với máy (BotRoom) truyền sẵn `hands` — khỏi hỏi server.
-// ponytail: chỉ xếp ngẫu nhiên, chưa kéo thả từng tàu — thêm khi người chơi cần.
+// Xếp tàu: Xếp ngẫu nhiên, hoặc kéo một con tàu sang chỗ khác (bóng tàu hiện chỗ thả, đỏ = không thả được) và chạm vào
+// tàu để xoay ngang / dọc (moveShip ở bantau.js — ra ngoài bàn hay đè tàu khác thì giữ nguyên).
 
 const WIDE = 800
 const SHELL = 750 // ms từ lúc khoá mục tiêu tới lúc đạn chạm biển
@@ -77,7 +78,7 @@ function Hull({ art, c }) {
 }
 
 /** Một con tàu đặt trên biển (toạ độ %), dựng dọc thì xoay. */
-function Ship({ cells, art, K, sunk, appear }) {
+function Ship({ cells, art, K, sunk, appear, ghost, bad, lifted }) {
   const cs = [...cells].sort((a, b) => a - b)
   const n = cs.length
   const down = n > 1 && cs[1] - cs[0] === SIZE
@@ -88,7 +89,8 @@ function Ship({ cells, art, K, sunk, appear }) {
       style={{
         position: 'absolute', left: c * 10 + '%', top: r * 10 + '%', width: (down ? 1 : n) * 10 + '%', height: (down ? n : 1) * 10 + '%',
         padding: '0.3cqw', overflow: 'visible', boxSizing: 'border-box',
-        filter: sunk && !K.paper ? 'grayscale(.75) brightness(.55) sepia(.3)' : 'none', opacity: sunk && K.paper ? 0.55 : 1,
+        filter: bad ? 'drop-shadow(0 0 4px #ff3b3b) saturate(.4)' : ghost ? 'drop-shadow(0 0 6px #ffcf4a)' : sunk && !K.paper ? 'grayscale(.75) brightness(.55) sepia(.3)' : 'none',
+        opacity: ghost ? 0.7 : lifted ? 0.3 : sunk && K.paper ? 0.55 : 1, pointerEvents: 'none', zIndex: ghost ? 25 : undefined,
         animation: appear ? `btDrop .5s ease-out ${appear}ms both` : undefined,
       }}>
       <g transform={down ? 'translate(40 0) rotate(90)' : undefined}><Hull art={art} c={K} /></g>
@@ -199,7 +201,20 @@ function Banner({ text, delay = 0 }) {
  * khi tới lượt; `shake` số phát trúng (đổi chẵn / lẻ để rung lại); `fx` = { ply, cell, kind, big, text } phát vừa bắn;
  * `aim` = { cell, wait }; `banner` = { key, text, delay }.
  */
-function Sea({ K, size, label, ships, cells, hot, onCell, sel, glow, shake, fx, aim, banner, aria }) {
+function Sea({ K, size, label, ships, cells, hot, onCell, sel, glow, shake, fx, aim, banner, aria, drag }) {
+  // Xếp tay: con trỏ / ngón tay trên biển → ô dưới tay (drag.down / move / up nhận ô đó).
+  const cellAt = (e) => {
+    const box = e.currentTarget.getBoundingClientRect()
+    const c = Math.min(SIZE - 1, Math.max(0, Math.floor(((e.clientX - box.left) / box.width) * SIZE)))
+    const r = Math.min(SIZE - 1, Math.max(0, Math.floor(((e.clientY - box.top) / box.height) * SIZE)))
+    return r * SIZE + c
+  }
+  const on = drag ? {
+    onPointerDown: (e) => drag.down(e, cellAt(e)),
+    onPointerMove: (e) => drag.move(e, cellAt(e)),
+    onPointerUp: (e) => drag.up(e, cellAt(e)),
+    onPointerCancel: () => drag.cancel(),
+  } : null
   const lab = Math.max(14, Math.round(size / 20))
   return (
     <div style={{ display: 'grid', gridTemplateColumns: `${lab}px minmax(0, 1fr)`, gridTemplateRows: `${lab}px auto`, width: '100%', maxWidth: size + lab, justifySelf: 'center' }}>
@@ -214,7 +229,8 @@ function Sea({ K, size, label, ships, cells, hot, onCell, sel, glow, shake, fx, 
         position: 'relative', aspectRatio: '1', containerType: 'inline-size', borderRadius: Math.round(size / 35), overflow: 'hidden', background: K.sea,
         boxShadow: glow ? `0 0 0 2px ${glow},0 0 34px -6px ${glow}` : '0 0 0 1px ' + K.frame, transition: 'box-shadow .3s',
         animation: shake ? `${shake % 2 ? 'btShakeA' : 'btShakeB'} .4s ease-in-out ${SHELL}ms` : undefined,
-      }}>
+        ...(drag ? { touchAction: 'none', cursor: drag.grabbing ? 'grabbing' : 'grab' } : null),
+      }} {...on}>
         {K.wave && (
           <span aria-hidden="true" style={{
             position: 'absolute', inset: '-20%', animation: 'btWave 9s linear infinite',
@@ -311,6 +327,7 @@ export default function BanTauBoard({ state, mySeat, canMove, onMove, roomId, re
   const [box, fit] = useFit(WIDE)
   const wide = fit >= 1
   const [draft, setDraft] = useState(() => randomFleet())
+  const [grab, setGrab] = useState(null) // xếp tay: { k, offset (ô thứ mấy của tàu dưới tay), at (ô đang trỏ), moved }
   const [hands, setHands] = useState(null) // { roomId, hands } — tàu đã chốt (của mình; hết ván: cả hai)
   const [asked, setAsked] = useState({ ply: -1, cell: null }) // nước đang chờ server (chốt tàu / bắn) — khỏi bấm hai lần
   const [sel, setSel] = useState({ ply: -1, cell: null }) // bố cục hẹp: ô đang chọn, chưa bắn
@@ -398,9 +415,53 @@ export default function BanTauBoard({ state, mySeat, canMove, onMove, roomId, re
   if (state.phase === 'place') {
     const mine = placedMe ? fleetOf(mySeat) : draft
     const foeReady = state.placed[foe]
+    const editing = seated && !placedMe && !wait
+    // Chỗ thả nếu buông tay ở ô `at`: giữ ô thứ `offset` của tàu dưới tay, giữ hướng.
+    const dropOf = (g) => {
+      const ship = [...draft[g.k]].sort((a, b) => a - b)
+      const down = ship.length > 1 && ship[1] - ship[0] === SIZE
+      const r = Math.floor(g.at / SIZE)
+      const c = g.at % SIZE
+      const r0 = down ? r - g.offset : r
+      const c0 = down ? c : c - g.offset
+      return { len: ship.length, r0, c0, down, next: moveShip(draft, g.k, r0, c0, down) }
+    }
+    const drag = editing ? {
+      grabbing: !!grab,
+      down: (e, cell) => {
+        const k = draft.findIndex((ship) => ship.includes(cell))
+        if (k < 0) return
+        e.currentTarget.setPointerCapture?.(e.pointerId)
+        setGrab({ k, offset: [...draft[k]].sort((a, b) => a - b).indexOf(cell), at: cell, moved: false })
+      },
+      move: (e, cell) => { if (grab && cell !== grab.at) setGrab({ ...grab, at: cell, moved: true }) },
+      up: () => {
+        if (!grab) return
+        if (grab.moved) {
+          const d = dropOf(grab)
+          if (d.next) setDraft(d.next)
+        } else {
+          // Chạm (không kéo): xoay quanh đầu tàu; quá mép thì lùi vào trong bàn.
+          const ship = [...draft[grab.k]].sort((a, b) => a - b)
+          const down = ship.length > 1 && ship[1] - ship[0] === SIZE
+          const n = ship.length
+          const r0 = down ? Math.floor(ship[0] / SIZE) : Math.min(Math.floor(ship[0] / SIZE), SIZE - n)
+          const c0 = down ? Math.min(ship[0] % SIZE, SIZE - n) : ship[0] % SIZE
+          const next = moveShip(draft, grab.k, r0, c0, !down)
+          if (next) setDraft(next)
+        }
+        setGrab(null)
+      },
+      cancel: () => setGrab(null),
+    } : null
+    const ghost = editing && grab?.moved ? dropOf(grab) : null
+    const ghostCells = ghost ? shipCells(ghost.len, Math.max(0, Math.min(SIZE - (ghost.down ? ghost.len : 1), ghost.r0)), Math.max(0, Math.min(SIZE - (ghost.down ? 1 : ghost.len), ghost.c0)), ghost.down) : null
     const sea = (
-      <Sea K={K} size={wide ? 460 : 340} aria={t('games.bantau.yourSea')} cells={Array(CELLS).fill(null)}
-        ships={(mine || []).map((cells, k) => ({ cells, art: k }))} />
+      <Sea K={K} size={wide ? 460 : 340} aria={t('games.bantau.yourSea')} cells={Array(CELLS).fill(null)} drag={drag}
+        ships={[
+          ...(mine || []).map((cells, k) => ({ cells, art: k, lifted: ghost && grab.k === k })),
+          ...(ghostCells ? [{ cells: ghostCells, art: grab.k, ghost: true, bad: !ghost.next }] : []),
+        ]} />
     )
     return (
       <div ref={box} style={{ display: 'grid', gap: 14, gridTemplateColumns: 'minmax(0, 1fr)', color: G.text }}>

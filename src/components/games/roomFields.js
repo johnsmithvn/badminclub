@@ -2,7 +2,7 @@ import { BOARD_POINTS, NO_STAKE, buyinsOf, spOf, stakeOf } from '#lib/games/regi
 import { DICTS as NOITU_DICTS, REPEATS as NOITU_REPEATS, TIMES as NOITU_TIMES } from '#lib/games/noitu.js'
 import { SIZES as COVAY_SIZES } from '#lib/games/covay.js'
 import { MODES as XO_MODES, TIMES as XO_TIMES } from '#lib/games/xo.js'
-import { DAY_TIMES as MASOI_TIMES, REVEALS as MASOI_REVEALS, GUARD, SEER, WITCH, WOLF, isWolf, lineupOf } from '#lib/games/masoi.js'
+import { DAY_TIME_CHOICES as MASOI_TIMES, REVEALS as MASOI_REVEALS, VOTES as MASOI_VOTES, GUARD, SEER, WITCH, WOLF, isWolf, lineupOf } from '#lib/games/masoi.js'
 import { TIMES as BAIBIP_TIMES } from '#lib/games/baibip.js'
 import { LEADS as TIENLEN_LEADS, TIMES as TIENLEN_TIMES, VARIANTS as TIENLEN_VARIANTS } from '#lib/games/tienlen.js'
 import { LAPS as BAUCUA_LAPS, TIMES as BAUCUA_TIMES } from '#lib/games/baucua.js'
@@ -68,7 +68,10 @@ export function fieldsOf(gameId, opts, set) {
   }
   if (gameId === 'masoi') {
     f.push(sel('reveal', t('games.masoi.reveal'), opts.reveal, MASOI_REVEALS.map((v) => ({ value: v, label: t('games.masoi.revealOpt.' + v) })), (e) => set({ reveal: e.target.value })))
-    f.push(sel('time', t('games.masoi.time'), opts.time, nums(MASOI_TIMES, (n) => (n ? t('games.masoi.timeOpt', { n }) : t('games.masoi.timeNone'))), num('time')))
+    // Phòng mới không còn "không giới hạn"; phòng cũ đang để 0 vẫn đọc ra nhãn đúng.
+    const times = opts.time === 0 ? [0, ...MASOI_TIMES] : MASOI_TIMES
+    f.push(sel('time', t('games.masoi.time'), opts.time, nums(times, (n) => (n ? t('games.masoi.timeOpt', { n }) : t('games.masoi.timeNone'))), num('time')))
+    f.push(sel('vote', t('games.masoi.vote'), opts.vote || 'open', MASOI_VOTES.map((v) => ({ value: v, label: t('games.masoi.voteOpt.' + v) })), (e) => set({ vote: e.target.value }), t('games.masoi.voteHint')))
     f.push(sel('deck', t('games.masoi.deck'), opts.roles ? 'custom' : 'auto',
       [{ value: 'auto', label: t('games.masoi.deckAuto') }, { value: 'custom', label: t('games.masoi.deckCustom') }],
       (e) => set({ roles: e.target.value === 'custom' ? MASOI_CUSTOM : undefined })))
