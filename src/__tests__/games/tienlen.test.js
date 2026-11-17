@@ -4,7 +4,7 @@
 
 import assert from 'node:assert/strict'
 import { readFileSync } from 'node:fs'
-import tl, { HAND, TIMES, TWO, beats, comboOf, deadlineOf, hintOf, priceOf, thoiOf, timeOf, variantOf, whiteOf } from '#lib/games/tienlen.js'
+import tl, { HAND, TIMES, TWO, beats, comboOf, deadlineOf, groupsOf, hintOf, priceOf, thoiOf, timeOf, variantOf, whiteOf } from '#lib/games/tienlen.js'
 import { replay } from '#lib/games/registry.js'
 
 /** Nước deal như server ghi (0078 game_tienlen_deal): ván chơi lại thì `first` đi trước, không thì ai cầm lá nhỏ nhất. */
@@ -289,5 +289,14 @@ assert.deepEqual(tl.moveNote({ play: [8, 0, 4] }), { key: 'games.tienlen.notePla
 assert.deepEqual(tl.moveNote({ pass: true }), { key: 'games.tienlen.notePass' })
 assert.deepEqual(tl.moveNote({ deal: { n: [13, 13] } }), { key: 'games.tienlen.noteDeal' })
 assert.equal(tl.moveNote({ timeout: true, pass: true }), null)
+
+// "Xếp: bộ": đôi thông → tứ quý → sảnh → đôi → lá lẻ, heo cuối; không mất / thừa lá nào.
+{
+  const hand = [48, 0, 1, 4, 5, 8, 9, 24, 25, 26, 27, 12, 16, 20, 40, 41, 44, 32]
+  const g = groupsOf(hand)
+  assert.deepEqual(g, [[0, 1, 4, 5, 8, 9], [12, 16, 20], [24, 25, 26, 27], [32, 44], [40, 41], [48]])
+  assert.deepEqual(g.flat().sort((a, b) => a - b), [...hand].sort((a, b) => a - b))
+  assert.deepEqual(groupsOf([]), [])
+}
 
 console.log('tienlen check: OK')

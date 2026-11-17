@@ -1,6 +1,6 @@
 import { Suspense, useCallback, useEffect, useMemo, useRef, useState } from 'react'
 import { useNavigate } from 'react-router-dom'
-import { Alert, Icon, Skeleton } from '#ds'
+import { Alert, Button, Dialog, Icon, Skeleton } from '#ds'
 import { Empty } from '#ui'
 import { useMobile } from '#hooks/useMobile.js'
 import { SCREENS } from '#components/games/screens.js'
@@ -37,6 +37,7 @@ const CHESS = ['covua', 'cotuong']
 // Bàn vẽ bằng ChessStage (thanh người chơi, nút, skin) — Cờ úp mượn bàn Cờ tướng nhưng không có đồng hồ tổng, không ký
 // hiệu nước (không có cột Nước đi). Như SKIN của GameRoom.jsx.
 const SKIN = { covua: 'covua', cotuong: 'cotuong', coup: 'cotuong' }
+const OWN_HINT = ['tienlen', 'phom']
 // Máy "phản ứng" bằng bong bóng (bản "Cờ · sinh động"): ăn được quân, bị ăn quân lớn, chiếu — cứ hai nước có thì một
 // lần hiện, câu chọn theo số nước (không ngẫu nhiên → StrictMode / vẽ lại không đổi câu). stk: = sticker.
 const FEEL = { gain: ['stk:cuoi', 'thanks', 'stk:lua'], loss: ['stk:khoc', 'stk:gian', 'oops'], check: ['check', 'stk:lua'], big: ['stk:lua', 'nice'] }
@@ -140,6 +141,7 @@ export default function BotRoom({ gameId }) {
   const ask = useWorker()
   const [prefs, setPrefs] = useState(() => loadPrefs(gameId))
   const [howto, setHowto] = useState(false)
+  const [resigning, setResigning] = useState(false) // game bài: hỏi lại trước khi xin thua (như phòng online)
   const [note, setNote] = useState('')
   const [gear, setGear] = useState(false)
   const [draft, setDraft] = useState(prefs)
@@ -307,14 +309,16 @@ export default function BotRoom({ gameId }) {
   // Ô ăn quan tự vẽ thẻ Máy / Bạn, đồng hồ và nút ngay trong khung sơn mài (bản 1c) — không lặp thẻ ở ngoài.
   // Cờ gánh (Ruộng làng) cũng vậy, qua ChessStage.
   // Cờ vua / Cờ tướng / Cờ úp cũng vậy (ChessStage). Cờ vua / Cờ tướng thêm cột Nước đi bên phải, nút Ván mới nằm ở đó.
-  const inFrame = gameId === 'oanquan' || gameId === 'coganh' || stage
+  // Game bài cũng vậy: bàn tự vẽ ghế Bạn / Máy, nút đánh và hàng nút phụ (bản thiết kế không có thẻ máy / bạn ngoài bàn).
+  const inFrame = gameId === 'oanquan' || gameId === 'coganh' || stage || card
   const clock = limit ? { left: left ?? limit, limit, on: left != null } : null
+  // Game bài: không có Đi lại (bài nằm ngoài state); Tiến lên / Phỏm có nút Gợi ý riêng trong bàn (chọn sẵn lá).
   const actions = [
-    { key: 'undo', icon: 'undo-2', label: t('games.bot.undo'), on: undo, off: !canUndo },
-    { key: 'hint', icon: 'lightbulb', label: t('games.bot.hint'), on: hint, off: !canMove || hinting, soft: true },
+    ...(card ? [] : [{ key: 'undo', icon: 'undo-2', label: t('games.bot.undo'), on: undo, off: !canUndo }]),
+    ...(OWN_HINT.includes(gameId) ? [] : [{ key: 'hint', icon: 'lightbulb', label: t('games.bot.hint'), on: hint, off: !canMove || hinting, soft: true }]),
     ...(card ? [] : [{ key: 'draw', icon: 'handshake', label: t('games.bot.drawOffer'), on: offerDraw, off: !canMove }]),
     ...(chess ? [] : [{ key: 'new', icon: 'refresh-cw', label: t('games.bot.newGame'), on: () => restart() }]),
-    { key: 'resign', icon: 'flag', label: t('games.bot.resign'), on: resign, off: !!result, danger: true },
+    { key: 'resign', icon: 'flag', label: t('games.bot.resign'), on: card ? () => setResigning(true) : resign, off: !!result, danger: true },
   ]
   const segRow = (label, items, value, set) => (
     <div style={{ display: 'grid', gap: 8 }}>
@@ -437,6 +441,22 @@ export default function BotRoom({ gameId }) {
       </div>
 
       {howto && <HowTo gameId={gameId} onClose={() => setHowto(false)} />}
+      {resigning && (
+        <Dialog
+          open
+          sheet={isMobile}
+          title={t('games.resignTitle')}
+          onClose={() => setResigning(false)}
+          footer={(
+            <>
+              <Button variant="secondary" onClick={() => setResigning(false)}>{t('games.stay')}</Button>
+              <Button icon="flag" onClick={() => { setResigning(false); resign() }}>{t('games.bot.resign')}</Button>
+            </>
+          )}
+        >
+          <span style={S.caption}>{t('games.bot.resignDesc')}</span>
+        </Dialog>
+      )}
     </div>
   )
 }

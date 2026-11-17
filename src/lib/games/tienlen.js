@@ -241,6 +241,48 @@ export function playsOf(s, hand) {
 }
 
 /**
+ * "Xếp: bộ" (bản thiết kế): gom `hand` thành nhóm để xếp trên tay — đôi thông, tứ quý (không phải heo), sảnh dài nhất
+ * (lặp tới hết), đôi / sám, rồi lá lẻ; heo luôn để cuối. Chỉ để xếp chỗ hiển thị — không quyết định luật.
+ */
+export function groupsOf(hand) {
+  let left = [...hand].sort((a, b) => a - b)
+  const out = []
+  const take = (cs) => { out.push(cs); left = left.filter((c) => !cs.includes(c)) }
+  const by = () => {
+    const b = Array.from({ length: 13 }, () => [])
+    for (const c of left) b[rankOf(c)].push(c)
+    return b
+  }
+  // Dài nhất từ `r0` mà mỗi hạng có ít nhất `need` lá (không tính heo).
+  const runEnd = (b, r0, need) => { let r = r0; while (r < TWO && b[r].length >= need) r++; return r }
+  for (let done = false; !done;) {
+    done = true
+    const b = by()
+    for (let r0 = 0; r0 < TWO; r0++) {
+      const r = runEnd(b, r0, 2)
+      if (r - r0 >= 3) { take(b.slice(r0, r).flatMap((g) => g.slice(0, 2))); done = false; break }
+    }
+  }
+  by().forEach((g) => { if (g.length === 4 && rankOf(g[0]) !== TWO) take(g) })
+  for (let done = false; !done;) {
+    done = true
+    const b = by()
+    let best = null
+    for (let r0 = 0; r0 < TWO; r0++) {
+      const r = runEnd(b, r0, 1)
+      if (r - r0 >= 3 && (!best || r - r0 > best[1] - best[0])) best = [r0, r]
+    }
+    if (best) { take(b.slice(best[0], best[1]).map((g) => g[0])); done = false }
+  }
+  by().forEach((g) => { if (g.length >= 2 && rankOf(g[0]) !== TWO) take(g) })
+  const singles = left.filter((c) => rankOf(c) !== TWO)
+  const heo = left.filter((c) => rankOf(c) === TWO)
+  if (singles.length) out.push(singles)
+  if (heo.length) out.push(heo)
+  return out.sort((a, b) => (rankOf(a[0]) === TWO) - (rankOf(b[0]) === TWO) || a[0] - b[0])
+}
+
+/**
  * Các bộ có thể ghép từ `hand` (chưa xét bàn): lẻ, đôi / sám / tứ quý (mọi cách chọn), sảnh (lá nhỏ nhất mỗi hạng, hạng
  * chót thử từng lá), đôi thông (hai lá nhỏ nhất mỗi hạng). Miền Bắc: sảnh cả dây một chất, không có đôi thông.
  */
