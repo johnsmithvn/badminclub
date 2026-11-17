@@ -4,7 +4,7 @@
 
 import assert from 'node:assert/strict'
 import { readFileSync } from 'node:fs'
-import xo, { CAP, deadlineOf, fadingOf, moving, optsOf, TIMES } from '#lib/games/xo.js'
+import xo, { CAP, deadlineOf, fadingOf, moving, openCell, optsOf, TIMES, ULT_CAP } from '#lib/games/xo.js'
 import { replay } from '#lib/games/registry.js'
 
 const fresh = (mode) => xo.setup({ options: mode ? { mode } : {} })
@@ -149,6 +149,60 @@ for (const mode of ['classic', 'move', 'vanish']) {
   assert.deepEqual(xo.result(s), { winners: [], draw: true })
 }
 
+// ---------- X-O lồng (0113): 9 bàn con, đánh ô thứ k thì đối thủ phải đánh ở bàn con thứ k ----------
+{
+  const u = fresh('ultimate')
+  assert.deepEqual([u.board.length, u.big, u.next], [81, Array(9).fill(null), -1])
+  assert.equal(xo.validate(u, 0, { i: 81 }), 'games.err.badMove', 'ô ngoài 0..80')
+  assert.equal(xo.validate(u, 0, { i: 80 }), null, 'nước đầu đánh đâu cũng được')
+  let s = play(u, [4]) // X: bàn con 0, ô 4 → O phải đánh ở bàn con 4
+  assert.equal(s.next, 4)
+  assert.equal(xo.validate(s, 1, { i: 0 }), 'games.err.badMove', 'sai bàn con bắt buộc')
+  assert.equal(xo.validate(s, 1, { i: 4 }), 'games.err.taken')
+  s = play(s, [36]) // O: bàn con 4, ô 0 → X phải về bàn con 0
+  assert.equal(s.next, 0)
+  assert.deepEqual(moving(s, 0) || fadingOf(s, 0) != null, false, 'X-O lồng không di / không biến mất quân')
+}
+// Thắng bàn con → chiếm ô bàn lớn; bị đưa vào bàn đã xong thì đánh tự do; 3 bàn con liền là thắng ván.
+{
+  // Dựng sẵn: X có ô 0, 1 của bàn con 0 (O có ô 3, 4), tới lượt X ở bàn 0 → X đánh ô 2.
+  const u = fresh('ultimate')
+  let s = { ...u, board: u.board.map((v, i) => ({ 0: 0, 1: 0, 3: 1, 4: 1 })[i] ?? v), next: 0, ply: 4 }
+  s = play(s, [2])
+  assert.deepEqual([s.big[0], s.next, s.line, s.over], [0, 2, null, false], 'X thắng bàn con 0, O phải đánh bàn con 2')
+  s = play(s, [9 * 2 + 0]) // O đánh ô 0 của bàn 2 → X bị đưa vào bàn 0 đã xong → tự do
+  assert.equal(s.next, -1)
+  assert.equal(xo.validate(s, 0, { i: 5 }), 'games.err.badMove', 'bàn con đã xong thì không đánh vào được nữa')
+  assert.equal(openCell(s, 9 * 8 + 8), true)
+  // Dựng sẵn: X đã có bàn 0, 1; đang ở bàn 2 với 2 quân → đánh nốt là thắng ván.
+  const pre = { ...s, big: [0, 0, null, null, null, null, null, null, null], next: 2, turn: 0,
+    board: s.board.map((v, i) => (i === 18 || i === 19 ? 0 : i >= 18 && i < 27 ? null : v)) }
+  const w = xo.apply(pre, 0, { i: 20 })
+  assert.deepEqual([w.big[2], w.line, xo.result(w)], [0, [0, 1, 2], { winners: [0], draw: false }])
+}
+// Bàn con đầy không ai thắng → ô hoà (2), không ai chiếm; mọi bàn con xong mà không có 3 liền → hoà ván.
+{
+  const s0 = fresh('ultimate')
+  //  X O X / X O O / O X _ → X đánh ô 8: X O X · X O O · O X X — không ai 3 liền.
+  const small = [0, 1, 0, 0, 1, 1, 1, 0, null]
+  const pre = { ...s0, board: s0.board.map((v, i) => (i < 9 ? small[i] : v)), next: 0 }
+  const d = xo.apply(pre, 0, { i: 8 })
+  assert.deepEqual([d.big[0], d.over], [2, false], 'bàn con hoà')
+  // Bàn lớn: X O X / X O O / O X _ (bàn con 8 còn mở) → bàn con 8 hoà nốt là hoà ván.
+  const big = [0, 1, 0, 0, 1, 1, 1, 0, null]
+  const pre2 = { ...pre, big, next: 8, board: pre.board.map((v, i) => (i >= 72 ? small[i - 72] : v)) }
+  const e = xo.apply(pre2, 0, { i: 80 })
+  assert.deepEqual([e.big[8], xo.result(e)], [2, { winners: [], draw: true }])
+}
+// Hết giờ: mất lượt, bàn con bắt buộc giữ nguyên; trần hoà theo ULT_CAP.
+{
+  let s = xo.apply(timed('ultimate'), 0, { i: 4 }, at(0))
+  s = xo.apply(s, 0, SKIP, at(4))
+  assert.deepEqual([s.turn, s.next, s.over], [0, 4, false], 'O mất lượt → X đi tiếp, vẫn phải đánh bàn con 4')
+  for (let k = s.ply; k < 2 * ULT_CAP; k++) s = xo.apply(s, s.turn, SKIP, at(10 + k))
+  assert.deepEqual([s.ply, xo.result(s)], [2 * ULT_CAP, { winners: [], draw: true }])
+}
+
 // Server (0107 → 0109) dùng cùng hằng số và đọc cùng bộ ván mẫu: JS chấm từng ván phải ra đúng kết quả ghi trong file kiểm.
 {
   // 0109 = bản đang chạy của hàm dựng lại ván (game_xo_run) + kiểm / đóng dấu hết giờ.
@@ -187,6 +241,33 @@ for (const mode of ['classic', 'move', 'vanish']) {
     assert.ok(fixtures.some((f) => f.options?.mode === mode && f.result?.draw), mode + ': phải có ván hoà vì hết lượt')
   }
   assert.ok(fixtures.some((f) => f.result == null), 'phải có ván chưa xong')
+
+  // 0113 = bản đang chạy của game_xo_run (thêm X-O lồng). Ván cũ vẫn phải ra như 0109 — bộ ván 0107 ở trên chấm bằng JS,
+  // còn trên DB thì chạy lại 0107_games_xo_check.sql sau 0113.
+  const sql11 = readFileSync('supabase/migrations/0113_games_xo_ultimate.sql', 'utf8')
+  const run11 = sql11.slice(sql11.indexOf('FUNCTION public.game_xo_run'), sql11.indexOf('REVOKE'))
+  assert.ok(run11.includes(`c_ucap   CONSTANT int := ${ULT_CAP};`), 'số lượt tối đa X-O lồng SQL ≠ JS')
+  assert.ok(run11.includes(`c_cap    CONSTANT int := ${CAP};`), 'số lượt tối đa SQL 0113 ≠ JS')
+  assert.ok(run11.includes("IN ('move', 'vanish', 'ultimate')"), '0113 phải nhận mode ultimate')
+  // Nhánh mất lượt không đụng bàn con bắt buộc (JS: { ...s, ... } giữ nguyên next).
+  const skip = run11.slice(run11.indexOf("IF m.move -> 'timeout'"), run11.indexOf('CONTINUE;'))
+  assert.ok(!skip.includes('v_next'), 'mất lượt phải giữ nguyên bàn con bắt buộc')
+  for (const fn of ['game_xo_ucell(jsonb)', 'game_xo_run(uuid)']) {
+    assert.ok(sql11.includes('REVOKE ALL ON FUNCTION public.' + fn + ' FROM PUBLIC, anon, authenticated;'), fn + ' phải khoá khỏi máy khách')
+  }
+  const ucheck = readFileSync('supabase/manual/0113_games_xo_ultimate_check.sql', 'utf8').split('$xu$')
+  assert.equal(ucheck.length, 3, 'file kiểm 0113 phải có đúng một khối $xu$')
+  const ufx = JSON.parse(ucheck[1])
+  for (const f of ufx) {
+    let s = xo.setup({ options: f.options })
+    for (const m of f.moves) if (xo.validate(s, m.seat, m.move) == null) s = xo.apply(s, m.seat, m.move)
+    assert.deepEqual(xo.result(s), f.result,
+      'ván mẫu "' + f.note + '": JS chấm khác kết quả ghi trong file kiểm 0113 — cố ý đổi luật thì chạy node src/__tests__/games/fixtures.mjs')
+  }
+  assert.ok(ufx.every((f) => f.options?.mode === 'ultimate'))
+  for (const r of [{ winners: [0], draw: false }, { winners: [1], draw: false }, { winners: [], draw: true }, null]) {
+    assert.ok(ufx.some((f) => JSON.stringify(f.result) === JSON.stringify(r)), 'X-O lồng thiếu ván ' + JSON.stringify(r))
+  }
 }
 
 console.log('xo check: OK')

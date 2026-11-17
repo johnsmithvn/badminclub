@@ -12,7 +12,7 @@ import cotuong, { legalMoves as xqMoves, typeOf as xqType, colorOf as xqColor, C
 import coup, { HIDDEN_SQUARES, isHidden, legalMoves as coupMoves } from '#lib/games/coup.js'
 import oanquan, { movesOf, sideOf } from '#lib/games/oanquan.js'
 import coganh, { NEIGHBORS, POINTS } from '#lib/games/coganh.js'
-import xo, { LINES as XO_LINES, moving as xoMoving } from '#lib/games/xo.js'
+import xo, { LINES as XO_LINES, moving as xoMoving, openCell as xoOpen } from '#lib/games/xo.js'
 
 const WIN = 1e6
 
@@ -246,18 +246,26 @@ export const COGANH = {
   },
 }
 
-/** Cờ X-O: đặt quân vào ô trống, hoặc (chế độ move, đủ 3 quân) nhấc một quân của mình sang ô trống. */
-const xoMoves = (s) => (xoMoving(s, s.turn)
-  ? s.q[s.turn].flatMap((from) => s.board.map((v, to) => (v == null ? { from, to } : null)).filter(Boolean))
-  : s.board.map((v, i) => (v == null ? { i } : null)).filter(Boolean))
+/** Cờ X-O: đặt quân vào ô trống, hoặc (chế độ move, đủ 3 quân) nhấc một quân của mình sang ô trống. X-O lồng: ô còn đánh được. */
+const xoMoves = (s) => (s.mode === 'ultimate'
+  ? s.board.map((v, i) => (xoOpen(s, i) ? { i } : null)).filter(Boolean)
+  : xoMoving(s, s.turn)
+    ? s.q[s.turn].flatMap((from) => s.board.map((v, to) => (v == null ? { from, to } : null)).filter(Boolean))
+    : s.board.map((v, i) => (v == null ? { i } : null)).filter(Boolean))
+/** Đường còn mở của một bàn 3 × 3 (`at(x)` = ô x): chỉ có quân một bên — 2 quân đáng hơn hẳn 1 quân. Ô 2 (bàn con hoà) chặn cả hai. */
+const xoLines = (at, me) => XO_LINES.reduce((v, l) => {
+  if (l.some((x) => at(x) === 2)) return v
+  const mine = l.filter((x) => at(x) === me).length
+  const foe = l.filter((x) => at(x) === 1 - me).length
+  return v + (foe ? 0 : mine * mine) - (mine ? 0 : foe * foe)
+}, 0)
 
 export const XO = {
   game: xo,
   moves: xoMoves,
-  // Đường còn mở: chỉ có quân một bên — 2 quân đáng hơn hẳn 1 quân.
-  evaluate: (s, me) => XO_LINES.reduce((v, l) => {
-    const mine = l.filter((x) => s.board[x] === me).length
-    const foe = l.filter((x) => s.board[x] === 1 - me).length
-    return v + (foe ? 0 : mine * mine) - (mine ? 0 : foe * foe)
-  }, 0),
+  // X-O lồng: bàn lớn nặng gấp 25 (một bàn con thắng đáng hơn mọi thế trong bàn con), cộng thế các bàn con còn mở.
+  evaluate: (s, me) => (s.mode === 'ultimate'
+    ? 25 * xoLines((x) => s.big[x], me)
+      + s.big.reduce((v, b, k) => (b == null ? v + xoLines((x) => s.board[k * 9 + x], me) : v), 0)
+    : xoLines((x) => s.board[x], me)),
 }

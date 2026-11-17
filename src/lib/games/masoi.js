@@ -38,6 +38,10 @@ export const F = { MATE: 1, SEEN: 2, BITTEN: 3, LOVERS: 4, PICK: 5, POTIONS: 6, 
 const NEXT = ['witch', 'day', 'night', 'hunter', 'settle', 'over']
 /** Giây bàn bạc ban ngày; 0 = không giới hạn (cả đêm cũng không). PHẢI khớp 0084. */
 export const DAY_TIMES = [0, 60, 120, 180, 300]
+/** Mức cho chọn khi tạo phòng: bỏ "không giới hạn" (một người treo máy là treo cả ván) — phòng cũ có 0 vẫn chạy. */
+export const DAY_TIME_CHOICES = DAY_TIMES.filter(Boolean)
+/** Phiếu treo cổ: open = thấy ai bầu ai ngay · secret = chỉ thấy số người đã bầu, hết ngày nhật ký mới ghi đủ phiếu. */
+export const VOTES = ['open', 'secret']
 export const NIGHT_SEC = 45
 
 export const isWolf = (r) => r === WOLF || r === CURSED
@@ -47,6 +51,7 @@ export const optsOf = (o) => ({
   reveal: REVEALS.includes(o?.reveal) ? o.reveal : 'all',
   time: DAY_TIMES.includes(o?.time) ? o.time : 120,
   roles: rolesOf(o?.roles),
+  vote: VOTES.includes(o?.vote) ? o.vote : 'open',
 })
 
 /** Hạn của bước hiện tại (ms, giờ server) hoặc null (không giới hạn / chưa biết giờ). */
@@ -154,7 +159,7 @@ export default {
   id: 'masoi',
   minPlayers: MIN_PLAYERS,
   maxPlayers: MAX_PLAYERS,
-  defaultOptions: { reveal: 'all', time: 120 },
+  defaultOptions: { reveal: 'all', time: 120, vote: 'open' },
 
   setup({ options } = {}) {
     return {
@@ -252,7 +257,11 @@ export default {
     for (const [x, r] of move.shown || []) shown[x] = r
     const k = s.settle ? 'settle' : s.phase === 'day' ? 'hang' : s.phase === 'hunter' ? 'shot' : 'dawn'
     const ev = { k, night: s.night, dead }
-    if (k === 'hang') ev.seat = move.hang ?? -1
+    if (k === 'hang') {
+      ev.seat = move.hang ?? -1
+      // Phiếu của ngày vừa xong (ghế → ghế bị bầu, -1 bỏ qua, null chưa bầu) — phòng phiếu kín ghi lại vào nhật ký.
+      ev.votes = s.votes.slice()
+    }
     if (k === 'shot') Object.assign(ev, { seat: s.hunter, target: s.shot ?? -1 })
     const events = nx === 'witch' || (k === 'settle' && !dead.length) ? s.events : [...s.events, ev]
     // Bước mới bắt đầu tính giờ từ nước này; chốt người rời giữ nguyên bước nên giữ nguyên giờ.
@@ -266,7 +275,8 @@ export default {
     if (nx === 'settle') return { ...base, settle: false }
     if (nx === 'witch') return { ...base, phase: 'witch', acted: s.acted.map(() => false) }
     if (nx === 'hunter') {
-      return { ...base, phase: 'hunter', hunter: move.hunter, shot: null, after: s.phase === 'day' ? 'night' : 'day', turn: move.hunter }
+      // turn để trống: khung phòng làm sáng ghế "tới lượt" — sáng ghế Thợ săn là lộ vai ở phòng không lộ vai người chết.
+      return { ...base, phase: 'hunter', hunter: move.hunter, shot: null, after: s.phase === 'day' ? 'night' : 'day', turn: null }
     }
     if (nx === 'day') return { ...base, phase: 'day', votes: s.votes.map(() => null), turn: null }
     return { ...base, phase: 'night', night: s.night + 1, acted: s.acted.map(() => false), votes: s.votes.map(() => null), turn: null }
@@ -286,6 +296,9 @@ export default {
     const done = s.votes.filter((v, i) => v != null && s.alive[i]).length
     return { key: 'games.masoi.' + key, params: { n: s.night, done, total } }
   },
+
+  /** Kênh chat khi ván đang chạy (useGameRoom): người chết và người xem nói ở Nghĩa địa — người còn sống không thấy. */
+  chatScope: (s, seat) => (s.started && !s.over && (seat == null || !s.alive[seat]) ? 'grave' : null),
 
   /** Tab Nước đi bỏ các nước đêm — thứ tự ai bấm xong lộ ai có vai (người bấm cuối bước Phù thủy = Phù thủy). */
   moveShown: (m) => m?.night === undefined,

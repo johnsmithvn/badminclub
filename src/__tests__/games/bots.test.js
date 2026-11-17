@@ -28,11 +28,11 @@ function seeded(seed) {
  * Game bài: nhà cái trong máy chia bài trước (dealStart), máy nhận đúng tay của nó (handOf). Xì dách hết ván con thì
  * ghế 0 xin chia ván mới (ở phòng máy, màn chơi của người tự gửi sau vài giây). `out.secret` nhận bài để chấm.
  */
-function duel(id, lv0, lv1, seed, { maxPly = 400, override, seats = 2, out } = {}) {
+function duel(id, lv0, lv1, seed, { maxPly = 400, override, seats = 2, out, opts } = {}) {
   const game = GAMES[id]
   const rand = seeded(seed)
   const secret = { fleets: {} }
-  const options = CARD_GAMES.includes(id) ? { ...game.defaultOptions, time: 0 } : game.defaultOptions
+  const options = opts || (CARD_GAMES.includes(id) ? { ...game.defaultOptions, time: 0 } : game.defaultOptions)
   let s = game.setup({ options, seats: Array.from({ length: seats }, (_, i) => i) })
   if (CARD_GAMES.includes(id)) {
     const d = dealStart(id, s, seats, secret, rand, options)
@@ -76,6 +76,30 @@ for (const id of ['caro', 'xo', 'oanquan', 'coganh', 'chamo', 'bantau']) {
     if (winner(id, s) === (hardFirst ? 0 : 1)) won++
   }
   assert.ok(won >= 4, id + ': mức Khó chỉ thắng mức Dễ ' + won + '/6 ván')
+}
+
+// X-O lồng (chế độ 'ultimate' của Cờ X-O): máy đi đúng bàn con bắt buộc tới hết ván; mức Khó thắng mức Dễ.
+{
+  let won = 0
+  for (let k = 0; k < 6; k++) {
+    const hardFirst = k % 2 === 0
+    const s = duel('xo', hardFirst ? 'hard' : 'easy', hardFirst ? 'easy' : 'hard', 200 + k, { override: { ms: 60 }, opts: { mode: 'ultimate', time: 0 } })
+    assert.equal(s.over, true, 'X-O lồng máy đấu máy phải xong ván')
+    if (winner('xo', s) === (hardFirst ? 0 : 1)) won++
+  }
+  assert.ok(won >= 4, 'X-O lồng: mức Khó chỉ thắng mức Dễ ' + won + '/6 ván')
+}
+
+// Cờ vây (Monte Carlo, bots/go.js): mức Khó (ít ván thử cho test nhanh, không hạn giờ → lặp lại được) thắng mức Dễ.
+{
+  let won = 0
+  for (let k = 0; k < 4; k++) {
+    const hardFirst = k % 2 === 0
+    const s = duel('covay', hardFirst ? 'hard' : 'easy', hardFirst ? 'easy' : 'hard', 300 + k, { override: { playouts: 200, ms: 0 }, maxPly: 600 })
+    assert.equal(s.over, true, 'cờ vây máy đấu máy phải xong ván (hai bên bỏ lượt)')
+    if (winner('covay', s) === (hardFirst ? 0 : 1)) won++
+  }
+  assert.ok(won >= 3, 'cờ vây: mức Khó chỉ thắng mức Dễ ' + won + '/4 ván')
 }
 
 // Cờ cá ngựa 4 người: máy đi tới hết ván.

@@ -3,7 +3,7 @@
 // 0076_games_colat_check.sql (khối $cl$ = Cờ lật), 0077_games_chamo_check.sql (khối $ch$ = Chấm ô) và
 // 0089_games_covay_check.sql (khối $gv$ = Cờ vây), 0090_games_phom_check.sql (khối $ph$ = Phỏm — kịch bản đủ bài
 // từng tay, nước người chơi gửi, nước server phải ghi / mã lỗi phải báo, kết quả chấm), 0107_games_xo_check.sql
-// (khối $xo$ = Cờ X-O, đủ 3 chế độ).
+// (khối $xo$ = Cờ X-O, đủ 3 chế độ), 0113_games_xo_ultimate_check.sql (khối $xu$ = X-O lồng).
 // Ván do chính luật JS chơi ngẫu nhiên (tất định theo seed), trộn nước rác; kết quả ghi kèm là JS chấm.
 // <game>.test.js chấm lại các ván này bằng JS; file kiểm chấm bằng SQL trên DB thật.
 // CHỈ chạy khi cố ý đổi luật — rồi phải sửa SQL trong migration cho khớp và chạy lại file kiểm trên DB.
@@ -15,7 +15,7 @@ import cl, { movesOf } from '../../lib/games/colat.js'
 import ch from '../../lib/games/chamo.js'
 import cv, { place as cvPlace } from '../../lib/games/covay.js'
 import ph, { bestLay, cover as phCover, dealMove, judge, meldOk, meldsIn, pendingOf, referee, sendsFor, uOf } from '../../lib/games/phom.js'
-import xo, { LINES as XO_LINES, moving as xoMoving } from '../../lib/games/xo.js'
+import xo, { LINES as XO_LINES, moving as xoMoving, openCell as xoOpen } from '../../lib/games/xo.js'
 
 // ponytail: nhân số thực vượt 2^53 rồi lấy `% n` theo bit thấp → rút lệch hẳn về vài lựa chọn. Giữ nguyên để bộ ván
 // 0075 / 0076 không đổi; game mới đừng trông vào any() để phủ đủ loại nước rác — rút lần lượt như chTrash.
@@ -665,6 +665,34 @@ for (const mode of ['move', 'vanish']) {
   xoFx.push({ ...g, note: 'chế độ lạ → cổ điển · ' + xoKind(g), options: '{"mode":"loco"}' })
 }
 
+// ---------- X-O lồng (0113) ----------
+const xuLegal = (s) => s.board.map((v, i) => (xoOpen(s, i) ? { i } : null)).filter(Boolean)
+let xuNth = 0
+const xuTrash = (s) => {
+  const t = s.turn
+  const ok = xuLegal(s)[0]?.i ?? 0
+  const taken = s.board.findIndex((v) => v != null)
+  const wrongBoard = s.board.findIndex((v, i) => v == null && !xoOpen(s, i)) // bàn con sai / đã xong
+  const list = [
+    { seat: 1 - t, move: { i: ok } },
+    { seat: t, move: { i: 81 } },
+    { seat: t, move: { i: -1 } },
+    { seat: t, move: { i: String(ok) } },
+    { seat: t, move: { i: 2.5 } },
+    { seat: t, move: {} },
+    { seat: t, move: null },
+    { seat: t, move: { from: 0, to: ok } },
+    { seat: t, move: { i: ok, from: null } },
+    ...(taken >= 0 ? [{ seat: t, move: { i: taken } }] : []),
+    ...(wrongBoard >= 0 ? [{ seat: t, move: { i: wrongBoard } }, { seat: t, move: { i: wrongBoard } }] : []),
+  ]
+  xuNth += 1
+  return [list[xuNth % list.length]]
+}
+const xuFx = pick(xo, { legal: xuLegal, trash: xuTrash, options: { mode: 'ultimate' }, seeds: 400 }, xoKind, 17)
+  .map((f) => ({ ...f, note: 'X-O lồng · ' + f.note, options: '{"mode":"ultimate"}' }))
+for (const k of ['X thắng', 'O thắng', 'hoà']) if (!xuFx.some((f) => f.note.endsWith(k))) throw new Error('X-O lồng thiếu ván ' + k)
+
 const OUT = [
   ['supabase/manual/0075_games_results_check.sql', '$fx$', block(oq, oqFx, ['cell', 'dir'])],
   ['supabase/manual/0075_games_results_check.sql', '$cg$', block(cg, cgFx, ['from', 'to'])],
@@ -673,6 +701,7 @@ const OUT = [
   ['supabase/manual/0089_games_covay_check.sql', '$gv$', block(cv, cvFx, ['i'])],
   ['supabase/manual/0090_games_phom_check.sql', '$ph$', phBlock],
   ['supabase/manual/0107_games_xo_check.sql', '$xo$', block(xo, xoFx, ['i'])],
+  ['supabase/manual/0113_games_xo_ultimate_check.sql', '$xu$', block(xo, xuFx, ['i'])],
 ]
 for (const [file, tag, text] of OUT) {
   const parts = readFileSync(file, 'utf8').split(tag)
@@ -681,6 +710,6 @@ for (const [file, tag, text] of OUT) {
 }
 console.log('Phỏm:\n' + phFx.map((f) => '  ' + f.note + ' — ' + f.steps.length + ' bước, lỗi: ' +
   [...new Set(f.steps.filter((x) => x.err).map((x) => x.err.replace('games.err.', '')))].join(' ') + ' — ' + JSON.stringify(f.result)).join('\n'))
-for (const [name, fx] of [['Ô ăn quan', oqFx], ['Cờ gánh', cgFx], ['Cờ lật', clFx], ['Chấm ô', chFx], ['Cờ vây', cvFx], ['Cờ X-O', xoFx]]) {
+for (const [name, fx] of [['Ô ăn quan', oqFx], ['Cờ gánh', cgFx], ['Cờ lật', clFx], ['Chấm ô', chFx], ['Cờ vây', cvFx], ['Cờ X-O', xoFx], ['X-O lồng', xuFx]]) {
   console.log(name + ':\n' + fx.map((f) => '  ' + f.note + ' — ' + f.moves.length + ' nước, ' + JSON.stringify(f.result)).join('\n'))
 }

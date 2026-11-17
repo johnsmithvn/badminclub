@@ -3,25 +3,34 @@
 //   - classic: lần lượt đặt quân vào ô trống; đầy 9 ô mà chưa ai thắng thì hoà.
 //   - move:    mỗi bên đặt đủ 3 quân, sau đó mỗi lượt nhấc 1 quân của mình đặt sang ô trống bất kỳ { from, to }.
 //   - vanish:  luôn đặt quân { i }; đã có 3 quân trên bàn thì đặt quân mới là quân cũ nhất của mình biến mất.
+//   - ultimate (X-O lồng, 0113): bàn lớn 3 × 3 gồm 9 bàn con 3 × 3 (81 ô, ô i = bàn con × 9 + ô trong bàn con). Thắng
+//              một bàn con (3 quân liền) là chiếm ô đó của bàn lớn; bàn con đầy mà không ai thắng là ô hoà (không ai
+//              chiếm). Thắng bàn lớn (3 ô liền) là thắng ván; mọi bàn con đã xong mà chưa ai thắng thì hoà.
+//              Đánh vào ô thứ k của bàn con → đối thủ phải đánh trong bàn con thứ k (`next`); bàn đó đã xong thì đánh
+//              bàn nào chưa xong cũng được (next = -1). Nước đầu đánh đâu cũng được.
 //   Đủ CAP lượt mỗi bên (2 × CAP lượt) mà chưa ai thắng thì hoà — move / vanish không bao giờ đầy bàn; cổ điển chỉ chạm
-//   mức này khi có lượt bị mất vì hết giờ.
+//   mức này khi có lượt bị mất vì hết giờ. X-O lồng dùng ULT_CAP (81 ô, chỉ chạm khi có nhiều lượt bị mất).
 // ĐỒNG HỒ LƯỢT (options.time = 3 | 5 | 10 giây, khác = không tính giờ — 0109): hạn = giờ server của lượt gần nhất
 //   (`since`) + time. Nước đầu ván không tính giờ (bàn vừa hiện ra đã mất gần một giây tải). Hết giờ thì máy bất kỳ đang
 //   ngồi báo { timeout: true }; server (0109 game_xo_check) so với giờ của nó — sớm thì games.err.notYet — rồi đóng dấu
 //   { timeout: true, skip: true } (game_xo_fill): người tới lượt MẤT LƯỢT, không đặt quân nào, lượt sang đối thủ.
 //   Lượt bị mất vẫn tính vào số lượt (ply) nên hai bên cùng bỏ mặc thì ván vẫn hết (hoà) sau 2 × CAP lượt.
+//   X-O lồng: mất lượt thì `next` giữ nguyên — đối thủ vẫn phải đánh đúng bàn con đó.
 // Server chấm lại y luật này (0109 game_xo_run / game_xo_result) — đổi luật ở đây là phải đổi cả ở đó (xo.test.js chạy
 // chung bộ ván mẫu với file kiểm 0107).
 //
 // state = { mode, time, since, board[9] (null | 0 | 1), q[2] (ô quân từng bên, cũ trước), turn, ply (số lượt đã qua, gồm
 //           cả lượt bị mất), winner, line, last { seat, i, from?, gone? } | { seat, skip: true }, over }
+//         X-O lồng: board[81], thêm big[9] (null | 0 | 1 | 2 = bàn con hoà), next (-1 = tự do); line = 3 bàn con thắng.
 // move  = { i } (đặt) · { from, to } (chế độ move, khi đã đủ 3 quân)
 //       · { timeout: true } (máy khách báo hết giờ) → server ghi { timeout: true, skip: true }
 
-export const MODES = ['classic', 'move', 'vanish']
+export const MODES = ['classic', 'move', 'vanish', 'ultimate']
 export const PIECES = 3
 /** Lượt mỗi bên tối đa. PHẢI khớp c_cap của 0109. */
 export const CAP = 30
+/** X-O lồng: lượt mỗi bên tối đa. PHẢI khớp c_ucap của 0113. */
+export const ULT_CAP = 60
 /** Giây mỗi nước; 0 = không tính giờ (mọi phòng tạo trước 0109). PHẢI khớp phần đọc options.time của 0109. */
 export const TIMES = [0, 3, 5, 10]
 export const LINES = [[0, 1, 2], [3, 4, 5], [6, 7, 8], [0, 3, 6], [1, 4, 7], [2, 5, 8], [0, 4, 8], [2, 4, 6]]
@@ -36,7 +45,11 @@ export const moving = (s, seat) => s.mode === 'move' && s.q[seat].length >= PIEC
 /** Quân sẽ biến mất khi `seat` đặt quân tiếp (chế độ vanish), hoặc null. */
 export const fadingOf = (s, seat) => (s.mode === 'vanish' && s.q[seat].length >= PIECES ? s.q[seat][0] : null)
 
-const cell = (x) => (Number.isInteger(x) && x >= 0 && x < 9 ? x : null)
+const cell = (x, n = 9) => (Number.isInteger(x) && x >= 0 && x < n ? x : null)
+const capOf = (s) => (s.mode === 'ultimate' ? ULT_CAP : CAP)
+
+/** X-O lồng: ô `i` (0..80) còn đánh được — trống, bàn con chưa xong, đúng bàn con bắt buộc. */
+export const openCell = (s, i) => s.board[i] == null && s.big[Math.floor(i / 9)] == null && (s.next < 0 || Math.floor(i / 9) === s.next)
 
 export default {
   id: 'xo',
@@ -46,7 +59,11 @@ export default {
 
   setup({ options } = {}) {
     const o = optsOf(options)
-    return { mode: o.mode, time: o.time, since: null, board: Array(9).fill(null), q: [[], []], turn: 0, ply: 0, winner: null, line: null, last: null, over: false }
+    const ult = o.mode === 'ultimate'
+    return {
+      mode: o.mode, time: o.time, since: null, board: Array(ult ? 81 : 9).fill(null), q: [[], []], turn: 0, ply: 0, winner: null, line: null, last: null, over: false,
+      ...(ult ? { big: Array(9).fill(null), next: -1 } : null),
+    }
   },
 
   validate(s, seat, move) {
@@ -54,6 +71,12 @@ export default {
     // Hết giờ: ai đang ngồi cũng báo được (người tới lượt có thể đã tắt máy); chỉ server biết giờ thật.
     if (move?.timeout === true) return s.time && s.since != null ? null : 'games.err.badMove'
     if (seat !== s.turn) return 'games.err.notYourTurn'
+    if (s.mode === 'ultimate') {
+      const i = cell(move?.i, 81)
+      if (i == null || move.from !== undefined) return 'games.err.badMove'
+      if (s.board[i] != null) return 'games.err.taken'
+      return openCell(s, i) ? null : 'games.err.badMove'
+    }
     if (moving(s, seat)) {
       const from = cell(move?.from)
       const to = cell(move?.to)
@@ -76,8 +99,9 @@ export default {
     if (move.timeout === true) {
       if (move.skip !== true) return s // chưa qua server (hoặc DB chưa chạy 0109) — không đoán
       const ply = s.ply + 1
-      return { ...s, turn: 1 - s.turn, ply, since, last: { seat: s.turn, skip: true }, over: ply >= 2 * CAP }
+      return { ...s, turn: 1 - s.turn, ply, since, last: { seat: s.turn, skip: true }, over: ply >= 2 * capOf(s) }
     }
+    if (s.mode === 'ultimate') return applyUlt(s, seat, move.i, since)
     const board = s.board.slice()
     const q = s.q.map((x) => x.slice())
     let last
@@ -109,4 +133,19 @@ export default {
     if (!s.over) return null
     return s.winner != null ? { winners: [s.winner], draw: false } : { winners: [], draw: true }
   },
+}
+
+/** X-O lồng: đặt quân vào ô i (đã qua validate). */
+function applyUlt(s, seat, i, since) {
+  const board = s.board.slice()
+  const big = s.big.slice()
+  board[i] = seat
+  const b = Math.floor(i / 9)
+  if (LINES.some((l) => l.every((x) => board[b * 9 + x] === seat))) big[b] = seat
+  else if (board.slice(b * 9, b * 9 + 9).every((v) => v != null)) big[b] = 2
+  const line = big[b] === seat ? LINES.find((l) => l.every((x) => big[x] === seat)) || null : null
+  const ply = s.ply + 1
+  const draw = !line && (big.every((v) => v != null) || ply >= 2 * ULT_CAP)
+  const next = big[i % 9] == null ? i % 9 : -1
+  return { ...s, board, big, next, turn: 1 - seat, ply, since, last: { seat, i }, line, winner: line ? seat : null, over: !!line || draw }
 }

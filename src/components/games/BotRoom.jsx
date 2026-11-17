@@ -15,6 +15,7 @@ import { BOT_GAMES, BOT_PREFIX, gameOf, seatRange } from '#lib/games/registry.js
 import { acceptsDraw, botToMove, fillLocal, flatFleet, levelsOf, think } from '#lib/games/bots/index.js'
 import { CARD_GAMES, dealResult, dealStart, handOf, handsView } from '#lib/games/bots/dealer.js'
 import { MODES as XO_MODES } from '#lib/games/xo.js'
+import { SIZES as CV_SIZES } from '#lib/games/covay.js'
 import { engineMove } from '#lib/games/bots/engine.js'
 import { pathOf } from '#routes'
 import { t } from '#i18n'
@@ -64,9 +65,10 @@ const setupFor = (game, n, opts) => (game ? game.setup({ options: { ...game.defa
 // Ô ăn quan: chọn kiểu bàn ngay trong ⚙ (prefs.oq). Đồng hồ phòng máy là prefs.time (đếm ở đây), không dùng options.time.
 const OQ = { quans: [2, 3], rows: [5, 6, 7], stones: [5, 6, 7] }
 // Game bài: tắt đồng hồ lượt của phòng thật (cần server đi thay) — phòng máy dùng prefs.time.
-// Cờ X-O: chế độ chọn trong ⚙ (prefs.xo).
+// Cờ X-O: chế độ chọn trong ⚙ (prefs.xo). Cờ vây: cỡ bàn (prefs.cv; máy Monte Carlo yếu dần ở bàn lớn — bots/go.js).
 const variantOf = (gameId, p) => (gameId === 'oanquan' ? { ...p.oq, time: 0 } : CHESS.includes(gameId) ? { clock: p.clock ?? 10 }
-  : CARD_GAMES.includes(gameId) ? { time: 0 } : gameId === 'xo' ? { mode: p.xo || 'classic', time: 0 } : undefined)
+  : CARD_GAMES.includes(gameId) ? { time: 0 } : gameId === 'xo' ? { mode: p.xo || 'classic', time: 0 }
+    : gameId === 'covay' ? { size: p.cv || 9 } : undefined)
 
 /** Ván mới: thế ban đầu; game bài thì nhà cái trong máy chia bài luôn (như server ghi nước chia lúc bắt đầu ván). */
 function freshGame(game, gameId, n, opts) {
@@ -366,6 +368,7 @@ export default function BotRoom({ gameId }) {
               {multi
                 ? segRow(t('games.bot.players'), [2, 3, 4].map((k) => [k, String(k)]), draft.n, (v) => setDraft({ ...draft, n: v }))
                 : segRow(t('games.bot.side'), Array.from({ length: nOf(draft) }, (_, k) => [k, t('games.bot.sideOpt' + k)]), draft.side < nOf(draft) ? draft.side : 0, (v) => setDraft({ ...draft, side: v }))}
+              {gameId === 'covay' && segRow(t('games.covay.size'), CV_SIZES.map((v) => [v, t('games.caro.sizeOpt', { n: v })]), draft.cv || 9, (v) => setDraft({ ...draft, cv: v }))}
               {gameId === 'xo' && segRow(t('games.xo.mode'), XO_MODES.map((v) => [v, t('games.xo.modeShort.' + v)]), draft.xo || 'classic', (v) => setDraft({ ...draft, xo: v }))}
               {gameId === 'oanquan' && (() => {
                 const oq = { ...game.defaultOptions, ...draft.oq }
