@@ -5,7 +5,7 @@ import { t } from '#i18n'
 import { CARD, G, btn, card } from '#components/games/stage.js'
 import { rnd, useFit } from '#components/games/chessUi.js'
 import { CardFace } from '#components/games/PlayingCard.jsx'
-import { Overlay, Seat } from '#components/games/cardTable.jsx'
+import { DealFx, Overlay, Seat } from '#components/games/cardTable.jsx'
 import { phomBot } from '#lib/games/bots/cards.js'
 import ph, { bestLay, cover, faceOf, meldOk, pendingOf, pointsOf, RANK_FACES, sendsFor, suitOf, uOf } from '#lib/games/phom.js'
 
@@ -54,6 +54,13 @@ const NARROW = {
   w: 374, h: 600, rim: 6, radius: 24, hand: 48, mini: 16, my: 22, stock: 50, gap: 24, pad: 10, cy: 262, ew: 320, eh: 170,
   pos: { me: [187, 504], right: [312, 30], top: [187, 30], left: [62, 30] },
 }
+// Điện thoại xoay ngang (bản "Phỏm · điện thoại xoay ngang"): cả màn 844 × 390 là chiếu — đối thủ hàng trên (rộng 150),
+// giữa là nọc + lá vừa đánh, góc trái dưới là chồng bài / phỏm của mình, bài trên tay giữa đáy (`handX` / `handW`), nút góc phải.
+const LAND = {
+  w: 844, h: 390, rim: 6, radius: 18, hand: 44, mini: 16, my: 20, stock: 40, gap: 22, pad: 12, cy: 215, ew: 392, eh: 110, handX: 214, handW: 416,
+  pos: { me: [422, 345], right: [759, 90], top: [422, 90], left: [85, 90] },
+  at: { left: { left: 10 }, top: { left: 347 }, right: { right: 10 } },
+}
 // Ghế khác xếp theo chiều lượt: người đánh sau mình ngồi bên phải.
 const LAY = { 2: ['top'], 3: ['right', 'left'], 4: ['right', 'top', 'left'] }
 const COL = { left: 1, top: 2, right: 3 }
@@ -81,13 +88,14 @@ const Tag = ({ children, tone = 'gold', sm }) => (
   <span style={{ flex: 'none', padding: '1px 7px', borderRadius: 99, whiteSpace: 'nowrap', font: `700 ${sm ? 10 : 11}px/1.4 var(--font-sans)`, background: tone === 'red' ? 'rgba(229,72,77,.2)' : PH.goldA, color: tone === 'red' ? PH.red : PH.gold }}>{children}</span>
 )
 
-export default function PhomBoard({ state, mySeat, onMove, roomId, result, players, names, stake = 0, actions, overActions, note, bubbles, hands: given }) {
+export default function PhomBoard({ state, mySeat, onMove, roomId, result, players, names, stake = 0, actions, overActions, note, bubbles, land, hands: given }) {
   const { db, a } = useApp()
-  const [ref, k0] = useFit(WIDE.w)
+  const [ref, k0] = useFit(land ? LAND.w : WIDE.w)
   // Khung hẹp hơn ~560px (điện thoại dọc) thì đổi sang bàn hẹp — co bàn rộng xuống đó thì lá nhỏ không bấm nổi.
-  const narrow = k0 * WIDE.w < 560
-  const L = narrow ? NARROW : WIDE
-  const k = narrow ? Math.min(1, (k0 * WIDE.w) / NARROW.w) : k0
+  // `land` (khung xoay ngang của GameRoom) dùng cỡ chữ / ghế gọn như bản hẹp nhưng toạ độ riêng (LAND).
+  const narrow = land || k0 * WIDE.w < 560
+  const L = land ? LAND : narrow ? NARROW : WIDE
+  const k = land ? k0 : narrow ? Math.min(1, (k0 * WIDE.w) / NARROW.w) : k0
 
   const [dealt, setDealt] = useState(null) // { roomId, ply, hands } | { roomId, failed }
   const [tries, setTries] = useState(0)
@@ -139,7 +147,8 @@ export default function PhomBoard({ state, mySeat, onMove, roomId, result, playe
   // Lá gửi được (để bật / tắt) và lá sẽ gửi thật: tính lại sau khi bỏ lá đã tắt — dây nối dần (5 rồi 6) bỏ 5 thì 6 tự rơi.
   const canSend = myPlan.melds.length ? sendsFor(rest, state.melds, mySeat) : []
   const sends = myPlan.melds.length ? sendsFor(rest.filter((c) => !myPlan.skip.includes(c)), state.melds, mySeat) : []
-  while (used.length + sends.length > hand.length - 1) sends.pop()
+  // Giữ lại ít nhất 1 lá để đánh. `sends.length &&` chặn lặp vô tận khi tay rỗng (bài chưa nạp / người xem): 0 > -1 mãi đúng.
+  while (sends.length && used.length + sends.length > hand.length - 1) sends.pop()
   const layMove = { lay: myPlan.melds, send: sends }
   const layErr = laying ? ph.validate(state, mySeat, layMove) : null
   const groupOk = meldOk(myPlan.sel) && myPlan.sel.filter((c) => pend.includes(c)).length <= 1
@@ -162,6 +171,11 @@ export default function PhomBoard({ state, mySeat, onMove, roomId, result, playe
 
   // ── Hiệu ứng (suy từ state, key theo ply — mỗi nước mới tự diễn lại) ──
   const fx = []
+  // Vừa chia (nước 1): lưng lá bay từ nọc ra từng ghế, 3 vòng (bản thiết kế dealFx).
+  if (state.started && ply === 1 && !state.over) {
+    fx.push(<DealFx key="deal" id={'d' + roomId} from={[cx - (L.stock + L.gap) / 2, L.cy]} step={0.07}
+      to={Array.from({ length: n }, (_, i) => L.pos[slotOf((base + i) % n)])} w={narrow ? 26 : 36} />)
+  }
   if (act?.eat != null && !state.over) {
     const [x, y] = L.pos[slotOf(act.seat)]
     fx.push(<div key={'s' + ply} style={{ position: 'absolute', left: (x + cx) / 2, top: (y + L.cy) / 2, font: `800 ${narrow ? 30 : 44}px/1 var(--font-display)`, whiteSpace: 'nowrap', color: '#ffd27a', WebkitTextStroke: '1.5px #7a1d2a', textShadow: '0 0 24px rgba(245,120,60,.8), 0 4px 0 #5c1420', opacity: 0, animation: 'tlStamp 1.4s ease-out forwards', zIndex: 8 }}>
@@ -248,7 +262,7 @@ export default function PhomBoard({ state, mySeat, onMove, roomId, result, playe
   }
 
   // ── Bài trên tay: quạt ở đáy bàn. ──
-  const avail = L.w - 2 * L.pad
+  const avail = L.handW ?? L.w - 2 * L.pad
   const hw = L.hand
   const hh = Math.round(hw * 1.4)
   const step = hand.length > 1 ? Math.min(hw + 4, (avail - hw) / (hand.length - 1)) : 0
@@ -289,9 +303,138 @@ export default function PhomBoard({ state, mySeat, onMove, roomId, result, playe
   // (Người xem: khung phòng đã in "Đang xem" dưới bàn.)
   const waitTxt = !seated || state.over || myTurn || state.out[mySeat] || state.turn == null ? '' : t('games.phom.waitFor', { name: nameOf(state.turn) })
 
+  // ── Phần của mình: tên + trạng thái, chồng đã đánh + phỏm đã hạ (meInfo) · bài trên tay (meHand). ──
+  const meInfo = (
+    <>
+      <div style={{ display: 'flex', alignItems: 'center', gap: 8, minWidth: 0, whiteSpace: 'nowrap' }}>
+        <Seat name={memberOf(base)?.name || nameOf(base)} src={memberOf(base)?.avatarUrl} size={narrow ? 20 : 26} active={onTurn(base)} bubble={bubbles?.[base]} up />
+        <span style={{ font: `700 ${narrow ? 13 : 14}px/1.2 var(--font-sans)`, overflow: 'hidden', textOverflow: 'ellipsis', minWidth: 0 }}>{seated ? t('games.phom.youCap') : nameOf(base)}</span>
+        {meTag && <Tag>{meTag}</Tag>}
+        {onTurn(base) && <span style={{ font: '700 12px/1.2 var(--font-sans)', color: PH.teal }}>{seated ? t('games.phom.myTurn') : t('games.phom.thinking')}</span>}
+        {!seated && <span style={{ font: '400 11px/1.3 var(--font-mono)', color: PH.sub }}>{t('games.phom.cards', { n: state.counts[base] ?? 0 })}</span>}
+      </div>
+      <div style={{ display: 'flex', alignItems: 'center', gap: land ? 4 : 10, flexWrap: 'wrap', minHeight: Math.round(L.my * 1.4) + 8 }}>
+        <div style={{ display: 'flex', alignItems: 'center', gap: 3, flexWrap: 'wrap' }}>
+          <span style={{ font: `400 ${land ? 10.5 : 11}px/1 var(--font-sans)`, color: PH.mute, marginRight: 3 }}>{t('games.phom.myPile', { n: state.piles[base]?.length ?? 0 })}</span>
+          {(state.piles[base] || []).map((c) => <Mini key={c} c={c} w={L.my} />)}
+        </div>
+        {state.melds[base]?.length > 0 && <Melds melds={state.melds[base]} w={L.my} />}
+      </div>
+    </>
+  )
+  const meHand = seated && !state.over && !state.out[mySeat] && (
+    mine?.failed
+      ? (
+        <div style={{ height: hh + 22, display: 'flex', gap: 8, alignItems: 'center', justifyContent: 'center', flexWrap: 'wrap' }}>
+          <span style={{ font: 'var(--type-caption)', color: PH.sub }}>{t('games.phom.handFailed')}</span>
+          <Button size="sm" variant="secondary" icon="refresh-cw" onClick={() => setTries((x) => x + 1)}>{t('games.phom.reloadHand')}</Button>
+        </div>
+      )
+      : (
+        <div role="group" aria-label={t('games.phom.handAria', { n: hand.length, pts: ptsOf(hand) })} style={{ position: 'relative', height: hh + 22 }}>
+          {hand.map(cardBtn)}
+        </div>
+      )
+  )
+
+  // ── Nút của mình (token): Ù · ăn / bốc · đánh · khung hạ phỏm · dòng chờ · xếp bài, xin thua. Màn ngang co nút vào cột phải. ──
+  const big = land ? { ...S.big, minHeight: 46, padding: '10px 8px', font: '800 13.5px/1.15 var(--font-sans)', whiteSpace: 'normal' } : S.big
+  const layPanel = laying && (
+    <div style={{ ...card, display: 'grid', gap: 8, padding: '12px 14px', borderRadius: 16, borderColor: G.tealA(0.6), boxShadow: '0 0 30px -10px ' + G.tealA(0.6), gridTemplateColumns: 'minmax(0, 1fr)' }}>
+      <div style={{ display: 'grid', gap: 2 }}>
+        <span style={{ font: '800 14px/1.3 var(--font-sans)' }}>{t('games.phom.layTitle')}</span>
+        <span style={S.hintL}>{t('games.phom.layHint')}</span>
+      </div>
+      <div style={{ display: 'flex', gap: 6, flexWrap: 'wrap' }}>
+        {myPlan.melds.length
+          ? myPlan.melds.map((m, i) => (
+            <div key={m.join()} style={{ display: 'flex', gap: 2, alignItems: 'center', padding: 4, borderRadius: 9, background: PH.meld, border: '1px solid ' + PH.meldLine }}>
+              {m.map((c) => <Mini key={c} c={c} w={32} tag={pend.includes(c) ? t('games.phom.eatenTag') : null} />)}
+              <button type="button" aria-label={t('games.phom.ungroup')} onClick={() => setMine({ melds: myPlan.melds.filter((_, j) => j !== i) })}
+                style={{ width: 24, height: 24, marginLeft: 2, border: 0, borderRadius: 7, background: 'none', color: G.muted, cursor: 'pointer', display: 'grid', placeItems: 'center' }}><Icon name="x" size={15} /></button>
+            </div>
+          ))
+          : <span style={{ font: '600 12.5px/1.3 var(--font-sans)', color: G.goldHi }}>{t('games.phom.mom')}</span>}
+      </div>
+      {myPlan.sel.length > 0 && (
+        <button type="button" disabled={!groupOk} onClick={() => setMine({ melds: [...myPlan.melds, myPlan.sel.slice().sort(byNum)], sel: [] })}
+          style={{ ...btn('ghost', { sm: true }), justifySelf: 'start', opacity: groupOk ? 1 : 0.45 }}><Icon name="plus" size={14} />{t('games.phom.group')}</button>
+      )}
+      {canSend.map(([to, , c]) => {
+        const on = sends.some((x) => x[2] === c)
+        return (
+          <label key={c} style={{ display: 'flex', gap: 8, alignItems: 'center', font: '400 12.5px/1.3 var(--font-sans)', cursor: 'pointer' }}>
+            <input type="checkbox" checked={on} onChange={() => setMine({ skip: myPlan.skip.includes(c) ? myPlan.skip.filter((x) => x !== c) : [...myPlan.skip, c] })} />
+            {t('games.phom.sendTo', { card: faceOf(c), side: nameOf(to) })}
+          </label>
+        )
+      })}
+      <div style={{ display: 'flex', alignItems: 'center', gap: 8, flexWrap: 'wrap' }}>
+        <span style={{ flex: 1, font: '400 12px/1.3 var(--font-mono)', color: G.muted }}>{t('games.phom.leftPts', { n: ptsOf(rest.filter((c) => !sends.some((x) => x[2] === c))) })}</span>
+        {layErr && <span role="alert" style={{ font: '400 12px/1.3 var(--font-sans)', color: G.red }}>{t(layErr)}</span>}
+      </div>
+      <div style={{ display: 'flex', gap: 8 }}>
+        <button type="button" disabled={!!layErr} onClick={() => onMove(layMove)} style={{ ...btn('primary'), flex: 1, minHeight: 44, opacity: layErr ? 0.45 : 1 }}>{t(myPlan.melds.length ? 'games.phom.lay' : 'games.phom.layMom')}</button>
+        <button type="button" onClick={() => setPlan({ ply: -1, melds: null, sel: [], skip: [] })} style={btn('ghost', { sm: true })}>{t('games.phom.suggest')}</button>
+      </div>
+    </div>
+  )
+  const controls = (
+    <>
+      {uMelds && (
+        <div style={{ display: 'flex', alignItems: 'center', gap: 10, padding: '8px 12px', borderRadius: 14, background: G.goldA(0.12), border: '1.5px solid ' + G.gold }}>
+          <span style={{ flex: 1, font: '700 13.5px/1.3 var(--font-sans)', color: G.goldHi }}>{t('games.phom.uHint')}</span>
+          <button type="button" onClick={() => onMove({ u: uMelds })} style={{ ...btn('primary'), background: G.gold, borderColor: G.gold, color: '#2a1800', padding: '9px 22px', font: '800 20px/1 var(--font-display)' }}>{t('games.phom.u')}</button>
+        </div>
+      )}
+
+      {myTurn && synced && state.step === 'take' && (
+        <>
+          <span style={S.hint}>{last && !canEat ? t('games.phom.cantEatHint') : t('games.phom.takeHint')}</span>
+          <div style={{ display: 'flex', gap: 8 }}>
+            <button type="button" disabled={!canEat} onClick={() => onMove({ eat: true })} style={{ ...btn('primary'), ...big, opacity: canEat ? 1 : 0.45, cursor: canEat ? 'pointer' : 'not-allowed' }}>{t('games.phom.eatThis')}</button>
+            <button type="button" onClick={() => onMove({ draw: true })} style={{ ...btn('ghost'), ...big }}>{t('games.phom.drawStock')}</button>
+          </div>
+        </>
+      )}
+
+      {discarding && (
+        <>
+          <span style={S.hint}>{t(pend.length ? 'games.phom.pickHintEaten' : 'games.phom.pickHint')}</span>
+          <div style={{ display: 'flex', gap: 8 }}>
+            <button type="button" disabled={sel == null} onClick={() => { const c = sel; setPick({ ply: -1, c: null }); onMove({ discard: c }) }}
+              style={{ ...btn('primary'), ...big, opacity: sel == null ? 0.45 : 1, cursor: sel == null ? 'not-allowed' : 'pointer' }}>
+              {sel == null ? t('games.phom.discard') : t('games.phom.discardCard', { card: faceOf(sel) })}
+            </button>
+            <button type="button" onClick={hint} aria-label={t('games.phom.hint')} title={t('games.phom.hint')} style={{ ...btn('ghost'), flex: 'none', minHeight: land ? 46 : 48 }}><Icon name="lightbulb" size={16} />{!land && t('games.phom.hint')}</button>
+          </div>
+        </>
+      )}
+
+      {!land && layPanel}
+
+      {waitTxt && <span style={S.hint}>{waitTxt}</span>}
+
+      <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', gap: 6, flexWrap: 'wrap' }}>
+        <span style={{ font: '400 12px/1.3 var(--font-mono)', color: G.muted, whiteSpace: 'nowrap' }}>{seated && hand.length ? t('games.phom.handPts', { n: ptsOf(hand) }) : ''}</span>
+        <div style={{ display: 'flex', gap: 6, flexWrap: 'wrap' }}>
+          {state.over && peek && <button type="button" onClick={() => setPeek(false)} style={btn('soft', { sm: true })}>{t('games.phom.showResult')}</button>}
+          {seated && !state.over && hand.length > 0 && (
+            <button type="button" onClick={() => setSuitSort((x) => !x)} style={btn('ghost', { sm: true })}>{t(suitSort ? 'games.phom.sortSuit' : 'games.phom.sortRank')}</button>
+          )}
+          {(actions || []).map((x) => (
+            <button key={x.key} type="button" disabled={x.off} onClick={x.on} style={{ ...btn(x.danger ? 'danger' : 'ghost', { sm: true }), opacity: x.off ? 0.45 : 1 }}>
+              <Icon name={x.icon} size={14} />{x.label}
+            </button>
+          ))}
+        </div>
+      </div>
+    </>
+  )
+
   return (
     <div style={{ display: 'grid', gap: 12, gridTemplateColumns: 'minmax(0, 1fr)' }}>
-      <div ref={ref} style={{ width: '100%', maxWidth: WIDE.w, margin: '0 auto', display: 'grid', justifyItems: 'center' }}>
+      <div ref={ref} style={{ width: '100%', maxWidth: land ? LAND.w : WIDE.w, margin: '0 auto', display: 'grid', justifyItems: 'center' }}>
         <div style={{ width: L.w * k, height: L.h * k, position: 'relative' }}>
           <div style={{
             width: L.w, height: L.h, transform: `scale(${k})`, transformOrigin: '0 0', position: 'relative', borderRadius: L.radius, overflow: 'hidden',
@@ -300,7 +443,11 @@ export default function PhomBoard({ state, mySeat, onMove, roomId, result, playe
             <span aria-hidden="true" style={{ position: 'absolute', inset: L.rim + 3, borderRadius: L.radius - 10, background: 'repeating-linear-gradient(45deg, rgba(255,255,255,.018) 0 2px, transparent 2px 6px)', pointerEvents: 'none' }} />
 
             {/* Đối thủ */}
-            {narrow
+            {land
+              ? Array.from({ length: n }, (_, s) => s).filter((s) => s !== base).map((s) => (
+                <div key={s} style={{ position: 'absolute', top: 44, width: 150, zIndex: 5, ...L.at[slotOf(s)] }}>{panel(s, true)}</div>
+              ))
+              : narrow
               ? (
                 <div style={{ position: 'absolute', left: 10, right: 10, top: 12, display: 'grid', gridTemplateColumns: 'repeat(3, minmax(0, 1fr))', gap: 5, alignItems: 'start', zIndex: 5 }}>
                   {Array.from({ length: n }, (_, s) => s).filter((s) => s !== base).map((s) => (
@@ -357,36 +504,27 @@ export default function PhomBoard({ state, mySeat, onMove, roomId, result, playe
             </div>
 
             {/* Mình: tên + trạng thái, chồng đã đánh, phỏm đã hạ, bài trên tay */}
-            <div style={{ position: 'absolute', left: L.pad, right: L.pad, bottom: narrow ? 6 : 40, display: 'grid', gap: narrow ? 3 : 4, zIndex: 4 }}>
-              <div style={{ display: 'flex', alignItems: 'center', gap: 8, minWidth: 0, whiteSpace: 'nowrap' }}>
-                <Seat name={memberOf(base)?.name || nameOf(base)} src={memberOf(base)?.avatarUrl} size={narrow ? 20 : 26} active={onTurn(base)} bubble={bubbles?.[base]} up />
-                <span style={{ font: `700 ${narrow ? 13 : 14}px/1.2 var(--font-sans)`, overflow: 'hidden', textOverflow: 'ellipsis', minWidth: 0 }}>{seated ? t('games.phom.youCap') : nameOf(base)}</span>
-                {meTag && <Tag>{meTag}</Tag>}
-                {onTurn(base) && <span style={{ font: '700 12px/1.2 var(--font-sans)', color: PH.teal }}>{seated ? t('games.phom.myTurn') : t('games.phom.thinking')}</span>}
-                {!seated && <span style={{ font: '400 11px/1.3 var(--font-mono)', color: PH.sub }}>{t('games.phom.cards', { n: state.counts[base] ?? 0 })}</span>}
-              </div>
-              <div style={{ display: 'flex', alignItems: 'center', gap: 10, flexWrap: 'wrap', minHeight: Math.round(L.my * 1.4) + 8 }}>
-                <div style={{ display: 'flex', alignItems: 'center', gap: 3 }}>
-                  <span style={{ font: '400 11px/1 var(--font-sans)', color: PH.mute, marginRight: 3 }}>{t('games.phom.myPile', { n: state.piles[base]?.length ?? 0 })}</span>
-                  {(state.piles[base] || []).map((c) => <Mini key={c} c={c} w={L.my} />)}
+            {land
+              ? (
+                <>
+                  <div style={{ position: 'absolute', left: 12, top: 212, width: 190, display: 'grid', gap: 4, zIndex: 4 }}>{meInfo}</div>
+                  <div style={{ position: 'absolute', left: L.handX, width: L.handW, bottom: 6, zIndex: 4 }}>{meHand}</div>
+                </>
+              )
+              : (
+                <div style={{ position: 'absolute', left: L.pad, right: L.pad, bottom: narrow ? 6 : 40, display: 'grid', gap: narrow ? 3 : 4, zIndex: 4 }}>
+                  {meInfo}
+                  {meHand}
                 </div>
-                {state.melds[base]?.length > 0 && <Melds melds={state.melds[base]} w={L.my} />}
-              </div>
-              {seated && !state.over && !state.out[mySeat] && (
-                mine?.failed
-                  ? (
-                    <div style={{ height: hh + 22, display: 'flex', gap: 8, alignItems: 'center', justifyContent: 'center', flexWrap: 'wrap' }}>
-                      <span style={{ font: 'var(--type-caption)', color: PH.sub }}>{t('games.phom.handFailed')}</span>
-                      <Button size="sm" variant="secondary" icon="refresh-cw" onClick={() => setTries((x) => x + 1)}>{t('games.phom.reloadHand')}</Button>
-                    </div>
-                  )
-                  : (
-                    <div role="group" aria-label={t('games.phom.handAria', { n: hand.length, pts: ptsOf(hand) })} style={{ position: 'relative', height: hh + 22 }}>
-                      {hand.map(cardBtn)}
-                    </div>
-                  )
               )}
-            </div>
+
+            {/* Màn ngang: nút ở góc phải dưới (rộng 200), khung hạ phỏm nổi giữa bàn (bản thiết kế). */}
+            {land && (
+              <>
+                <div style={{ position: 'absolute', right: 10, width: 200, bottom: 8, display: 'grid', gap: 8, gridTemplateColumns: 'minmax(0, 1fr)', zIndex: 6 }}>{controls}</div>
+                {layPanel && <div style={{ position: 'absolute', left: 176, right: 176, top: 40, zIndex: 30, maxHeight: 240, overflowY: 'auto', borderRadius: 16, boxShadow: '0 12px 40px rgba(0,0,0,.6)' }}>{layPanel}</div>}
+              </>
+            )}
 
             <div data-game-fx style={{ position: 'absolute', inset: 0, pointerEvents: 'none' }}>{fx}</div>
 
@@ -448,96 +586,8 @@ export default function PhomBoard({ state, mySeat, onMove, roomId, result, playe
         </div>
       </div>
 
-      {/* Nút dưới bàn (token) */}
-      <div style={{ width: '100%', maxWidth: WIDE.w, margin: '0 auto', display: 'grid', gap: 8, gridTemplateColumns: 'minmax(0, 1fr)' }}>
-        {uMelds && (
-          <div style={{ display: 'flex', alignItems: 'center', gap: 10, padding: '8px 12px', borderRadius: 14, background: G.goldA(0.12), border: '1.5px solid ' + G.gold }}>
-            <span style={{ flex: 1, font: '700 13.5px/1.3 var(--font-sans)', color: G.goldHi }}>{t('games.phom.uHint')}</span>
-            <button type="button" onClick={() => onMove({ u: uMelds })} style={{ ...btn('primary'), background: G.gold, borderColor: G.gold, color: '#2a1800', padding: '9px 22px', font: '800 20px/1 var(--font-display)' }}>{t('games.phom.u')}</button>
-          </div>
-        )}
-
-        {myTurn && synced && state.step === 'take' && (
-          <>
-            <span style={S.hint}>{last && !canEat ? t('games.phom.cantEatHint') : t('games.phom.takeHint')}</span>
-            <div style={{ display: 'flex', gap: 8 }}>
-              <button type="button" disabled={!canEat} onClick={() => onMove({ eat: true })} style={{ ...btn('primary'), ...S.big, opacity: canEat ? 1 : 0.45, cursor: canEat ? 'pointer' : 'not-allowed' }}>{t('games.phom.eatThis')}</button>
-              <button type="button" onClick={() => onMove({ draw: true })} style={{ ...btn('ghost'), ...S.big }}>{t('games.phom.drawStock')}</button>
-            </div>
-          </>
-        )}
-
-        {discarding && (
-          <>
-            <span style={S.hint}>{t(pend.length ? 'games.phom.pickHintEaten' : 'games.phom.pickHint')}</span>
-            <div style={{ display: 'flex', gap: 8 }}>
-              <button type="button" disabled={sel == null} onClick={() => { const c = sel; setPick({ ply: -1, c: null }); onMove({ discard: c }) }}
-                style={{ ...btn('primary'), ...S.big, opacity: sel == null ? 0.45 : 1, cursor: sel == null ? 'not-allowed' : 'pointer' }}>
-                {sel == null ? t('games.phom.discard') : t('games.phom.discardCard', { card: faceOf(sel) })}
-              </button>
-              <button type="button" onClick={hint} style={{ ...btn('ghost'), flex: 'none', minHeight: 48 }}><Icon name="lightbulb" size={16} />{t('games.phom.hint')}</button>
-            </div>
-          </>
-        )}
-
-        {laying && (
-          <div style={{ ...card, display: 'grid', gap: 8, padding: '12px 14px', borderRadius: 16, borderColor: G.tealA(0.6), boxShadow: '0 0 30px -10px ' + G.tealA(0.6), gridTemplateColumns: 'minmax(0, 1fr)' }}>
-            <div style={{ display: 'grid', gap: 2 }}>
-              <span style={{ font: '800 14px/1.3 var(--font-sans)' }}>{t('games.phom.layTitle')}</span>
-              <span style={S.hintL}>{t('games.phom.layHint')}</span>
-            </div>
-            <div style={{ display: 'flex', gap: 6, flexWrap: 'wrap' }}>
-              {myPlan.melds.length
-                ? myPlan.melds.map((m, i) => (
-                  <div key={m.join()} style={{ display: 'flex', gap: 2, alignItems: 'center', padding: 4, borderRadius: 9, background: PH.meld, border: '1px solid ' + PH.meldLine }}>
-                    {m.map((c) => <Mini key={c} c={c} w={32} tag={pend.includes(c) ? t('games.phom.eatenTag') : null} />)}
-                    <button type="button" aria-label={t('games.phom.ungroup')} onClick={() => setMine({ melds: myPlan.melds.filter((_, j) => j !== i) })}
-                      style={{ width: 24, height: 24, marginLeft: 2, border: 0, borderRadius: 7, background: 'none', color: G.muted, cursor: 'pointer', display: 'grid', placeItems: 'center' }}><Icon name="x" size={15} /></button>
-                  </div>
-                ))
-                : <span style={{ font: '600 12.5px/1.3 var(--font-sans)', color: G.goldHi }}>{t('games.phom.mom')}</span>}
-            </div>
-            {myPlan.sel.length > 0 && (
-              <button type="button" disabled={!groupOk} onClick={() => setMine({ melds: [...myPlan.melds, myPlan.sel.slice().sort(byNum)], sel: [] })}
-                style={{ ...btn('ghost', { sm: true }), justifySelf: 'start', opacity: groupOk ? 1 : 0.45 }}><Icon name="plus" size={14} />{t('games.phom.group')}</button>
-            )}
-            {canSend.map(([to, , c]) => {
-              const on = sends.some((x) => x[2] === c)
-              return (
-                <label key={c} style={{ display: 'flex', gap: 8, alignItems: 'center', font: '400 12.5px/1.3 var(--font-sans)', cursor: 'pointer' }}>
-                  <input type="checkbox" checked={on} onChange={() => setMine({ skip: myPlan.skip.includes(c) ? myPlan.skip.filter((x) => x !== c) : [...myPlan.skip, c] })} />
-                  {t('games.phom.sendTo', { card: faceOf(c), side: nameOf(to) })}
-                </label>
-              )
-            })}
-            <div style={{ display: 'flex', alignItems: 'center', gap: 8, flexWrap: 'wrap' }}>
-              <span style={{ flex: 1, font: '400 12px/1.3 var(--font-mono)', color: G.muted }}>{t('games.phom.leftPts', { n: ptsOf(rest.filter((c) => !sends.some((x) => x[2] === c))) })}</span>
-              {layErr && <span role="alert" style={{ font: '400 12px/1.3 var(--font-sans)', color: G.red }}>{t(layErr)}</span>}
-            </div>
-            <div style={{ display: 'flex', gap: 8 }}>
-              <button type="button" disabled={!!layErr} onClick={() => onMove(layMove)} style={{ ...btn('primary'), flex: 1, minHeight: 44, opacity: layErr ? 0.45 : 1 }}>{t(myPlan.melds.length ? 'games.phom.lay' : 'games.phom.layMom')}</button>
-              <button type="button" onClick={() => setPlan({ ply: -1, melds: null, sel: [], skip: [] })} style={btn('ghost', { sm: true })}>{t('games.phom.suggest')}</button>
-            </div>
-          </div>
-        )}
-
-        {waitTxt && <span style={S.hint}>{waitTxt}</span>}
-
-        <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', gap: 6, flexWrap: 'wrap' }}>
-          <span style={{ font: '400 12px/1.3 var(--font-mono)', color: G.muted, whiteSpace: 'nowrap' }}>{seated && hand.length ? t('games.phom.handPts', { n: ptsOf(hand) }) : ''}</span>
-          <div style={{ display: 'flex', gap: 6, flexWrap: 'wrap' }}>
-            {state.over && peek && <button type="button" onClick={() => setPeek(false)} style={btn('soft', { sm: true })}>{t('games.phom.showResult')}</button>}
-            {seated && !state.over && hand.length > 0 && (
-              <button type="button" onClick={() => setSuitSort((x) => !x)} style={btn('ghost', { sm: true })}>{t(suitSort ? 'games.phom.sortSuit' : 'games.phom.sortRank')}</button>
-            )}
-            {(actions || []).map((x) => (
-              <button key={x.key} type="button" disabled={x.off} onClick={x.on} style={{ ...btn(x.danger ? 'danger' : 'ghost', { sm: true }), opacity: x.off ? 0.45 : 1 }}>
-                <Icon name={x.icon} size={14} />{x.label}
-              </button>
-            ))}
-          </div>
-        </div>
-      </div>
+      {/* Nút dưới bàn (token) — màn ngang đã đặt trong bàn */}
+      {!land && <div style={{ width: '100%', maxWidth: WIDE.w, margin: '0 auto', display: 'grid', gap: 8, gridTemplateColumns: 'minmax(0, 1fr)' }}>{controls}</div>}
     </div>
   )
 }

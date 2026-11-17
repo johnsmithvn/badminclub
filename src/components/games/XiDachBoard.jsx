@@ -5,7 +5,7 @@ import { t } from '#i18n'
 import { CARD, G, btn, card } from '#components/games/stage.js'
 import { rnd, useFit } from '#components/games/chessUi.js'
 import { CardFace } from '#components/games/PlayingCard.jsx'
-import { Overlay, Seat } from '#components/games/cardTable.jsx'
+import { DealFx, Overlay, Seat } from '#components/games/cardTable.jsx'
 import xd, { deadlineOf, kindOf, MAX_CARDS, pointsOf, standMin } from '#lib/games/xidach.js'
 
 /**
@@ -14,6 +14,7 @@ import xd, { deadlineOf, kindOf, MAX_CARDS, pointsOf, standMin } from '#lib/game
  * Nút Rút thêm / Dằn bài (con) · Cái rút / Lật cả bàn (cái) nằm DƯỚI bàn, dùng token. Hết trận: bảng điểm đè lên bàn.
  * Bản thiết kế có ô đặt cược + nút "Xét" nhưng đang tắt (luật hiện tại chơi bằng điểm, cái chỉ lật cả bàn) — chưa làm.
  * Hai bố cục theo bề rộng khung (như Phỏm): rộng 800 × 720, khung hẹp hơn 560px thì bàn 374 × 560. Co bằng useFit.
+ * Prop `land` (GameRoom màn ngang): bàn 844 × 390, nút đi bài nằm giữa bàn, nút phòng ở góc dưới phải, ẩn bảng điểm gập.
  *
  * Bài trên tay nạp riêng từ game_hands (RLS chỉ trả tay mình); server kiểm dằn đủ tuổi (0098). Luật: lib/games/xidach.js.
  * Hết ván máy bất kỳ xin chia ván mới sau vài giây. Props sân khấu (GameRoom `stageProps`): `actions`, `overActions`, `note`.
@@ -51,6 +52,13 @@ const NARROW = {
   spots: [[56, 212], [56, 346], [58, 478], [187, 478], [316, 478], [318, 346], [318, 212]],
   cw: 28, cs: 15, mw: 40, ms: 24, dw: 34, ds: 20, seat: 20,
 }
+// Màn ngang (bản thiết kế XiDach-Ngang): cả chiếu 844 × 390, nút Rút / Dằn đặt giữa bàn ngay dưới dòng trạng thái.
+// Hai cặp ghế mép (0/1, 5/6) dời vào trong + xuống so với bản thiết kế: chừa chỗ cho nút ← / Phòng của GameRoom đè lên 40px trên.
+const LAND = {
+  w: 844, h: 390, rim: 5, radius: 22, dealer: [422, 76], center: [422, 160], arc: [900, -120], mark: 190,
+  spots: [[62, 90], [110, 190], [244, 286], [422, 320], [600, 286], [734, 190], [782, 90]],
+  cw: 26, cs: 14, mw: 36, ms: 22, dw: 26, ds: 14, seat: 22,
+}
 // Chỗ ngồi cho các con khác, theo số người (đối xứng quanh giữa đáy). Mình làm con thì luôn ở chỗ 3.
 const SPREAD = { 1: [3], 2: [1, 5], 3: [1, 3, 5], 4: [0, 2, 4, 6], 5: [0, 1, 3, 5, 6], 6: [0, 1, 2, 4, 5, 6], 7: [0, 1, 2, 3, 4, 5, 6] }
 const AROUND = { 0: [], 1: [1], 2: [1, 5], 3: [0, 1, 5], 4: [0, 1, 5, 6], 5: [0, 1, 2, 5, 6], 6: [0, 1, 2, 4, 5, 6] }
@@ -69,13 +77,13 @@ function useNow(on) {
   return now
 }
 
-export default function XiDachBoard({ state, mySeat, onMove, roomId, result, players, names, stake = 0, actions, overActions, note, bubbles, hands: given }) {
+export default function XiDachBoard({ state, mySeat, onMove, roomId, result, players, names, stake = 0, actions, overActions, note, bubbles, hands: given, land }) {
   const { a, db } = useApp()
-  const [ref, k0] = useFit(WIDE.w)
+  const [ref, k0] = useFit(land ? LAND.w : WIDE.w)
   // Khung hẹp hơn ~560px thì đổi sang bàn hẹp — co bàn rộng xuống đó thì chữ trên ghế không đọc nổi.
-  const narrow = k0 * WIDE.w < 560
-  const L = narrow ? NARROW : WIDE
-  const k = narrow ? Math.min(1, (k0 * WIDE.w) / NARROW.w) : k0
+  const narrow = land || k0 * WIDE.w < 560
+  const L = land ? LAND : narrow ? NARROW : WIDE
+  const k = land || !narrow ? k0 : Math.min(1, (k0 * WIDE.w) / NARROW.w)
   const [peek, setPeek] = useState(false)
 
   const { started, phase, banker, turn, over, show, xi, won, last } = state
@@ -225,6 +233,11 @@ export default function XiDachBoard({ state, mySeat, onMove, roomId, result, pla
 
   // ── Hiệu ứng: lật bài thì chữ loại bài đặc biệt đóng dấu trên ghế; hết trận pháo giấy ở người nhất. ──
   const fx = []
+  // Vừa chia ván (nước cuối là { deal }): lưng lá bay từ cái ra các con rồi về cái, 2 vòng (bản thiết kế dealFx).
+  if (started && phase === 'play' && last?.deal && !over && n) {
+    fx.push(<DealFx key={'deal' + state.round} id={'d' + state.round} from={L.dealer} rounds={2} step={0.05}
+      to={[...cons, banker].map(posOf)} w={narrow ? 24 : 32} />)
+  }
   if (phase === 'done' && show) {
     Object.entries(show).forEach(([y, cards]) => {
       const kd = kindOf(cards)
@@ -251,11 +264,66 @@ export default function XiDachBoard({ state, mySeat, onMove, roomId, result, pla
   const waitTxt = !seated || !live || phase !== 'play' || myTurn ? ''
     : xi?.[mySeat] ? t('games.xidach.youXi') : turn != null ? t('games.xidach.waitTurn', { side: nameOf(turn) }) : ''
 
+  const actionRow = ((actions?.length > 0) || (over && peek)) && (
+    <div style={{ display: 'flex', gap: 6, justifyContent: 'center', flexWrap: 'wrap' }}>
+      {over && peek && <button type="button" onClick={() => setPeek(false)} style={btn('soft', { sm: true })}>{t('games.xidach.showResult')}</button>}
+      {(actions || []).map((x) => (
+        <button key={x.key} type="button" disabled={x.off} onClick={x.on} style={{ ...btn(x.danger ? 'danger' : 'ghost', { sm: true }), opacity: x.off ? 0.45 : 1 }}>{x.label}</button>
+      ))}
+    </div>
+  )
+
+  // Nút đi bài (token): dưới bàn, hoặc giữa bàn khi màn ngang.
+  const controls = (
+    <>
+      {failed && (
+        <div style={{ display: 'flex', gap: 8, alignItems: 'center', justifyContent: 'center', flexWrap: 'wrap' }}>
+          <span style={S.hint}>{t('games.tienlen.handFailed')}</span>
+          <Button size="sm" variant="secondary" icon="refresh-cw" onClick={() => setTries((x) => x + 1)}>{t('games.tienlen.reloadHand')}</Button>
+        </div>
+      )}
+
+      {myTurn && (
+        <>
+          <span style={{ ...S.hint, color: meBanker ? G.goldHi : G.muted }}>
+            {pts != null && t('games.xidach.points', { n: pts }) + ' · '}
+            {pts > 21 ? t('games.xidach.hintQuac') : canStand ? t(meBanker ? 'games.xidach.hintBankerStand' : 'games.xidach.hintStand') : t('games.xidach.needAge', { n: standMin(state, mySeat) })}
+            {secs != null ? ' · ' + t('games.xidach.secs', { n: secs }) : ''}
+          </span>
+          <div style={{ display: 'flex', gap: 8 }}>
+            {meBanker
+              ? (
+                <>
+                  <button type="button" disabled={!canDraw} onClick={() => onMove({ draw: true })} style={{ ...btn('ghost'), ...S.big, opacity: canDraw ? 1 : 0.45 }}>{t('games.xidach.bankerDraw')}</button>
+                  <button type="button" disabled={!canStand} onClick={() => onMove({ stand: true })} style={{ ...btn('primary'), ...S.big, opacity: canStand ? 1 : 0.45 }}>{t('games.xidach.reveal')}</button>
+                </>
+              )
+              : (
+                <>
+                  <button type="button" disabled={!canDraw} onClick={() => onMove({ draw: true })} style={{ ...btn('primary'), ...S.big, opacity: canDraw ? 1 : 0.45 }}>{t('games.xidach.drawMore')}</button>
+                  <button type="button" disabled={!canStand} onClick={() => onMove({ stand: true })} style={{ ...btn('ghost'), ...S.big, opacity: canStand ? 1 : 0.45 }}>{t('games.xidach.standHand')}</button>
+                </>
+              )}
+          </div>
+        </>
+      )}
+
+      {waitTxt && <span style={{ ...S.hint, padding: '10px 0' }}>{waitTxt}</span>}
+
+      {live && seated && phase === 'done' && (
+        <div style={{ display: 'flex', gap: 8, alignItems: 'center', justifyContent: 'center', flexWrap: 'wrap' }}>
+          <span style={S.hint}>{t('games.xidach.nextSoon')}</span>
+          <button type="button" onClick={() => onMove({ deal: true })} style={btn('soft', { sm: true })}>{t('games.xidach.next')}</button>
+        </div>
+      )}
+    </>
+  )
+
   const [dx, dy] = L.dealer
   const [cx, cy] = L.center
   return (
     <div style={{ display: 'grid', gap: 12, gridTemplateColumns: 'minmax(0, 1fr)' }}>
-      <div ref={ref} style={{ width: '100%', maxWidth: WIDE.w, margin: '0 auto', display: 'grid', justifyItems: 'center' }}>
+      <div ref={ref} style={{ width: '100%', maxWidth: land ? LAND.w : WIDE.w, margin: '0 auto', display: 'grid', justifyItems: 'center' }}>
         <div style={{ width: L.w * k, height: L.h * k, position: 'relative' }}>
           <div style={{
             width: L.w, height: L.h, transform: `scale(${k})`, transformOrigin: '0 0', position: 'relative', overflow: 'hidden', borderRadius: L.radius,
@@ -291,12 +359,12 @@ export default function XiDachBoard({ state, mySeat, onMove, roomId, result, pla
 
             {/* Giữa bàn: nọc + trạng thái ván */}
             <div style={{ position: 'absolute', left: cx, top: cy, transform: 'translate(-50%, -50%)', display: 'grid', justifyItems: 'center', gap: 6, textAlign: 'center', zIndex: 5 }}>
-              <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
+              {!land && <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
                 <span aria-hidden="true" style={{ position: 'relative', width: narrow ? 30 : 40, height: narrow ? 42 : 56 }}>
                   {[4, 0].map((o) => <span key={o} style={{ position: 'absolute', left: o, top: -o, width: '100%', height: '100%', borderRadius: 5, background: CARD.back, border: '1.5px solid ' + CARD.backLine, opacity: o ? 0.7 : 1 }} />)}
                 </span>
                 <span style={{ font: '400 12px/1 var(--font-mono)', color: XD.sub }}>{t('games.xidach.stock', { n: stock })}</span>
-              </div>
+              </div>}
               {banner && (
                 <span aria-live="polite" style={{ maxWidth: narrow ? 230 : 340, padding: narrow ? '5px 12px' : '6px 16px', borderRadius: 99, background: XD.pill, border: '1px solid rgba(240,183,92,.4)', font: `700 ${narrow ? 12 : 14}px/1.3 var(--font-sans)`, color: XD.goldHi, whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis' }}>{banner}</span>
               )}
@@ -319,6 +387,11 @@ export default function XiDachBoard({ state, mySeat, onMove, roomId, result, pla
               {phase === 'done' && show && <span key={'sw' + state.round} style={{ position: 'absolute', inset: 0, background: 'linear-gradient(90deg, transparent, rgba(255,236,170,.22), transparent)', opacity: 0, animation: 'xdSweep 1.2s ease-out' }} />}
               {fx}
             </div>
+
+            {land && (
+              <div style={{ position: 'absolute', left: '50%', top: 186, width: 300, transform: 'translateX(-50%)', display: 'grid', gap: 8, zIndex: 50 }}>{controls}</div>
+            )}
+            {land && actionRow && <div style={{ position: 'absolute', right: 10, bottom: 10, maxWidth: 140, zIndex: 50 }}>{actionRow}</div>}
 
             {/* Hết trận: bảng điểm cộng dồn */}
             {ow && (
@@ -356,49 +429,10 @@ export default function XiDachBoard({ state, mySeat, onMove, roomId, result, pla
 
       {/* Nút dưới bàn (token) */}
       <div style={{ width: '100%', maxWidth: WIDE.w, margin: '0 auto', display: 'grid', gap: 8, gridTemplateColumns: 'minmax(0, 1fr)' }}>
-        {failed && (
-          <div style={{ display: 'flex', gap: 8, alignItems: 'center', justifyContent: 'center', flexWrap: 'wrap' }}>
-            <span style={S.hint}>{t('games.tienlen.handFailed')}</span>
-            <Button size="sm" variant="secondary" icon="refresh-cw" onClick={() => setTries((x) => x + 1)}>{t('games.tienlen.reloadHand')}</Button>
-          </div>
-        )}
-
-        {myTurn && (
-          <>
-            <span style={{ ...S.hint, color: meBanker ? G.goldHi : G.muted }}>
-              {pts != null && t('games.xidach.points', { n: pts }) + ' · '}
-              {pts > 21 ? t('games.xidach.hintQuac') : canStand ? t(meBanker ? 'games.xidach.hintBankerStand' : 'games.xidach.hintStand') : t('games.xidach.needAge', { n: standMin(state, mySeat) })}
-              {secs != null ? ' · ' + t('games.xidach.secs', { n: secs }) : ''}
-            </span>
-            <div style={{ display: 'flex', gap: 8 }}>
-              {meBanker
-                ? (
-                  <>
-                    <button type="button" disabled={!canDraw} onClick={() => onMove({ draw: true })} style={{ ...btn('ghost'), ...S.big, opacity: canDraw ? 1 : 0.45 }}>{t('games.xidach.bankerDraw')}</button>
-                    <button type="button" disabled={!canStand} onClick={() => onMove({ stand: true })} style={{ ...btn('primary'), ...S.big, opacity: canStand ? 1 : 0.45 }}>{t('games.xidach.reveal')}</button>
-                  </>
-                )
-                : (
-                  <>
-                    <button type="button" disabled={!canDraw} onClick={() => onMove({ draw: true })} style={{ ...btn('primary'), ...S.big, opacity: canDraw ? 1 : 0.45 }}>{t('games.xidach.drawMore')}</button>
-                    <button type="button" disabled={!canStand} onClick={() => onMove({ stand: true })} style={{ ...btn('ghost'), ...S.big, opacity: canStand ? 1 : 0.45 }}>{t('games.xidach.standHand')}</button>
-                  </>
-                )}
-            </div>
-          </>
-        )}
-
-        {waitTxt && <span style={{ ...S.hint, padding: '10px 0' }}>{waitTxt}</span>}
-
-        {live && seated && phase === 'done' && (
-          <div style={{ display: 'flex', gap: 8, alignItems: 'center', justifyContent: 'center', flexWrap: 'wrap' }}>
-            <span style={S.hint}>{t('games.xidach.nextSoon')}</span>
-            <button type="button" onClick={() => onMove({ deal: true })} style={btn('soft', { sm: true })}>{t('games.xidach.next')}</button>
-          </div>
-        )}
+        {!land && controls}
 
         {/* Bảng điểm cộng dồn trong lúc chơi (bản thiết kế: tab "Bảng điểm" — có vai nhà cái + người thắng) */}
-        {started && !ow && (
+        {started && !ow && !land && (
           <details style={{ ...card, padding: '8px 12px', borderRadius: 12 }}>
             <summary style={{ cursor: 'pointer', font: '700 13px/1.4 var(--font-sans)', color: G.muted }}>{t('games.xidach.standings', { r: state.round + 1, n: state.rounds })}</summary>
             {ranks.map((seat) => {
@@ -420,14 +454,7 @@ export default function XiDachBoard({ state, mySeat, onMove, roomId, result, pla
           </details>
         )}
 
-        {((actions?.length > 0) || (over && peek)) && (
-          <div style={{ display: 'flex', gap: 6, justifyContent: 'center', flexWrap: 'wrap' }}>
-            {over && peek && <button type="button" onClick={() => setPeek(false)} style={btn('soft', { sm: true })}>{t('games.xidach.showResult')}</button>}
-            {(actions || []).map((x) => (
-              <button key={x.key} type="button" disabled={x.off} onClick={x.on} style={{ ...btn(x.danger ? 'danger' : 'ghost', { sm: true }), opacity: x.off ? 0.45 : 1 }}>{x.label}</button>
-            ))}
-          </div>
-        )}
+        {!land && actionRow}
       </div>
     </div>
   )

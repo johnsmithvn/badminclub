@@ -7737,6 +7737,8 @@
       "noMovesHint": "Chưa có nước nào. Chạm một quân của bạn để xem ô đi được."
     },
     "lobbyShort": "Sảnh",
+    "landOn": "Xoay ngang",
+    "landOff": "Về màn dọc",
     "clock": "Thời gian mỗi bên",
     "clockOpt": "{{n}} phút",
     "clockNone": "Không giới hạn",

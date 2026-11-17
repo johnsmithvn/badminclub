@@ -5,7 +5,7 @@ import { t } from '#i18n'
 import { CARD, G, btn } from '#components/games/stage.js'
 import { rnd, useFit } from '#components/games/chessUi.js'
 import { CardFace } from '#components/games/PlayingCard.jsx'
-import { Seat } from '#components/games/cardTable.jsx'
+import { DealFx, Seat } from '#components/games/cardTable.jsx'
 import { RANK_FACES, faceOf } from '#lib/games/phom.js'
 import { nutOf, scoreOf, topOf } from '#lib/games/bacay.js'
 
@@ -14,8 +14,9 @@ import { nutOf, scoreOf, topOf } from '#lib/games/bacay.js'
  * (mình ở giữa đáy), giữa bàn là số người đã lật + dòng trạng thái. Ba lá của mình nằm to DƯỚI bàn: kéo góc phải dưới
  * lên để hé (hoặc chạm để hé dần) — chỉ máy mình thấy — rồi bấm Lật cho cả bàn xem. Người thắng đội vương miện.
  * Bản thiết kế có ô góp cược (ante) nhưng đang tắt (luật hiện tại chơi bằng điểm) — chưa làm.
- * Hai bố cục theo bề rộng khung (như Phỏm): rộng 800 × 560 (lá to dưới bàn), khung hẹp hơn 560px thì bàn 374 × 400, đang nặn
- * thì cao thêm 140 để ba lá nằm trong bàn như bản mobile. Co bằng useFit.
+ * Ba bố cục theo bản thiết kế, co bằng useFit: rộng (máy tính) bàn 800 × 560 + khung dưới bàn [ba lá | hướng dẫn + Lật];
+ * khung hẹp hơn 560px (điện thoại dọc) bàn 374 × 400, ba lá + Lật xếp dưới bàn; `land` (khung xoay ngang của GameRoom)
+ * cả màn 844 × 390 — bàn 560 bên trái, ba lá + Lật cột phải. Vừa chia thì lưng lá bay từ giữa bàn ra ghế (DealFx).
  *
  * Bài trên tay không có trong state trước khi lật (docs/GAMES.md §5.2): nạp riêng từ game_hands (RLS: đang chơi chỉ trả tay
  * mình, hết ván trả mọi tay). Lá đã lật nằm trong log. Luật: lib/games/bacay.js · server: 0092.
@@ -45,8 +46,13 @@ const WIDE = {
   seats: [[400, 468], [174, 421], [80, 280], [174, 139], [400, 80], [626, 139], [720, 280], [626, 421]],
 }
 const NARROW = {
-  w: 374, h: 400, radius: 22, rim: 6, pot: [187, 200], oval: [52, 98, 270, 204], fw: 24, fs: 9, mw: 84, seat: 18,
+  w: 374, h: 400, radius: 20, rim: 6, pot: [187, 200], oval: [57, 90, 260, 220], fw: 20, fs: 9, mw: 84, seat: 18,
   seats: [[187, 344], [88, 306], [47, 200], [88, 94], [187, 50], [286, 94], [327, 200], [286, 306]],
+}
+// Điện thoại xoay ngang (bản "Ba cây · điện thoại xoay ngang"): cả màn 844 × 390 — bàn 560 bên trái, cột phải là ba lá + Lật.
+const LAND = {
+  W: 844, w: 560, h: 390, radius: 20, rim: 6, pot: [280, 190], oval: [90, 70, 380, 240], fw: 22, fs: 10, mw: 78, seat: 18,
+  seats: [[280, 326], [124, 289], [60, 190], [124, 91], [280, 50], [436, 91], [500, 190], [436, 289]],
 }
 // Ít người thì rải đều quanh bàn (chỗ 0 luôn là mình / ghế đầu).
 const RING = { 2: [0, 4], 3: [0, 3, 5], 4: [0, 2, 4, 6], 5: [0, 2, 3, 5, 6], 6: [0, 1, 3, 4, 5, 7], 7: [0, 1, 2, 3, 5, 6, 7], 8: [0, 1, 2, 3, 4, 5, 6, 7] }
@@ -83,12 +89,12 @@ function SqueezeCard({ c, w, peel, onPeel, label }) {
   )
 }
 
-export default function BaCayBoard({ state, mySeat, onMove, roomId, result, players, names, stake = 0, actions, overActions, note, bubbles, hands: given }) {
+export default function BaCayBoard({ state, mySeat, onMove, roomId, result, players, names, stake = 0, actions, overActions, note, bubbles, land, hands: given }) {
   const { db, a } = useApp()
-  const [ref, k0] = useFit(WIDE.w)
-  const narrow = k0 * WIDE.w < 560
-  const L = narrow ? NARROW : WIDE
-  const k = narrow ? Math.min(1, (k0 * WIDE.w) / NARROW.w) : k0
+  const [ref, k0] = useFit(land ? LAND.W : WIDE.w)
+  const narrow = land || k0 * WIDE.w < 560 // `narrow` = cỡ chữ / lá nhỏ (bản mobile), dùng cho cả màn ngang
+  const L = land ? LAND : narrow ? NARROW : WIDE
+  const k = land ? k0 : narrow ? Math.min(1, (k0 * WIDE.w) / NARROW.w) : k0
   const [dealt, setDealt] = useState(null) // { roomId, hands } | { roomId, failed }
   const [tries, setTries] = useState(0)
   const [peel, setPeel] = useState({ roomId: null, p: {} }) // lá mình đã hé bao nhiêu — chỉ máy này
@@ -139,6 +145,10 @@ export default function BaCayBoard({ state, mySeat, onMove, roomId, result, play
 
   // ── Hiệu ứng: hết ván — chữ "Nhất" đóng dấu ở người thắng + pháo giấy. ──
   const fx = []
+  // Vừa chia (nước 1 là nước chia): lưng lá bay từ giữa bàn tới từng ghế, 3 vòng.
+  if (state.started && state.ply === 1 && !state.over) {
+    fx.push(<DealFx key="deal" id={'d' + roomId} from={L.pot} to={Array.from({ length: n }, (_, i) => posOf((base + i) % n))} w={L.fw} />)
+  }
   if (state.over && winner != null) {
     const [x, y] = posOf(winner)
     fx.push(<div key="win" style={{ position: 'absolute', left: x, top: y - (narrow ? 44 : 64), padding: '4px 14px', borderRadius: 99, background: '#c99a2e', color: '#2a1800', font: `800 ${narrow ? 14 : 20}px/1.2 var(--font-display)`, whiteSpace: 'nowrap', boxShadow: '0 8px 18px rgba(0,0,0,.45)', opacity: 0, animation: 'tlStamp 2s ease-out forwards', zIndex: 40 }}>
@@ -199,80 +209,110 @@ export default function BaCayBoard({ state, mySeat, onMove, roomId, result, play
 
   const [ox, oy, ow, oh] = L.oval
   const [px, py] = L.pot
-  // Khung hẹp (bản mobile): ba lá to nằm TRONG bàn, dưới chiếu — bàn cao thêm một dải. Khung rộng: lá nằm dưới bàn.
-  const inBoard = narrow && canFlip && !mine?.failed
-  const H = L.h + (inBoard ? 140 : 0)
+  const showHand = canFlip && !mine?.failed
   const myCards = (
-    <div role="group" aria-label={t('games.bacay.handAria')} style={{ display: 'flex', gap: narrow ? 10 : 16, justifyContent: 'center' }}>
+    <div role="group" aria-label={t('games.bacay.handAria')} style={{ display: 'flex', gap: land ? 6 : narrow ? 10 : 16, justifyContent: 'center' }}>
       {(myHand.length ? myHand : [null, null, null]).map((c, j) => (
         <SqueezeCard key={c ?? 'x' + j} c={c} w={L.mw} peel={c == null ? 0 : peeled[c] || 0} label={t('games.bacay.peekCard')}
           onPeel={(p) => c != null && setPeel({ roomId, p: { ...peeled, [c]: Math.min(1, p) } })} />
       ))}
     </div>
   )
-  return (
-    <div style={{ display: 'grid', gap: 12, gridTemplateColumns: 'minmax(0, 1fr)' }}>
-      <div ref={ref} style={{ width: '100%', maxWidth: WIDE.w, margin: '0 auto', display: 'grid', justifyItems: 'center' }}>
-        <div data-game-fx style={{ width: L.w * k, height: H * k, position: 'relative' }}>
-          <div style={{ width: L.w, height: H, transform: `scale(${k})`, transformOrigin: '0 0', position: 'relative', overflow: 'hidden', borderRadius: L.radius, background: BC.room, color: BC.ink, userSelect: 'none' }}>
-            <span aria-hidden="true" style={{ position: 'absolute', left: ox, top: oy, width: ow, height: oh, borderRadius: '50%', background: BC.felt, boxShadow: BC.rim(L.rim) }} />
-            <span aria-hidden="true" style={{ position: 'absolute', left: ox + ow * 0.14, top: oy + oh * 0.14, width: ow * 0.72, height: oh * 0.72, borderRadius: '50%', border: '2px dashed rgba(240,183,92,.3)' }} />
-
-            {/* Giữa bàn */}
-            <div style={{ position: 'absolute', left: px, top: py, transform: 'translate(-50%, -50%)', display: 'grid', justifyItems: 'center', gap: 4, textAlign: 'center', zIndex: 5 }}>
-              <span style={{ font: `700 ${narrow ? 11.5 : 13}px/1.2 var(--font-mono)`, color: BC.goldHi }}>{t('games.bacay.flippedN', { n: flipped, m: n })}</span>
-              <span aria-live="polite" style={{ maxWidth: narrow ? 200 : 280, padding: narrow ? '4px 10px' : '5px 14px', borderRadius: 99, background: BC.pill, border: '1px solid rgba(240,183,92,.4)', font: `700 ${narrow ? 11.5 : 13}px/1.3 var(--font-sans)`, color: BC.goldHi, whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis' }}>{banner}</span>
-              <span style={{ font: `600 ${narrow ? 9 : 10}px/1.3 var(--font-mono)`, letterSpacing: '.12em', textTransform: 'uppercase', color: BC.mute }}>{t('games.bacay.payRule')}</span>
+  // Cạnh ba lá: hướng dẫn nặn / nạp lại bài, nút Lật, dòng chờ, nút chơi lại · xin thua.
+  const controls = (
+    <div style={{ display: 'grid', gap: 8, gridTemplateColumns: 'minmax(0, 1fr)' }}>
+      {canFlip && (
+        mine?.failed
+          ? (
+            <div style={{ display: 'flex', gap: 8, alignItems: 'center', flexWrap: 'wrap', justifyContent: 'center' }}>
+              <span style={S.hint}>{t('games.bacay.handFailed')}</span>
+              <Button size="sm" variant="secondary" icon="refresh-cw" onClick={() => setTries((x) => x + 1)}>{t('games.bacay.reloadHand')}</Button>
             </div>
+          )
+          : (
+            <>
+              <span style={{ ...S.hint, fontSize: narrow ? 11.5 : 12.5 }}>{t(allOpen ? 'games.bacay.peekDone' : 'games.bacay.peekHint')}</span>
+              {allOpen && <span style={{ font: '800 14px/1.3 var(--font-sans)', color: BC.goldHi, textAlign: 'center' }}>{t('games.bacay.myNut', { nut: nutText(myHand), top: faceOf(topOf(myHand)) })}</span>}
+              <button type="button" disabled={myHand.length !== 3} onClick={() => onMove({ flip: true })}
+                style={{ ...btn('primary'), minHeight: narrow ? 44 : 48, padding: '0 14px', borderRadius: 12, font: `800 ${narrow ? 14 : 15}px/1.2 var(--font-sans)`, width: '100%', whiteSpace: 'normal', opacity: myHand.length === 3 ? 1 : 0.45 }}>
+                {t('games.bacay.flipAll')}
+              </button>
+            </>
+          )
+      )}
+      {seated && !state.over && state.cards[mySeat] && <span style={{ ...S.hint, padding: '10px 0' }}>{t('games.bacay.waitOthers', { n: waitN })}</span>}
+      {state.over && result?.scores && <span style={S.hint}>{t('games.bacay.scoreNote')}</span>}
+      {((state.over && overActions?.length > 0) || actions?.length > 0) && (
+        <div style={{ display: 'flex', gap: 6, justifyContent: 'center', flexWrap: 'wrap' }}>
+          {state.over && (overActions || []).map((x) => <button key={x.key} type="button" onClick={x.on} style={{ ...btn('primary'), flex: 1, minHeight: narrow ? 44 : 48, borderRadius: 12 }}>{x.label}</button>)}
+          {(actions || []).map((x) => (
+            <button key={x.key} type="button" disabled={x.off} onClick={x.on} style={{ ...btn(x.danger ? 'danger' : 'ghost', { sm: true }), opacity: x.off ? 0.45 : 1 }}>{x.label}</button>
+          ))}
+        </div>
+      )}
+    </div>
+  )
+  const table = (
+    <div data-game-fx style={{ position: 'relative', flex: 'none', width: L.w, height: L.h, overflow: 'hidden', borderRadius: L.radius, background: BC.room, color: BC.ink, userSelect: 'none' }}>
+      <span aria-hidden="true" style={{ position: 'absolute', left: ox, top: oy, width: ow, height: oh, borderRadius: '50%', background: BC.felt, boxShadow: BC.rim(L.rim) }} />
+      <span aria-hidden="true" style={{ position: 'absolute', left: ox + ow * 0.14, top: oy + oh * 0.14, width: ow * 0.72, height: oh * 0.72, borderRadius: '50%', border: '2px dashed rgba(240,183,92,.3)' }} />
 
-            {Array.from({ length: n }, (_, s) => s).map((s) => {
-              const [x, y] = posOf(s)
-              return <div key={s} style={{ position: 'absolute', left: x, top: y, transform: 'translate(-50%, -50%)', zIndex: s === base ? 20 : 10 }}>{seatBox(s)}</div>
-            })}
+      {/* Giữa bàn */}
+      <div style={{ position: 'absolute', left: px, top: py, transform: 'translate(-50%, -50%)', display: 'grid', justifyItems: 'center', gap: 4, textAlign: 'center', zIndex: 5 }}>
+        <span style={{ font: `700 ${narrow ? 11.5 : 13}px/1.2 var(--font-mono)`, color: BC.goldHi }}>{t('games.bacay.flippedN', { n: flipped, m: n })}</span>
+        <span aria-live="polite" style={{ maxWidth: narrow ? 200 : 280, padding: narrow ? '3px 10px' : '5px 14px', borderRadius: 99, background: BC.pill, border: '1px solid rgba(240,183,92,.4)', font: `700 ${narrow ? 11.5 : 13}px/1.3 var(--font-sans)`, color: BC.goldHi, whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis' }}>{banner}</span>
+        <span style={{ font: `600 ${narrow ? 9 : 10}px/1.3 var(--font-mono)`, letterSpacing: '.12em', textTransform: 'uppercase', color: BC.mute }}>{t('games.bacay.payRule')}</span>
+      </div>
 
-            {inBoard && <div style={{ position: 'absolute', left: 0, right: 0, top: L.h + 4, zIndex: 25 }}>{myCards}</div>}
+      {Array.from({ length: n }, (_, s) => s).map((s) => {
+        const [x, y] = posOf(s)
+        return <div key={s} style={{ position: 'absolute', left: x, top: y, transform: 'translate(-50%, -50%)', zIndex: s === base ? 20 : 10 }}>{seatBox(s)}</div>
+      })}
 
-            <div data-game-fx style={{ position: 'absolute', inset: 0, pointerEvents: 'none' }}>{fx}</div>
+      <div data-game-fx style={{ position: 'absolute', inset: 0, pointerEvents: 'none' }}>{fx}</div>
+    </div>
+  )
+
+  // Xoay ngang: cả màn 844 × 390 co theo bề rộng — bàn trái, cột phải ba lá + Lật (chừa đầu cột cho nút Phòng của khung).
+  if (land) {
+    return (
+      <div ref={ref} style={{ width: '100%' }}>
+        <div style={{ width: LAND.W * k, height: LAND.h * k, position: 'relative' }}>
+          <div style={{ position: 'absolute', left: 0, top: 0, width: LAND.W, height: LAND.h, transform: `scale(${k})`, transformOrigin: '0 0', display: 'flex', color: BC.ink }}>
+            {table}
+            <div style={{ flex: 1, minWidth: 0, display: 'flex', flexDirection: 'column', gap: 8, padding: '46px 10px 10px 4px' }}>
+              {showHand && <div style={{ marginTop: 'auto', paddingTop: 6 }}>{myCards}</div>}
+              <div style={{ marginTop: 'auto' }}>{controls}</div>
+            </div>
           </div>
         </div>
       </div>
-
-      {/* Dưới bàn: nặn 3 lá của mình + Lật */}
-      <div style={{ width: '100%', maxWidth: WIDE.w, margin: '0 auto', display: 'grid', gap: 10, justifyItems: 'center', gridTemplateColumns: 'minmax(0, 1fr)' }}>
-        {canFlip && (
-          mine?.failed
-            ? (
-              <div style={{ display: 'flex', gap: 8, alignItems: 'center', flexWrap: 'wrap', justifyContent: 'center' }}>
-                <span style={S.hint}>{t('games.bacay.handFailed')}</span>
-                <Button size="sm" variant="secondary" icon="refresh-cw" onClick={() => setTries((x) => x + 1)}>{t('games.bacay.reloadHand')}</Button>
-              </div>
-            )
-            : (
-              <>
-                <span style={S.hint}>{t(allOpen ? 'games.bacay.peekDone' : 'games.bacay.peekHint')}</span>
-                {!inBoard && myCards}
-                {allOpen && <span style={{ font: '700 14px/1.3 var(--font-sans)', color: G.goldHi }}>{t('games.bacay.myNut', { nut: nutText(myHand), top: faceOf(topOf(myHand)) })}</span>}
-                <button type="button" disabled={myHand.length !== 3} onClick={() => onMove({ flip: true })}
-                  style={{ ...btn('primary'), minHeight: 48, padding: '12px 26px', font: '800 15px/1 var(--font-sans)', width: '100%', maxWidth: 420, opacity: myHand.length === 3 ? 1 : 0.45 }}>
-                  {t('games.bacay.flipAll')}
-                </button>
-              </>
-            )
-        )}
-        {seated && !state.over && state.cards[mySeat] && <span style={{ ...S.hint, padding: '8px 0' }}>{t('games.bacay.waitOthers', { n: waitN })}</span>}
-        {state.over && result?.scores && <span style={S.hint}>{t('games.bacay.scoreNote')}</span>}
-        {((state.over && overActions?.length > 0) || actions?.length > 0) && (
-          <div style={{ display: 'flex', gap: 6, justifyContent: 'center', flexWrap: 'wrap' }}>
-            {state.over && (overActions || []).map((x) => <button key={x.key} type="button" onClick={x.on} style={{ ...btn('primary'), padding: '11px 22px' }}>{x.label}</button>)}
-            {(actions || []).map((x) => (
-              <button key={x.key} type="button" disabled={x.off} onClick={x.on} style={{ ...btn(x.danger ? 'danger' : 'ghost', { sm: true }), opacity: x.off ? 0.45 : 1 }}>{x.label}</button>
-            ))}
-          </div>
-        )}
+    )
+  }
+  return (
+    <div style={{ display: 'grid', gap: narrow ? 8 : 10, gridTemplateColumns: 'minmax(0, 1fr)' }}>
+      <div ref={ref} style={{ width: '100%', maxWidth: WIDE.w, margin: '0 auto', display: 'grid', justifyItems: 'center' }}>
+        <div style={{ width: L.w * k, height: L.h * k, position: 'relative' }}>
+          <div style={{ position: 'absolute', left: 0, top: 0, transform: `scale(${k})`, transformOrigin: '0 0' }}>{table}</div>
+        </div>
       </div>
+      {narrow ? (
+        // Điện thoại dọc: ba lá to ngay dưới bàn, rồi hướng dẫn + nút Lật trải ngang.
+        <div style={{ display: 'grid', gap: 8, gridTemplateColumns: 'minmax(0, 1fr)' }}>
+          {showHand && <div style={{ paddingTop: 6 }}>{myCards}</div>}
+          {controls}
+        </div>
+      ) : (showHand || seated || state.over) && (
+        // Máy tính: khung dưới bàn — ba lá bên trái, hướng dẫn + Lật bên phải.
+        <div style={{ width: '100%', maxWidth: WIDE.w, margin: '0 auto', boxSizing: 'border-box', display: 'grid', gridTemplateColumns: showHand ? 'auto minmax(0, 1fr)' : 'minmax(0, 1fr)', gap: 24, alignItems: 'center', padding: '12px 18px', borderRadius: 22, background: 'rgba(10,16,30,.6)', border: '1px solid #22304A' }}>
+          {showHand && <div style={{ paddingTop: 6 }}>{myCards}</div>}
+          {controls}
+        </div>
+      )}
     </div>
   )
 }
+
 
 const S = {
   hint: { font: '400 12.5px/1.4 var(--font-sans)', color: G.muted, textAlign: 'center' },

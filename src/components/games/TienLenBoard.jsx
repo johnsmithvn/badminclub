@@ -14,6 +14,7 @@ import { t } from '#i18n'
  * Gợi ý · Bỏ lượt · "Đánh · <bộ>". Chặt có chớp + chữ đóng dấu; hết ván có màn kết thúc đè lên bàn.
  * Hai bố cục theo bề rộng khung (như Phỏm): rộng — bàn 860 × 660, đối thủ trái / trên / phải, nút nằm trong bàn; khung
  * hẹp hơn 560px (điện thoại dọc) — bàn 374 × 480, đối thủ một hàng trên cùng, nút xuống dưới bàn. Co bằng useFit.
+ * `land` (khung xoay ngang của GameRoom) — 844 × 390: đối thủ thẻ ngang, quạt bài giữa đáy, nút + xin thua cột phải.
  *
  * Bài trên tay KHÔNG có trong state (docs/GAMES.md §5.2): nạp riêng từ game_hands (RLS: đang chơi chỉ trả tay mình,
  * hết ván trả mọi tay), bài còn lại = bài chia − các lá đã ra bàn (`state.gone`). Luật ở lib/games/tienlen.js; server
@@ -31,6 +32,13 @@ const WIDE = {
 const NARROW = {
   w: 374, h: 480, cy: 215, pos: { left: [62, 62], top: [187, 62], right: [312, 62], me: [187, 430] },
   felt: [340, 180], seat: 40, ow: 116, me: 36, hand: [52, 74], pile: [44, 62], gap: [22, 18], pill: 56, free: -80, auto: 80,
+}
+// Điện thoại xoay ngang (bản "Tiến lên · điện thoại xoay ngang"): 844 × 390 — đối thủ trên / hai bên dạng thẻ ngang (`at`),
+// mình góc trái dưới, quạt bài một hàng giữa đáy (`handX` / `handW`), nút cột phải.
+const LAND = {
+  w: 844, h: 390, cy: 176, pos: { left: [84, 120], top: [422, 52], right: [760, 120], me: [422, 330] },
+  felt: [340, 170], seat: 28, ow: 150, me: 28, hand: [52, 73], pile: [40, 56], gap: [22, 18], pill: 42, free: -60, auto: 64, handX: 168, handW: 470,
+  at: { left: { left: 12, top: 96 }, top: { left: 422, top: 30, transform: 'translateX(-50%)' }, right: { right: 12, top: 96 } },
 }
 const LAY = { 2: ['top'], 3: ['left', 'right'], 4: ['left', 'top', 'right'] }
 
@@ -71,13 +79,14 @@ function useNow(on) {
   return now
 }
 
-export default function TienLenBoard({ state, mySeat, onMove, roomId, result, players, names, stake = 0, actions, overActions, note, bubbles, hands: given }) {
+export default function TienLenBoard({ state, mySeat, onMove, roomId, result, players, names, stake = 0, actions, overActions, note, bubbles, land, hands: given }) {
   const { a, db } = useApp()
-  const [ref, k0] = useFit(WIDE.w)
+  const [ref, k0] = useFit(land ? LAND.w : WIDE.w)
   // Khung hẹp hơn ~560px thì đổi sang bàn hẹp — co bàn rộng xuống đó thì lá trên tay không bấm nổi.
-  const narrow = k0 * WIDE.w < 560
-  const L = narrow ? NARROW : WIDE
-  const k = narrow ? Math.min(1, (k0 * WIDE.w) / NARROW.w) : k0
+  // `land` (khung xoay ngang của GameRoom): cỡ chữ gọn như bản hẹp, toạ độ riêng (LAND), nút nằm trong bàn.
+  const narrow = land || k0 * WIDE.w < 560
+  const L = land ? LAND : narrow ? NARROW : WIDE
+  const k = land ? k0 : narrow ? Math.min(1, (k0 * WIDE.w) / NARROW.w) : k0
   const { w: DW, h: DH, cy: CY, pos: POS } = L
   const [dealt, setDealt] = useState(null) // { roomId, hands: { [seat]: cards } } | { roomId, failed }
   const [tries, setTries] = useState(0)
@@ -254,12 +263,13 @@ export default function TienLenBoard({ state, mySeat, onMove, roomId, result, pl
   const ow = over && !peek
 
   // ── Nút Gợi ý · Bỏ lượt · Đánh: trong bàn (rộng) hoặc dưới bàn (hẹp). ──
+  // Màn ngang (bản thiết kế): cột rộng 176 góc phải dưới — [Gợi ý | Bỏ lượt] rồi nút Đánh trải ngang.
   const controls = canPick && (
-    <div style={narrow ? { display: 'flex', alignItems: 'center', gap: 8 } : { position: 'absolute', right: 24, top: 452, display: 'flex', alignItems: 'center', gap: 8, zIndex: 4 }}>
-      <button type="button" onClick={hint} disabled={!myTurn || !hand.length} style={{ ...btn('ghost'), padding: narrow ? '12px 12px' : '12px 16px', opacity: myTurn ? 1 : 0.45 }}><Icon name="lightbulb" size={15} />{t('games.tienlen.hint')}</button>
-      <button type="button" onClick={pass} disabled={!canPass} style={{ ...btn('ghost'), padding: narrow ? '12px 12px' : '12px 18px', opacity: canPass ? 1 : 0.45, cursor: canPass ? 'pointer' : 'not-allowed' }}>{t('games.tienlen.pass')}</button>
+    <div style={land ? { display: 'flex', flexWrap: 'wrap', gap: 7 } : narrow ? { display: 'flex', alignItems: 'center', gap: 8 } : { position: 'absolute', right: 24, top: 452, display: 'flex', alignItems: 'center', gap: 8, zIndex: 4 }}>
+      <button type="button" onClick={hint} disabled={!myTurn || !hand.length} aria-label={t('games.tienlen.hint')} title={t('games.tienlen.hint')} style={{ ...btn('ghost'), padding: narrow ? '12px 12px' : '12px 16px', opacity: myTurn ? 1 : 0.45, ...(land ? { minHeight: 44 } : null) }}><Icon name="lightbulb" size={15} />{!land && t('games.tienlen.hint')}</button>
+      <button type="button" onClick={pass} disabled={!canPass} style={{ ...btn('ghost'), padding: narrow ? '12px 12px' : '12px 18px', opacity: canPass ? 1 : 0.45, cursor: canPass ? 'pointer' : 'not-allowed', ...(land ? { flex: 1, minHeight: 44 } : null) }}>{t('games.tienlen.pass')}</button>
       <button type="button" onClick={play} disabled={!canPlay} title={err ? t(err) : undefined} style={{
-        ...btn('primary'), ...(narrow ? { flex: 1, overflow: 'hidden', textOverflow: 'ellipsis' } : { minWidth: 190 }), padding: '13px 22px', font: '800 15px/1 var(--font-sans)', transition: 'all .2s',
+        ...btn('primary'), ...(land ? { width: '100%', minHeight: 44, whiteSpace: 'normal' } : narrow ? { flex: 1, overflow: 'hidden', textOverflow: 'ellipsis' } : { minWidth: 190 }), padding: land ? '10px 12px' : '13px 22px', font: `800 ${land ? 14 : 15}px/1.15 var(--font-sans)`, transition: 'all .2s',
         ...(canPlay ? { boxShadow: '0 5px 0 ' + G.tealA(0.55) + ', 0 10px 30px -6px ' + G.tealA(0.7) }
           : { background: G.inset, color: sel.length ? G.goldHi : G.muted, border: '1.5px solid ' + G.line, cursor: 'not-allowed' }),
       }}>{playLabel}</button>
@@ -267,12 +277,23 @@ export default function TienLenBoard({ state, mySeat, onMove, roomId, result, pl
   )
   // Bài trên tay: lá chồng nhau, mỗi lá lộ tối đa 38px (bàn rộng = như cũ), bàn hẹp tự khít lại cho vừa 13 lá.
   const [hw, hh] = L.hand
-  const step = hand.length > 1 ? Math.min(38, (DW - 20 - hw) / (hand.length - 1)) : 38
+  const step = hand.length > 1 ? Math.min(38, ((L.handW ?? DW - 20) - hw) / (hand.length - 1)) : 38
+  // Nút dưới bàn: hiện lại kết quả (đang xem bàn) · xin thua. Màn ngang đặt trong cột nút.
+  const actionRow = (actions?.length > 0 || (over && peek)) && (
+    <div style={{ display: 'flex', gap: land ? 6 : 8, justifyContent: land ? 'flex-end' : 'center', flexWrap: 'wrap' }}>
+      {over && peek && <button type="button" onClick={() => setPeek(false)} style={btn('soft', { sm: true })}>{t('games.tienlen.showResult')}</button>}
+      {(actions || []).map((x) => (
+        <button key={x.key} type="button" disabled={x.off} onClick={x.on} style={{ ...btn(x.danger ? 'danger' : 'ghost', { sm: true }), opacity: x.off ? 0.45 : 1 }}>
+          <Icon name={x.icon} size={14} />{x.label}
+        </button>
+      ))}
+    </div>
+  )
 
   return (
     <div style={{ display: 'grid', gap: 12, gridTemplateColumns: 'minmax(0, 1fr)' }}>
       {/* Khung đo luôn rộng tối đa bằng bàn rộng — để biết khi nào đổi bố cục; bàn đang dùng nằm giữa khung. */}
-      <div ref={ref} style={{ width: '100%', maxWidth: WIDE.w, margin: '0 auto', display: 'grid', justifyItems: 'center' }}>
+      <div ref={ref} style={{ width: '100%', maxWidth: land ? LAND.w : WIDE.w, margin: '0 auto', display: 'grid', justifyItems: 'center' }}>
       <div style={{ width: DW * k, height: DH * k, position: 'relative' }}>
         <div style={{
           ...card, width: DW, height: DH, transform: `scale(${k})`, transformOrigin: '0 0', position: 'relative', overflow: 'hidden', borderRadius: 24,
@@ -283,7 +304,7 @@ export default function TienLenBoard({ state, mySeat, onMove, roomId, result, pl
             <div style={{ position: 'absolute', inset: narrow ? 12 : 16, borderRadius: L.felt[1] / 2 - (narrow ? 12 : 16), border: '1px dashed ' + TL.dash }} />
             {center && <div style={{ position: 'absolute', inset: 0, display: 'grid', placeItems: 'center', padding: narrow ? '0 34px' : '0 60px', textAlign: 'center', font: `600 ${narrow ? 12.5 : 14}px/1.4 var(--font-sans)`, color: TL.ink }}>{center}</div>}
           </div>
-          {state.bac && <span style={{ position: 'absolute', ...(narrow ? { right: 12, top: 330 } : { left: 20, top: 18 }), padding: '5px 11px', borderRadius: 99, background: G.inset, border: '1px solid ' + G.line, font: '600 12px/1 var(--font-sans)', color: G.muted }}>{t('games.tienlen.variantOpt.bac')}</span>}
+          {state.bac && <span style={{ position: 'absolute', ...(land ? { left: 12, top: 46 } : narrow ? { right: 12, top: 330 } : { left: 20, top: 18 }), padding: '5px 11px', borderRadius: 99, background: G.inset, border: '1px solid ' + G.line, font: '600 12px/1 var(--font-sans)', color: G.muted }}>{t('games.tienlen.variantOpt.bac')}</span>}
 
           <div data-game-fx style={{ position: 'absolute', inset: 0, pointerEvents: 'none' }}>
             {pile}
@@ -306,6 +327,22 @@ export default function TienLenBoard({ state, mySeat, onMove, roomId, result, pl
             const active = state.started && !over && state.turn === s
             const tag = tagOf(s)
             const m = memberOf(s)
+            // Màn ngang: thẻ ngang gọn (ảnh · tên / số lá + nhãn) như bản thiết kế.
+            if (land) {
+              return (
+                <div key={s} style={{ position: 'absolute', zIndex: 4, display: 'flex', alignItems: 'center', gap: 7, maxWidth: 170, padding: '6px 8px', borderRadius: 16, background: 'rgba(10,16,30,.66)', border: '1.5px solid ' + (active ? TL.teal : 'rgba(255,255,255,.12)'), opacity: state.passed[s] && !over ? 0.6 : 1, transition: 'opacity .3s, border-color .3s', ...L.at[slotOf(s)] }}>
+                  <Seat name={m?.name || nameOf(s)} src={m?.avatarUrl} size={L.seat} active={active} pct={active ? pct : null} low={low} bubble={bubbles?.[s]} />
+                  <div style={{ display: 'grid', gap: 2, minWidth: 0 }}>
+                    <span style={{ font: '700 12px/1.2 var(--font-sans)', whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis', maxWidth: 90, color: '#E9EFF7' }}>{nameOf(s)}</span>
+                    <span style={{ display: 'flex', gap: 4, alignItems: 'center', whiteSpace: 'nowrap' }}>
+                      <span style={{ padding: '1px 7px', borderRadius: 99, background: 'rgba(4,8,20,.55)', font: '700 10.5px/1.4 var(--font-mono)', color: cnt <= 1 ? G.red : cnt <= 3 ? G.goldHi : '#A8B7CB' }}>{t('games.tienlen.nCards', { n: cnt })}</span>
+                      {tag && <span style={{ padding: '1px 7px', borderRadius: 99, font: '800 10.5px/1.4 var(--font-sans)', background: TAG[tag[1]][0], color: TAG[tag[1]][1] }}>{tag[0]}</span>}
+                    </span>
+                    {note?.[s] && <span style={{ font: '400 10px/1.2 var(--font-mono)', color: G.goldHi, whiteSpace: 'nowrap' }}>{note[s]}</span>}
+                  </div>
+                </div>
+              )
+            }
             return (
               <div key={s} style={{ position: 'absolute', left: x, top: y, transform: 'translate(-50%, -50%)', display: 'flex', flexDirection: 'column', alignItems: 'center', gap: narrow ? 3 : 6, zIndex: 4, width: L.ow }}>
                 <Seat name={m?.name || nameOf(s)} src={m?.avatarUrl} size={L.seat} active={active} pct={active ? pct : null} low={low} dim={state.passed[s] && !over} bubble={bubbles?.[s]} />
@@ -325,7 +362,7 @@ export default function TienLenBoard({ state, mySeat, onMove, roomId, result, pl
           })}
 
           {/* Mình */}
-          <div style={{ position: 'absolute', ...(narrow ? { left: 12, top: 318, gap: 10, maxWidth: 260 } : { left: 24, top: 446, gap: 12, maxWidth: 300 }), display: 'flex', alignItems: 'center', zIndex: 4 }} aria-live="polite">
+          <div style={{ position: 'absolute', ...(land ? { left: 12, bottom: 12, gap: 8, width: 150 } : narrow ? { left: 12, top: 318, gap: 10, maxWidth: 260 } : { left: 24, top: 446, gap: 12, maxWidth: 300 }), display: 'flex', alignItems: 'center', zIndex: 4 }} aria-live="polite">
             <Seat name={memberOf(base)?.name || nameOf(base)} src={memberOf(base)?.avatarUrl} size={L.me} active={state.started && !over && state.turn === base} pct={pct} low={low} bubble={bubbles?.[base]} up />
             <div style={{ display: 'grid', gap: 2, minWidth: 0 }}>
               <span style={{ font: '700 14px/1.2 var(--font-sans)', whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis' }}>
@@ -338,6 +375,12 @@ export default function TienLenBoard({ state, mySeat, onMove, roomId, result, pl
 
           {/* Nút */}
           {!narrow && controls}
+          {land && (controls || actionRow) && (
+            <div style={{ position: 'absolute', right: 12, bottom: 12, width: 176, display: 'grid', gap: 7, zIndex: 6 }}>
+              {controls}
+              {actionRow}
+            </div>
+          )}
 
           {/* Bài trên tay */}
           {seated && state.started && (
@@ -350,7 +393,7 @@ export default function TienLenBoard({ state, mySeat, onMove, roomId, result, pl
               )
               : (
                 <div role="group" aria-label={t('games.tienlen.handAria', { n: hand.length })} style={{
-                  position: 'absolute', left: '50%', bottom: narrow ? 12 : 20, transform: 'translateX(-50%)', display: 'flex', paddingLeft: hw - step, zIndex: 5,
+                  position: 'absolute', left: land ? L.handX + L.handW / 2 : '50%', bottom: land ? 6 : narrow ? 12 : 20, transform: 'translateX(-50%)', display: 'flex', paddingLeft: hw - step, zIndex: 5,
                   animation: state.ply <= 1 ? 'skFade .4s ease-out 1.5s both' : undefined,
                 }}>
                   {hand.map((c) => {
@@ -358,7 +401,7 @@ export default function TienLenBoard({ state, mySeat, onMove, roomId, result, pl
                     return (
                       <button key={c} type="button" disabled={!canPick} onClick={() => toggle(c)} aria-pressed={on} aria-label={faceOf(c)} style={{
                         position: 'relative', flex: 'none', marginLeft: step - hw, width: hw, height: hh, padding: 0, border: 0, borderRadius: 8, background: 'none',
-                        cursor: canPick ? 'pointer' : 'default', transform: `translateY(${on ? -22 : 0}px)`, transition: 'transform .16s, box-shadow .16s',
+                        cursor: canPick ? 'pointer' : 'default', transform: `translateY(${on ? (land ? -14 : -22) : 0}px)`, transition: 'transform .16s, box-shadow .16s',
                         boxShadow: on ? '0 0 0 2px ' + TL.teal + ', 0 14px 28px -6px rgba(45,212,191,.6)' : '0 8px 18px -8px rgba(0,0,0,.7)',
                       }}><CardFace c={c} w={hw} h={hh} /></button>
                     )
@@ -409,18 +452,9 @@ export default function TienLenBoard({ state, mySeat, onMove, roomId, result, pl
       </div>
       </div>
 
-      {narrow && controls}
+      {narrow && !land && controls}
 
-      {(actions?.length > 0 || (over && peek)) && (
-        <div style={{ display: 'flex', gap: 8, justifyContent: 'center', flexWrap: 'wrap' }}>
-          {over && peek && <button type="button" onClick={() => setPeek(false)} style={btn('soft', { sm: true })}>{t('games.tienlen.showResult')}</button>}
-          {(actions || []).map((x) => (
-            <button key={x.key} type="button" disabled={x.off} onClick={x.on} style={{ ...btn(x.danger ? 'danger' : 'ghost', { sm: true }), opacity: x.off ? 0.45 : 1 }}>
-              <Icon name={x.icon} size={14} />{x.label}
-            </button>
-          ))}
-        </div>
-      )}
+      {!land && actionRow}
     </div>
   )
 }

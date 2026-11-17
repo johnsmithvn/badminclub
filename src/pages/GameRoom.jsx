@@ -1,4 +1,5 @@
 import { lazy, Suspense, useEffect, useMemo, useState } from 'react'
+import { createPortal } from 'react-dom'
 import { useNavigate, useParams } from 'react-router-dom'
 import { Alert, Avatar, Button, Dialog, Skeleton, Icon } from '#ds'
 import { G, btn, card, seg } from '#components/games/stage.js'
@@ -32,6 +33,24 @@ const SOLO_SCREENS = {
 // đã nằm trên bàn nên bỏ tab Người chơi; Tiến lên, Bầu cua, Phỏm giữ tab đó để xem xu từng người).
 const STAGED = ['covua', 'cotuong', 'coup', 'tienlen', 'baucua', 'phom', 'coganh', 'covay', 'xidach', 'bacay', 'baibip']
 const SKIN = { covua: 'covua', cotuong: 'cotuong', coup: 'cotuong' }
+// Game bài (bản thiết kế điện thoại): dưới bàn chỉ còn thanh nhắn, đủ tab vào tấm trượt "Phòng" — như game Cờ · sinh động.
+const DOCK_CARDS = ['bacay', 'phom', 'tienlen', 'xidach']
+// Game có bố cục xoay ngang (bàn nhận prop `land`, vẽ đủ màn 844 × 390): điện thoại hiện nút "Xoay ngang".
+const LAND_GAMES = ['bacay', 'phom', 'tienlen', 'xidach']
+
+/** Màn đang dọc — khung ngang phải tự xoay 90° (người chơi nghiêng máy) khi trình duyệt chưa xoay theo. */
+function usePortrait() {
+  const q = '(orientation: portrait)'
+  const [on, setOn] = useState(() => typeof window !== 'undefined' && !!window.matchMedia?.(q).matches)
+  useEffect(() => {
+    const mq = window.matchMedia?.(q)
+    if (!mq) return undefined
+    const fn = (e) => setOn(e.matches)
+    mq.addEventListener('change', fn)
+    return () => mq.removeEventListener('change', fn)
+  }, [])
+  return on
+}
 
 export default function GameRoom() {
   const { id } = useParams()
@@ -58,6 +77,8 @@ function RoomPage({ id }) {
   const [busy, setBusy] = useState(false)
   const [ptab, setPtab] = useState(null) // cột phải: players | moves | chat | watch (null = tab đầu)
   const [sheet, setSheet] = useState(false) // điện thoại: tấm trượt Phòng (dock) đang mở
+  const [land, setLand] = useState(false) // điện thoại: đang ở khung xoay ngang
+  const portrait = usePortrait()
   const { room, game, state, result, seated, inGame, mySeat, canMove } = g
   // Xu ăn thua (0093): server trả lúc phòng chuyển sang 'finished' — nạp một lần khi thấy phòng xong.
   const [coins, setCoins] = useState(null) // { roomId, map: { [memberId]: delta } }
@@ -162,8 +183,18 @@ function RoomPage({ id }) {
     ['watch', t('games.room.watch') + (watchers.length ? ' · ' + watchers.length : '')],
   ]
   const tab = tabs.some(([k]) => k === ptab) ? ptab : tabs[0]?.[0]
-  // Điện thoại, game "Cờ · sinh động": dưới bàn chỉ còn thanh nhắn (RoomChat dock); đủ tab nằm trong tấm trượt "Phòng".
-  const dock = isMobile && CLOSEUP_GAMES.includes(room.game)
+  // Điện thoại, game "Cờ · sinh động" + game bài: dưới bàn chỉ còn thanh nhắn (RoomChat dock); đủ tab nằm trong tấm trượt "Phòng".
+  const dock = isMobile && (CLOSEUP_GAMES.includes(room.game) || DOCK_CARDS.includes(room.game))
+  // `|| land`: đã vào khung ngang mà người chơi nghiêng máy thật (màn rộng hơn 768px) thì vẫn giữ khung ngang.
+  const canLand = (isMobile || land) && LAND_GAMES.includes(room.game) && !waiting && !!state && !!Screen
+  const landOn = land && canLand
+  const screen = state && Screen && (
+    <Suspense fallback={<Skeleton height={320} />}>
+      <Screen state={game.view(state, mySeat)} mySeat={mySeat} canMove={canMove} onMove={g.play} roomId={room.id} result={room.result} players={inGame} stake={stake}
+        names={Object.fromEntries(inGame.map((p) => [p.seat, nameOf(p.memberId)]))}
+        bubbles={Object.fromEntries(inGame.filter((p) => bubbleOf[p.memberId]).map((p) => [p.seat, bubbleOf[p.memberId]]))} {...stageProps} land={landOn} />
+    </Suspense>
+  )
   const panel = (
     <div style={{ ...card, padding: '12px 14px', display: 'flex', flexDirection: 'column', gap: 10, minWidth: 0, ...(isMobile ? null : { maxHeight: staged ? 760 : undefined }) }}>
       <div role="tablist" style={{ display: 'flex', gap: 4, paddingBottom: 10, borderBottom: '1px solid ' + G.line, flexWrap: 'wrap', flexShrink: 0 }}>
@@ -244,6 +275,7 @@ function RoomPage({ id }) {
         </button>
         {SKIN[room.game] && !waiting && <SkinPicker kind={SKIN[room.game]} />}
         {CLOSEUP_GAMES.includes(room.game) && !waiting && <CloseUpToggle />}
+        {canLand && <button type="button" onClick={() => setLand(true)} style={S.land}>⟲ {t('games.landOn')}</button>}
         <button type="button" aria-label={t('games.howto')} title={t('games.howto')} onClick={() => setHowto(true)} style={S.sq}><Icon name="book-open" size={17} /></button>
         <button type="button" onClick={copyLink} title={t('games.copyLink')} style={btn('soft', { sm: true })}><Icon name="plus" size={14} />{t('games.wait.invite')}</button>
       </div>
@@ -269,11 +301,7 @@ function RoomPage({ id }) {
               <span style={S.mono}>{t('games.moves', { n: listed.length })}</span>
             </div>
           )}
-          <Suspense fallback={<Skeleton height={320} />}>
-            <Screen state={game.view(state, mySeat)} mySeat={mySeat} canMove={canMove} onMove={g.play} roomId={room.id} result={room.result} players={inGame} stake={stake}
-              names={Object.fromEntries(inGame.map((p) => [p.seat, nameOf(p.memberId)]))}
-              bubbles={Object.fromEntries(inGame.filter((p) => bubbleOf[p.memberId]).map((p) => [p.seat, bubbleOf[p.memberId]]))} {...stageProps} />
-          </Suspense>
+          {!landOn && screen}
           {staged && mySeat == null && !result && <span style={{ ...S.caption, textAlign: 'center' }}>{t('games.spectating')}</span>}
         </>
       )}
@@ -313,7 +341,31 @@ function RoomPage({ id }) {
           <span style={S.caption}>{t(seated.length > 2 ? 'games.resignDescMany' : 'games.resignDesc')}</span>
         </Dialog>
       )}
-      {dock && sheet && <Dialog open sheet title={t('games.room.panel')} onClose={() => setSheet(false)}>{panel}</Dialog>}
+      {dock && sheet && !landOn && <Dialog open sheet title={t('games.room.panel')} onClose={() => setSheet(false)}>{panel}</Dialog>}
+      {/* Khung xoay ngang (bản "điện thoại xoay ngang"): phủ kín màn, máy còn dọc thì xoay 90° để người chơi nghiêng máy.
+          Bàn tự vẽ đủ 844 × 390 (prop `land`); nút ← về màn dọc, nút Phòng mở tấm trượt bên phải. */}
+      {landOn && typeof document !== 'undefined' && createPortal(
+        <div style={{ position: 'fixed', inset: 0, zIndex: 50, background: '#0b1730', color: G.text, overflow: 'hidden' }}>
+          <div style={{
+            position: 'absolute', left: 0, top: 0, width: portrait ? '100dvh' : '100dvw', height: portrait ? '100dvw' : '100dvh', transformOrigin: '0 0',
+            transform: portrait ? 'translateX(100dvw) rotate(90deg)' : 'none', display: 'grid', placeItems: 'center', overflow: 'hidden',
+          }}>
+            <div style={{ width: `min(100%, calc(${portrait ? '100dvw' : '100dvh'} * 844 / 390))` }}>{screen}</div>
+            <div style={{ position: 'absolute', left: 10, top: 8, display: 'flex', alignItems: 'center', gap: 8, zIndex: 40 }}>
+              <button type="button" onClick={() => { setLand(false); setSheet(false) }} aria-label={t('games.landOff')} title={t('games.landOff')} style={{ ...S.sq, width: 30, height: 30, borderRadius: 9, background: 'rgba(4,8,20,.5)' }}><Icon name="arrow-left" size={15} /></button>
+              <span style={{ font: '800 15px/1.2 var(--font-display)', whiteSpace: 'nowrap' }}>{t('games.' + room.game + '.name')}</span>
+            </div>
+            <button type="button" onClick={() => setSheet(true)} aria-label={t('games.room.openPanel')} style={{ ...btn('soft', { sm: true }), position: 'absolute', right: 10, top: 8, height: 30, zIndex: 40 }}>{t('games.room.panelShort')}</button>
+            {sheet && (
+              <div style={{ position: 'absolute', inset: 0, zIndex: 45 }}>
+                <button type="button" aria-label={t('common.close')} onClick={() => setSheet(false)} style={{ position: 'absolute', inset: 0, background: 'rgba(2,6,16,.6)', border: 0, cursor: 'default' }} />
+                <div role="dialog" aria-label={t('games.room.panel')} style={{ position: 'absolute', top: 0, right: 0, bottom: 0, width: 340, maxWidth: '90%', padding: '10px 12px', background: '#0E1626', borderLeft: '1px solid #2E3E5C', boxShadow: '-20px 0 50px rgba(0,0,0,.6)', overflowY: 'auto', display: 'flex', flexDirection: 'column' }}>{panel}</div>
+              </div>
+            )}
+          </div>
+        </div>,
+        document.body,
+      )}
       {howto && <HowTo gameId={room.game} onClose={() => setHowto(false)} />}
     </div>
   )
@@ -390,6 +442,10 @@ const S = {
   seat: {
     display: 'flex', alignItems: 'center', gap: 10, padding: '8px 12px', borderRadius: 10, border: '1px solid',
     flex: '1 1 180px', minWidth: 0, maxWidth: 320,
+  },
+  land: {
+    display: 'flex', alignItems: 'center', gap: 5, height: 36, padding: '0 10px', borderRadius: 10, cursor: 'pointer', flexShrink: 0, whiteSpace: 'nowrap',
+    border: '1px solid rgba(240,183,92,.5)', background: 'rgba(224,138,0,.14)', color: '#F0B75C', font: '800 12px/1 var(--font-sans)',
   },
   sq: {
     width: 38, height: 38, borderRadius: 10, display: 'grid', placeItems: 'center', cursor: 'pointer', flexShrink: 0,

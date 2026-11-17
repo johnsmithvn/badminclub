@@ -1,5 +1,5 @@
 import { Avatar } from '#ds'
-import { G, card } from '#components/games/stage.js'
+import { CARD, G, card } from '#components/games/stage.js'
 import { Bubble } from '#components/games/ChessStage.jsx'
 
 // Phần dùng chung của các bàn bài có "sân khấu" (Tiến lên, Phỏm, Xì dách, Ba cây, Bài bịp): ảnh người chơi có vòng lượt, lớp màn kết thúc đè lên bàn.
@@ -23,6 +23,25 @@ export function Seat({ name, src, size, active, pct, low, dim, bubble, up }) {
       {bubble && <Bubble key={bubble.at} msg={bubble} up={up} />}
     </div>
   )
+}
+
+/**
+ * Cảnh chia bài (bản thiết kế Ba cây / Phỏm / Xì dách): lưng lá bay từ `from` tới từng chỗ trong `to`, lần lượt từng
+ * vòng, mỗi lá trễ `step` giây. Đặt trong lớp hiệu ứng `position: absolute` của bàn; `id` đổi = diễn lại.
+ */
+export function DealFx({ id, from, to, rounds = 3, w = 28, step = 0.045 }) {
+  const out = []
+  let k = 0
+  for (let r = 0; r < rounds; r++) {
+    to.forEach(([x, y], i) => {
+      out.push(<span key={id + '-' + r + '-' + i} aria-hidden="true" style={{
+        position: 'absolute', left: x, top: y, width: w, height: Math.round(w * 1.4), borderRadius: 4, background: CARD.back, border: '1.5px solid ' + CARD.backLine,
+        boxShadow: '0 6px 14px rgba(0,0,0,.5)', '--fx': from[0] - x + 'px', '--fy': from[1] - y + 'px', '--r': (r - 1) * 8 + 'deg',
+        opacity: 0, animation: `tlDeal .38s cubic-bezier(.3,.7,.2,1) ${(k++ * step).toFixed(3)}s forwards`, zIndex: 30, pointerEvents: 'none',
+      }} />)
+    })
+  }
+  return <>{out}</>
 }
 
 /** Lớp mờ phủ kín bàn + thẻ ở giữa (màn kết thúc). Bàn cha phải `position: relative`. `delay` (giây) = hiện trễ. */
