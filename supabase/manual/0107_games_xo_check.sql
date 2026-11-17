@@ -90,6 +90,7 @@ BEGIN
   PERFORM set_config('request.jwt.claim.sub', v_u2::text, true);
   PERFORM set_config('request.jwt.claims', json_build_object('sub', v_u2, 'role', 'authenticated')::text, true);
   PERFORM game_join(v_room, 2);
+  PERFORM game_ready(v_room, true);  -- từ 0105: khách phải Sẵn sàng thì chủ phòng mới bắt đầu được
   PERFORM set_config('request.jwt.claim.sub', v_u1::text, true);
   PERFORM set_config('request.jwt.claims', json_build_object('sub', v_u1, 'role', 'authenticated')::text, true);
   PERFORM game_start(v_room, 2, 2);

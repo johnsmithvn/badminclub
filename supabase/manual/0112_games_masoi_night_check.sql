@@ -25,12 +25,20 @@ BEGIN
   IF to_regprocedure('public.game_masoi_run(uuid, int, jsonb)') IS NULL THEN
     RAISE EXCEPTION 'SAI Ở BƯỚC 1: chưa có game_masoi_run — đã chạy 0084 / 0112 chưa?';
   END IF;
+  IF position('m.at >= v_since + 45000' IN (SELECT prosrc FROM pg_proc WHERE oid = 'public.game_masoi_run(uuid, int, jsonb)'::regprocedure)) = 0 THEN
+    RAISE EXCEPTION 'SAI Ở BƯỚC 1: game_masoi_run trên DB vẫn là bản 0084 — chạy supabase/migrations/0112_games_masoi_night.sql trước';
+  END IF;
   IF has_function_privilege('authenticated', 'public.game_masoi_run(uuid, int, jsonb)', 'EXECUTE') THEN
     RAISE EXCEPTION 'SAI Ở BƯỚC 1: client gọi thẳng được game_masoi_run';
   END IF;
 
+  -- Từ 0111 (một người một phòng): chọn người đang không ngồi phòng nào chưa xong, kẻo trigger báo games.err.busy.
   SELECT club_id, (array_agg(id ORDER BY id))[1:5] INTO v_club, v_mem
-    FROM club_members WHERE active GROUP BY club_id HAVING count(*) >= 5 LIMIT 1;
+    FROM club_members cm
+   WHERE active AND NOT EXISTS (
+     SELECT 1 FROM game_room_players gp JOIN game_rooms r ON r.id = gp.room_id
+      WHERE gp.member_id = cm.id AND gp.left_at IS NULL AND r.status IN ('waiting', 'playing'))
+   GROUP BY club_id HAVING count(*) >= 5 LIMIT 1;
   IF v_club IS NULL THEN RAISE EXCEPTION 'SAI Ở BƯỚC 1: cần một CLB có ít nhất 5 thành viên'; END IF;
 
   /* ---------- 2. Phòng TẮT giờ: cả làng bấm xong ngay → chưa đủ 45 giây thì chưa sang bước ---------- */
@@ -70,6 +78,7 @@ BEGIN
   END IF;
 
   /* ---------- 5. Phòng CÓ giờ: chưa ai bấm, mở bước 10 giây trước → chưa được; 46 giây trước → được (hết giờ) ---------- */
+  UPDATE game_room_players SET left_at = now() WHERE room_id = v_room;  -- 0111: rời phòng 1 (đang chơi) mới ngồi phòng 2 được
   INSERT INTO game_rooms (club_id, game, code, host_id, status, private, options, seed, started_at)
   VALUES (v_club, 'masoi', upper(substr(md5(random()::text), 1, 6)), v_mem[1], 'playing', true,
           '{"reveal":"all","time":120,"roles":[1]}', 'check-0112b', now())
