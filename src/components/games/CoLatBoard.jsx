@@ -1,7 +1,7 @@
 import { useId, useState } from 'react'
-import { useMobile } from '#hooks/useMobile.js'
 import { t } from '#i18n'
 import { flipsOf, movesOf } from '#lib/games/colat.js'
+import { fillBox, fillCol, fitOf, useFit } from '#components/games/chessUi.js'
 
 // Bàn Cờ lật bằng SVG: khung xanh thẫm, mặt nỉ xanh có 4 điểm sao, quân tròn đen / trắng có khối.
 // Ô đặt được hiện chấm; rê chuột (máy tính) hoặc Tab tới ô thì xem trước quân sẽ lật. Quân mới đặt nở ra
@@ -41,7 +41,9 @@ function Disc({ seat, uid, ghost }) {
 
 export default function CoLatBoard({ state, mySeat, canMove, onMove }) {
   const uid = useId().replace(/[^a-zA-Z0-9]/g, '')
-  const isMobile = useMobile(768)
+  // Màn chơi không cuộn: bàn co theo chiều chật hơn của ô bàn (chessUi.js → useFit).
+  const [fit, , area] = useFit(560)
+  const bw = fitOf(area, 560, (560 * H) / W) * 560
   const [hover, setHover] = useState(null)
   const { board, last } = state
   const legal = canMove ? movesOf(board, mySeat) : []
@@ -52,17 +54,18 @@ export default function CoLatBoard({ state, mySeat, canMove, onMove }) {
   const put = (i) => { setHover(null); onMove({ cell: i }) }
 
   return (
-    <div style={{ display: 'grid', gap: 10, gridTemplateColumns: 'minmax(0, 1fr)' }}>
+    <div style={{ ...fillCol, gap: 10 }}>
       {last?.skipped != null && !state.over && (
         <div style={S.notice} aria-live="polite">{t('games.colat.skipped', { side: t('games.colat.side' + last.skipped) })}</div>
       )}
 
+      <div ref={fit} style={fillBox}>
       <svg
         data-game-fx
         viewBox={`0 0 ${W} ${H}`}
         role="group"
         aria-label={t('games.colat.boardAria')}
-        style={{ width: '100%', maxWidth: 560, display: 'block', margin: '0 auto', touchAction: 'manipulation', userSelect: 'none' }}
+        style={{ width: bw, height: (bw * H) / W, display: 'block', touchAction: 'manipulation', userSelect: 'none' }}
       >
         <defs>
           {FACE.map(([hi, mid, lo], n) => (
@@ -175,16 +178,14 @@ export default function CoLatBoard({ state, mySeat, canMove, onMove }) {
           )
         })}
       </svg>
-
-      {canMove && <div style={{ ...S.hint, minHeight: isMobile ? 40 : 24 }}>{t('games.colat.pickHint')}</div>}
+      </div>
     </div>
   )
 }
 
 const S = {
-  hint: { font: 'var(--type-caption)', color: 'var(--text-muted)', textAlign: 'center' },
   notice: {
-    justifySelf: 'center', padding: '6px 12px', borderRadius: 99, textAlign: 'center',
+    alignSelf: 'center', flexShrink: 0, padding: '6px 12px', borderRadius: 99, textAlign: 'center',
     background: 'var(--status-delayed-bg)', color: 'var(--status-delayed-fg)', font: 'var(--type-caption)',
   },
 }

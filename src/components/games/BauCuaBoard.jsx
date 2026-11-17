@@ -2,7 +2,7 @@ import { useEffect, useState } from 'react'
 import { Avatar, Icon } from '#ds'
 import { useApp } from '#contexts/AppContext.jsx'
 import { G, btn, card } from '#components/games/stage.js'
-import { useFit } from '#components/games/chessUi.js'
+import { fillBox, fillCol, useFit } from '#components/games/chessUi.js'
 import { BauCuaIcon } from '#components/games/BauCuaIcons.jsx'
 import bc, { budgetOf, CAP, CHIPS, deadlineOf, SYMS, waitingOf } from '#lib/games/baucua.js'
 import { chipsOf } from '#lib/games/registry.js'
@@ -83,8 +83,12 @@ function Coin({ i, size }) {
 
 export default function BauCuaBoard({ state, mySeat, onMove, result, players = [], names, stake = 0, actions, overActions, note }) {
   const { db } = useApp()
-  const [ref, k] = useFit(DW)
-  const wide = k > 0.8
+  // Bố cục lỏng (chữ / nút theo nội dung): đo ô bàn + cao tự nhiên của bàn, co cả khối cho vừa — màn chơi không cuộn.
+  const [ref, , area] = useFit(DW)
+  const [cref, , cbox] = useFit(DW)
+  const wide = area.w > 0.8 * DW
+  const cw = wide ? DW : area.w
+  const k = Math.min(1, area.h && cbox.h ? area.h / cbox.h : 1, cw ? area.w / cw : 1)
   const [chip, setChip] = useState(0) // chỉ số trong CHIPS
   // Nháp theo ván (danh sách lần đặt, để Hoàn tác): sang ván mới là tự bỏ nháp cũ.
   const [draft, setDraft] = useState({ round: -1, puts: [] })
@@ -150,7 +154,6 @@ export default function BauCuaBoard({ state, mySeat, onMove, result, players = [
   } else if (rolling) head = t('games.baucua.rolling')
   else {
     head = t('games.baucua.betNow')
-    sub = t('games.baucua.betSub')
   }
   const roundTxt = over ? '' : t('games.baucua.round', { r: state.round + 1, n: state.rounds })
 
@@ -253,7 +256,10 @@ export default function BauCuaBoard({ state, mySeat, onMove, result, players = [
       : limit === 0 && stake > 0 ? t('games.baucua.broke') : t('games.baucua.noBet')
 
   return (
-    <div ref={ref} style={{ display: 'grid', gap: 14, gridTemplateColumns: 'minmax(0, 1fr)', userSelect: 'none' }}>
+    <div style={fillCol}>
+    <div ref={ref} style={fillBox}>
+    <div style={{ width: cw * k, height: cbox.h * k }}>
+    <div ref={cref} style={{ width: cw, transform: `scale(${k})`, transformOrigin: '0 0', display: 'grid', gap: 14, gridTemplateColumns: 'minmax(0, 1fr)', userSelect: 'none' }}>
       {/* Ghế người khác */}
       {others.length > 0 && (
         <div style={{ display: 'flex', flexWrap: 'wrap', justifyContent: 'center', gap: wide ? '10px 28px' : '8px 6px' }}>
@@ -414,6 +420,9 @@ export default function BauCuaBoard({ state, mySeat, onMove, result, players = [
           ))}
         </div>
       )}
+    </div>
+    </div>
+    </div>
     </div>
   )
 }

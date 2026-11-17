@@ -5,7 +5,7 @@ import { t } from '#i18n'
 import { G, btn, card, mono, over } from '#components/games/stage.js'
 import { SkinPicker } from '#components/games/ChessStage.jsx'
 import { useSkin } from '#components/games/chessSkins.js'
-import { useFit } from '#components/games/chessUi.js'
+import { fillCol, useFit } from '#components/games/chessUi.js'
 import { CELLS, moveShip, randomFleet, shipCells, SHIPS, SIZE } from '#lib/games/bantau.js'
 
 // Bàn Bắn tàu theo bản thiết kế "Bắn tàu" (2026-11-12): vùng biển 3 skin (Hải chiến / Radar / Giấy kẻ ô — chessSkins.js,
@@ -324,8 +324,10 @@ const Face = ({ name, ring, size = 36 }) => (
 export default function BanTauBoard({ state, mySeat, canMove, onMove, roomId, result, hands: given, names }) {
   const { a } = useApp()
   const [, K] = useSkin('bantau')
-  const [box, fit] = useFit(WIDE)
+  const [box, fit, area] = useFit(WIDE)
   const wide = fit >= 1
+  // Màn chơi không cuộn: cạnh biển = chỗ cao còn lại sau phần chữ / nút quanh nó (`over` px), tối đa `max`.
+  const fitSea = (max, over) => (area.h ? Math.max(180, Math.min(max, area.h - over)) : max)
   const [draft, setDraft] = useState(() => randomFleet())
   const [grab, setGrab] = useState(null) // xếp tay: { k, offset (ô thứ mấy của tàu dưới tay), at (ô đang trỏ), moved }
   const [hands, setHands] = useState(null) // { roomId, hands } — tàu đã chốt (của mình; hết ván: cả hai)
@@ -457,21 +459,20 @@ export default function BanTauBoard({ state, mySeat, canMove, onMove, roomId, re
     const ghost = editing && grab?.moved ? dropOf(grab) : null
     const ghostCells = ghost ? shipCells(ghost.len, Math.max(0, Math.min(SIZE - (ghost.down ? ghost.len : 1), ghost.r0)), Math.max(0, Math.min(SIZE - (ghost.down ? 1 : ghost.len), ghost.c0)), ghost.down) : null
     const sea = (
-      <Sea K={K} size={wide ? 460 : 340} aria={t('games.bantau.yourSea')} cells={Array(CELLS).fill(null)} drag={drag}
+      <Sea K={K} size={wide ? fitSea(460, 210) : fitSea(340, 280)} aria={t('games.bantau.yourSea')} cells={Array(CELLS).fill(null)} drag={drag}
         ships={[
           ...(mine || []).map((cells, k) => ({ cells, art: k, lifted: ghost && grab.k === k })),
           ...(ghostCells ? [{ cells: ghostCells, art: grab.k, ghost: true, bad: !ghost.next }] : []),
         ]} />
     )
     return (
-      <div ref={box} style={{ display: 'grid', gap: 14, gridTemplateColumns: 'minmax(0, 1fr)', color: G.text }}>
+      <div ref={box} style={{ ...fillCol, gap: 14, color: G.text }}>
         <div style={{ display: 'flex', justifyContent: 'flex-end' }}><SkinPicker kind="bantau" /></div>
         <div style={{ display: 'grid', gap: 22, alignItems: 'start', gridTemplateColumns: wide ? 'minmax(0, 1fr) 300px' : 'minmax(0, 1fr)' }}>
           <div style={{ display: 'grid', gap: 14, justifyItems: 'center', gridTemplateColumns: 'minmax(0, 1fr)' }}>
             <div style={{ textAlign: 'center' }}>
               <div style={{ font: `800 ${wide ? 22 : 20}px/1.2 var(--font-display)` }}>{t(placedMe ? 'games.bantau.placedTitle' : 'games.bantau.placeTitle')}</div>
               <div style={{ font: '400 14px/1.4 var(--font-sans)', color: G.soft, marginTop: 4 }}>
-                {seated && !placedMe ? t('games.bantau.placeHint') + ' ' : ''}
                 {t(foeReady ? 'games.bantau.foeReady' : 'games.bantau.foePlacing', { name: nameOf(foe) })}
               </div>
             </div>
@@ -519,7 +520,7 @@ export default function BanTauBoard({ state, mySeat, canMove, onMove, roomId, re
   const turnTxt = over
     ? (winner === mySeat ? t('games.bantau.overMe', { name: nameOf(foe) }) : seated ? t('games.bantau.overFoe', { name: nameOf(foe) }) : t('games.bantau.winOf', { name: nameOf(winner) }))
     : wait ? t('games.bantau.firing')
-      : myTurn ? t(wide ? 'games.bantau.fireHint' : 'games.bantau.pickHint')
+      : myTurn ? t('games.bantau.bannerTurn')
         : t('games.bantau.aiming', { name: nameOf(state.turn) })
   const lastTxt = last?.fire != null
     ? t(last.sunk ? 'games.bantau.lastSunk' : last.hit ? 'games.bantau.lastHit' : 'games.bantau.lastMiss', {
@@ -551,17 +552,18 @@ export default function BanTauBoard({ state, mySeat, canMove, onMove, roomId, re
 
   if (wide) {
     return (
-      <div ref={box} style={{ display: 'grid', gap: 14, gridTemplateColumns: 'minmax(0, 1fr)', color: G.text }}>
-        <div style={{ display: 'flex', gap: 10, alignItems: 'center' }}>
+      <div ref={box} style={{ ...fillCol, gap: 14, color: G.text }}>
+        <div style={{ display: 'flex', gap: 10, alignItems: 'center', flexShrink: 0 }}>
           <div role="status" style={{ ...card, flex: 1, padding: '12px 16px', font: '600 15px/1.3 var(--font-sans)', textAlign: 'center', color: myTurn ? G.tealHi : over ? G.text : G.soft }}>{turnTxt}</div>
           <SkinPicker kind="bantau" />
         </div>
-        <div style={{ position: 'relative', display: 'grid', gap: 26, alignItems: 'start', gridTemplateColumns: 'minmax(0, 460px) 300px', justifyContent: 'center' }}>
+        {/* Biển đối phương co theo chiều cao; cột phải (biển mình + hạm đội) dài hơn chỗ thì tự cuộn trong cột. */}
+        <div style={{ position: 'relative', flex: 1, minHeight: 0, display: 'grid', gap: 26, alignItems: 'start', gridTemplateColumns: 'minmax(0, 460px) 300px', gridTemplateRows: 'minmax(0, 1fr)', justifyContent: 'center' }}>
           <div style={{ display: 'grid', gap: 10, gridTemplateColumns: 'minmax(0, 1fr)' }}>
             {head(foe, t('games.bantau.sunkBy', { name: nameOf(me), n: state.sunk[me].length, total: SHIPS.length }), FOE)}
-            {foeSea(460)}
+            {foeSea(fitSea(460, 175))}
           </div>
-          <div style={{ display: 'grid', gap: 10, gridTemplateColumns: 'minmax(0, 1fr)' }}>
+          <div style={{ display: 'grid', gap: 10, gridTemplateColumns: 'minmax(0, 1fr)', maxHeight: '100%', overflowY: 'auto' }}>
             {head(me, t('games.bantau.sunkBy', { name: nameOf(foe), n: state.sunk[foe].length, total: SHIPS.length }), ME)}
             {mySea(300)}
             <Fleet title={seated ? t('games.bantau.fleetMine') : t('games.bantau.fleetOf', { name: nameOf(me) })} note={t('games.bantau.left', { n: left(me) })} rows={fleetRows(me)} />
@@ -569,7 +571,7 @@ export default function BanTauBoard({ state, mySeat, canMove, onMove, roomId, re
           </div>
           {win}
         </div>
-        <div aria-live="polite" style={{ textAlign: 'center', font: 'var(--type-caption)', color: last?.hit ? 'var(--status-incident-fg)' : G.muted, minHeight: 18 }}>{lastTxt}</div>
+        <div aria-live="polite" style={{ textAlign: 'center', font: 'var(--type-caption)', color: last?.hit ? 'var(--status-incident-fg)' : G.muted, minHeight: 18, flexShrink: 0 }}>{lastTxt}</div>
       </div>
     )
   }
@@ -589,7 +591,7 @@ export default function BanTauBoard({ state, mySeat, canMove, onMove, roomId, re
     : pick != null ? t('games.bantau.fireAt', { cell: cellName(pick) }) : t('games.bantau.pickHint')
   const armed = myTurn && !wait && pick != null
   return (
-    <div ref={box} style={{ display: 'grid', gap: 10, gridTemplateColumns: 'minmax(0, 1fr)', color: G.text }}>
+    <div ref={box} style={{ ...fillCol, gap: 10, color: G.text }}>
       <div style={{ ...card, display: 'grid', gridTemplateColumns: 'minmax(0, 1fr) minmax(0, 1fr)', overflow: 'hidden' }}>
         <div style={{ borderRight: '1px solid ' + G.line }}>{side(me, ME)}</div>
         {side(foe, FOE, true)}
@@ -609,7 +611,7 @@ export default function BanTauBoard({ state, mySeat, canMove, onMove, roomId, re
         </div>
       </div>
       <div style={{ position: 'relative', display: 'grid', gridTemplateColumns: 'minmax(0, 1fr)' }}>
-        {view === 'foe' ? foeSea(420) : mySea(420)}
+        {view === 'foe' ? foeSea(fitSea(420, 270)) : mySea(fitSea(420, 270))}
         {win}
       </div>
       <div aria-live="polite" style={{ textAlign: 'center', font: '400 13px/1.4 var(--font-sans)', color: G.soft, minHeight: 20, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>{lastTxt}</div>

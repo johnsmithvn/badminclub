@@ -233,7 +233,6 @@ export default function KeoBuaBaoGame() {
         </div>
         <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', gap: 8 }}>
           <span style={{ display: 'flex', gap: 5 }}>{dots(s.me)}</span>
-          <span style={{ font: '400 12px/1.3 var(--font-sans)', color: G.muted, textAlign: 'center' }}>{t('games.keobuabao.dotsHint')}</span>
           <span style={{ display: 'flex', gap: 5 }}>{dots(s.bot)}</span>
         </div>
       </div>

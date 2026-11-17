@@ -454,6 +454,25 @@ và **Chat phòng** (có tin hệ thống: vào / rời / sẵn sàng / đổi l
 - **Người xem**: presence trên kênh `game:<roomId>` (`subscribeGameRoom(…, me)` khai member id) → tab Người xem =
   người đang mở phòng mà không ngồi ghế. Không lưu DB.
 
+### 7c. Một khung cho chờ ↔ chơi ↔ Ván tiếp (chủ dự án duyệt 2026-11-17) — `pages/GameRoom.jsx` · `0112_games_next.sql`
+
+Trước đây: ván xong bấm Chơi lại → nhảy sang trang phòng mới (màn trắng, chat mất) → bố cục phòng chờ khác hẳn → bấm Sẵn
+sàng → chờ chủ phòng bấm Bắt đầu. Giờ:
+
+- **Một khung**: phòng chờ dùng đúng lưới của lúc chơi (bàn trái, cột tab phải cùng bề rộng). Lúc chờ tab là **Luật bàn**
+  (`RoomRules` trong WaitingRoom.jsx, chủ phòng Sửa được) / Chat / Người xem; `WaitingRoom` chỉ còn mặt bàn + thanh đáy.
+- **Không nhảy**: `useGameRoom` giữ phòng cũ trên màn tới khi phòng mới nạp xong (`stale`), chat giữ qua các ván, lần nạp
+  muộn của phòng cũ bị bỏ. Sang ván bằng `navigate(…, { replace: true })` — Back về sảnh, không lùi về ván cũ.
+- **Ván tiếp tự động**: ván `finished` mà mình còn ngồi → đếm `games.nextHandSec` giây (app.json) rồi gọi `game_next`.
+  Bấm **Ván tiếp** để đi ngay, **Nghỉ** để ở lại. Ván bị bỏ (`abandoned`) không tự đếm, chỉ có nút. Người xem có
+  **Xem ván tiếp** khi bàn đã có phòng sau.
+- **`game_next(p_from, p_max)`** (0112): khoá phòng cũ `FOR UPDATE` → chưa có `next_room` thì `game_create` (người đầu
+  tiên thành chủ phòng), có rồi thì `game_join` + bật Sẵn sàng. Nhiều người bấm cùng lúc vẫn ra **một** phòng. Mọi luật cũ
+  (cược, ví xu, một người một phòng 0111, bị mời ra) vẫn chạy qua game_create / game_join.
+- **Chủ phòng tự đếm 3-2-1** khi đủ số người của ván trước (`location.state.hand`) đã vào và Sẵn sàng (`WaitingRoom autoN`).
+  Thiếu người (có ai bấm Nghỉ) thì chủ phòng bấm Bắt đầu tay như thường. Tự đếm một lần mỗi phòng.
+- Bỏ: nút Chơi lại / Vào ván mới cũ (`gameCreate(…, from)` vẫn còn cho chỗ khác dùng).
+
 ### 7b. Chơi với máy (luyện tập)
 
 15 trò: `BOT_GAMES` ở `registry.js` (Caro, Cờ X-O, Cờ vua, Cờ tướng, Cờ úp, Ô ăn quan, Cờ gánh, Chấm ô, Cờ cá ngựa, Bắn tàu, Tiến lên, Phỏm, Bài bịp, Xì dách, Nối từ). Sảnh có

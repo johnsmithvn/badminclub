@@ -323,6 +323,7 @@ State `db` của client dùng shape gọn của prototype. Cài đặt tại `sr
 | `0100_games_words_vi.sql` | Dữ liệu từ điển Nối từ: ~48 nghìn từ 2 âm tiết (UTS_Dictionary, Apache-2.0). Chỉ INSERT … ON CONFLICT DO NOTHING — chạy lại được. Chạy sau 0099. |
 | `0110_games_season_points.sql` | Cược **điểm mùa** trong mini-game (`docs/GAMES.md` §4c): bảng sổ `game_season_points` (mỗi người mỗi phòng một dòng, cả CLB đọc, client không ghi) · `game_sp(options)` · trigger `game_rooms_sp_guard` (BEFORE INSERT / UPDATE OF options: `options.sp` 1..20, đúng danh sách game, không cược xu cùng lúc) · `game_rooms_sp_settle` (phòng playing → finished: người thua −sp, người thắng chia đều hũ). Server không biết số dư điểm mùa — máy khách chặn. `season.js` đọc sổ này như phiếu cược kèo. Không sửa RPC nào. Chạy sau 0109. |
 | `0111_games_one_room.sql` | Mỗi người chỉ ngồi **một** phòng chưa xong: trigger `game_players_one_room` (BEFORE INSERT / UPDATE OF left_at trên `game_room_players`). Ngồi phòng mới mà đang ngồi phòng **chờ** khác → tự `game_leave` phòng đó; đang ở phòng **chơi** dở → `games.err.busy`. Áp cho mọi phòng, không riêng phòng cược. Chạy sau 0110. |
+| `0112_games_next.sql` | RPC `game_next(p_from, p_max)` — "Ván tiếp" một bước: khoá phòng vừa xong `FOR UPDATE`; chưa có `next_room` thì `game_create` (người gọi làm chủ), có rồi thì `game_join` + bật Sẵn sàng. Chỉ người từng ngồi phòng cũ, phòng cũ phải `finished` / `abandoned`. Chạy sau 0111. Xem docs/GAMES.md §7c. |
 
 ---
 

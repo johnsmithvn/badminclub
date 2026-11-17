@@ -319,7 +319,7 @@ export default function BotRoom({ gameId }) {
     ...(card ? [] : [{ key: 'undo', icon: 'undo-2', label: t('games.bot.undo'), on: undo, off: !canUndo }]),
     ...(OWN_HINT.includes(gameId) ? [] : [{ key: 'hint', icon: 'lightbulb', label: t('games.bot.hint'), on: hint, off: !canMove || hinting, soft: true }]),
     ...(card ? [] : [{ key: 'draw', icon: 'handshake', label: t('games.bot.drawOffer'), on: offerDraw, off: !canMove }]),
-    ...(chess ? [] : [{ key: 'new', icon: 'refresh-cw', label: t('games.bot.newGame'), on: () => restart() }]),
+    ...(chess && !isMobile ? [] : [{ key: 'new', icon: 'refresh-cw', label: t('games.bot.newGame'), on: () => restart() }]),
     { key: 'resign', icon: 'flag', label: t('games.bot.resign'), on: card ? () => setResigning(true) : resign, off: !!result, danger: true },
   ]
   const segRow = (label, items, value, set) => (
@@ -334,8 +334,8 @@ export default function BotRoom({ gameId }) {
   )
 
   return (
-    <div style={{ display: 'grid', gap: 18, gridTemplateColumns: 'minmax(0, 1fr)' }}>
-      <div style={{ display: 'flex', alignItems: 'center', gap: 12, minWidth: 0 }}>
+    <div style={{ display: 'flex', flexDirection: 'column', gap: isMobile ? 10 : 14, flex: 1, minHeight: 0, minWidth: 0 }}>
+      <div style={{ display: 'flex', alignItems: 'center', gap: 12, minWidth: 0, flexShrink: 0 }}>
         <button type="button" onClick={back} style={btn('ghost', { sm: true })}>
           <Icon name="arrow-left" size={15} />{!isMobile && t('games.lobbyShort')}
         </button>
@@ -396,12 +396,14 @@ export default function BotRoom({ gameId }) {
       {g.err && <Alert tone="danger">{g.err}</Alert>}
       {g.info && <Alert tone="info">{g.info}</Alert>}
 
-      <div style={chess ? { display: 'grid', gap: 18, alignItems: 'start', gridTemplateColumns: isMobile ? 'minmax(0, 1fr)' : 'minmax(0, 1fr) 320px' } : { display: 'grid', gridTemplateColumns: 'minmax(0, 1fr)' }}>
-      <div style={{ width: '100%', maxWidth: chess ? undefined : inFrame ? 1280 : 600, justifySelf: 'center', display: 'grid', gap: 10, gridTemplateColumns: 'minmax(0, 1fr)', minWidth: 0 }}>
+      {/* Màn chơi không cuộn: thân là một hàng cao cố định, ô bàn ăn hết chỗ còn lại, bàn tự co (chessUi.js → useFit). */}
+      <div style={{ display: 'grid', gap: 18, flex: 1, minHeight: 0, gridTemplateColumns: chess && !isMobile ? 'minmax(0, 1fr) 320px' : 'minmax(0, 1fr)', gridTemplateRows: 'minmax(0, 1fr)' }}>
+      <div style={{ width: '100%', maxWidth: chess ? undefined : inFrame ? 1280 : 600, justifySelf: 'center', display: 'flex', flexDirection: 'column', gap: 10, minWidth: 0, minHeight: 0 }}>
         {!inFrame && (
           <PlayerCard mark="bot" name={multi ? t('games.bot.bots', { n: bots.length }) : t('games.bot.bot')} sub={t('games.bot.levelLine', { level: levelLabel })}
             line={botSeat != null ? t('games.bot.thinking') : ''} active={botSeat != null} clock={clock && { ...clock, on: false, left: limit }} />
         )}
+        <div style={{ flex: 1, minHeight: 0, display: 'flex', flexDirection: 'column' }}>
         <Suspense fallback={<Skeleton height={320} />}>
           <Screen key={g.round} state={game.view(s, human)} mySeat={human} canMove={canMove} onMove={(m) => play(human, m, g.round)}
             roomId={'bot-' + gameId} result={result} hands={fleets ?? cardHands}
@@ -418,6 +420,7 @@ export default function BotRoom({ gameId }) {
               actions, hint: tipMove,
             } : {})} />
         </Suspense>
+        </div>
         {!inFrame && (
           <>
             <PlayerCard mark="you" name={t('games.bot.you')} sub={multi ? '' : t('games.bot.sideOpt' + human)} line={botSeat == null ? status : ''}
@@ -431,10 +434,9 @@ export default function BotRoom({ gameId }) {
             </div>
           </>
         )}
-        <span style={{ ...S.caption, textAlign: 'center' }}>{t('games.bot.practice')}</span>
       </div>
-      {chess && (
-        <div style={{ ...card, padding: '12px 14px', display: 'flex', flexDirection: 'column', gap: 10, minWidth: 0, height: isMobile ? 320 : 640 }}>
+      {chess && !isMobile && (
+        <div style={{ ...card, padding: '12px 14px', display: 'flex', flexDirection: 'column', gap: 10, minWidth: 0, minHeight: 0 }}>
           <span style={{ font: '700 13px/1 var(--font-sans)', paddingBottom: 10, borderBottom: '1px solid ' + G.line }}>{t('games.room.moves')} · {g.log.length}</span>
           <MoveList list={g.log} />
           <span style={{ flex: g.log.length ? 0 : 1 }} />

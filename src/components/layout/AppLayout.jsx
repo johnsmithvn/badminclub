@@ -17,6 +17,8 @@ export default function AppLayout({ route, children }) {
   const mainRef = useRef(null)
 
   const isWideRoute = route === 'tournament' || route === 'tournamentFlow' || route === 'tournamentBracket'
+  // Phòng chơi: trang là một cột cao đúng khung nhìn (không cuộn khi đang chơi) — phòng tự chia đầu / bàn / nút.
+  const fill = route === 'gameRoom'
   // Nền bầu trời (app.json → sky.routes / liteRoutes / bgRoutes): nền gốc trong suốt để thấy trời, thẻ dùng token kính.
   const sky = skyMode(route)
 
@@ -26,11 +28,12 @@ export default function AppLayout({ route, children }) {
       {!isMobile && <Sidebar route={route} />}
       <div style={S.col}>
         <AppHeader route={route} />
-        <main ref={mainRef} style={{ ...S.main, ...(isWideRoute ? { padding: '16px 20px 40px' } : {}), ...(isMobile ? S.mainMobile : {}) }}>
+        <main ref={mainRef} style={{ ...S.main, ...(isWideRoute ? { padding: '16px 20px 40px' } : {}), ...(isMobile ? S.mainMobile : {}), ...(fill ? S.mainFill : {}), ...(fill && !isMobile ? { paddingBottom: 16 } : {}) }}>
           <div style={{
             ...S.wrap,
             ...(isWideRoute ? { maxWidth: '100%' } : {}),
             ...(isMobile ? S.wrapMobile : {}),
+            ...(fill ? S.wrapFill : {}),
           }}>
             {children}
           </div>
@@ -69,5 +72,7 @@ const S = {
   mainMobile: { padding: '14px', paddingBottom: '80px', overflowX: 'hidden' },
   wrap: { width: '100%', maxWidth: cfg.ui.contentMaxWidth, margin: '0 auto', display: 'grid', gap: 16, minWidth: 0, boxSizing: 'border-box' },
   wrapMobile: { width: '100%', minWidth: 0, gridTemplateColumns: 'minmax(0, 1fr)', gap: 12 },
+  mainFill: { display: 'flex', flexDirection: 'column', paddingTop: 14 },
+  wrapFill: { flex: 1, minHeight: 0, display: 'flex', flexDirection: 'column' },
 }
 

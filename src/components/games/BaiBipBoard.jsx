@@ -3,7 +3,7 @@ import { Button } from '#ds'
 import { useApp } from '#contexts/AppContext.jsx'
 import { t } from '#i18n'
 import { G, btn } from '#components/games/stage.js'
-import { rnd, useFit } from '#components/games/chessUi.js'
+import { fillBox, fillCol, fitOf, rnd, useFit } from '#components/games/chessUi.js'
 import { Seat } from '#components/games/cardTable.jsx'
 import bb, { deadlineOf, fits, KINDS, kindOf, mustCall, WIRES } from '#lib/games/baibip.js'
 
@@ -133,10 +133,10 @@ const kindName = (k) => t('games.baibip.kind' + KINDS[k])
 
 export default function BaiBipBoard({ state, mySeat, roomId, onMove, result, players, names, actions, overActions, note, bubbles, hands: given }) {
   const { db, a } = useApp()
-  const [ref, k0] = useFit(WIDE.w)
-  const narrow = k0 * WIDE.w < 560
+  const [ref, , box] = useFit(WIDE.w)
+  const narrow = box.w < 560
   const L = narrow ? NARROW : WIDE
-  const k = narrow ? Math.min(1, (k0 * WIDE.w) / NARROW.w) : k0
+  const k = fitOf(box, L.w, L.h) // co theo chiều chật hơn của ô bàn — màn chơi không cuộn
   const [got, setGot] = useState(null) // { roomId, hands } | { roomId, failed }
   const [tries, setTries] = useState(0)
   const [pick, setPick] = useState({ ply: -1, cards: [] })
@@ -335,8 +335,8 @@ export default function BaiBipBoard({ state, mySeat, roomId, onMove, result, pla
   else claim = t('games.baibip.noClaim')
 
   return (
-    <div style={{ display: 'grid', gap: 12, gridTemplateColumns: 'minmax(0, 1fr)' }}>
-      <div ref={ref} style={{ width: '100%', maxWidth: WIDE.w, margin: '0 auto', display: 'grid', justifyItems: 'center' }}>
+    <div style={fillCol}>
+      <div ref={ref} style={fillBox}>
         <div data-game-fx style={{ width: L.w * k, height: L.h * k, position: 'relative' }}>
           <div style={{ width: L.w, height: L.h, transform: `scale(${k})`, transformOrigin: '0 0', position: 'relative' }}>
           <div style={{ position: 'absolute', inset: 0, overflow: 'hidden', borderRadius: L.radius, background: BB.felt, boxShadow: BB.rim(L.rim), color: BB.ink, userSelect: 'none', animation: last?.call && state.phase === 'cut' ? `bbShake${ply % 2 ? 'A' : 'B'} .5s ease-out` : undefined }}>
@@ -440,19 +440,18 @@ export default function BaiBipBoard({ state, mySeat, roomId, onMove, result, pla
       </div>
 
       {/* Dưới bàn: nút đánh / tố, chờ, chia lại */}
-      <div style={{ width: '100%', maxWidth: WIDE.w, margin: '0 auto', display: 'grid', gap: 8, gridTemplateColumns: 'minmax(0, 1fr)' }}>
+      <div style={{ width: '100%', maxWidth: Math.max(L.w * k, 320), margin: '0 auto', display: 'grid', gap: 8, gridTemplateColumns: 'minmax(0, 1fr)', flexShrink: 0 }}>
         {seated && mine?.failed && !state.over && (
           <div style={{ display: 'flex', gap: 8, alignItems: 'center', flexWrap: 'wrap', justifyContent: 'center' }}>
             <span style={S.hint}>{t('games.baibip.handFailed')}</span>
             <Button size="sm" variant="secondary" icon="refresh-cw" onClick={() => setTries((x) => x + 1)}>{t('games.tienlen.reloadHand')}</Button>
           </div>
         )}
-        {canPlay && (
-          <>
-            <span style={S.hint}>
-              {forced ? t('games.baibip.mustCallHint') : t('games.baibip.fitHint', { kind: kindName(table) }) + (secs != null ? t('games.baibip.secsLeft', { n: secs }) : '')}
-            </span>
-            <div style={{ display: 'flex', gap: 8 }}>
+        {/* Hàng nút luôn giữ chỗ (kể cả lúc chờ người khác) — bàn không co / giãn theo từng lượt. */}
+        {!state.over && (state.phase === 'play' || state.phase === 'redeal') && (
+          <div style={{ display: 'flex', gap: 8, minHeight: 48, alignItems: 'center', justifyContent: 'center' }}>
+            {canPlay && (
+              <>
               {!forced && (
                 <button type="button" disabled={!sel.length} onClick={() => onMove({ play: sel })}
                   style={{ ...btn('primary'), flex: 1, minHeight: 48, padding: '0 14px', font: '800 15px/1.2 var(--font-sans)', opacity: sel.length ? 1 : 0.42 }}>
@@ -465,22 +464,10 @@ export default function BaiBipBoard({ state, mySeat, roomId, onMove, result, pla
                   {t('games.baibip.call')}
                 </button>
               )}
-            </div>
-          </>
-        )}
-        {seated && mine && !mine.failed && !state.over && !state.out[mySeat] && state.phase === 'play' && !hand.length && <span style={S.hint}>{t('games.baibip.noCards')}</span>}
-        {!state.over && state.phase === 'play' && !canPlay && (
-          <span style={{ ...S.hint, padding: '10px 0' }}>{seated && state.blown[mySeat] ? t('games.baibip.meBlown') : t('games.baibip.waitFor', { side: who(state.turn) })}</span>
-        )}
-        {!state.over && state.phase === 'redeal' && (
-          myTurn
-            ? (
-              <div style={{ display: 'grid', gap: 8, justifyItems: 'center' }}>
-                <span style={S.hint}>{t('games.baibip.redealHint')}</span>
-                <Button icon="repeat" onClick={() => onMove({ deal: true })}>{t('games.baibip.redeal')}</Button>
-              </div>
-            )
-            : <span style={{ ...S.hint, padding: '10px 0' }}>{t('games.baibip.waitDeal', { side: who(state.turn) })}</span>
+              </>
+            )}
+            {state.phase === 'redeal' && myTurn && <Button icon="repeat" onClick={() => onMove({ deal: true })}>{t('games.baibip.redeal')}</Button>}
+          </div>
         )}
         {(actions?.length > 0 || (state.over && peek)) && (
           <div style={{ display: 'flex', gap: 6, justifyContent: 'center', flexWrap: 'wrap' }}>

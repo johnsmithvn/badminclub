@@ -1,7 +1,7 @@
 import { useId, useState } from 'react'
-import { useMobile } from '#hooks/useMobile.js'
 import { t } from '#i18n'
 import { boxesOf, edgesOf, ends } from '#lib/games/chamo.js'
+import { fillBox, fillCol, fitOf, useFit } from '#components/games/chessUi.js'
 
 // Bàn Chấm ô bằng SVG: một trang vở ô ly (kẻ mờ, chấm nằm đúng giao điểm kẻ), nét bút đỏ (ghế 0) / bút xanh (ghế 1)
 // cùng màu X / O của Caro. Nét mới vẽ dần từ chấm này sang chấm kia (gameDraw); ô vừa khép tô màu (gamePop) rồi
@@ -41,7 +41,9 @@ function Mark({ seat, x, y, d, sw, delay }) {
 
 export default function ChamOBoard({ state, mySeat, canMove, onMove }) {
   const uid = useId().replace(/[^a-zA-Z0-9]/g, '')
-  const isMobile = useMobile(768)
+  // Màn chơi không cuộn: bàn co theo chiều chật hơn của ô bàn (chessUi.js → useFit).
+  const [fit, , area] = useFit(560)
+  const bw = fitOf(area, 560, (560 * H) / W) * 560
   const [hover, setHover] = useState(null)
   const { size: n, lines, boxes, last } = state
   const C = (W - 2 * M) / n // cạnh một ô
@@ -98,16 +100,17 @@ export default function ChamOBoard({ state, mySeat, canMove, onMove }) {
   else if (last && took > 0 && last.seat !== mySeat) slot = { text: t('games.chamo.took', { side: t('games.chamo.side' + last.seat), n: took }), tone: S.warn }
 
   return (
-    <div style={{ display: 'grid', gap: 10, gridTemplateColumns: 'minmax(0, 1fr)' }}>
+    <div style={{ ...fillCol, gap: 10 }}>
       {/* Luôn giữ chỗ dòng này khi đang chơi: thông báo hiện / tắt mà đẩy bàn lên xuống là dễ chạm nhầm nét. */}
       {!state.over && <div style={{ ...S.slot, ...slot.tone }} aria-live="polite">{slot.text}</div>}
 
+      <div ref={fit} style={fillBox}>
       <svg
         data-game-fx
         viewBox={`0 0 ${W} ${H}`}
         role="group"
         aria-label={t('games.chamo.boardAria', { n })}
-        style={{ width: '100%', maxWidth: 560, display: 'block', margin: '0 auto', touchAction: 'manipulation', userSelect: 'none' }}
+        style={{ width: bw, height: (bw * H) / W, display: 'block', touchAction: 'manipulation', userSelect: 'none' }}
       >
         <defs>
           <clipPath id={uid + 'p'}><rect x={4} y={BAND + 4} width={W - 8} height={W - 8} rx={14} /></clipPath>
@@ -225,21 +228,13 @@ export default function ChamOBoard({ state, mySeat, canMove, onMove }) {
           )
         })}
       </svg>
-
-      {canMove && (
-        <div style={{ ...S.hint, minHeight: isMobile ? 40 : 24, ...(preview?.gives.length ? { color: 'var(--status-delayed-fg)' } : null) }}>
-          {preview?.won.length
-            ? t('games.chamo.hintCloses', { n: preview.won.length })
-            : preview?.gives.length ? t('games.chamo.hintGives', { n: preview.gives.length }) : t('games.chamo.pickHint')}
-        </div>
-      )}
+      </div>
     </div>
   )
 }
 
 const S = {
-  hint: { font: 'var(--type-caption)', color: 'var(--text-muted)', textAlign: 'center' },
-  slot: { justifySelf: 'center', padding: '6px 12px', borderRadius: 99, textAlign: 'center', font: 'var(--type-caption)', color: 'var(--text-muted)' },
+  slot: { alignSelf: 'center', flexShrink: 0, padding: '6px 12px', borderRadius: 99, textAlign: 'center', font: 'var(--type-caption)', color: 'var(--text-muted)' },
   good: { background: 'var(--status-delivered-bg)', color: 'var(--status-delivered-fg)' },
   warn: { background: 'var(--status-delayed-bg)', color: 'var(--status-delayed-fg)' },
 }

@@ -3,7 +3,7 @@ import { Button } from '#ds'
 import { useMobile } from '#hooks/useMobile.js'
 import { t } from '#i18n'
 import cv, { areaOf, around, capOf, groupOf, KOMI, place } from '#lib/games/covay.js'
-import { overOf, rnd } from '#components/games/chessUi.js'
+import { fillCol, overOf, rnd } from '#components/games/chessUi.js'
 import ChessStage from '#components/games/ChessStage.jsx'
 import CutScene, { useCloseUp } from '#components/games/CutScene.jsx'
 import { SKY } from '#components/games/characters.js'
@@ -188,7 +188,7 @@ export default function CoVayBoard({ state, mySeat, canMove, onMove, result, nam
   )
 
   return (
-    <div style={{ display: 'grid', gap: 10, gridTemplateColumns: 'minmax(0, 1fr)' }}>
+    <div style={{ ...fillCol, gap: 10 }}>
       <ChessStage sk={SK} box={BOX} top={bar(top)} bottom={bar(bottom)} turnTop={live && state.turn === top} turnBottom={live && state.turn === bottom}
         evalPct={evalPct} over={ended} overActions={overActions} actions={actions}>
         <div style={{
@@ -269,9 +269,7 @@ export default function CoVayBoard({ state, mySeat, canMove, onMove, result, nam
 
       {canMove && (
         <div style={{ display: 'grid', gap: 8, justifyItems: 'center' }}>
-          <span style={{ ...S.hint, color: err ? 'var(--status-incident-fg)' : S.hint.color }} aria-live="polite">
-            {err ? t(err) : t(isMobile ? 'games.covay.aimHint' : 'games.covay.pickHint')}
-          </span>
+          {err && <span style={{ ...S.hint, color: 'var(--status-incident-fg)' }} aria-live="polite">{t(err)}</span>}
           <div style={{ display: 'flex', gap: 8, flexWrap: 'wrap', justifyContent: 'center' }}>
             {aimAt != null && <Button icon="check" onClick={() => put(aimAt)}>{t('games.covay.put')}</Button>}
             <Button variant="secondary" icon="skip-forward" onClick={() => { setAim(null); onMove({ pass: true }) }}>
@@ -293,7 +291,6 @@ export default function CoVayBoard({ state, mySeat, canMove, onMove, result, nam
               </span>
             </span>
           ))}
-          <span style={S.hint}>{t('games.covay.scoreNote')}</span>
         </div>
       )}
     </div>

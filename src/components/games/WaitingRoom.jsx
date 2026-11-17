@@ -1,7 +1,6 @@
 import { useEffect, useState } from 'react'
 import { Avatar, Button, Dialog, Icon } from '#ds'
 import { G, btn, card, mono, over } from '#components/games/stage.js'
-import RoomChat from '#components/games/RoomChat.jsx'
 import RoomOptions from '#components/games/RoomOptions.jsx'
 import { blockedOf, rulesOf } from '#components/games/roomFields.js'
 import { BOARD_POINTS, buyinsOf, seatRange, stakeOf } from '#lib/games/registry.js'
@@ -12,7 +11,8 @@ import { t } from '#i18n'
 
 // Phòng chờ (bản "Phòng Chờ v2"): sân khấu có mặt bàn ở giữa, ghế xếp quanh bàn (mình luôn ở dưới), số người sẵn
 // sàng ở giữa bàn; thanh đáy = cấu hình của mình (xu mang vào bàn) / của chủ phòng (thời gian cờ) + nút lớn
-// Sẵn sàng · Huỷ · Bắt đầu ván; cột phải = Luật bàn (chủ phòng Sửa được) + Chat phòng có tin hệ thống.
+// Sẵn sàng · Huỷ · Bắt đầu ván. Từ 2026-11-17 (gộp phòng chờ vào bàn chơi, docs/GAMES.md §7c) chỉ còn cột bàn: Luật bàn
+// (`RoomRules`) và Chat là tab ở cột phải của GameRoom — cùng khung với lúc đang chơi, chờ ↔ chơi không đổi bố cục.
 // Bắt đầu: chủ phòng bấm → mọi máy đếm ngược 3-2-1 (useGameRoom.countdown) → gọi game_start.
 // Luật server: 0105 (game_ready / game_kick / game_set_options; game_start đòi mọi người Sẵn sàng).
 
@@ -25,12 +25,11 @@ const posOf = (k, n, rx, ry) => {
   return [50 + rx * Math.cos(a), 50 + (n === 2 ? 0 : ry * Math.sin(a))]
 }
 
-export default function WaitingRoom({ g, act, busy, nameOf, memberOf, onInvite, onLeave }) {
+/** `autoN` > 0 = phòng này là Ván tiếp của bàn `autoN` người (GameRoom, §7c): đủ chừng ấy người vào và Sẵn sàng thì chủ phòng tự đếm. */
+export default function WaitingRoom({ g, act, busy, nameOf, memberOf, onInvite, onLeave, autoN = 0 }) {
   const { a } = useApp()
   const isMobile = useMobile(768)
   const { room, game, seated, mySeat, me } = g
-  const [editing, setEditing] = useState(false)
-  const [draft, setDraft] = useState(room.options)
   const [now, setNow] = useState(() => Date.now())
   const isHost = room.hostId === me
   const [minP, maxP] = seatRange(game, room.options)
@@ -63,6 +62,9 @@ export default function WaitingRoom({ g, act, busy, nameOf, memberOf, onInvite, 
     g.countdown()
     setTimeout(() => act(() => a.gameStart(room)), COUNT_MS)
   }
+  // Một lần mỗi phòng: countAt còn giữ sau lần đếm đầu nên game_start hỏng (ai đó vừa huỷ) thì không đếm lại vòng vòng.
+  const auto = autoN > 0 && canStart && seated.length >= autoN && !g.countAt
+  useEffect(() => { if (auto) start() }, [auto]) // eslint-disable-line react-hooks/exhaustive-deps -- chỉ bấm khi `auto` vừa bật
 
   const notReady = seated.filter((p) => !isReady(p)).map((p) => (p.memberId === me ? t('games.wait.you') : nameOf(p.memberId)))
   const headline = short ? (maxP === 2 ? t('games.wait.needFoe') : t('games.needPlayers', { n: minP }))
@@ -114,14 +116,8 @@ export default function WaitingRoom({ g, act, busy, nameOf, memberOf, onInvite, 
   const plate = n === 2 ? { w: '44%', h: '62%', r: 28 } : ring ? { w: '54%', h: '48%', r: 999 } : { w: '50%', h: '40%', r: 120 }
   const base = mySeat ?? 0
 
-  const rules = [[t('games.wait.players'), minP === maxP ? String(minP) : minP + '–' + maxP], ...rulesOf(room.game, room.options)]
-  const saveRules = async () => {
-    if (await act(() => a.gameSetOptions(room.id, draft)) != null) setEditing(false)
-  }
-
   return (
-    <div style={{ display: 'grid', gap: 18, alignItems: 'start', gridTemplateColumns: isMobile ? 'minmax(0, 1fr)' : 'minmax(0, 1fr) 340px' }}>
-      <div style={{ display: 'grid', gap: 14, gridTemplateColumns: 'minmax(0, 1fr)', minWidth: 0 }}>
+      <div style={{ display: 'grid', gap: 14, gridTemplateColumns: 'minmax(0, 1fr)', minWidth: 0, alignContent: 'start' }}>
         {/* Sân khấu: mặt bàn + ghế. */}
         <div style={{ ...card, position: 'relative', height: H, borderRadius: 22, overflow: 'hidden', background: `radial-gradient(70% 60% at 50% 50%, ${G.tealA(0.09)}, transparent 70%), ${G.card}` }}>
           <div style={{
@@ -240,34 +236,37 @@ export default function WaitingRoom({ g, act, busy, nameOf, memberOf, onInvite, 
           </div>
         </div>
       </div>
+  )
+}
 
-      {/* Cột phải: Luật bàn + Chat phòng. */}
-      <div style={{ display: 'grid', gap: 14, gridTemplateColumns: 'minmax(0, 1fr)', minWidth: 0 }}>
-        <div style={{ ...card, borderRadius: 18, padding: '14px 16px', display: 'grid', gap: 9 }}>
-          <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
-            <span style={over}>{t('games.wait.rules')}</span>
-            {isHost && !counting && (
-              <button type="button" onClick={() => { setDraft(room.options); setEditing(true) }} style={{ border: 0, background: 'none', padding: 0, cursor: 'pointer', font: '600 12px/1 var(--font-sans)', color: G.tealHi }}>{t('common.edit')}</button>
-            )}
-          </div>
-          {rules.map(([k, v]) => (
-            <div key={k} style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'baseline', gap: 12, font: '400 13px/1.4 var(--font-sans)' }}>
-              <span style={{ color: G.muted, flexShrink: 0, whiteSpace: 'nowrap' }}>{k}</span>
-              <span style={{ font: '600 13px/1.4 var(--font-sans)', color: G.text, textAlign: 'right', minWidth: 0 }}>{v}</span>
-            </div>
-          ))}
-        </div>
-        <div style={{ ...card, borderRadius: 18, display: 'flex', flexDirection: 'column', height: isMobile ? 420 : H + 92, overflow: 'hidden' }}>
-          <div style={{ padding: '12px 16px', borderBottom: '1px solid ' + G.line, display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
-            <span style={{ font: '700 14px/1 var(--font-sans)' }}>{t('games.wait.chat')}</span>
-            <span style={{ font: '400 12px/1 var(--font-sans)', color: G.muted }}>{t('games.wait.seatedN', { n: seated.length, max: maxP })}</span>
-          </div>
-          <div style={{ flex: 1, minHeight: 0, padding: '12px 14px', display: 'flex' }}>
-            <RoomChat g={g} nameOf={nameOf} grow />
-          </div>
-        </div>
+/**
+ * Luật bàn (tab ở cột phải lúc phòng chờ): các dòng luật + chủ phòng bấm Sửa (không đổi được mức cược — 0105).
+ */
+export function RoomRules({ g, act, busy }) {
+  const { a } = useApp()
+  const isMobile = useMobile(768)
+  const { room, game, me } = g
+  const [editing, setEditing] = useState(false)
+  const [draft, setDraft] = useState(room.options)
+  const [minP, maxP] = seatRange(game, room.options)
+  const rules = [[t('games.wait.players'), minP === maxP ? String(minP) : minP + '–' + maxP], ...rulesOf(room.game, room.options)]
+  const saveRules = async () => {
+    if (await act(() => a.gameSetOptions(room.id, draft)) != null) setEditing(false)
+  }
+  return (
+    <div style={{ display: 'grid', gap: 9 }}>
+      <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
+        <span style={over}>{t('games.wait.rules')}</span>
+        {room.hostId === me && (
+          <button type="button" onClick={() => { setDraft(room.options); setEditing(true) }} style={{ border: 0, background: 'none', padding: 0, cursor: 'pointer', font: '600 12px/1 var(--font-sans)', color: G.tealHi }}>{t('common.edit')}</button>
+        )}
       </div>
-
+      {rules.map(([k, v]) => (
+        <div key={k} style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'baseline', gap: 12, font: '400 13px/1.4 var(--font-sans)' }}>
+          <span style={{ color: G.muted, flexShrink: 0, whiteSpace: 'nowrap' }}>{k}</span>
+          <span style={{ font: '600 13px/1.4 var(--font-sans)', color: G.text, textAlign: 'right', minWidth: 0 }}>{v}</span>
+        </div>
+      ))}
       {editing && (
         <Dialog
           open
@@ -290,4 +289,3 @@ export default function WaitingRoom({ g, act, busy, nameOf, memberOf, onInvite, 
     </div>
   )
 }
-

@@ -2,7 +2,7 @@ import { useState } from 'react'
 import { Icon } from '#ds'
 import { G, btn, card, mono } from '#components/games/stage.js'
 import { SKINS, setSkin, useSkin } from '#components/games/chessSkins.js'
-import { mmss, rnd, useFit } from '#components/games/chessUi.js'
+import { fillBox, fillCol, mmss, rnd, useFit } from '#components/games/chessUi.js'
 import { STICKERS, stickerOf } from '#components/games/characters.js'
 import { useMobile } from '#hooks/useMobile.js'
 import { t } from '#i18n'
@@ -79,16 +79,19 @@ export default function ChessStage({ sk, box, top, bottom, turnTop, turnBottom, 
   const isMobile = useMobile(768)
   const DW = box.w + box.pad * 2 + 4 + (evalPct == null ? 0 : 26)
   const DH = box.h + box.pad * 2 + 4
-  const [ref, k] = useFit(DW)
+  // Bàn co theo chiều chật hơn của ô bàn (màn chơi không cuộn); thanh người chơi / nút bám đúng bề ngang bàn.
+  const [ref, k] = useFit(DW, DH)
+  const lane = { width: '100%', maxWidth: DW * k, margin: '0 auto', flexShrink: 0 }
   // Màn kết thúc che bàn — cho gấp lại để xem thế cờ cuối; ván mới (over đổi) thì hiện lại.
   const [peek, setPeek] = useState(null)
   const hidden = peek === over?.title + over?.sub
   const gem = (pos) => <span aria-hidden="true" style={{ position: 'absolute', ...pos, width: 16, height: 16, transform: 'rotate(45deg)', background: sk.acc, boxShadow: '0 0 12px ' + sk.acc }} />
 
   return (
-    <div ref={ref} style={{ width: '100%', maxWidth: DW, margin: '0 auto', display: 'grid', gap: 12, gridTemplateColumns: 'minmax(0, 1fr)' }}>
-      <Bar p={top} active={turnTop} />
-      <div style={{ height: DH * k, position: 'relative', background: `radial-gradient(closest-side, ${sk.page}, transparent)` }}>
+    <div style={fillCol}>
+      <div style={lane}><Bar p={top} active={turnTop} /></div>
+      <div ref={ref} style={fillBox}>
+      <div style={{ width: DW * k, height: DH * k, position: 'relative', background: `radial-gradient(closest-side, ${sk.page}, transparent)` }}>
         <div data-game-fx style={{ width: DW, height: DH, transform: `scale(${k})`, transformOrigin: '0 0', display: 'flex', alignItems: 'stretch', gap: 14 }}>
           {evalPct != null && (
             <div title={t('games.chess.balance')} style={{ width: 12, borderRadius: 6, background: 'rgba(0,0,0,.45)', border: '1px solid rgba(148,163,184,.25)', position: 'relative', overflow: 'hidden', flexShrink: 0 }}>
@@ -121,10 +124,11 @@ export default function ChessStage({ sk, box, top, bottom, turnTop, turnBottom, 
           </div>
         </div>
       </div>
-      <Bar p={bottom} active={turnBottom} up />
+      </div>
+      <div style={lane}><Bar p={bottom} active={turnBottom} up /></div>
 
       {offer && (
-        <div style={{ ...card, display: 'flex', alignItems: 'center', gap: 10, padding: '10px 14px', flexWrap: 'wrap', borderColor: G.goldA(0.45), background: G.goldA(0.08) }} role="status">
+        <div style={{ ...card, ...lane, display: 'flex', alignItems: 'center', gap: 10, padding: '10px 14px', flexWrap: 'wrap', borderColor: G.goldA(0.45), background: G.goldA(0.08) }} role="status">
           <Icon name="handshake" size={16} />
           <span style={{ font: '600 13px/1.3 var(--font-sans)', flex: 1, minWidth: 0 }}>{offer.text}</span>
           {offer.answer && (
@@ -137,7 +141,7 @@ export default function ChessStage({ sk, box, top, bottom, turnTop, turnBottom, 
       )}
 
       {actions?.length > 0 && (
-        <div style={{ display: 'grid', gap: 8, gridTemplateColumns: `repeat(${actions.length}, minmax(0, 1fr))` }}>
+        <div style={{ ...lane, display: 'grid', gap: 8, gridTemplateColumns: `repeat(${actions.length}, minmax(0, 1fr))` }}>
           {actions.map((x) => (
             <button key={x.key} type="button" disabled={x.off} onClick={x.on} title={x.label} aria-label={x.label}
               style={{ ...btn(x.danger ? 'danger' : x.soft ? 'soft' : 'ghost'), padding: '11px 8px', font: '600 13px/1 var(--font-sans)', opacity: x.off ? 0.45 : 1, cursor: x.off ? 'default' : 'pointer' }}>

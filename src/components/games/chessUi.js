@@ -16,19 +16,31 @@ export const rnd = (n) => {
   return x - Math.floor(x)
 }
 
-/** Bàn vẽ ở cỡ thiết kế `designW` rồi thu nhỏ cho vừa khung chứa → [ref gắn vào khung, tỉ lệ ≤ 1]. */
-export function useFit(designW) {
-  const ref = useRef(null)
-  const [k, setK] = useState(1)
+/**
+ * Bàn vẽ ở cỡ thiết kế `designW` × `designH` rồi thu nhỏ cho vừa khung chứa → [ref gắn vào khung, tỉ lệ ≤ 1, { w, h } khung].
+ * Màn chơi không cuộn: khung là ô `flex: 1 1 0; min-height: 0` (xem `fillBox`) nên cao của nó do trang chia, không do bàn
+ * — có `designH` thì co theo chiều chật hơn. Bàn đổi bố cục theo bề ngang (rộng / hẹp) thì tự tính lại bằng `fitOf(box, …)`.
+ */
+export function useFit(designW, designH) {
+  // Ref dạng hàm: khung gắn muộn (màn chờ trả sớm) hoặc dựng lại (bàn đổi key mỗi nước) vẫn được đo, cỡ cũ giữ nguyên.
+  const [el, ref] = useState(null)
+  const [box, setBox] = useState({ w: designW, h: 0 })
   useEffect(() => {
-    const el = ref.current
     if (!el || typeof ResizeObserver === 'undefined') return undefined
-    const ro = new ResizeObserver(([e]) => setK(Math.min(1, e.contentRect.width / designW)))
+    const ro = new ResizeObserver(([e]) => setBox({ w: e.contentRect.width, h: e.contentRect.height }))
     ro.observe(el)
     return () => ro.disconnect()
-  }, [designW])
-  return [ref, k]
+  }, [el])
+  return [ref, fitOf(box, designW, designH), box]
 }
+
+/** Tỉ lệ ≤ 1 để bàn `w` × `h` vừa khung `box` (h = 0 hoặc thiếu `h` → chỉ theo bề ngang). */
+export const fitOf = (box, w, h) => Math.min(1, box.w / w, h && box.h > 0 ? box.h / h : 1)
+
+/** Khung đo của bàn trong màn chơi: ăn hết chỗ còn lại theo chiều cao (cha là cột flex cao cố định), bàn nằm giữa. */
+export const fillBox = { flex: '1 1 0', minHeight: 0, display: 'grid', placeItems: 'center' }
+/** Gốc của một màn chơi: cột flex lấp đầy ô bàn của phòng (GameRoom / BotRoom). */
+export const fillCol = { flex: 1, minHeight: 0, display: 'flex', flexDirection: 'column', gap: 12, minWidth: 0 }
 
 /**
  * Đồng hồ tổng mỗi bên (state.clock — chessClock.js) → [ms ghế 0, ms ghế 1] hoặc null nếu ván không có đồng hồ.

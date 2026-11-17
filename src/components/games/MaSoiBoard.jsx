@@ -2,6 +2,7 @@ import { useEffect, useState } from 'react'
 import { Button } from '#ds'
 import { useApp } from '#contexts/AppContext.jsx'
 import { t } from '#i18n'
+import { fillCol } from '#components/games/chessUi.js'
 import { advanceAt, complete, CUPID, CURSED, deadlineOf, deckOf, ELDER, F, GUARD, HUNTER, isWolf, ROLE_IDS, rowOf, SEER, tableOf, tallyOf, VILLAGER, WITCH, WOLF } from '#lib/games/masoi.js'
 
 // Bàn Ma sói: bầu trời theo pha, lá vai của mình (game_hands — chỉ mình đọc được), bảng người chơi (bấm thẻ để
@@ -302,7 +303,7 @@ export default function MaSoiBoard({ state, mySeat, roomId, onMove, result, play
   state.shown.forEach((r, i) => { if (r != null && !state.alive[i]) gone[r] = (gone[r] || 0) + 1 })
 
   return (
-    <div style={{ display: 'grid', gap: 12, gridTemplateColumns: 'minmax(0, 1fr)' }}>
+    <div style={fillCol}>
       <Sky dark={dark} witch={live && ph === 'witch'} title={title} clock={secs != null ? Math.floor(secs / 60) + ':' + String(secs % 60).padStart(2, '0') : null} />
 
       {/* Vai của mình */}
@@ -314,14 +315,12 @@ export default function MaSoiBoard({ state, mySeat, roomId, onMove, result, play
               ? (
                 <>
                   <span style={S.label}>{t('games.masoi.coveredTitle')}</span>
-                  <span style={S.caption}>{t('games.masoi.coveredHint')}</span>
                 </>
               )
               : mine
               ? (
                 <>
                   <span style={S.label}>{t('games.masoi.myRole')}: <b style={{ color: INK[role] }}>{roleName(role)}</b></span>
-                  <span style={S.caption}>{t('games.masoi.roleDesc.' + ROLE_IDS[role])}</span>
                   {turned != null && <span style={S.fact}>{t('games.masoi.factTurned', { n: turned })}</span>}
                   {isWolf(role) && mates.length > 1 && (
                     <span style={S.fact}>{t('games.masoi.factMates', { names: mates.filter((x) => x !== mySeat).map(nameOf).join(', ') })}</span>
@@ -361,21 +360,18 @@ export default function MaSoiBoard({ state, mySeat, roomId, onMove, result, play
         <div style={{ ...S.panel, justifyItems: 'center', textAlign: 'center' }} aria-live="polite">
           {covered && mode && mode !== 'vote' && (
             <>
-              <span style={S.caption}>{t('games.masoi.coveredAct')}</span>
               <Button icon="eye" onClick={() => setPeek(true)}>{t('games.masoi.peek')}</Button>
             </>
           )}
           {!covered && mode === 'sleep' && (
             <>
-              <span style={S.caption}>{t(ph === 'witch' ? 'games.masoi.actSleepWitch' : 'games.masoi.actSleep')}</span>
               <Button icon="moon" disabled={busy} onClick={() => send({ night: {} })}>{t(ph === 'witch' ? 'games.masoi.sleepAgain' : 'games.masoi.sleep')}</Button>
             </>
           )}
           {(mode === 'vote' || (!covered && ['wolf', 'seer', 'guard', 'cupid', 'shoot'].includes(mode))) && (
             <>
               <span style={S.label}>{t('games.masoi.act.' + mode)}</span>
-              {mode === 'shoot' && <span style={S.caption}>{t('games.masoi.hunterHint')}</span>}
-              <span style={S.mono}>{picks.length ? picks.map(nameOf).join(' ♥ ') : t('games.masoi.pickHint')}</span>
+              {picks.length > 0 && <span style={S.mono}>{picks.map(nameOf).join(' ♥ ')}</span>}
               {/* Đang chọn đồng đội / chính mình thì nguyền chắc chắn vô tác dụng (0086) — ẩn ô, không gửi curse. */}
               {curseOk && (
                 <label style={{ ...S.caption, display: 'flex', gap: 6, alignItems: 'center' }}>
@@ -402,7 +398,7 @@ export default function MaSoiBoard({ state, mySeat, roomId, onMove, result, play
             <>
               <span style={S.label}>{t('games.masoi.act.witch')}</span>
               <span style={S.caption}>{bitten >= 0 ? t('games.masoi.factBitten', { name: nameOf(bitten) }) : t('games.masoi.factBittenNone')}</span>
-              {potions?.[2] === 1 && <span style={S.mono}>{picks.length ? t('games.masoi.poisonPick', { name: nameOf(picks[0]) }) : t('games.masoi.poisonHint')}</span>}
+              {potions?.[2] === 1 && picks.length > 0 && <span style={S.mono}>{t('games.masoi.poisonPick', { name: nameOf(picks[0]) })}</span>}
               <div style={{ display: 'flex', gap: 8, flexWrap: 'wrap', justifyContent: 'center' }}>
                 {potions?.[1] === 1 && bitten >= 0 && (
                   <Button disabled={busy} onClick={() => send({ night: { heal: true } })}>{t('games.masoi.heal', { name: nameOf(bitten) })}</Button>
@@ -416,7 +412,7 @@ export default function MaSoiBoard({ state, mySeat, roomId, onMove, result, play
           )}
           {!mode && (
             <span style={S.caption}>
-              {!seated ? t('games.masoi.spectate')
+              {!seated ? ''
                 : ready && !dark ? t('games.masoi.settling')
                   : ph === 'hunter' ? (hunterAnon ? t('games.masoi.hunterWaitAnon') : t('games.masoi.hunterWait', { name: nameOf(state.hunter) }))
                     : !alive ? t('games.masoi.deadWatch')
@@ -465,7 +461,8 @@ export default function MaSoiBoard({ state, mySeat, roomId, onMove, result, play
       </div>
 
       {/* Bộ vai của ván + diễn biến */}
-      <div style={{ ...S.panel, gap: 8 }}>
+      {/* Bộ vai + diễn biến ăn phần cao còn lại, nhật ký dài thì cuộn trong khung (màn chơi không cuộn). */}
+      <div style={{ ...S.panel, gap: 8, flex: '1 1 0', minHeight: 90, overflowY: 'auto', alignContent: 'start' }}>
         <span style={S.label}>{t('games.masoi.inGame')}</span>
         <div style={{ display: 'flex', gap: 6, flexWrap: 'wrap' }}>
           {[WOLF, CURSED, SEER, GUARD, WITCH, HUNTER, ELDER, CUPID, VILLAGER].filter((r) => counts[r]).map((r) => (

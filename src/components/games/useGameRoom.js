@@ -22,11 +22,14 @@ export function useGameRoom(roomId) {
   // Ref đi cùng state: sự kiện realtime đến dồn dập phải đọc bản MỚI NHẤT, không chờ render.
   const dataRef = useRef(null)
   const put = useCallback((d) => { dataRef.current = d; setData(d) }, [])
-  // Sang phòng khác (Chơi lại) thì bản của phòng cũ coi như chưa nạp — khỏi xoá state trong effect.
-  const data = raw?.forId === roomId ? raw : null
+  // Sang ván tiếp (0112) thì GIỮ bản của phòng cũ trên màn tới khi phòng mới nạp xong — không hiện màn tải, bàn không
+  // nhảy. `stale` = đang hiện phòng cũ; phòng cũ đã xong nên không đi được nước nào.
+  const data = raw
+  const stale = !!raw && raw.forId !== roomId
   // Chat trong phòng: tin broadcast qua kênh realtime của phòng — chỉ ai đang mở phòng thấy, không lưu, tải lại là mất.
+  // Giữ qua các ván của cùng một bàn (sang ván tiếp không xoá); rời trang là mất.
   // ponytail: tên người gửi do máy gửi tự khai (không qua server); cần lịch sử / chống mạo danh thì làm bảng game_chat + RLS.
-  const [chatRaw, setChat] = useState({ forId: roomId, list: [] })
+  const [chatRaw, setChat] = useState([])
   const sayRef = useRef(null)
   // Ai đang mở phòng (presence) — ghế + người xem. Kênh đổi phòng thì danh sách cũ bỏ.
   const [hereRaw, setHere] = useState({ forId: roomId, ids: [] })
@@ -35,10 +38,13 @@ export function useGameRoom(roomId) {
   const [countRaw, setCount] = useState({ forId: roomId, at: 0 })
   const countAt = countRaw.forId === roomId ? countRaw.at : 0
   const countRef = useRef(null)
-  const addChat = useCallback((msg) => setChat((c) => ({ forId: roomId, list: [...(c.forId === roomId ? c.list : []), msg].slice(-CHAT_MAX) })), [roomId])
+  const addChat = useCallback((msg) => setChat((c) => [...c, msg].slice(-CHAT_MAX)), [])
 
+  // Lần nạp của phòng cũ về muộn (đã sang ván tiếp) thì bỏ, không đè phòng mới.
+  const idRef = useRef(roomId)
+  useEffect(() => { idRef.current = roomId }, [roomId])
   const reload = useCallback(() => a.gameRoom(roomId)
-    .then((d) => { put({ ...d, forId: roomId }); setErr('') })
+    .then((d) => { if (idRef.current !== roomId) return; put({ ...d, forId: roomId }); setErr('') })
     .catch((e) => setErr(gameErr(e))), [a, roomId, put])
 
   useEffect(() => { reload() }, [reload])
@@ -205,10 +211,7 @@ export function useGameRoom(roomId) {
   // mình. Hết ván thì hiện hết. Chỉ lọc ở máy — tin broadcast không qua server (xem ponytail chat ở trên).
   const scoped = !!(game?.chatScope && state && !result)
   const chatScope = scoped ? game.chatScope(state, mySeat) : null
-  const chat = useMemo(() => {
-    const all = chatRaw.forId === roomId ? chatRaw.list : []
-    return scoped ? all.filter((m) => !m.scope || m.scope === chatScope) : all
-  }, [chatRaw, roomId, scoped, chatScope])
+  const chat = useMemo(() => (scoped ? chatRaw.filter((m) => !m.scope || m.scope === chatScope) : chatRaw), [chatRaw, scoped, chatScope])
 
   const say = useCallback((text) => {
     const msg = { memberId: me, text: text.trim().slice(0, CHAT_LEN), ...(chatScope ? { scope: chatScope } : {}) }
@@ -220,5 +223,5 @@ export function useGameRoom(roomId) {
   /** Chủ phòng: báo mọi máy đếm ngược (máy mình đếm luôn — kênh không gửi lại cho chính mình). */
   const countdown = useCallback(() => { countRef.current?.(); setCount({ forId: roomId, at: Date.now() }) }, [roomId])
 
-  return { room, game, state, result, seated, inGame, mySeat, me, canMove, idle, moves: data?.moves || [], loading: !data && !err, err, reload, play, chat, chatScope, say, here, countAt, countdown }
+  return { room, game, state, result, seated, inGame, mySeat, me, canMove, idle, moves: data?.moves || [], loading: !data && !err, stale, err, reload, play, chat, chatScope, say, here, countAt, countdown }
 }

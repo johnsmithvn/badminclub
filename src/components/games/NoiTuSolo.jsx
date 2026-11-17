@@ -168,7 +168,6 @@ export default function NoiTuSolo() {
                   {g.over.record && <span style={{ font: '700 13px/1.2 var(--font-sans)', color: G.goldHi }}>{t('games.noitu.solo.record')}</span>}
                 </div>
               )}
-              {!g && <span style={{ ...S.caption, textAlign: 'center' }}>{t('games.noitu.solo.intro', { n: BONUS })}</span>}
               <Row label={t('games.bot.level')} items={LEVELS.map((v) => [v, t('games.bot.levelShort.' + v)])} value={level} set={(v) => setPref('level', v)} />
               <Row label={t('games.noitu.solo.time')} items={TIMES.map((v) => [v, t('games.noitu.solo.secs', { n: v })])} value={prefs.time} set={(v) => setPref('time', v)} />
               <button type="button" onClick={begin} style={btn('primary', { block: true })}>

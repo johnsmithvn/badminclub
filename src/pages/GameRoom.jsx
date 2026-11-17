@@ -1,6 +1,6 @@
-import { lazy, Suspense, useEffect, useMemo, useState } from 'react'
+import { lazy, Suspense, useEffect, useMemo, useRef, useState } from 'react'
 import { createPortal } from 'react-dom'
-import { useNavigate, useParams } from 'react-router-dom'
+import { useLocation, useNavigate, useParams } from 'react-router-dom'
 import { Alert, Avatar, Button, Dialog, Skeleton, Icon } from '#ds'
 import { G, btn, card, seg } from '#components/games/stage.js'
 import { Empty } from '#ui'
@@ -9,7 +9,7 @@ import { useMobile } from '#hooks/useMobile.js'
 import { useGameRoom } from '#components/games/useGameRoom.js'
 import { SCREENS } from '#components/games/screens.js'
 import { GameArt, HowTo } from '#components/games/GameInfo.jsx'
-import WaitingRoom from '#components/games/WaitingRoom.jsx'
+import WaitingRoom, { RoomRules } from '#components/games/WaitingRoom.jsx'
 import RoomChat, { useBubbles } from '#components/games/RoomChat.jsx'
 import { CLOSEUP_GAMES, CloseUpToggle } from '#components/games/CutScene.jsx'
 import MoveList from '#components/games/MoveList.jsx'
@@ -17,6 +17,7 @@ import { SkinPicker } from '#components/games/ChessStage.jsx'
 import { BOARD_POINTS, BOT_PREFIX, chipsOf, notesOf, seatRange, spOf, stakeOf } from '#lib/games/registry.js'
 import { clockMins, INC_SEC } from '#lib/games/chessClock.js'
 import { pathOf } from '#routes'
+import cfg from '#config/app.js'
 import { t } from '#i18n'
 
 // Chơi với máy (/tro-choi/may-<game>) dùng chung route với phòng thật, tải lười riêng.
@@ -33,8 +34,6 @@ const SOLO_SCREENS = {
 // đã nằm trên bàn nên bỏ tab Người chơi; Tiến lên, Bầu cua, Phỏm giữ tab đó để xem xu từng người).
 const STAGED = ['covua', 'cotuong', 'coup', 'tienlen', 'baucua', 'phom', 'coganh', 'covay', 'xidach', 'bacay', 'baibip']
 const SKIN = { covua: 'covua', cotuong: 'cotuong', coup: 'cotuong' }
-// Game bài (bản thiết kế điện thoại): dưới bàn chỉ còn thanh nhắn, đủ tab vào tấm trượt "Phòng" — như game Cờ · sinh động.
-const DOCK_CARDS = ['bacay', 'phom', 'tienlen', 'xidach']
 // Game có bố cục xoay ngang (bàn nhận prop `land`, vẽ đủ màn 844 × 390): điện thoại hiện nút "Xoay ngang".
 const LAND_GAMES = ['bacay', 'phom', 'tienlen', 'xidach']
 
@@ -75,7 +74,7 @@ function RoomPage({ id }) {
   const [resigning, setResigning] = useState(false)
   const [howto, setHowto] = useState(false)
   const [busy, setBusy] = useState(false)
-  const [ptab, setPtab] = useState(null) // cột phải: players | moves | chat | watch (null = tab đầu)
+  const [ptab, setPtab] = useState(null) // cột phải: rules (phòng chờ) | players | moves | chat | watch (null = tab đầu)
   const [sheet, setSheet] = useState(false) // điện thoại: tấm trượt Phòng (dock) đang mở
   const [land, setLand] = useState(false) // điện thoại: đang ở khung xoay ngang
   const portrait = usePortrait()
@@ -107,8 +106,36 @@ function RoomPage({ id }) {
   const nameOf = (memberId) => db.members.find((m) => m.id === memberId)?.name || t('games.unknownPlayer')
   const memberOf = (memberId) => db.members.find((m) => m.id === memberId)
   const back = () => navigate(pathOf('games'))
-  const go = (roomId) => navigate(pathOf('gameRoom', roomId))
   const act = async (fn) => { setBusy(true); const r = await fn(); setBusy(false); if (r != null) g.reload(); return r }
+
+  // Ván tiếp (0112, docs/GAMES.md §7c): ván xong thì người còn ngồi tự sang ván sau sau `nextHandSec` giây (bấm "Nghỉ"
+  // để ở lại), bấm "Ván tiếp" để đi ngay. Sang bằng replace — nút Back không lùi về ván cũ. location.state.hand = số
+  // người ván trước: đủ chừng ấy người vào và Sẵn sàng thì chủ phòng mới tự đếm 3-2-1 (WaitingRoom `autoN`).
+  const location = useLocation()
+  const [rest, setRest] = useState(null) // id ván vừa xong mà mình bấm Nghỉ
+  const [going, setGoing] = useState(false)
+  const [nextLeft, setNextLeft] = useState(null) // { roomId, n } giây còn lại
+  const endAt = useRef({ id: null, at: 0 })
+  const goNext = async (r = room) => {
+    setGoing(true)
+    const next = await a.gameNext(r)
+    setGoing(false)
+    if (!next) { setRest(r.id); return }
+    navigate(pathOf('gameRoom', next), { replace: true, state: { hand: g.inGame.length } })
+  }
+  const autoNext = room?.status === 'finished' && mySeat != null && rest !== room.id && !going
+  useEffect(() => {
+    if (!autoNext) return undefined
+    if (endAt.current.id !== room.id) endAt.current = { id: room.id, at: Date.now() }
+    const sec = cfg.games.nextHandSec
+    const tick = () => {
+      const n = Math.ceil(sec - (Date.now() - endAt.current.at) / 1000)
+      setNextLeft({ roomId: room.id, n: Math.max(0, n) })
+      if (n <= 0) { clearInterval(id); goNext(room) }
+    }
+    const id = setInterval(tick, 250)
+    return () => clearInterval(id)
+  }, [autoNext, room]) // eslint-disable-line react-hooks/exhaustive-deps -- goNext đọc state mới nhất qua tham số
 
   if (g.loading) return <Skeleton height={320} />
   if (!room || !game) {
@@ -141,14 +168,6 @@ function RoomPage({ id }) {
     setResigning(false)
     if (await act(() => a.gameLeave(room.id)) != null && waiting) back()
   }
-  const rematch = async () => {
-    const next = await act(() => a.gameCreate(room.game, room.options, room.private, room.id))
-    if (next && next !== true) go(next)
-  }
-  const joinNext = async () => {
-    const r = await a.gameJoin({ id: room.nextRoom, game: room.game })
-    if (r != null) go(room.nextRoom)
-  }
   const wasPlayer = mySeat != null || room.players.some((p) => p.memberId === g.me)
   const ended = room.status === 'finished' || room.status === 'abandoned'
 
@@ -165,6 +184,8 @@ function RoomPage({ id }) {
     return room.status === 'playing' && idle.leftSec != null ? t('games.offlineLeft', { time: clock(idle.leftSec) }) : t('games.offline')
   }
 
+  const left = autoNext && nextLeft?.roomId === room.id ? nextLeft.n : null
+  const nextLabel = left != null ? t('games.next.goIn', { n: left }) : t('games.next.go')
   // Bàn có sân khấu riêng: nút nằm dưới bàn, màn kết thúc có nút chơi lại, đối thủ mất kết nối báo ngay trên thanh của họ.
   const playing = room.status === 'playing' && mySeat != null && !result
   const stageProps = staged ? {
@@ -172,19 +193,23 @@ function RoomPage({ id }) {
       ...(game.notate ? [{ key: 'draw', icon: 'handshake', label: t('games.bot.drawOffer'), on: () => g.play({ draw: 'offer' }), off: busy || state?.offer != null || !(state?.ply > 0) }] : []),
       { key: 'resign', icon: 'flag', label: t('games.bot.resign'), on: () => setResigning(true), off: busy, danger: true },
     ] : null,
-    overActions: ended && (room.nextRoom || wasPlayer) ? [{ key: 'again', label: t(room.nextRoom ? 'games.nextRoom' : 'games.rematch'), on: room.nextRoom ? joinNext : rematch }] : null,
+    overActions: ended && wasPlayer ? [{ key: 'again', label: nextLabel, on: () => goNext() }] : null,
     note: Object.fromEntries(inGame.map((p) => [p.seat, offlineText(p)]).filter(([, v]) => v)),
   } : null
 
-  const tabs = waiting ? [] : [
+  const tabs = waiting ? [
+    ['rules', t('games.wait.rules')],
+    ['chat', t('games.room.chat') + (g.chat.length ? ' · ' + g.chat.length : '')],
+    ['watch', t('games.room.watch') + (watchers.length ? ' · ' + watchers.length : '')],
+  ] : [
     ...(SKIN[room.game] ? [] : [['players', t('games.room.players') + ' · ' + seated.length + '/' + maxP]]),
     ['moves', t('games.room.moves') + (notes ? ' · ' + notes.length : '')],
     ['chat', t('games.room.chat') + (g.chat.length ? ' · ' + g.chat.length : '')],
     ['watch', t('games.room.watch') + (watchers.length ? ' · ' + watchers.length : '')],
   ]
   const tab = tabs.some(([k]) => k === ptab) ? ptab : tabs[0]?.[0]
-  // Điện thoại, game "Cờ · sinh động" + game bài: dưới bàn chỉ còn thanh nhắn (RoomChat dock); đủ tab nằm trong tấm trượt "Phòng".
-  const dock = isMobile && (CLOSEUP_GAMES.includes(room.game) || DOCK_CARDS.includes(room.game))
+  // Điện thoại: dưới bàn chỉ còn thanh nhắn (RoomChat dock), đủ tab nằm trong tấm trượt "Phòng" — bàn có trọn chiều cao màn.
+  const dock = isMobile
   // `|| land`: đã vào khung ngang mà người chơi nghiêng máy thật (màn rộng hơn 768px) thì vẫn giữ khung ngang.
   const canLand = (isMobile || land) && LAND_GAMES.includes(room.game) && !waiting && !!state && !!Screen
   const landOn = land && canLand
@@ -196,13 +221,14 @@ function RoomPage({ id }) {
     </Suspense>
   )
   const panel = (
-    <div style={{ ...card, padding: '12px 14px', display: 'flex', flexDirection: 'column', gap: 10, minWidth: 0, ...(isMobile ? null : { maxHeight: staged ? 760 : undefined }) }}>
+    <div style={{ ...card, padding: '12px 14px', display: 'flex', flexDirection: 'column', gap: 10, minWidth: 0, minHeight: 0, overflowY: 'auto' }}>
       <div role="tablist" style={{ display: 'flex', gap: 4, paddingBottom: 10, borderBottom: '1px solid ' + G.line, flexWrap: 'wrap', flexShrink: 0 }}>
         {tabs.map(([k, label]) => (
           <button key={k} type="button" role="tab" aria-selected={tab === k} onClick={() => setPtab(k)} style={{ ...seg(tab === k), font: '700 13px/1 var(--font-sans)', padding: '7px 12px' }}>{label}</button>
         ))}
       </div>
-      {tab === 'chat' && <RoomChat g={g} nameOf={nameOf} />}
+      {tab === 'rules' && <RoomRules g={g} act={act} busy={busy} />}
+      {tab === 'chat' && <RoomChat g={g} nameOf={nameOf} grow={!isMobile} />}
       {tab === 'moves' && (notes ? <MoveList list={notes} /> : <Moves game={game} moves={listed}seated={room.players} nameOf={nameOf} />)}
       {tab === 'watch' && (
         <div style={{ display: 'grid', gap: 4 }}>
@@ -255,7 +281,7 @@ function RoomPage({ id }) {
   )
 
   return (
-    <div style={{ display: 'grid', gap: 16, gridTemplateColumns: 'minmax(0, 1fr)' }}>
+    <div style={{ display: 'flex', flexDirection: 'column', gap: isMobile ? 10 : 14, flex: 1, minHeight: 0, minWidth: 0 }}>
       {/* Đầu trang (bản Phòng chờ v2): ← Sảnh · ô game · tên + chủ phòng · cược · mã + Chép · skin · Cách chơi · Mời bạn. */}
       <div style={{ display: 'flex', alignItems: 'center', gap: 10, flexWrap: 'wrap', minWidth: 0 }}>
         <button type="button" onClick={back} style={btn('ghost', { sm: true })}><Icon name="arrow-left" size={15} />{!isMobile && t('games.lobbyShort')}</button>
@@ -282,14 +308,13 @@ function RoomPage({ id }) {
 
       {g.err && <Alert tone="danger">{g.err}</Alert>}
 
-      {waiting && <WaitingRoom g={g} act={act} busy={busy} nameOf={nameOf} memberOf={memberOf} onInvite={copyLink} onLeave={leave} />}
-
-      {/* Máy tính: bàn bên trái, cột phải là tab Người chơi / Nước đi / Chat / Người xem. Điện thoại: cột đó xuống dưới bàn
-          (game Cờ · sinh động: thanh nhắn dưới bàn, tab vào tấm trượt). */}
-      {!waiting && (
-      <div style={{ display: 'grid', gap: 16, alignItems: 'start', gridTemplateColumns: isMobile ? 'minmax(0, 1fr)' : staged ? 'minmax(0, 1fr) 340px' : 'minmax(0, 1fr) 300px' }}>
-      <div style={{ display: 'grid', gap: 14, gridTemplateColumns: 'minmax(0, 1fr)', minWidth: 0 }}>
-      {state && Screen && (
+      {/* Một khung cho cả phòng chờ lẫn lúc chơi (§7c) — chờ ↔ chơi ↔ ván tiếp không đổi bố cục, chat giữ nguyên.
+          Máy tính: bàn bên trái, cột phải là tab (chờ: Luật bàn / Chat / Người xem; chơi: Người chơi / Nước đi / Chat /
+          Người xem). Điện thoại: cột đó xuống dưới bàn (thanh nhắn dưới bàn, tab vào tấm trượt). */}
+      <div style={{ display: 'grid', gap: isMobile ? 10 : 16, flex: 1, minHeight: 0, gridTemplateColumns: isMobile ? 'minmax(0, 1fr)' : staged ? 'minmax(0, 1fr) 340px' : 'minmax(0, 1fr) 300px', gridTemplateRows: isMobile ? 'minmax(0, 1fr) auto' : 'minmax(0, 1fr)' }}>
+      <div style={{ display: 'flex', flexDirection: 'column', gap: isMobile ? 10 : 14, minWidth: 0, minHeight: 0, overflowY: waiting ? 'auto' : undefined }}>
+      {waiting && <WaitingRoom g={g} act={act} busy={busy} nameOf={nameOf} memberOf={memberOf} onInvite={copyLink} onLeave={leave} autoN={location.state?.hand || 0} />}
+      {!waiting && state && Screen && (
         <>
           {!staged && (
             <div style={{ ...S.status, ...(result ? S.statusDone : null) }} aria-live="polite">
@@ -301,21 +326,23 @@ function RoomPage({ id }) {
               <span style={S.mono}>{t('games.moves', { n: listed.length })}</span>
             </div>
           )}
-          {!landOn && screen}
-          {staged && mySeat == null && !result && <span style={{ ...S.caption, textAlign: 'center' }}>{t('games.spectating')}</span>}
+          {/* Ô bàn: ăn hết chiều cao còn lại, bàn tự co cho vừa (chessUi.js → useFit / fillCol) — màn chơi không cuộn. */}
+          <div style={{ flex: 1, minHeight: 0, display: 'flex', flexDirection: 'column' }}>{!landOn && screen}</div>
         </>
       )}
 
       {!staged && playing && (
-        <div><Button variant="secondary" icon="flag" disabled={busy} onClick={() => setResigning(true)}>{t('games.resign')}</Button></div>
+        <div style={{ flexShrink: 0 }}><Button variant="secondary" icon="flag" disabled={busy} onClick={() => setResigning(true)}>{t('games.resign')}</Button></div>
       )}
 
       {ended && (
-        <div style={{ display: 'flex', gap: 8, flexWrap: 'wrap', justifyContent: staged ? 'center' : undefined }}>
+        <div style={{ display: 'flex', gap: 8, flexWrap: 'wrap', flexShrink: 0, alignItems: 'center', justifyContent: staged ? 'center' : undefined }}>
           {room.status === 'abandoned' && <span style={S.caption}>{t('games.abandoned')}</span>}
-          {room.nextRoom
-            ? <Button icon="play" onClick={joinNext}>{t('games.nextRoom')}</Button>
-            : wasPlayer ? <Button icon="repeat" disabled={busy} onClick={rematch}>{t('games.rematch')}</Button> : null}
+          {left != null && <span style={S.caption}>{t('games.next.auto', { n: left })}</span>}
+          {wasPlayer
+            ? <Button icon="play" disabled={going} onClick={() => goNext()}>{nextLabel}</Button>
+            : room.nextRoom ? <Button icon="eye" onClick={() => navigate(pathOf('gameRoom', room.nextRoom), { replace: true })}>{t('games.next.watch')}</Button> : null}
+          {left != null && <Button variant="secondary" onClick={() => setRest(room.id)}>{t('games.next.rest')}</Button>}
           <Button variant="secondary" onClick={back}>{t('games.back')}</Button>
         </div>
       )}
@@ -323,7 +350,6 @@ function RoomPage({ id }) {
 
       {dock ? <RoomChat g={g} nameOf={nameOf} dock onRoom={() => setSheet(true)} /> : panel}
       </div>
-      )}
 
       {resigning && (
         <Dialog
@@ -350,7 +376,7 @@ function RoomPage({ id }) {
             position: 'absolute', left: 0, top: 0, width: portrait ? '100dvh' : '100dvw', height: portrait ? '100dvw' : '100dvh', transformOrigin: '0 0',
             transform: portrait ? 'translateX(100dvw) rotate(90deg)' : 'none', display: 'grid', placeItems: 'center', overflow: 'hidden',
           }}>
-            <div style={{ width: `min(100%, calc(${portrait ? '100dvw' : '100dvh'} * 844 / 390))` }}>{screen}</div>
+            <div style={{ width: `min(100%, calc(${portrait ? '100dvw' : '100dvh'} * 844 / 390))`, height: `min(100%, calc(${portrait ? '100dvh' : '100dvw'} * 390 / 844))`, display: 'flex', flexDirection: 'column' }}>{screen}</div>
             <div style={{ position: 'absolute', left: 10, top: 8, display: 'flex', alignItems: 'center', gap: 8, zIndex: 40 }}>
               <button type="button" onClick={() => { setLand(false); setSheet(false) }} aria-label={t('games.landOff')} title={t('games.landOff')} style={{ ...S.sq, width: 30, height: 30, borderRadius: 9, background: 'rgba(4,8,20,.5)' }}><Icon name="arrow-left" size={15} /></button>
               <span style={{ font: '800 15px/1.2 var(--font-display)', whiteSpace: 'nowrap' }}>{t('games.' + room.game + '.name')}</span>
@@ -452,7 +478,7 @@ const S = {
     background: 'transparent', color: G.soft, border: '1px solid ' + G.lineHi,
   },
   status: {
-    display: 'flex', alignItems: 'center', justifyContent: 'space-between', gap: 10, padding: '10px 14px', borderRadius: 10,
+    flexShrink: 0, display: 'flex', alignItems: 'center', justifyContent: 'space-between', gap: 10, padding: '10px 14px', borderRadius: 10,
     background: 'var(--surface-inset)', font: 'var(--type-label)', color: 'var(--text-primary)',
   },
   statusDone: { background: 'var(--status-delivered-bg)', color: 'var(--status-delivered-fg)' },

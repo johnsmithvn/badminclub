@@ -2,6 +2,7 @@ import { useEffect, useState } from 'react'
 import { Button } from '#ds'
 import { useMobile } from '#hooks/useMobile.js'
 import { t } from '#i18n'
+import { fillCol } from '#components/games/chessUi.js'
 import { colOf, deadlineOf, marksOf, MAX, rowsOf } from '#lib/games/loto.js'
 
 /**
@@ -49,7 +50,7 @@ export default function LoToBoard({ state, mySeat, onMove, result }) {
   const winner = state.winner
 
   return (
-    <div style={{ display: 'grid', gap: 12, gridTemplateColumns: 'minmax(0, 1fr)' }}>
+    <div style={fillCol}>
       <div style={{ ...S.panel, gridTemplateColumns: 'auto minmax(0, 1fr)', justifyItems: 'start', textAlign: 'left' }} aria-live="polite">
         <div key={called.length} style={{ ...S.ball, animation: 'gamePop var(--dur-slow) var(--ease-standard) both' }}>
           {called.length ? called[called.length - 1] : '–'}
@@ -101,11 +102,10 @@ export default function LoToBoard({ state, mySeat, onMove, result }) {
       {live && seated && (
         <div style={{ display: 'grid', gap: 6, justifyItems: 'center' }}>
           <Button icon="flag" disabled={!marks.full} onClick={() => onMove({ kinh: true })}>{t('games.loto.kinh')}</Button>
-          <span style={S.caption}>{marks.full ? t('games.loto.kinhHint') : marks.waiting ? t('games.loto.waitingRows', { n: marks.waiting }) : t('games.loto.autoMark')}</span>
         </div>
       )}
 
-      <details>
+      <details style={{ minHeight: 0, overflowY: 'auto' }}>
         <summary style={{ ...S.caption, cursor: 'pointer' }}>{t('games.loto.board', { k: called.length })}</summary>
         <div style={{ display: 'grid', gridTemplateColumns: 'repeat(10, minmax(0, 1fr))', gap: 2, marginTop: 8 }}>
           {Array.from({ length: MAX }, (_, i) => i + 1).map((x) => (

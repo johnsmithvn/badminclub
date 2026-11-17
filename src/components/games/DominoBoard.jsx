@@ -3,6 +3,7 @@ import { Button } from '#ds'
 import { useApp } from '#contexts/AppContext.jsx'
 import { t } from '#i18n'
 import dm, { endsFor, TILES } from '#lib/games/domino.js'
+import { fillCol } from '#components/games/chessUi.js'
 
 // Bàn Domino: số quân từng ghế + nọc, dây quân trên bàn (SVG, chấm nút như quân thật), quân trên tay mình.
 // Quân trên tay KHÔNG có trong state (docs/GAMES.md §5.2): nạp từ game_hands (RLS chỉ trả tay mình; bốc thêm là nạp
@@ -71,7 +72,7 @@ export default function DominoBoard({ state, mySeat, canMove, onMove, roomId, re
   const last = state.last
 
   return (
-    <div style={{ display: 'grid', gap: 12, gridTemplateColumns: 'minmax(0, 1fr)' }}>
+    <div style={fillCol}>
       <div style={{ display: 'grid', gap: 8, gridTemplateColumns: `repeat(auto-fit, minmax(130px, 1fr))` }}>
         {state.counts.map((k, seat) => (
           <div key={seat} style={{ ...S.seat, borderColor: state.turn === seat ? 'var(--border-focus-color)' : 'var(--border-subtle)',
@@ -90,7 +91,8 @@ export default function DominoBoard({ state, mySeat, canMove, onMove, roomId, re
         </div>
       </div>
 
-      <div style={S.table} aria-live="polite">
+      {/* Mặt bàn ăn hết chỗ còn lại (màn chơi không cuộn); dây dài quá thì cuộn trong mặt bàn. */}
+      <div style={{ ...S.table, flex: '1 1 0', overflowY: 'auto' }} aria-live="polite">
         {state.line.length
           ? (
             <div style={{ display: 'flex', gap: 3, flexWrap: 'wrap', justifyContent: 'center', alignItems: 'center' }}>
@@ -130,19 +132,14 @@ export default function DominoBoard({ state, mySeat, canMove, onMove, roomId, re
               <Button size="sm" variant="secondary" onClick={() => onMove({ play: sel, end: 'R' })}>{t('games.domino.toRight', { n: state.right })}</Button>
             </div>
           )}
-          {canMove && (
-            <>
-              <span style={S.caption}>{any ? t('games.domino.pickHint') : state.pile > 0 ? t('games.domino.drawHint') : t('games.domino.passHint')}</span>
-              {!any && state.line.length > 0 && (state.pile > 0
-                ? <Button icon="plus" onClick={() => onMove({ draw: true })}>{t('games.domino.draw')}</Button>
-                : <Button variant="secondary" onClick={() => onMove({ pass: true })}>{t('games.domino.pass')}</Button>)}
-            </>
-          )}
+          {canMove && !any && state.line.length > 0 && (state.pile > 0
+            ? <Button icon="plus" onClick={() => onMove({ draw: true })}>{t('games.domino.draw')}</Button>
+            : <Button variant="secondary" onClick={() => onMove({ pass: true })}>{t('games.domino.pass')}</Button>)}
         </div>
       )}
 
       {state.over && reveal && (
-        <div style={{ ...S.table, placeItems: 'stretch', textAlign: 'left' }}>
+        <div style={{ ...S.table, placeItems: 'stretch', textAlign: 'left', minHeight: 0, flex: '0 1 auto', overflowY: 'auto' }}>
           {state.counts.map((_, seat) => (
             <div key={seat} style={{ display: 'grid', gap: 6 }}>
               <span style={S.label}>

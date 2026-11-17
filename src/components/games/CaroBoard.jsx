@@ -1,6 +1,7 @@
 import { useEffect, useLayoutEffect, useRef, useState } from 'react'
 import { Icon } from '#ds'
 import { t } from '#i18n'
+import { fillBox, fillCol, fitOf, useFit } from '#components/games/chessUi.js'
 
 /**
  * Bàn Caro vẽ bằng SVG — một phần tử, màu theo token (tự đổi sáng / tối).
@@ -54,6 +55,10 @@ export default function CaroBoard({ state, mySeat, canMove, onMove }) {
   const [aim, setAim] = useState({ ply: -1, i: null }) // chạm lần 1 trên bàn lớn — gắn với số nước, sang nước mới tự bỏ
   const [zoom, setZoom] = useState(big ? 1 : 0)
   const box = useRef(null)
+  // Màn chơi không cuộn: bàn vuông co theo chiều chật hơn của ô bàn (chessUi.js → useFit).
+  const max = big ? 640 : Math.min(640, size * 110)
+  const [fit, , area] = useFit(max)
+  const side = fitOf(area, max, max) * max
   const gesture = useRef({ type: 'mouse', down: null, dragged: false, pinch: null, pts: new Map() })
   const pad = CELL / 2
   const span = size * CELL
@@ -179,7 +184,7 @@ export default function CaroBoard({ state, mySeat, canMove, onMove }) {
         // Bàn nhỏ: nét vẽ co giãn theo viewBox, kéo tới 640px thì X / O dày cộp — chặn bề rộng theo số ô.
         // Bàn lớn: rộng ít nhất `px` mỗi ô (khung ngoài cuộn), mức 0 = vừa khung.
         display: 'block', aspectRatio: '1', flexShrink: 0,
-        ...(big ? { width: px ? `max(100%, ${size * px}px)` : '100%' } : { width: '100%', maxWidth: Math.min(640, size * 110), margin: '0 auto' }),
+        ...(big ? { width: px ? `max(100%, ${size * px}px)` : '100%' } : { width: side, height: side }),
         background: 'var(--surface-card)', borderRadius: big ? 0 : 10, border: big ? 0 : '1px solid var(--border-default)',
         boxShadow: big ? 'none' : 'var(--shadow-sm)', cursor: canMove ? 'pointer' : big ? 'grab' : 'default',
         touchAction: big ? 'pan-x pan-y' : 'manipulation', userSelect: 'none',
@@ -216,17 +221,16 @@ export default function CaroBoard({ state, mySeat, canMove, onMove }) {
       )}
     </svg>
   )
-  if (!big) return svg
+  if (!big) return <div style={fillCol}><div ref={fit} style={fillBox}>{svg}</div></div>
 
   return (
-    <div style={{ display: 'grid', gap: 8, width: '100%', maxWidth: 640, margin: '0 auto' }}>
-      <div style={{ display: 'flex', alignItems: 'center', gap: 6, justifyContent: 'flex-end' }}>
-        {pending != null && <span style={{ ...S.note, marginRight: 'auto' }}>{t('games.caro.tapAgain')}</span>}
+    <div style={{ ...fillCol, gap: 8 }}>
+      <div style={{ display: 'flex', alignItems: 'center', gap: 6, justifyContent: 'flex-end', width: '100%', maxWidth: side, margin: '0 auto', flexShrink: 0 }}>
         <Tool icon="minus" label={t('games.caro.zoomOut')} onClick={() => zoomTo(zoom - 1)} off={zoom === 0} />
         <Tool icon="plus" label={t('games.caro.zoomIn')} onClick={() => zoomTo(zoom + 1)} off={zoom === ZOOM.length - 1} />
         <Tool icon="target" label={t('games.caro.toLast')} onClick={() => reveal(box.current, size, last, true)} off={last == null} />
       </div>
-      <div ref={box} style={S.frame}>{svg}</div>
+      <div ref={fit} style={fillBox}><div ref={box} style={{ ...S.frame, width: side, height: side }}>{svg}</div></div>
     </div>
   )
 }
@@ -258,12 +262,11 @@ const spread = (pts) => {
 
 const S = {
   frame: {
-    width: '100%', aspectRatio: '1', overflow: 'auto', overscrollBehavior: 'contain', display: 'flex',
+    overflow: 'auto', overscrollBehavior: 'contain', display: 'flex',
     background: 'var(--surface-card)', borderRadius: 10, border: '1px solid var(--border-default)', boxShadow: 'var(--shadow-sm)',
   },
   tool: {
     width: 34, height: 34, borderRadius: 9, display: 'grid', placeItems: 'center', cursor: 'pointer',
     background: 'var(--surface-card)', color: 'var(--text-secondary)', border: '1px solid var(--border-default)',
   },
-  note: { font: 'var(--type-caption)', color: 'var(--text-accent)' },
 }

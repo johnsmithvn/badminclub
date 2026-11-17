@@ -2,7 +2,7 @@ import { useEffect, useRef, useState } from 'react'
 import { Avatar, Button, Icon } from '#ds'
 import { useApp } from '#contexts/AppContext.jsx'
 import { CARD, G, btn } from '#components/games/stage.js'
-import { rnd, useFit } from '#components/games/chessUi.js'
+import { fillBox, fillCol, fitOf, rnd, useFit } from '#components/games/chessUi.js'
 import Card, { CardFace } from '#components/games/PlayingCard.jsx'
 import { Overlay, Seat } from '#components/games/cardTable.jsx'
 import tl, { comboOf, deadlineOf, faceOf, groupsOf, hintOf, isBomb, isHeo, playsOf, RANK_FACES, rankOf } from '#lib/games/tienlen.js'
@@ -89,12 +89,12 @@ function useNow(on) {
 
 export default function TienLenBoard({ state, mySeat, onMove, roomId, result, players, names, stake = 0, actions, overActions, note, bubbles, land, hands: given }) {
   const { a, db } = useApp()
-  const [ref, k0] = useFit(land ? LAND.w : WIDE.w)
+  const [ref, , box] = useFit(land ? LAND.w : WIDE.w)
   // Khung hẹp hơn ~560px thì đổi sang bàn hẹp — co bàn rộng xuống đó thì lá trên tay không bấm nổi.
   // `land` (khung xoay ngang của GameRoom): cỡ chữ gọn như bản hẹp, toạ độ riêng (LAND), nút nằm trong bàn.
-  const narrow = land || k0 * WIDE.w < 560
+  const narrow = land || box.w < 560
   const L = land ? LAND : narrow ? NARROW : WIDE
-  const k = land ? k0 : narrow ? Math.min(1, (k0 * WIDE.w) / NARROW.w) : k0
+  const k = fitOf(box, L.w, L.h) // co theo chiều chật hơn của ô bàn — màn chơi không cuộn
   const { w: DW, h: DH, cy: CY, pos: POS } = L
   const [dealt, setDealt] = useState(null) // { roomId, hands: { [seat]: cards } } | { roomId, failed }
   const [tries, setTries] = useState(0)
@@ -241,7 +241,7 @@ export default function TienLenBoard({ state, mySeat, onMove, roomId, result, pl
   else if (over) status = t('games.tienlen.overState')
   else if (!seated) status = t('games.spectating')
   else if (state.out[mySeat]) status = state.order.includes(mySeat) ? t('games.tienlen.youPlaced', { place: placeOf(state.order.indexOf(mySeat), n) }) : t('games.tienlen.out')
-  else if (sel.length && err && err !== 'games.err.badCombo' && err !== 'games.err.tooLow') { status = myTurn ? t(err) : t('games.tienlen.offTurnHint'); statusC = C.gold }
+  else if (myTurn && sel.length && err && err !== 'games.err.badCombo' && err !== 'games.err.tooLow') { status = t(err); statusC = C.gold }
   else if (hintNone === state.ply && myTurn) { status = t('games.tienlen.noHint'); statusC = C.gold }
   else if (myTurn) { status = secs != null ? t('games.tienlen.myTurnClock', { n: secs }) : t('games.tienlen.myTurn'); statusC = low ? C.red : C.teal }
   else if (state.passed[mySeat]) status = t('games.tienlen.youPassed')
@@ -370,9 +370,9 @@ export default function TienLenBoard({ state, mySeat, onMove, roomId, result, pl
   )
 
   return (
-    <div style={{ display: 'grid', gap: 12, gridTemplateColumns: 'minmax(0, 1fr)' }}>
-      {/* Khung đo luôn rộng tối đa bằng bàn rộng — để biết khi nào đổi bố cục; bàn đang dùng nằm giữa khung. */}
-      <div ref={ref} style={{ width: '100%', maxWidth: land ? LAND.w : WIDE.w, margin: '0 auto', display: 'grid', justifyItems: 'center' }}>
+    <div style={fillCol}>
+      {/* Ô đo: ăn hết chiều cao còn lại (trừ hàng nút dưới bàn) — bề ngang chọn bố cục, bàn co cho vừa cả hai chiều. */}
+      <div ref={ref} style={fillBox}>
       <div style={{ width: DW * k, height: DH * k, position: 'relative' }}>
         <div style={{
           width: DW, height: DH, transform: `scale(${k})`, transformOrigin: '0 0', position: 'relative', overflow: 'hidden', borderRadius: L.radius,
@@ -545,7 +545,6 @@ export default function TienLenBoard({ state, mySeat, onMove, roomId, result, pl
                   )
                 })}
               </div>
-              <span style={{ font: 'var(--type-caption)', color: G.muted, textAlign: 'center' }}>{t(result ? 'games.tienlen.scoreNote' : 'games.tienlen.scorePending')}</span>
               <div style={{ display: 'flex', gap: 8 }}>
                 <button type="button" onClick={() => setPeek(true)} style={{ ...btn('ghost'), flex: 1, padding: 13 }}>{t('games.tienlen.viewTable')}</button>
                 {(overActions || []).map((x) => <button key={x.key} type="button" onClick={x.on} style={{ ...btn('primary'), flex: 1.4, padding: 13, font: '800 14px/1 var(--font-sans)' }}>{x.label}</button>)}
@@ -557,10 +556,11 @@ export default function TienLenBoard({ state, mySeat, onMove, roomId, result, pl
       </div>
       </div>
 
-      {/* Dưới bàn (bản thiết kế): dòng trạng thái (bàn rộng) · nút đi bài · hàng nút phụ (Ván mới · Xin thua…). */}
+      {/* Dưới bàn (bản thiết kế): nút đi bài · hàng nút phụ (Ván mới · Xin thua…). Bàn rộng: lượt / giờ đã hiện ở vòng sáng
+          quanh ảnh, dưới bàn chỉ còn báo lỗi bộ bài chọn (khi có). */}
       {!land && (
-        <div style={{ width: '100%', maxWidth: DW * k, margin: '0 auto', display: 'grid', gap: 8, gridTemplateColumns: 'minmax(0, 1fr)' }}>
-          {!narrow && <span aria-live="polite" style={{ minHeight: 18, font: '700 12.5px/1.4 var(--font-sans)', color: statusC, whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis' }}>{status}</span>}
+        <div style={{ width: '100%', maxWidth: Math.max(DW * k, 320), margin: '0 auto', display: 'grid', gap: 8, gridTemplateColumns: 'minmax(0, 1fr)', flexShrink: 0 }}>
+          {!narrow && <span aria-live="polite" style={{ minHeight: 18, font: '700 12.5px/1.4 var(--font-sans)', color: statusC, whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis' }}>{statusC === C.gold ? status : ''}</span>}
           {controls}
           {actionRow}
         </div>

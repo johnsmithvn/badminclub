@@ -4,6 +4,7 @@ import { useMobile } from '#hooks/useMobile.js'
 import { t } from '#i18n'
 import { deadlineOf, isQuanNon, queueStates, sideOf } from '#lib/games/oanquan.js'
 import cfg from '#config/app.js'
+import { fillBox, fitOf, useFit } from '#components/games/chessUi.js'
 
 // Bàn Ô ăn quan kiểu SƠN MÀI (chủ dự án duyệt 2026-11-10, bản thiết kế "O An Quan · 1c Sơn mài"): mặt bàn đỏ son
 // viền vàng, ô khoét sâu, sỏi suối nhiều màu, quan là viên ngọc bích. Màu viết cứng trong `L` như bàn fantasy của
@@ -132,6 +133,8 @@ export default function OAnQuanBoard(props) {
   const { state } = props
   // Chỉ diễn lại nước đi tới trong lúc đang mở phòng; vào phòng giữa ván thì hiện ngay bàn hiện tại.
   const [mountPly] = useState(state.ply)
+  // Ô đo bàn nằm trong Board (dựng lại mỗi nước) — giữ cỡ ở đây để bàn không nháy to / nhỏ giữa các nước.
+  const [fit, , area] = useFit(800)
   const [still] = useState(() => !!window.matchMedia?.('(prefers-reduced-motion: reduce)').matches)
   // Hàng chờ: q[0] đang hiện, phần sau chờ diễn. Cập nhật ngay trong lúc render (state suy ra từ props).
   const [q, setQ] = useState([state])
@@ -172,12 +175,12 @@ export default function OAnQuanBoard(props) {
   // key theo ply: mỗi nước mới dựng lại Board → bộ đếm khung bắt đầu từ 0, ô đang chọn tự bỏ.
   // Còn nước chờ diễn thì chưa cho đi (bàn đang hiện thế cũ).
   return (
-    <Board key={shown.ply} {...props} clock={clock} state={shown} canMove={props.canMove && !more} more={more} onDone={done}
+    <Board key={shown.ply} {...props} fit={fit} area={area} clock={clock} state={shown} canMove={props.canMove && !more} more={more} onDone={done}
       animate={!still && shown.ply > mountPly} speed={still ? null : speed} onSpeed={pickSpeed} />
   )
 }
 
-function Board({ state, mySeat, canMove, onMove, animate, more, onDone, speed, onSpeed, names, note, clock, actions, hint: tip }) {
+function Board({ state, mySeat, canMove, onMove, animate, more, onDone, speed, onSpeed, names, note, clock, actions, hint: tip, fit, area }) {
   const isMobile = useMobile(768)
   const uid = useId().replace(/:/g, '')
   const id = (name) => `oaq-${name}-${uid}`
@@ -202,6 +205,9 @@ function Board({ state, mySeat, canMove, onMove, animate, more, onDone, speed, o
   const { opts } = state
   const geo = layout(opts)
   const { W, H } = geo
+  // Màn chơi không cuộn: bàn co theo chiều chật hơn của ô bàn (giữa hai viên thuốc tên).
+  const MW = Math.round(W * 1.45)
+  const bw = fitOf(area, MW, (MW * H) / W) * MW
   const N = state.stones.length
   const seats = Array.from({ length: opts.quans }, (_, s) => s)
   const bottom = mySeat != null && mySeat < opts.quans ? mySeat : 0
@@ -222,12 +228,10 @@ function Board({ state, mySeat, canMove, onMove, animate, more, onDone, speed, o
     onMove({ cell: sel, dir })
   }
 
-  // Lời nhắn ở viên thuốc dưới: đang diễn → "chạm để xem ngay"; tới lượt → hướng dẫn chọn ô; còn lại → lời phòng gửi.
-  const hint = f ? t('games.oanquan.skipHint') : live ? t(sel == null ? 'games.oanquan.pickHint' : 'games.oanquan.dirHint') : ''
   const pill = (seat, row) => {
     const on = view.turn === seat && !view.over
     const name = names?.[seat] || t('games.oanquan.mark' + Math.min(seat, 2))
-    const msg = row ? hint || note?.[seat] : note?.[seat]
+    const msg = note?.[seat]
     const me = clock?.seat === seat ? clock : null
     const low = me?.on && me.left <= 5
     return (
@@ -248,11 +252,10 @@ function Board({ state, mySeat, canMove, onMove, animate, more, onDone, speed, o
   }
 
   return (
-    <div style={{ ...S.room, padding: isMobile ? '16px 10px 18px' : '28px 48px 32px', gap: isMobile ? 14 : 20 }}>
+    <div style={{ ...S.room, flex: 1, minHeight: 0, padding: isMobile ? '12px 10px 14px' : '22px 40px 24px', gap: isMobile ? 10 : 16 }}>
       <div style={{ alignSelf: 'stretch', display: 'flex', justifyContent: 'space-between', alignItems: 'center', gap: 12, flexWrap: 'wrap' }}>
         <div style={{ minWidth: 0 }}>
-          <div style={{ ...S.title, fontSize: isMobile ? 26 : 36 }}>{t('games.oanquan.name')}</div>
-          <div style={S.sub}>{t('games.oanquan.lacquerSub')}</div>
+          <div style={{ ...S.title, fontSize: isMobile ? 22 : 30 }}>{t('games.oanquan.name')}</div>
         </div>
         {actions?.length > 0 && (
           <div style={{ display: 'flex', gap: 8, flexWrap: 'wrap' }}>
@@ -270,13 +273,14 @@ function Board({ state, mySeat, canMove, onMove, animate, more, onDone, speed, o
         {seats.filter((x) => x !== bottom).map((x) => pill(x, 0))}
       </div>
 
+      <div ref={fit} style={{ ...fillBox, alignSelf: 'stretch' }}>
       <svg
         data-game-fx
         viewBox={`0 0 ${W} ${H}`}
         role="group"
         aria-label={t('games.oanquan.boardAria')}
         onClick={f ? () => setK(null) : undefined}
-        style={{ width: '100%', maxWidth: Math.round(W * 1.45), display: 'block', touchAction: 'manipulation', userSelect: 'none', cursor: f ? 'pointer' : 'default', overflow: 'visible' }}
+        style={{ width: bw, height: (bw * H) / W, display: 'block', touchAction: 'manipulation', userSelect: 'none', cursor: f ? 'pointer' : 'default', overflow: 'visible' }}
       >
         <defs>
           <linearGradient id={id('lac')} x1="0" y1="0" x2="1" y2="1">
@@ -451,6 +455,7 @@ function Board({ state, mySeat, canMove, onMove, animate, more, onDone, speed, o
           )
         })()}
       </svg>
+      </div>
 
       {pill(bottom, 1)}
 
@@ -480,7 +485,6 @@ function Board({ state, mySeat, canMove, onMove, animate, more, onDone, speed, o
 const S = {
   room: { display: 'flex', flexDirection: 'column', alignItems: 'center', borderRadius: 24, background: L.room, border: '1px solid ' + L.roomEdge, minWidth: 0 },
   title: { font: '800 36px/1 var(--font-display)', color: L.gold },
-  sub: { font: '400 13px/1.3 var(--font-sans)', color: L.muted, marginTop: 6 },
   hint: { font: 'var(--type-caption)', color: L.muted, textAlign: 'center' },
   pill: {
     display: 'flex', alignItems: 'center', gap: 12, padding: '6px 18px 6px 6px', borderRadius: 99, maxWidth: '100%', minWidth: 0,

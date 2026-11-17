@@ -3,7 +3,7 @@ import { t } from '#i18n'
 import { G, btn, card, mono } from '#components/games/stage.js'
 import { SkinPicker } from '#components/games/ChessStage.jsx'
 import { useSkin } from '#components/games/chessSkins.js'
-import { useFit } from '#components/games/chessUi.js'
+import { fillBox, fillCol, useFit } from '#components/games/chessUi.js'
 import { DOOR, HOME, LANE, movesOf, squareOf, TRACK } from '#lib/games/cangua.js'
 
 // Bàn Cờ cá ngựa theo bản thiết kế "Cờ cá ngựa" (2026-11-12): bàn chữ thập 15 × 15 ô, chuồng xuất quân ở 4 góc, ô xuất
@@ -147,7 +147,9 @@ function Burst({ kind, r, c, col, text, delay }) {
 
 export default function CaNguaBoard({ state, mySeat, canMove, onMove, names }) {
   const [, K] = useSkin('cangua')
-  const [box, k] = useFit(B + 2 * PAD)
+  // Màn chơi không cuộn: bàn vuông co theo chiều chật hơn của ô bàn; hàng thẻ / nút bám bề ngang bàn.
+  const [box, k] = useFit(B + 2 * PAD, B + 2 * PAD)
+  const lane = { width: '100%', maxWidth: Math.max((B + 2 * PAD) * k, 340), flexShrink: 0 }
   const [asked, setAsked] = useState(-1) // ply đã bấm đổ, chờ server
   const [mountPly] = useState(state.ply)
   const [hop, setHop] = useState({ ply: -1, step: 0 })
@@ -287,12 +289,9 @@ export default function CaNguaBoard({ state, mySeat, canMove, onMove, names }) {
   })
   const rowOf = (top) => players.filter((p) => p.top === top).sort((a, b) => a.col - b.col)
 
+  // Lượt ai đã sáng ở thẻ người chơi — dòng dưới bàn chỉ còn kết quả và lúc mình không có nước đi.
   const hint = state.over ? (winner === mySeat ? t('games.cangua.winMe') : winner != null ? t('games.cangua.winOf', { name: nameOf(winner) }) : '')
-    : mySeat == null || state.turn !== mySeat ? t('games.cangua.waitFor', { name: nameOf(state.turn), color: colorName(state.turn) })
-      : wait ? t('games.cangua.rolling')
-        : state.dice == null ? t('games.cangua.yourRoll')
-          : !landed ? t('games.cangua.moving')
-            : moves.length ? t('games.cangua.pickHint', { n: state.dice }) : t('games.cangua.noMove', { side: nameOf(mySeat), n: state.dice })
+    : state.turn === mySeat && state.dice != null && landed && !wait && !moves.length ? t('games.cangua.noMove', { side: nameOf(mySeat), n: state.dice }) : ''
   const lastTxt = last?.out ? t('games.cangua.lastOut', { side: nameOf(last.seat) })
     : last?.kicked && landed ? t('games.cangua.kicked', { side: nameOf(last.seat), foe: nameOf(last.kicked.seat) })
       : last?.pass ? t('games.cangua.noMove', { side: nameOf(last.seat), n: last.dice })
@@ -321,14 +320,15 @@ export default function CaNguaBoard({ state, mySeat, canMove, onMove, names }) {
   }
   const row = (top) => {
     const list = rowOf(top)
-    return list.length ? <div style={{ display: 'flex', gap: 12, width: '100%', maxWidth: B + 2 * PAD, flexWrap: 'wrap' }}>{list.map(playerCard)}</div> : null
+    return list.length ? <div style={{ ...lane, display: 'flex', gap: 12, flexWrap: 'wrap' }}>{list.map(playerCard)}</div> : null
   }
 
   return (
-    <div style={{ display: 'grid', gap: 14, justifyItems: 'center', gridTemplateColumns: 'minmax(0, 1fr)', color: G.text }}>
-      <div style={{ display: 'flex', justifyContent: 'flex-end', width: '100%', maxWidth: B + 2 * PAD }}><SkinPicker kind="cangua" /></div>
+    <div style={{ ...fillCol, alignItems: 'center', color: G.text }}>
+      <div style={{ ...lane, display: 'flex', justifyContent: 'flex-end' }}><SkinPicker kind="cangua" /></div>
       {row(true)}
-      <div ref={box} style={{ width: '100%', maxWidth: B + 2 * PAD, height: (B + 2 * PAD) * k }}>
+      <div ref={box} style={{ ...fillBox, alignSelf: 'stretch' }}>
+      <div style={{ width: (B + 2 * PAD) * k, height: (B + 2 * PAD) * k }}>
         <div data-game-fx style={{
           width: B + 2 * PAD, padding: PAD, transform: `scale(${k})`, transformOrigin: '0 0',
           animation: kicks ? `${kicks % 2 ? 'cnShakeA' : 'cnShakeB'} .45s ease-in-out ${landAt}ms` : undefined,
@@ -441,8 +441,9 @@ export default function CaNguaBoard({ state, mySeat, canMove, onMove, names }) {
           </div>
         </div>
       </div>
+      </div>
       {row(false)}
-      <div aria-live="polite" style={{ width: '100%', maxWidth: B + 2 * PAD, display: 'flex', alignItems: 'center', gap: 14, flexWrap: 'wrap' }}>
+      <div aria-live="polite" style={{ ...lane, display: 'flex', alignItems: 'center', gap: 14, flexWrap: 'wrap' }}>
         <div style={{ flex: 1, minWidth: 0, display: 'grid', gap: 2 }}>
           <span style={{ font: '400 14px/1.4 var(--font-sans)', color: G.soft }}>{hint}</span>
           {lastTxt && <span style={{ font: 'var(--type-caption)', color: G.muted }}>{lastTxt}</span>}

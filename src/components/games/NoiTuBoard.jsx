@@ -2,6 +2,7 @@ import { useEffect, useRef, useState } from 'react'
 import { Button, Input } from '#ds'
 import { t } from '#i18n'
 import { ASKS, linkOf, normWord, VOTE_MS, wordErr } from '#lib/games/noitu.js'
+import { fillCol } from '#components/games/chessUi.js'
 
 // Bàn Nối từ: thứ tự lượt, chuỗi từ, đồng hồ lượt, ô gõ (phần nối có sẵn), khung duyệt từ 8 giây.
 // Giờ theo SERVER (state.deadline, vote.at là giờ server ghi nước). Hết giờ thì máy mình tự báo { timeout } / { close };
@@ -80,7 +81,7 @@ export default function NoiTuBoard({ state, mySeat, onMove }) {
   const last = state.last
 
   return (
-    <div style={{ display: 'grid', gap: 12, gridTemplateColumns: 'minmax(0, 1fr)' }}>
+    <div style={fillCol}>
       {/* Thứ tự lượt */}
       <div style={{ display: 'flex', gap: 6, flexWrap: 'wrap', alignItems: 'center' }}>
         {state.order.map((seat, k) => (
@@ -99,7 +100,8 @@ export default function NoiTuBoard({ state, mySeat, onMove }) {
       </div>
 
       {/* Chuỗi từ */}
-      <div style={S.table} aria-live="polite">
+      {/* Chuỗi từ ăn hết chỗ còn lại (màn chơi không cuộn). */}
+      <div style={{ ...S.table, flex: '1 1 0', overflowY: 'auto' }} aria-live="polite">
         {chain.length
           ? (
             <div style={{ display: 'flex', gap: 6, flexWrap: 'wrap', justifyContent: 'center', alignItems: 'center' }}>
@@ -113,7 +115,6 @@ export default function NoiTuBoard({ state, mySeat, onMove }) {
             </div>
           )
           : <span style={S.caption}>{t('games.noitu.empty')}</span>}
-        {live && !v && state.fresh && state.chain.length > 0 && <span style={S.caption}>{t('games.noitu.fresh')}</span>}
         {state.verdict && (
           <span style={{ ...S.event, color: state.verdict.ok ? 'var(--status-delivered-fg)' : 'var(--status-incident-fg)' }}>
             {state.verdict.ok ? t(state.verdict.dict ? 'games.noitu.verdictDict' : 'games.noitu.verdictOk', { word: state.verdict.word }) : t('games.noitu.verdictNo', { word: state.verdict.word })}
@@ -143,7 +144,6 @@ export default function NoiTuBoard({ state, mySeat, onMove }) {
               </div>
             )
             : <span style={S.caption}>{v.seat === mySeat ? t('games.noitu.waitVote') : alive ? t('games.noitu.voted') : ''}</span>}
-          <span style={S.caption}>{t('games.noitu.voteRule')}</span>
         </div>
       )}
 
@@ -154,7 +154,6 @@ export default function NoiTuBoard({ state, mySeat, onMove }) {
           {myTurn
             ? (
               <form onSubmit={(e) => { e.preventDefault(); submit() }} style={{ display: 'grid', gap: 8, minWidth: 0 }}>
-                <span style={S.label}>{link ? t('games.noitu.linkHint', { link: link.trim() }) : t('games.noitu.freeHint')}</span>
                 <div style={{ display: 'flex', gap: 8, alignItems: 'center', flexWrap: 'wrap' }}>
                   {link && <span style={S.prefix}>{link.trim()}</span>}
                   <Input value={cur.text} autoFocus autoComplete="off" autoCapitalize="none" spellCheck={false}
@@ -164,16 +163,12 @@ export default function NoiTuBoard({ state, mySeat, onMove }) {
                   <Button type="submit" icon="play" disabled={!cur.text.trim() || state.asks >= ASKS}>{t('games.noitu.send')}</Button>
                   <Button type="button" variant="secondary" icon="flag" onClick={() => onMove({ giveup: true })}>{t('games.noitu.giveup')}</Button>
                 </div>
-                <span style={S.mono}>
-                  {state.opts.dict === 'dict' ? t('games.noitu.dictHint')
-                    : state.asks >= ASKS ? t('games.noitu.noAsksHint') : t('games.noitu.asksLeft', { n: ASKS - state.asks })}
-                </span>
+                {state.opts.dict !== 'dict' && <span style={S.mono}>{state.asks >= ASKS ? t('games.noitu.noAsksHint') : t('games.noitu.asksLeft', { n: ASKS - state.asks })}</span>}
               </form>
             )
             : (
               <div style={{ display: 'grid', gap: 4, minWidth: 0 }}>
                 <span style={S.label}>{t('games.noitu.turnOf', { side: side(state.turn) })}</span>
-                <span style={S.caption}>{link ? t('games.noitu.linkHint', { link: link.trim() }) : t('games.noitu.freeHint')}</span>
               </div>
             )}
         </div>

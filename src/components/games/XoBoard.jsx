@@ -2,6 +2,7 @@ import { useEffect, useRef, useState } from 'react'
 import { CELL, Mark } from '#components/games/CaroBoard.jsx'
 import { CAP, deadlineOf, fadingOf, moving, openCell } from '#lib/games/xo.js'
 import { t } from '#i18n'
+import { fillBox, fillCol, fitOf, useFit } from '#components/games/chessUi.js'
 
 /**
  * Bàn Cờ X-O 3 × 3 — cùng nét vẽ với bàn Caro (Mark, CELL). Luật ở lib/games/xo.js.
@@ -70,17 +71,18 @@ export default function XoBoard({ state, mySeat, canMove, onMove }) {
   }
   const ghostOk = (i) => i != null && board[i] == null && (!lifting || from != null)
 
-  const hint = last?.skip && !state.over ? t('games.xo.skipped', { who: SYM[last.seat] })
-    : !canMove || state.over ? ''
-      : lifting ? t(from == null ? 'games.xo.hintPick' : 'games.xo.hintDrop')
-        : fading != null ? t('games.xo.hintFade') : ''
+  const skipped = last?.skip && !state.over ? t('games.xo.skipped', { who: SYM[last.seat] }) : ''
   const ult = mode === 'ultimate'
   const left = (mode === 'move' || mode === 'vanish') && !state.over ? CAP - Math.floor(state.ply / 2) : null
-  const ultHint = ult && canMove && !state.over ? t(state.next >= 0 ? 'games.xo.hintBoard' : 'games.xo.hintFree') : ''
+  // Màn chơi không cuộn: bàn vuông co theo chiều chật hơn của ô bàn (chessUi.js → useFit).
+  const max = ult ? 440 : 330
+  const [fit, , area] = useFit(max)
+  const side = fitOf(area, max, max) * max
 
   return (
-    <div style={{ display: 'grid', gap: 8, justifyItems: 'center' }}>
-      {ult ? <UltSvg state={state} mySeat={mySeat} canMove={canMove} onMove={onMove} /> : (
+    <div style={{ ...fillCol, gap: 8, alignItems: 'center' }}>
+      <div ref={fit} style={{ ...fillBox, width: '100%' }}>
+      {ult ? <UltSvg state={state} mySeat={mySeat} canMove={canMove} onMove={onMove} side={side} /> : (
       <svg
         data-game-fx
         viewBox={`0 0 ${SPAN} ${SPAN}`}
@@ -90,7 +92,7 @@ export default function XoBoard({ state, mySeat, canMove, onMove }) {
         role="img"
         aria-label={t('games.xo.boardAria')}
         style={{
-          width: '100%', maxWidth: 330, aspectRatio: '1', display: 'block',
+          width: side, height: side, display: 'block',
           background: 'var(--surface-card)', borderRadius: 10, border: '1px solid var(--border-default)',
           boxShadow: 'var(--shadow-sm)', cursor: canMove ? 'pointer' : 'default', touchAction: 'manipulation', userSelect: 'none',
         }}
@@ -123,17 +125,18 @@ export default function XoBoard({ state, mySeat, canMove, onMove }) {
         )}
       </svg>
       )}
+      </div>
       {/* Thanh giờ của lượt đang đi: cạn dần, đỏ khi còn dưới 1 giây. Phòng không tính giờ / chưa có nước đầu thì không vẽ. */}
       {leftMs != null && (
-        <div role="timer" aria-label={t('games.xo.timerAria')} style={{ width: '100%', maxWidth: ult ? 440 : 330, height: 4, borderRadius: 99, background: 'var(--border-default)', overflow: 'hidden' }}>
+        <div role="timer" aria-label={t('games.xo.timerAria')} style={{ width: side, flexShrink: 0, height: 4, borderRadius: 99, background: 'var(--border-default)', overflow: 'hidden' }}>
           <div style={{
             width: Math.min(100, (leftMs / (state.time * 1000)) * 100) + '%', height: '100%', borderRadius: 99,
             background: leftMs <= 1000 ? 'var(--status-incident-fg)' : 'var(--status-delivered-fg)', transition: 'width .1s linear',
           }} />
         </div>
       )}
-      <span style={{ font: 'var(--type-caption)', color: 'var(--text-muted)', textAlign: 'center', minHeight: 18 }}>
-        {t('games.xo.modeOpt.' + mode)}{left != null ? ' · ' + t('games.xo.turnsLeft', { n: left }) : ''}{hint ? ' · ' + hint : ''}{ultHint ? ' · ' + ultHint : ''}
+      <span style={{ font: 'var(--type-caption)', color: 'var(--text-muted)', textAlign: 'center', minHeight: 18, flexShrink: 0 }}>
+        {[left != null && t('games.xo.turnsLeft', { n: left }), skipped].filter(Boolean).join(' · ')}
       </span>
     </div>
   )
@@ -143,7 +146,7 @@ export default function XoBoard({ state, mySeat, canMove, onMove }) {
  * Bàn X-O lồng: ô i = bàn con b × 9 + ô k trong bàn con → hàng floor(b / 3) × 3 + floor(k / 3), cột (b % 3) × 3 + k % 3.
  * Bàn con được đánh tô sáng; bàn con thắng phủ mờ + quân to; bàn con hoà phủ mờ. 3 bàn con thắng liền → gạch bàn lớn.
  */
-function UltSvg({ state, mySeat, canMove, onMove }) {
+function UltSvg({ state, mySeat, canMove, onMove, side }) {
   const { board, big, last, line } = state
   const [hover, setHover] = useState(null)
   const N9 = 9
@@ -179,7 +182,7 @@ function UltSvg({ state, mySeat, canMove, onMove }) {
       role="img"
       aria-label={t('games.xo.boardAriaUlt')}
       style={{
-        width: '100%', maxWidth: 440, aspectRatio: '1', display: 'block',
+        width: side, height: side, display: 'block',
         background: 'var(--surface-card)', borderRadius: 10, border: '1px solid var(--border-default)',
         boxShadow: 'var(--shadow-sm)', cursor: live ? 'pointer' : 'default', touchAction: 'manipulation', userSelect: 'none',
       }}

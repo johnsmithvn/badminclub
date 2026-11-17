@@ -88,6 +88,20 @@ export function makeGameActions({ dbRef, toast }) {
       if (shortOfSp([me()], spOf(room.options))) return noSp(spOf(room.options))
       return run(() => gameRpc('game_join', { p_room: room.id, p_max: seatRange(gameOf(room.game), room.options)[1] }))
     },
+    /**
+     * Ván tiếp cùng bàn (0112): chưa ai tạo thì tạo, có rồi thì vào ghế + Sẵn sàng luôn. Trả id phòng mới, lỗi → toast, null.
+     * Ván sau đã bắt đầu không có mình (notWaiting) → vẫn trả id để sang xem.
+     */
+    gameNext: async (room) => {
+      if (shortOfSp([me()], spOf(room.options))) return noSp(spOf(room.options))
+      try {
+        return await gameRpc('game_next', { p_from: room.id, p_max: seatRange(gameOf(room.game), room.options)[1] })
+      } catch (e) {
+        if (String(e?.message || '') === 'games.err.notWaiting' && room.nextRoom) return room.nextRoom
+        toast(gameErr(e))
+        return null
+      }
+    },
     gameLeave: (roomId) => run(() => gameRpc('game_leave', { p_room: roomId })),
     /** Phòng chờ (0105): bật / tắt Sẵn sàng · chủ phòng mời một người ra · chủ phòng đổi luật (giữ mức cược). */
     gameReady: (roomId, ready) => run(() => gameRpc('game_ready', { p_room: roomId, p_ready: !!ready })),
