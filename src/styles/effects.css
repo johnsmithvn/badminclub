@@ -498,6 +498,7 @@
    từ ghế người đánh vào bàn (--fx / --fy = ghế trừ chỗ lá, --fr, --r; dừng ở trạng thái cuối nên giảm chuyển động vẫn thấy lá)
    · chữ CHẶT đóng dấu. Chớp + mảnh bung dùng lại chFlash / chBurst. */
 @keyframes tlDeal { 0% { opacity: 0; transform: translate(calc(-50% + var(--fx)), calc(-50% + var(--fy))) scale(.6); } 15% { opacity: 1; } 85% { opacity: 1; } 100% { opacity: 0; transform: translate(-50%, -50%) rotate(var(--r)) scale(.9); } }
+@keyframes crownBob { 0%, 100% { transform: translate(-50%, 0) rotate(-6deg); } 50% { transform: translate(-50%, -4px) rotate(6deg); } }
 @keyframes tlFly { from { opacity: .2; transform: translate(calc(-50% + var(--fx)), calc(-50% + var(--fy))) rotate(var(--fr)) scale(.8); } to { opacity: 1; transform: translate(-50%, -50%) rotate(var(--r)) scale(1); } }
 /* Bàn bài theo bản thiết kế 2026-11-14 — phU pop-up Ù (Phỏm) · bcCrown vương miện nhún (Ba cây) · bbShake rung bàn khi tố ·
    bbIdle bom lắc lư · bbFlashW chớp trắng · bbSmoke khói · bbLabel câu nhận bay lên · bbFall pháo giấy rơi (Bài bịp). */

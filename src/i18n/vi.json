@@ -6379,6 +6379,7 @@
       "newGame": "Ván mới",
       "thinking": "Máy đang nghĩ…",
       "practice": "Luyện tập: ván chạy ngay trên máy bạn, không lưu, không tính vào thống kê.",
+      "resignDesc": "Ván này tính bạn thua. Luyện tập nên không lưu, không tính vào thống kê.",
       "masterHint": {
         "covua": "Cao thủ dùng engine Stockfish — lần đầu tải khoảng 7 MB.",
         "cotuong": "Cao thủ dùng engine Fairy-Stockfish — lần đầu tải khoảng 1,7 MB. Safari / iPhone chưa chạy được engine này, máy sẽ đánh ở mức Khó."
@@ -6583,6 +6584,10 @@
     },
     "tienlen": {
       "name": "Tiến lên",
+      "clearSel": "Bỏ chọn",
+      "sortRank": "Xếp: số",
+      "sortCombo": "Xếp: bộ",
+      "newRound": "Vòng mới",
       "desc": "Bài tây 2–4 người, mỗi người 13 lá. Đánh bộ to hơn bộ trên bàn hoặc bỏ lượt; chặt heo bằng đôi thông, tứ quý. Chơi tới khi xếp đủ Nhất, Nhì, Ba, Bét — có tới trắng, cóng, thối heo.",
       "mark0": "Ghế 1",
       "mark1": "Ghế 2",
