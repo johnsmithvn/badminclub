@@ -220,8 +220,23 @@ function RoomPage({ id }) {
         bubbles={Object.fromEntries(inGame.filter((p) => bubbleOf[p.memberId]).map((p) => [p.seat, bubbleOf[p.memberId]]))} {...stageProps} land={landOn} />
     </Suspense>
   )
+  // Điện thoại lúc chơi: đầu trang một dòng (←, tên, nút bàn) — cược, mã phòng, Mời bạn chuyển vào tấm "Phòng".
+  const compact = isMobile && !waiting
+  const roomInfo = (
+    <>
+      {stake > 0 && <span style={S.badge}>{t('games.coins.stakePill', { n: stake })}</span>}
+      {sp > 0 && <span style={S.badge}>{t('games.sp.pill', { n: sp })}</span>}
+      {mins > 0 && <span style={S.badge}>{t('games.clockPill', { n: mins, inc: INC_SEC })}</span>}
+      <button type="button" onClick={copyCode} title={t('games.wait.copyCode')} style={S.code}>
+        <span style={{ font: '700 14px/1 var(--font-mono)', letterSpacing: '.12em', color: G.text }}>{room.code}</span>
+        <span style={{ font: '400 12px/1 var(--font-sans)', color: G.muted }}>{t('games.wait.copy')}</span>
+      </button>
+    </>
+  )
+  const invite = <button type="button" onClick={copyLink} title={t('games.copyLink')} style={btn('soft', { sm: true })}><Icon name="plus" size={14} />{t('games.wait.invite')}</button>
   const panel = (
     <div style={{ ...card, padding: '12px 14px', display: 'flex', flexDirection: 'column', gap: 10, minWidth: 0, minHeight: 0, overflowY: 'auto' }}>
+      {compact && <div style={{ display: 'flex', gap: 8, flexWrap: 'wrap', alignItems: 'center', flexShrink: 0 }}>{roomInfo}{invite}</div>}
       <div role="tablist" style={{ display: 'flex', gap: 4, paddingBottom: 10, borderBottom: '1px solid ' + G.line, flexWrap: 'wrap', flexShrink: 0 }}>
         {tabs.map(([k, label]) => (
           <button key={k} type="button" role="tab" aria-selected={tab === k} onClick={() => setPtab(k)} style={{ ...seg(tab === k), font: '700 13px/1 var(--font-sans)', padding: '7px 12px' }}>{label}</button>
@@ -288,22 +303,18 @@ function RoomPage({ id }) {
         {!isMobile && <div style={{ width: 46, height: 46, borderRadius: 12, overflow: 'hidden', flexShrink: 0, border: '1px solid ' + G.line }}><GameArt id={room.game} height={46} /></div>}
         <div style={{ display: 'grid', gap: 2, minWidth: 0, flex: 1 }}>
           <span style={{ font: `800 ${isMobile ? 17 : 21}px/1.2 var(--font-display)`, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>{t('games.' + room.game + '.name')}</span>
-          <span style={{ font: '400 12px/1.3 var(--font-sans)', color: G.muted, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>
-            {t('games.wait.roomOf', { name: nameOf(room.hostId) })} · {t('games.wait.range', { range: minP === maxP ? String(minP) : minP + '–' + maxP })}
-          </span>
+          {!compact && (
+            <span style={{ font: '400 12px/1.3 var(--font-sans)', color: G.muted, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>
+              {t('games.wait.roomOf', { name: nameOf(room.hostId) })} · {t('games.wait.range', { range: minP === maxP ? String(minP) : minP + '–' + maxP })}
+            </span>
+          )}
         </div>
-        {stake > 0 && <span style={S.badge}>{t('games.coins.stakePill', { n: stake })}</span>}
-        {sp > 0 && <span style={S.badge}>{t('games.sp.pill', { n: sp })}</span>}
-        {mins > 0 && <span style={S.badge}>{t('games.clockPill', { n: mins, inc: INC_SEC })}</span>}
-        <button type="button" onClick={copyCode} title={t('games.wait.copyCode')} style={S.code}>
-          <span style={{ font: '700 14px/1 var(--font-mono)', letterSpacing: '.12em', color: G.text }}>{room.code}</span>
-          <span style={{ font: '400 12px/1 var(--font-sans)', color: G.muted }}>{t('games.wait.copy')}</span>
-        </button>
+        {!compact && roomInfo}
         {SKIN[room.game] && !waiting && <SkinPicker kind={SKIN[room.game]} />}
         {CLOSEUP_GAMES.includes(room.game) && !waiting && <CloseUpToggle />}
         {canLand && <button type="button" onClick={() => setLand(true)} style={S.land}>⟲ {t('games.landOn')}</button>}
         <button type="button" aria-label={t('games.howto')} title={t('games.howto')} onClick={() => setHowto(true)} style={S.sq}><Icon name="book-open" size={17} /></button>
-        <button type="button" onClick={copyLink} title={t('games.copyLink')} style={btn('soft', { sm: true })}><Icon name="plus" size={14} />{t('games.wait.invite')}</button>
+        {!compact && invite}
       </div>
 
       {g.err && <Alert tone="danger">{g.err}</Alert>}
@@ -323,16 +334,21 @@ function RoomPage({ id }) {
                 : custom ? t(custom.key, custom.params)
                   : mySeat == null ? t('games.spectating')
                     : canMove ? t('games.yourTurn') : t('games.theirTurn', { name: turnName ? nameOf(turnName) : '' })}
-              <span style={S.mono}>{t('games.moves', { n: listed.length })}</span>
+              {/* Xin thua nằm ngay trên dải trạng thái — không tốn một hàng riêng dưới bàn. */}
+              <span style={{ display: 'flex', alignItems: 'center', gap: 10, flexShrink: 0 }}>
+                <span style={S.mono}>{t('games.moves', { n: listed.length })}</span>
+                {playing && (
+                  <button type="button" disabled={busy} onClick={() => setResigning(true)} title={t('games.resign')} aria-label={t('games.resign')}
+                    style={{ ...btn('danger', { sm: true }), padding: '5px 10px', opacity: busy ? 0.45 : 1 }}>
+                    <Icon name="flag" size={14} />{!isMobile && t('games.resign')}
+                  </button>
+                )}
+              </span>
             </div>
           )}
           {/* Ô bàn: ăn hết chiều cao còn lại, bàn tự co cho vừa (chessUi.js → useFit / fillCol) — màn chơi không cuộn. */}
           <div style={{ flex: 1, minHeight: 0, display: 'flex', flexDirection: 'column' }}>{!landOn && screen}</div>
         </>
-      )}
-
-      {!staged && playing && (
-        <div style={{ flexShrink: 0 }}><Button variant="secondary" icon="flag" disabled={busy} onClick={() => setResigning(true)}>{t('games.resign')}</Button></div>
       )}
 
       {ended && (

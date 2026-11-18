@@ -76,7 +76,6 @@ function Bar({ p, active, up }) {
  * `overDelay` giây chờ trước khi màn kết thúc hiện (để lồng chiếu bí diễn xong).
  */
 export default function ChessStage({ sk, box, top, bottom, turnTop, turnBottom, evalPct, over, overActions, actions, offer, overDelay, children }) {
-  const isMobile = useMobile(768)
   const DW = box.w + box.pad * 2 + 4 + (evalPct == null ? 0 : 26)
   const DH = box.h + box.pad * 2 + 4
   // Bàn co theo chiều chật hơn của ô bàn (màn chơi không cuộn); thanh người chơi / nút bám đúng bề ngang bàn.
@@ -140,14 +139,50 @@ export default function ChessStage({ sk, box, top, bottom, turnTop, turnBottom, 
         </div>
       )}
 
-      {actions?.length > 0 && (
-        <div style={{ ...lane, display: 'grid', gap: 8, gridTemplateColumns: `repeat(${actions.length}, minmax(0, 1fr))` }}>
-          {actions.map((x) => (
-            <button key={x.key} type="button" disabled={x.off} onClick={x.on} title={x.label} aria-label={x.label}
-              style={{ ...btn(x.danger ? 'danger' : x.soft ? 'soft' : 'ghost'), padding: '11px 8px', font: '600 13px/1 var(--font-sans)', opacity: x.off ? 0.45 : 1, cursor: x.off ? 'default' : 'pointer' }}>
-              <Icon name={x.icon} size={15} />{!isMobile && x.label}
-            </button>
-          ))}
+      {actions?.length > 0 && <ActionRow actions={actions} style={lane} />}
+    </div>
+  )
+}
+
+/**
+ * Hàng nút dưới bàn: [{ key, icon, label, on, off, danger, soft, primary, main, more }].
+ * Điện thoại: nút `more` gom vào menu ⋯ (hàng chỉ một dòng ngắn, bàn được thêm chỗ); chỉ nút `main` có chữ và rộng gấp đôi.
+ * Máy tính: đủ nút, đủ chữ. `look(x)` = kiểu nút riêng của bàn (Ô ăn quan: nút vàng trên sơn mài), mặc định nút app.
+ */
+const cell = { padding: '11px 8px', font: '600 13px/1 var(--font-sans)', minWidth: 0 }
+const appLook = (x) => ({ ...btn(x.primary ? 'primary' : x.danger ? 'danger' : x.soft ? 'soft' : 'ghost'), ...cell })
+export function ActionRow({ actions, style, look = appLook }) {
+  const isMobile = useMobile(768)
+  const [open, setOpen] = useState(false)
+  const inline = isMobile ? actions.filter((x) => !x.more) : actions
+  const extra = isMobile ? actions.filter((x) => x.more) : []
+  return (
+    <div style={{ ...style, display: 'flex', gap: 8 }}>
+      {inline.map((x) => (
+        <button key={x.key} type="button" disabled={x.off} onClick={x.on} title={x.label} aria-label={x.label}
+          style={{ ...look(x), justifyContent: 'center', minWidth: 0, flex: x.main ? 2 : 1, opacity: x.off ? 0.45 : 1, cursor: x.off ? 'default' : 'pointer' }}>
+          <Icon name={x.icon} size={15} />
+          {(!isMobile || x.main) && <span style={{ overflow: 'hidden', textOverflow: 'ellipsis' }}>{x.label}</span>}
+        </button>
+      ))}
+      {extra.length > 0 && (
+        <div style={{ position: 'relative', flex: 1, display: 'flex', minWidth: 0 }}>
+          <button type="button" aria-label={t('common.more')} aria-expanded={open} onClick={() => setOpen(!open)} style={{ ...look({}), justifyContent: 'center', minWidth: 0, flex: 1 }}>
+            <Icon name="ellipsis" size={15} />
+          </button>
+          {open && (
+            <>
+              <div onClick={() => setOpen(false)} style={{ position: 'fixed', inset: 0, zIndex: 40 }} />
+              <div role="menu" style={{ position: 'absolute', right: 0, bottom: 'calc(100% + 8px)', zIndex: 41, minWidth: 190, padding: 6, display: 'grid', gap: 2, borderRadius: 12, background: 'var(--surface-overlay)', border: '1px solid ' + G.lineHi, boxShadow: 'var(--shadow-lg)' }}>
+                {extra.map((x) => (
+                  <button key={x.key} type="button" role="menuitem" disabled={x.off} onClick={() => { setOpen(false); x.on() }}
+                    style={{ display: 'flex', alignItems: 'center', gap: 10, padding: '12px', borderRadius: 8, border: 0, background: 'transparent', color: x.danger ? G.red : G.text, font: '600 14px/1 var(--font-sans)', textAlign: 'left', opacity: x.off ? 0.45 : 1, cursor: x.off ? 'default' : 'pointer' }}>
+                    <Icon name={x.icon} size={16} />{x.label}
+                  </button>
+                ))}
+              </div>
+            </>
+          )}
         </div>
       )}
     </div>

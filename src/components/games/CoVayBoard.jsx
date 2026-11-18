@@ -1,5 +1,4 @@
 import { useMemo, useState } from 'react'
-import { Button } from '#ds'
 import { useMobile } from '#hooks/useMobile.js'
 import { t } from '#i18n'
 import cv, { areaOf, around, capOf, groupOf, KOMI, place } from '#lib/games/covay.js'
@@ -67,7 +66,7 @@ function libsAfter(board, n, i, seat) {
   return [...libs]
 }
 
-export default function CoVayBoard({ state, mySeat, canMove, onMove, result, names, note, actions, overActions, bubbles }) {
+export default function CoVayBoard({ state, mySeat, canMove, onMove, result, names, note, clock, actions, overActions, bubbles }) {
   const isMobile = useMobile(768)
   const closeUp = useCloseUp()
   const { size: n, board, last, ko, over, ply } = state
@@ -137,6 +136,7 @@ export default function CoVayBoard({ state, mySeat, canMove, onMove, result, nam
       ),
       caps: <span style={{ font: '400 12px/1.3 var(--font-mono)', color: 'var(--text-muted)' }}>{t('games.covay.barLine', { caps: state.caps[seat], area: vi(area) })}</span>,
       status: turn && mine ? t('games.yourTurn') : note?.[seat] || (turn ? t('games.covay.thinking') : ''),
+      clock: clock && clock.seat === seat ? clock.left * 1000 : null,
       bubble: bubbles?.[seat],
       glow: SIDE[seat].col,
     }
@@ -181,6 +181,11 @@ export default function CoVayBoard({ state, mySeat, canMove, onMove, result, nam
       {t('games.covay.fx.pass', { side: side(last.seat) })}
     </span>)
   }
+  // Đặt quân / Bỏ lượt nằm chung hàng nút của phòng (ChessStage) — không thêm một hàng riêng dưới bàn.
+  const own = canMove ? [
+    ...(aimAt != null ? [{ key: 'put', icon: 'check', label: t('games.covay.put'), on: () => put(aimAt), main: true, primary: true }] : []),
+    { key: 'pass', icon: 'skip-forward', label: t(oppPassed ? 'games.covay.passEnd' : 'games.covay.pass'), on: () => { setAim(null); onMove({ pass: true }) }, main: aimAt == null },
+  ] : []
   const nCap = last?.captured?.length || 0
   const cut = closeUp && nCap >= 2 && (
     <CutScene key={'cut' + ply} kind="hole" n={nCap} col={SIDE[last.seat].col} delay={0.3} {...SIDE[last.seat].cut}
@@ -190,7 +195,7 @@ export default function CoVayBoard({ state, mySeat, canMove, onMove, result, nam
   return (
     <div style={{ ...fillCol, gap: 10 }}>
       <ChessStage sk={SK} box={BOX} top={bar(top)} bottom={bar(bottom)} turnTop={live && state.turn === top} turnBottom={live && state.turn === bottom}
-        evalPct={evalPct} over={ended} overActions={overActions} actions={actions}>
+        evalPct={evalPct} over={ended} overActions={overActions} actions={[...own, ...(actions || [])]}>
         <div style={{
           position: 'absolute', inset: 0, borderRadius: BOX.radius, overflow: 'hidden',
           background: 'radial-gradient(40% 35% at 75% 20%,rgba(150,90,220,.35),transparent 70%),radial-gradient(35% 40% at 15% 80%,rgba(30,160,170,.28),transparent 70%),radial-gradient(circle,rgba(255,255,255,.85) 0 1px,transparent 1.6px) 0 0/53px 47px,radial-gradient(circle,rgba(200,220,255,.6) 0 .8px,transparent 1.3px) 20px 31px/71px 67px,#070b1e',
@@ -267,17 +272,7 @@ export default function CoVayBoard({ state, mySeat, canMove, onMove, result, nam
 
       {oppPassed && <div style={S.notice} aria-live="polite">{t('games.covay.passed', { side: side(last.seat) })}</div>}
 
-      {canMove && (
-        <div style={{ display: 'grid', gap: 8, justifyItems: 'center' }}>
-          {err && <span style={{ ...S.hint, color: 'var(--status-incident-fg)' }} aria-live="polite">{t(err)}</span>}
-          <div style={{ display: 'flex', gap: 8, flexWrap: 'wrap', justifyContent: 'center' }}>
-            {aimAt != null && <Button icon="check" onClick={() => put(aimAt)}>{t('games.covay.put')}</Button>}
-            <Button variant="secondary" icon="skip-forward" onClick={() => { setAim(null); onMove({ pass: true }) }}>
-              {t(oppPassed ? 'games.covay.passEnd' : 'games.covay.pass')}
-            </Button>
-          </div>
-        </div>
-      )}
+      {canMove && err && <span style={{ ...S.hint, color: 'var(--status-incident-fg)' }} aria-live="polite">{t(err)}</span>}
 
       {over && state.score && (
         <div style={S.score}>

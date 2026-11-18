@@ -1,10 +1,10 @@
 import { useCallback, useEffect, useId, useRef, useState } from 'react'
-import { Icon } from '#ds'
 import { useMobile } from '#hooks/useMobile.js'
 import { t } from '#i18n'
 import { deadlineOf, isQuanNon, queueStates, sideOf } from '#lib/games/oanquan.js'
 import cfg from '#config/app.js'
 import { fillBox, fitOf, useFit } from '#components/games/chessUi.js'
+import { ActionRow } from '#components/games/ChessStage.jsx'
 
 // Bàn Ô ăn quan kiểu SƠN MÀI (chủ dự án duyệt 2026-11-10, bản thiết kế "O An Quan · 1c Sơn mài"): mặt bàn đỏ son
 // viền vàng, ô khoét sâu, sỏi suối nhiều màu, quan là viên ngọc bích. Màu viết cứng trong `L` như bàn fantasy của
@@ -253,21 +253,17 @@ function Board({ state, mySeat, canMove, onMove, animate, more, onDone, speed, o
 
   return (
     <div style={{ ...S.room, flex: 1, minHeight: 0, padding: isMobile ? '12px 10px 14px' : '22px 40px 24px', gap: isMobile ? 10 : 16 }}>
-      <div style={{ alignSelf: 'stretch', display: 'flex', justifyContent: 'space-between', alignItems: 'center', gap: 12, flexWrap: 'wrap' }}>
-        <div style={{ minWidth: 0 }}>
-          <div style={{ ...S.title, fontSize: isMobile ? 22 : 30 }}>{t('games.oanquan.name')}</div>
+      {/* Điện thoại: tên game đã có ở đầu trang — trong khung chỉ còn hàng nút (nút phụ gom vào ⋯, ActionRow). */}
+      {(!isMobile || actions?.length > 0) && (
+        <div style={{ alignSelf: 'stretch', display: 'flex', justifyContent: 'space-between', alignItems: 'center', gap: 12, flexWrap: 'wrap' }}>
+          {!isMobile && (
+            <div style={{ minWidth: 0 }}>
+              <div style={{ ...S.title, fontSize: 30 }}>{t('games.oanquan.name')}</div>
+            </div>
+          )}
+          {actions?.length > 0 && <ActionRow actions={actions} look={goldLook} style={{ flex: isMobile ? 1 : undefined }} />}
         </div>
-        {actions?.length > 0 && (
-          <div style={{ display: 'flex', gap: 8, flexWrap: 'wrap' }}>
-            {actions.map((a) => (
-              <button key={a.key} type="button" disabled={a.off} onClick={a.on} title={a.label} aria-label={a.label}
-                style={{ ...S.goldBtn(false), opacity: a.off ? 0.4 : 1, cursor: a.off ? 'default' : 'pointer', color: a.danger ? L.red : L.gold, borderColor: a.danger ? 'rgba(248,165,165,.4)' : L.goldA(0.45) }}>
-                <Icon name={a.icon} size={15} />{!isMobile && a.label}
-              </button>
-            ))}
-          </div>
-        )}
-      </div>
+      )}
 
       <div style={{ display: 'flex', gap: 10, flexWrap: 'wrap', justifyContent: 'center', maxWidth: '100%' }}>
         {seats.filter((x) => x !== bottom).map((x) => pill(x, 0))}
@@ -481,6 +477,9 @@ function Board({ state, mySeat, canMove, onMove, animate, more, onDone, speed, o
     </div>
   )
 }
+
+/** Nút của phòng (ActionRow) trên khung sơn mài: viền vàng, Xin thua viền đỏ. */
+const goldLook = (a) => ({ ...S.goldBtn(false), padding: '9px 12px', color: a.danger ? L.red : L.gold, borderColor: a.danger ? 'rgba(248,165,165,.4)' : L.goldA(0.45) })
 
 const S = {
   room: { display: 'flex', flexDirection: 'column', alignItems: 'center', borderRadius: 24, background: L.room, border: '1px solid ' + L.roomEdge, minWidth: 0 },

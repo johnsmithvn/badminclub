@@ -7,7 +7,7 @@ import { SCREENS } from '#components/games/screens.js'
 import { HowTo } from '#components/games/GameInfo.jsx'
 import { G, btn, card, mono, over, seg, segWrap } from '#components/games/stage.js'
 import MoveList from '#components/games/MoveList.jsx'
-import { SkinPicker } from '#components/games/ChessStage.jsx'
+import { ActionRow, SkinPicker } from '#components/games/ChessStage.jsx'
 import { CLOSEUP_GAMES, CloseUpToggle } from '#components/games/CutScene.jsx'
 import { useBubbles } from '#components/games/RoomChat.jsx'
 import { stickerText } from '#components/games/characters.js'
@@ -309,19 +309,30 @@ export default function BotRoom({ gameId }) {
   const canUndo = gameId !== 'bantau' && !card && g.past.length > 0
 
   // Ô ăn quan tự vẽ thẻ Máy / Bạn, đồng hồ và nút ngay trong khung sơn mài (bản 1c) — không lặp thẻ ở ngoài.
-  // Cờ gánh (Ruộng làng) cũng vậy, qua ChessStage.
+  // Cờ gánh (Ruộng làng), Cờ vây (Vây sao) cũng vậy, qua ChessStage.
   // Cờ vua / Cờ tướng / Cờ úp cũng vậy (ChessStage). Cờ vua / Cờ tướng thêm cột Nước đi bên phải, nút Ván mới nằm ở đó.
   // Game bài cũng vậy: bàn tự vẽ ghế Bạn / Máy, nút đánh và hàng nút phụ (bản thiết kế không có thẻ máy / bạn ngoài bàn).
-  const inFrame = gameId === 'oanquan' || gameId === 'coganh' || stage || card
+  const ownStage = gameId === 'coganh' || gameId === 'covay' // bàn ChessStage không có skin: màn kết thúc cũng có nút
+  const inFrame = gameId === 'oanquan' || ownStage || stage || card
   const clock = limit ? { left: left ?? limit, limit, on: left != null } : null
   // Game bài: không có Đi lại (bài nằm ngoài state); Tiến lên / Phỏm có nút Gợi ý riêng trong bàn (chọn sẵn lá).
+  // `more`: điện thoại gom vào menu ⋯ (ActionRow) — ngoài hàng chỉ còn Đi lại / Gợi ý, bàn được thêm chỗ.
   const actions = [
     ...(card ? [] : [{ key: 'undo', icon: 'undo-2', label: t('games.bot.undo'), on: undo, off: !canUndo }]),
     ...(OWN_HINT.includes(gameId) ? [] : [{ key: 'hint', icon: 'lightbulb', label: t('games.bot.hint'), on: hint, off: !canMove || hinting, soft: true }]),
-    ...(card ? [] : [{ key: 'draw', icon: 'handshake', label: t('games.bot.drawOffer'), on: offerDraw, off: !canMove }]),
-    ...(chess && !isMobile ? [] : [{ key: 'new', icon: 'refresh-cw', label: t('games.bot.newGame'), on: () => restart() }]),
-    { key: 'resign', icon: 'flag', label: t('games.bot.resign'), on: card ? () => setResigning(true) : resign, off: !!result, danger: true },
+    ...(card ? [] : [{ key: 'draw', icon: 'handshake', label: t('games.bot.drawOffer'), on: offerDraw, off: !canMove, more: true }]),
+    ...(chess && !isMobile ? [] : [{ key: 'new', icon: 'refresh-cw', label: t('games.bot.newGame'), on: () => restart(), more: true }]),
+    { key: 'resign', icon: 'flag', label: t('games.bot.resign'), on: card ? () => setResigning(true) : resign, off: !!result, danger: true, more: true },
   ]
+  const again = [{ key: 'new', label: t('games.bot.newGame'), on: () => restart() }, ...(canUndo ? [{ key: 'undo', label: t('games.bot.undo'), on: undo }] : [])]
+  const botCard = (
+    <PlayerCard mark="bot" name={multi ? t('games.bot.bots', { n: bots.length }) : t('games.bot.bot')} sub={t('games.bot.levelLine', { level: levelLabel })}
+      line={botSeat != null ? t('games.bot.thinking') : ''} active={botSeat != null} clock={clock && { ...clock, on: false, left: limit }} compact={isMobile} />
+  )
+  const youCard = (
+    <PlayerCard mark="you" name={t('games.bot.you')} sub={multi ? '' : t('games.bot.sideOpt' + human)} line={botSeat == null ? status : ''}
+      active={myTurn} done={!!result} clock={clock} compact={isMobile} />
+  )
   const segRow = (label, items, value, set) => (
     <div style={{ display: 'grid', gap: 8 }}>
       <span style={over}>{label}</span>
@@ -399,10 +410,8 @@ export default function BotRoom({ gameId }) {
       {/* Màn chơi không cuộn: thân là một hàng cao cố định, ô bàn ăn hết chỗ còn lại, bàn tự co (chessUi.js → useFit). */}
       <div style={{ display: 'grid', gap: 18, flex: 1, minHeight: 0, gridTemplateColumns: chess && !isMobile ? 'minmax(0, 1fr) 320px' : 'minmax(0, 1fr)', gridTemplateRows: 'minmax(0, 1fr)' }}>
       <div style={{ width: '100%', maxWidth: chess ? undefined : inFrame ? 1280 : 600, justifySelf: 'center', display: 'flex', flexDirection: 'column', gap: 10, minWidth: 0, minHeight: 0 }}>
-        {!inFrame && (
-          <PlayerCard mark="bot" name={multi ? t('games.bot.bots', { n: bots.length }) : t('games.bot.bot')} sub={t('games.bot.levelLine', { level: levelLabel })}
-            line={botSeat != null ? t('games.bot.thinking') : ''} active={botSeat != null} clock={clock && { ...clock, on: false, left: limit }} />
-        )}
+        {/* Điện thoại: thẻ Máy và Bạn nằm chung một dải trên bàn (gọn), máy tính: Máy trên bàn, Bạn dưới bàn. */}
+        {!inFrame && (isMobile ? <div style={{ display: 'flex', gap: 8, flexShrink: 0 }}>{botCard}{youCard}</div> : botCard)}
         <div style={{ flex: 1, minHeight: 0, display: 'flex', flexDirection: 'column' }}>
         <Suspense fallback={<Skeleton height={320} />}>
           <Screen key={g.round} state={game.view(s, human)} mySeat={human} canMove={canMove} onMove={(m) => play(human, m, g.round)}
@@ -411,27 +420,19 @@ export default function BotRoom({ gameId }) {
               names: { [human]: t('games.bot.you'), [bots[0]]: t('games.bot.bot') },
               bubbles: feel ? { [bots[0]]: feel } : undefined,
               tags: { [human]: '', [bots[0]]: '· ' + t('games.bot.levelLine', { level: levelLabel }) },
-              actions, hint: tipMove,
-              overActions: [{ key: 'new', label: t('games.bot.newGame'), on: () => restart() }, ...(canUndo ? [{ key: 'undo', label: t('games.bot.undo'), on: undo }] : [])],
+              actions, hint: tipMove, overActions: again,
             } : inFrame ? {
               names: { [human]: t('games.bot.you'), ...Object.fromEntries(bots.map((b, j) => [b, t('games.bot.bot') + (bots.length > 1 ? ' ' + (j + 1) : '')])) },
               note: { [human]: botSeat == null ? status : '', ...Object.fromEntries(bots.map((b) => [b, b === botSeat ? t('games.bot.thinking') : t('games.bot.levelLine', { level: levelLabel })])) },
               clock: clock && { seat: human, ...clock },
-              actions, hint: tipMove,
+              actions, hint: tipMove, ...(ownStage ? { overActions: again } : {}),
             } : {})} />
         </Suspense>
         </div>
         {!inFrame && (
           <>
-            <PlayerCard mark="you" name={t('games.bot.you')} sub={multi ? '' : t('games.bot.sideOpt' + human)} line={botSeat == null ? status : ''}
-              active={myTurn} done={!!result} clock={clock} />
-            <div style={{ display: 'grid', gap: 8, gridTemplateColumns: `repeat(${actions.length}, minmax(0, 1fr))`, marginTop: 2 }}>
-              {actions.map((x) => (
-                <button key={x.key} type="button" disabled={x.off} onClick={x.on} title={x.label} aria-label={x.label} style={{ ...btn(x.danger ? 'danger' : 'ghost'), padding: '10px 8px', font: '600 13px/1 var(--font-sans)', opacity: x.off ? 0.45 : 1, cursor: x.off ? 'default' : 'pointer' }}>
-                  <Icon name={x.icon} size={15} />{!isMobile && x.label}
-                </button>
-              ))}
-            </div>
+            {!isMobile && youCard}
+            <ActionRow actions={actions} style={{ marginTop: 2, flexShrink: 0 }} />
           </>
         )}
       </div>
@@ -466,36 +467,49 @@ export default function BotRoom({ gameId }) {
   )
 }
 
-/** Thẻ người chơi trên / dưới bàn (máy ở trên, bạn ở dưới) — bản 3a: ô ký hiệu, tên, đồng hồ to; viền ngọc khi tới lượt. */
-function PlayerCard({ mark, name, sub, line, active, done, clock }) {
+/**
+ * Thẻ người chơi trên / dưới bàn (máy ở trên, bạn ở dưới) — bản 3a: ô ký hiệu, tên, đồng hồ to; viền ngọc khi tới lượt.
+ * `compact` (điện thoại): nửa dải, ô ký hiệu nhỏ, dòng trạng thái thay cho phụ đề, đồng hồ nhỏ không thanh.
+ */
+function PlayerCard({ mark, name, sub, line, active, done, clock, compact }) {
   const you = mark === 'you'
   const low = clock?.on && clock.left <= 5
+  const time = (
+    <span style={{
+      padding: compact ? '4px 7px' : '5px 14px', borderRadius: 8, font: `700 ${compact ? 15 : 22}px/1 var(--font-mono)`, flexShrink: 0,
+      background: !clock?.on ? G.inset : low ? G.red : G.teal, color: !clock?.on ? G.muted : low ? '#fff' : G.tealInk,
+    }}>{clock && mmss(clock.left)}</span>
+  )
   return (
     <div style={{
-      ...card, display: 'flex', alignItems: 'center', gap: 12, padding: '10px 14px',
+      ...card, display: 'flex', alignItems: 'center', gap: compact ? 8 : 12, padding: compact ? '6px 8px' : '10px 14px',
+      flex: compact ? '1 1 0' : undefined, minWidth: 0,
       background: active ? G.tealA(0.08) : G.card, borderColor: active ? G.tealA(0.45) : G.line,
     }} aria-live={you ? 'polite' : undefined}>
       <span style={{
-        width: 40, height: 40, borderRadius: 10, flexShrink: 0, display: 'grid', placeItems: 'center',
+        width: compact ? 30 : 40, height: compact ? 30 : 40, borderRadius: compact ? 8 : 10, flexShrink: 0, display: 'grid', placeItems: 'center',
         background: you ? G.tealA(0.16) : G.redA(0.14), color: you ? G.tealHi : G.red,
       }}>
-        <Icon name={you ? 'user' : 'bot'} size={20} />
+        <Icon name={you ? 'user' : 'bot'} size={compact ? 16 : 20} />
       </span>
-      <div style={{ display: 'grid', gap: 3, minWidth: 0, flex: 1, gridTemplateColumns: 'minmax(0, 1fr)' }}>
-        <span style={{ font: '700 15px/1.2 var(--font-sans)' }}>{name}{sub ? <span style={{ ...mono, fontSize: 11 }}> · {sub}</span> : null}</span>
-        {line && <span style={{ font: '600 12px/1.2 var(--font-sans)', whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis', color: done ? 'var(--status-delivered-fg)' : active ? G.tealHi : G.muted }}>{line}</span>}
+      <div style={{ display: 'grid', gap: compact ? 2 : 3, minWidth: 0, flex: 1, gridTemplateColumns: 'minmax(0, 1fr)' }}>
+        <span style={{ font: `700 ${compact ? 13.5 : 15}px/1.2 var(--font-sans)`, whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis' }}>
+          {name}{sub && !compact ? <span style={{ ...mono, fontSize: 11 }}> · {sub}</span> : null}
+        </span>
+        {(line || compact) && (
+          <span style={{ font: `600 ${compact ? 11 : 12}px/1.2 var(--font-sans)`, whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis', color: done ? 'var(--status-delivered-fg)' : active ? G.tealHi : G.muted }}>
+            {line || sub}
+          </span>
+        )}
       </div>
-      {clock && (
+      {clock && (compact ? <span role="timer" aria-label={t('games.bot.time')} style={{ display: 'flex' }}>{time}</span> : (
         <div style={{ flexShrink: 0, display: 'grid', justifyItems: 'end', gap: 4 }} role="timer" aria-label={t('games.bot.time')}>
-          <span style={{
-            padding: '5px 14px', borderRadius: 8, font: '700 22px/1 var(--font-mono)',
-            background: !clock.on ? G.inset : low ? G.red : G.teal, color: !clock.on ? G.muted : low ? '#fff' : G.tealInk,
-          }}>{mmss(clock.left)}</span>
+          {time}
           <div style={{ width: 84, height: 3, borderRadius: 2, background: G.line, overflow: 'hidden' }}>
             <div style={{ height: '100%', width: (100 * clock.left) / clock.limit + '%', background: !clock.on ? G.muted : low ? G.red : G.teal, transition: 'width 250ms linear' }} />
           </div>
         </div>
-      )}
+      ))}
     </div>
   )
 }
